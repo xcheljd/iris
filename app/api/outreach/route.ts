@@ -1,0 +1,63 @@
+import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { outreachLogs, activityEvents, clients } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+import { randomUUID } from "crypto";
+import { revalidatePath } from "next/cache";
+import { calcHeatScore } from "@/lib/heat-score";
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { clientId, method, outcome, purchasedModel, notes, followUpDate, templateId } = body;
+
+    if (!clientId || !method || !outcome) {
+      return NextResponse.json({ error: "clientId, method, and outcome are required" }, { status: 400 });
+    }
+
+    const id = randomUUID();
+    const date = new Date();
+
+    db.insert(outreachLogs).values({
+      id,
+      clientId,
+      method,
+      date,
+      outcome,
+      purchasedModel: outcome === "purchased" ? purchasedModel || null : null,
+      notes: notes || null,
+      followUpDate: followUpDate ? new Date(followUpDate) : null,
+      templateId: templateId || null,
+      completed: false,
+    }).run();
+
+    const patch: Record<string, unknown> = { lastOutreachAt: date, updatedAt: date };
+    if (outcome === "purchased") patch.lastPurchaseAt = date;
+    db.update(clients).set(patch).where(eq(clients.id, clientId)).run();
+
+    db.insert(activityEvents).values({
+      id: randomUUID(),
+      clientId,
+      eventType: outcome === "purchased" ? "purchase" : "outreach_logged",
+      description: `${method} — ${outcome.replace(/_/g, " ")}${purchasedModel ? ` (${purchasedModel})` : ""}`,
+      metadata: { method, outcome },
+    }).run();
+
+    // Recalc heat
+    const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
+    if (c) {
+      const recent = db.select().from(outreachLogs).where(eq(outreachLogs.clientId, clientId)).all();
+      const last90 = recent.filter((r) => r.date && (Date.now() - new Date(r.date).getTime()) < 90 * 86400000);
+      const { score, level } = calcHeatScore(c, last90);
+      db.update(clients).set({ heatScore: score, heatLevel: level, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+    }
+
+    revalidatePath(`/clients/${clientId}`);
+    revalidatePath("/follow-ups");
+    revalidatePath("/");
+
+    return NextResponse.json({ success: true, id });
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to log outreach" }, { status: 500 });
+  }
+}

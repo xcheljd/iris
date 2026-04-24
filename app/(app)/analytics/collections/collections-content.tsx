@@ -1,0 +1,263 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Watch,
+  Search,
+  Users,
+  TrendingUp,
+  BarChart3
+} from "lucide-react";
+import Link from "next/link";
+import type { Client } from "@/lib/db/schema";
+
+interface CollectionsContentProps {
+  clients: Client[];
+}
+
+const MERIDIAN_COLLECTIONS = [
+  "Solaris",
+  "Sentinel",
+  "Sentinel Diver",
+  "Wentworth",
+  "STARCROSS",
+  "Octa",
+  "Calder",
+  "Zenith Point",
+  "Cobalt",
+  "Lunaris",
+  "Signal Sync",
+  "Hyperion Steel",
+  "VERTEX",
+  "NR-710",
+  "NR-900",
+  "Precision One",
+  "Aethon",
+  "Octa 770",
+  "NEX-100",
+  "Horologia",
+];
+
+function extractCollections(productsOfInterest: string[]): { name: string; count: number }[] {
+  const collections: Record<string, number> = {};
+  const poi = productsOfInterest || [];
+  
+  poi.forEach((product) => {
+    const productLower = product.toLowerCase();
+    for (const collection of MERIDIAN_COLLECTIONS) {
+      if (productLower.includes(collection.toLowerCase())) {
+        collections[collection] = (collections[collection] || 0) + 1;
+        return;
+      }
+    }
+    // If no collection match, use the product as-is
+    collections[product] = (collections[product] || 0) + 1;
+  });
+
+  return Object.entries(collections)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, count]) => ({ name, count }));
+}
+
+function getHeatBadge(level: string) {
+  switch (level) {
+    case "hot": return <Badge className="bg-orange-500/10 text-orange-500 border-orange-500/20 text-xs">Hot</Badge>;
+    case "warm": return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 text-xs">Warm</Badge>;
+    case "cold": return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-xs">Cold</Badge>;
+    default: return null;
+  }
+}
+
+export function CollectionsContent({ clients }: CollectionsContentProps) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
+
+  // Extract all collections from client products of interest
+  const collectionData = useMemo(() => {
+    const totals: Record<string, number> = {};
+    
+    clients.forEach((client) => {
+      const poi = client.productsOfInterest || [];
+      poi.forEach((product) => {
+        const productLower = product.toLowerCase();
+        for (const collection of MERIDIAN_COLLECTIONS) {
+          if (productLower.includes(collection.toLowerCase())) {
+            totals[collection] = (totals[collection] || 0) + 1;
+            return;
+          }
+        }
+        totals[product] = (totals[product] || 0) + 1;
+      });
+    });
+
+    return Object.entries(totals)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, count]) => ({ name, count }));
+  }, [clients]);
+
+  const totalInterests = collectionData.reduce((sum, c) => sum + c.count, 0);
+
+  // Filter collections by search
+  const filteredCollections = searchQuery
+    ? collectionData.filter((c) => c.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    : collectionData;
+
+  // Get clients interested in selected collection
+  const collectionClients = useMemo(() => {
+    if (!selectedCollection) return [];
+    return clients.filter((client) => {
+      const poi = client.productsOfInterest || [];
+      return poi.some((p) => p.toLowerCase().includes(selectedCollection.toLowerCase()));
+    });
+  }, [clients, selectedCollection]);
+
+  return (
+    <div className="container mx-auto py-6 px-4">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold tracking-tight">Collections</h1>
+        <p className="text-muted-foreground mt-1">
+          Track client interest across watch collections
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_350px] gap-6">
+        {/* Collection List */}
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Watch className="h-5 w-5" />
+                Collection Interest
+              </CardTitle>
+              <CardDescription>
+                {collectionData.length} collections tracked across {totalInterests} interests
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search collections..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              {filteredCollections.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Watch className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>No collections found</p>
+                </div>
+              ) : (
+                <ScrollArea className="h-[500px]">
+                  <div className="space-y-2">
+                    {filteredCollections.map((collection) => (
+                      <button
+                        key={collection.name}
+                        className={`w-full flex items-center justify-between p-3 rounded-lg text-left transition-colors ${
+                          selectedCollection === collection.name
+                            ? "bg-accent text-accent-foreground"
+                            : "hover:bg-muted/50"
+                        }`}
+                        onClick={() =>
+                          setSelectedCollection(
+                            selectedCollection === collection.name ? null : collection.name
+                          )
+                        }
+                      >
+                        <div className="flex items-center gap-3">
+                          <Watch className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{collection.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">{collection.count}</Badge>
+                          {totalInterests > 0 && (
+                            <span className="text-xs text-muted-foreground w-10 text-right">
+                              {Math.round((collection.count / totalInterests) * 100)}%
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Selected Collection Details */}
+        <div className="space-y-4">
+          {selectedCollection ? (
+            <>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Collection</p>
+                      <p className="text-xl font-bold">{selectedCollection}</p>
+                    </div>
+                    <Watch className="h-10 w-10 text-muted-foreground" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">
+                    Interested Clients ({collectionClients.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-[400px]">
+                    <div className="space-y-1">
+                      {collectionClients.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          No clients interested
+                        </p>
+                      ) : (
+                        collectionClients.map((client) => (
+                          <Link
+                            key={client.id}
+                            href={`/clients/${client.id}`}
+                            className="flex items-center justify-between p-2 rounded hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm truncate">
+                                {client.firstName} {client.lastName || ""}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {client.phone || client.email || "No contact"}
+                              </p>
+                            </div>
+                            {getHeatBadge(client.heatLevel)}
+                          </Link>
+                        ))
+                      )}
+                    </div>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-3 opacity-50" />
+                <p className="text-lg font-medium">Select a collection</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Click a collection to see interested clients
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
