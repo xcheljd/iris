@@ -1,0 +1,175 @@
+import { vi, describe, it, expect, afterEach } from "vitest";
+
+vi.mock("next-auth", () => ({
+  getServerSession: vi.fn(),
+}));
+
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+}));
+
+import { getServerSession } from "next-auth";
+import { addTag, removeTag, createTag, deleteTag } from "@/lib/actions";
+import { db } from "@/lib/db";
+import { clients, clientTags, activityEvents } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+
+const MANAGER_ID = "e09564a0-2ef8-4470-a149-fc8fcf695636"; // Marcus (manager)
+const FIRST_CLIENT_ID = "5aff9797-ad89-4661-906c-cde72c306181"; // Michael White
+
+const managerSession = {
+  user: { id: MANAGER_ID, name: "Marcus", role: "manager" },
+};
+
+describe("Tag Actions", () => {
+  const createdTagIds: string[] = [];
+
+  afterEach(() => {
+    // Clean up any tags created during tests
+    for (const id of createdTagIds) {
+      try {
+        db.delete(clientTags).where(eq(clientTags.id, id)).run();
+      } catch {
+        // ignore
+      }
+    }
+    createdTagIds.length = 0;
+  });
+
+  describe("addTag", () => {
+    it("should add a tag to a client", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+
+      const clientBefore = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
+      const originalTags = [...(clientBefore!.tags || [])];
+
+      await addTag(FIRST_CLIENT_ID, "test-tag-add");
+
+      const client = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
+      expect(client!.tags).toContain("test-tag-add");
+
+      // Verify activity event
+      const activities = db.select().from(activityEvents)
+        .where(eq(activityEvents.clientId, FIRST_CLIENT_ID))
+        .all();
+      const tagEvent = activities.find(
+        (a) => a.eventType === "tag_added" && a.description?.includes("test-tag-add")
+      );
+      expect(tagEvent).toBeDefined();
+
+      // Restore original tags
+      db.update(clients).set({ tags: originalTags, updatedAt: new Date() }).where(eq(clients.id, FIRST_CLIENT_ID)).run();
+    });
+
+    it("should not duplicate an existing tag", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+
+      const clientBefore = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
+      const originalTags = [...(clientBefore!.tags || [])];
+
+      // Add a tag twice
+      await addTag(FIRST_CLIENT_ID, "dedup-test");
+      await addTag(FIRST_CLIENT_ID, "dedup-test");
+
+      const client = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
+      const dedupCount = client!.tags.filter((t: string) => t === "dedup-test").length;
+      expect(dedupCount).toBe(1);
+
+      // Restore
+      db.update(clients).set({ tags: originalTags, updatedAt: new Date() }).where(eq(clients.id, FIRST_CLIENT_ID)).run();
+    });
+
+    it("should increment usageCount for existing tag in clientTags table", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+
+      const clientBefore = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
+      const originalTags = [...(clientBefore!.tags || [])];
+
+      // VIP is a seed tag
+      const vipTag = db.select().from(clientTags).where(eq(clientTags.name, "VIP")).get();
+      const countBefore = vipTag!.usageCount;
+
+      await addTag(FIRST_CLIENT_ID, "VIP");
+
+      const vipTagAfter = db.select().from(clientTags).where(eq(clientTags.name, "VIP")).get();
+      expect(vipTagAfter!.usageCount).toBe(countBefore + 1);
+
+      // Restore
+      db.update(clients).set({ tags: originalTags, updatedAt: new Date() }).where(eq(clients.id, FIRST_CLIENT_ID)).run();
+    });
+
+    it("should do nothing if client does not exist", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      await addTag("nonexistent-id", "some-tag");
+      // Should not throw
+    });
+  });
+
+  describe("removeTag", () => {
+    it("should remove a tag from a client", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+
+      const clientBefore = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
+      const originalTags = [...(clientBefore!.tags || [])];
+
+      // First add a tag
+      await addTag(FIRST_CLIENT_ID, "remove-test-tag");
+
+      // Now remove it
+      await removeTag(FIRST_CLIENT_ID, "remove-test-tag");
+
+      const client = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
+      expect(client!.tags).not.toContain("remove-test-tag");
+
+      // Verify activity event
+      const activities = db.select().from(activityEvents)
+        .where(eq(activityEvents.clientId, FIRST_CLIENT_ID))
+        .all();
+      const removeEvent = activities.find(
+        (a) => a.eventType === "tag_removed" && a.description?.includes("remove-test-tag")
+      );
+      expect(removeEvent).toBeDefined();
+
+      // Restore
+      db.update(clients).set({ tags: originalTags, updatedAt: new Date() }).where(eq(clients.id, FIRST_CLIENT_ID)).run();
+    });
+
+    it("should do nothing if client does not exist", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      await removeTag("nonexistent-id", "some-tag");
+      // Should not throw
+    });
+  });
+
+  describe("createTag", () => {
+    it("should create a new tag in the clientTags table", async () => {
+      await createTag("test-new-tag", "red");
+
+      const tag = db.select().from(clientTags).where(eq(clientTags.name, "test-new-tag")).get();
+      expect(tag).toBeDefined();
+      expect(tag!.color).toBe("red");
+      expect(tag!.usageCount).toBe(0);
+
+      // Cleanup
+      if (tag) {
+        db.delete(clientTags).where(eq(clientTags.id, tag.id)).run();
+      }
+    });
+  });
+
+  describe("deleteTag", () => {
+    it("should delete a tag from the clientTags table", async () => {
+      // First create a tag to delete
+      await createTag("tag-to-delete", "green");
+
+      const tag = db.select().from(clientTags).where(eq(clientTags.name, "tag-to-delete")).get();
+      expect(tag).toBeDefined();
+
+      // Delete it
+      await deleteTag(tag!.id);
+
+      const deleted = db.select().from(clientTags).where(eq(clientTags.name, "tag-to-delete")).get();
+      expect(deleted).toBeUndefined();
+    });
+  });
+});
