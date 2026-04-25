@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const employees = sqliteTable("employees", {
@@ -85,7 +85,11 @@ export const promoWatches = sqliteTable("promo_watches", {
   id: text("id").primaryKey(),
   modelNumber: text("model_number").notNull(),
   collection: text("collection").notNull(),
-  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  msrp: real("msrp"),
+  discountPercent: real("discount_percent"),
+  discountPrice: real("discount_price"),
+  promoStart: text("promo_start"),
+  promoEnd: text("promo_end"),
   dateAdded: integer("date_added", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 

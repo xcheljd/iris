@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,11 +22,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import {
   Settings,
   Users,
@@ -33,20 +38,19 @@ import {
   FileText,
   Plus,
   Trash2,
-  Edit,
   Palette,
-  Copy,
   Mail,
   MessageCircle,
   File,
   KeyRound,
   Shield,
-  Power,
-  UserPlus
+  UserPlus,
+  MoreHorizontal,
+  Search,
+  X,
 } from "lucide-react";
 import { createTag, deleteTag, createTemplate, deleteTemplate, createEmployee, resetEmployeePassword, updateEmployeeRole, toggleEmployeeActive } from "@/lib/actions";
 import { toast } from "sonner";
-import { format } from "date-fns";
 import type { Employee } from "@/lib/db/schema";
 import type { ClientTag } from "@/lib/db/schema";
 import type { OutreachTemplate } from "@/lib/db/schema";
@@ -61,6 +65,7 @@ interface SettingsContentProps {
 export function SettingsContent({ employees, tags: initialTags, templates: initialTemplates, currentUserRole }: SettingsContentProps) {
   const [tags, setTags] = useState(initialTags);
   const [templates, setTemplates] = useState(initialTemplates);
+  const [employeeSearch, setEmployeeSearch] = useState("");
 
   // Tag management
   const [showTagDialog, setShowTagDialog] = useState(false);
@@ -81,6 +86,9 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
   const [newEmployee, setNewEmployee] = useState({ name: "", username: "", password: "", role: "associate" as "associate" | "manager" });
   const [resetPasswordEmployee, setResetPasswordEmployee] = useState<Employee | null>(null);
   const [newPassword, setNewPassword] = useState("");
+  const [deactivateTarget, setDeactivateTarget] = useState<Employee | null>(null);
+  const [deleteTagTarget, setDeleteTagTarget] = useState<ClientTag | null>(null);
+  const [deleteTemplateTarget, setDeleteTemplateTarget] = useState<OutreachTemplate | null>(null);
 
   const tagColors = [
     { name: "blue", class: "bg-blue-500" },
@@ -92,6 +100,14 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
     { name: "pink", class: "bg-pink-500" },
     { name: "gray", class: "bg-gray-500" },
   ];
+
+  const filteredEmployees = useMemo(() => {
+    if (!employeeSearch) return employees;
+    const q = employeeSearch.toLowerCase();
+    return employees.filter((e) =>
+      e.name.toLowerCase().includes(q) || e.username.toLowerCase().includes(q)
+    );
+  }, [employees, employeeSearch]);
 
   const handleCreateTag = async () => {
     if (!newTag.name.trim()) {
@@ -114,6 +130,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
       await deleteTag(id);
       setTags(tags.filter((t) => t.id !== id));
       toast.success("Tag deleted");
+      setDeleteTagTarget(null);
     } catch {
       toast.error("Failed to delete tag");
     }
@@ -125,12 +142,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
       return;
     }
     try {
-      await createTemplate(
-        newTemplate.name,
-        newTemplate.body,
-        newTemplate.subject || null,
-        newTemplate.channel
-      );
+      await createTemplate(newTemplate.name, newTemplate.body, newTemplate.subject || null, newTemplate.channel);
       toast.success("Template created");
       setShowTemplateDialog(false);
       setNewTemplate({ name: "", body: "", subject: "", channel: "general" });
@@ -145,6 +157,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
       await deleteTemplate(id);
       setTemplates(templates.filter((t) => t.id !== id));
       toast.success("Template deleted");
+      setDeleteTemplateTarget(null);
     } catch {
       toast.error("Failed to delete template");
     }
@@ -191,9 +204,6 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
 
   const handleToggleRole = async (employee: Employee) => {
     const newRole = employee.role === "manager" ? "associate" : "manager";
-    if (employee.role === "manager") {
-      if (!confirm(`Demote ${employee.name} from manager to associate?`)) return;
-    }
     try {
       const result = await updateEmployeeRole(employee.id, newRole);
       if (result?.error) {
@@ -215,6 +225,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
         return;
       }
       toast.success(`${employee.name} ${employee.active ? "deactivated" : "activated"}`);
+      setDeactivateTarget(null);
       window.location.reload();
     } catch {
       toast.error("Failed to update status");
@@ -276,57 +287,52 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Add Employee</DialogTitle>
+                        <DialogDescription>Create a new team member account.</DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4">
                         <div className="space-y-2">
                           <Label htmlFor="empName">Name</Label>
-                          <Input
-                            id="empName"
-                            placeholder="Full name"
-                            value={newEmployee.name}
-                            onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })}
-                          />
+                          <Input id="empName" placeholder="Full name" value={newEmployee.name} onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })} />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="empUsername">Username</Label>
-                          <Input
-                            id="empUsername"
-                            placeholder="Login username"
-                            value={newEmployee.username}
-                            onChange={(e) => setNewEmployee({ ...newEmployee, username: e.target.value })}
-                          />
+                          <Input id="empUsername" placeholder="Login username" value={newEmployee.username} onChange={(e) => setNewEmployee({ ...newEmployee, username: e.target.value })} />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="empPassword">Temporary Password</Label>
-                          <Input
-                            id="empPassword"
-                            type="password"
-                            placeholder="Temporary password"
-                            value={newEmployee.password}
-                            onChange={(e) => setNewEmployee({ ...newEmployee, password: e.target.value })}
-                          />
+                          <Input id="empPassword" type="password" placeholder="Temporary password" value={newEmployee.password} onChange={(e) => setNewEmployee({ ...newEmployee, password: e.target.value })} />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="empRole">Role</Label>
-                          <Select
-                            value={newEmployee.role}
-                            onValueChange={(value) => setNewEmployee({ ...newEmployee, role: value as "associate" | "manager" })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
+                          <Select value={newEmployee.role} onValueChange={(value) => setNewEmployee({ ...newEmployee, role: value as "associate" | "manager" })}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="associate">Associate</SelectItem>
                               <SelectItem value="manager">Manager</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
-                        <Button onClick={handleCreateEmployee} className="w-full">
-                          Create Employee
-                        </Button>
+                        <DialogFooter>
+                          <Button onClick={handleCreateEmployee} className="w-full">Create Employee</Button>
+                        </DialogFooter>
                       </div>
                     </DialogContent>
                   </Dialog>
+                )}
+              </div>
+              {/* Search */}
+              <div className="relative mt-3">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search employees..."
+                  value={employeeSearch}
+                  onChange={(e) => setEmployeeSearch(e.target.value)}
+                  className="pl-10 max-w-sm"
+                />
+                {employeeSearch && (
+                  <Button variant="ghost" size="sm" className="absolute left-[260px] top-1/2 -translate-y-1/2 h-6 w-6 p-0" onClick={() => setEmployeeSearch("")}>
+                    <X className="h-3 w-3" />
+                  </Button>
                 )}
               </div>
             </CardHeader>
@@ -342,100 +348,130 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {employees.map((employee) => (
+                  {filteredEmployees.map((employee) => (
                     <TableRow key={employee.id}>
                       <TableCell className="font-medium">{employee.name}</TableCell>
                       <TableCell className="text-muted-foreground">{employee.username}</TableCell>
                       <TableCell>
-                        <Badge variant={employee.role === "manager" ? "default" : "secondary"}>
+                        <Badge variant="secondary">
                           {employee.role}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={employee.active ? "default" : "secondary"}>
-                          {employee.active ? "Active" : "Inactive"}
-                        </Badge>
+                        {isManager ? (
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={employee.active}
+                              onCheckedChange={() => {
+                                if (employee.active) {
+                                  setDeactivateTarget(employee);
+                                } else {
+                                  handleToggleActive(employee);
+                                }
+                              }}
+                              disabled={employee.username === "__self__"}
+                            />
+                            <Badge variant={employee.active ? "default" : "outline"}>
+                              {employee.active ? "Active" : "Inactive"}
+                            </Badge>
+                          </div>
+                        ) : (
+                          <Badge variant={employee.active ? "default" : "outline"}>
+                            {employee.active ? "Active" : "Inactive"}
+                          </Badge>
+                        )}
                       </TableCell>
                       {isManager && (
                         <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button variant="ghost" size="sm" onClick={() => { setResetPasswordEmployee(employee); setNewPassword(""); }}>
-                                  <KeyRound className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Reset Password</TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button variant="ghost" size="sm" onClick={() => handleToggleRole(employee)}>
-                                  <Shield className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>{employee.role === "manager" ? "Demote to associate" : "Promote to manager"}</TooltipContent>
-                            </Tooltip>
-                            <AlertDialog>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="sm" disabled={employee.username === "__self__"}>
-                                      <Power className="h-4 w-4" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                </TooltipTrigger>
-                                <TooltipContent>{employee.active ? "Deactivate" : "Activate"}</TooltipContent>
-                              </Tooltip>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>{employee.active ? "Deactivate" : "Activate"} Employee</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to {employee.active ? "deactivate" : "activate"} <strong>{employee.name}</strong>?
-                                    {employee.active && " They will no longer be able to log in."}
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleToggleActive(employee)}>
-                                    {employee.active ? "Deactivate" : "Activate"}
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => { setResetPasswordEmployee(employee); setNewPassword(""); }}>
+                                <KeyRound className="h-4 w-4 mr-2" />
+                                Reset Password
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleToggleRole(employee)}>
+                                <Shield className="h-4 w-4 mr-2" />
+                                {employee.role === "manager" ? "Demote to Associate" : "Promote to Manager"}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                disabled={employee.username === "__self__"}
+                                onClick={() => {
+                                  if (employee.active) {
+                                    setDeactivateTarget(employee);
+                                  } else {
+                                    handleToggleActive(employee);
+                                  }
+                                }}
+                              >
+                                {employee.active ? "Deactivate" : "Activate"}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       )}
                     </TableRow>
                   ))}
+                  {filteredEmployees.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={isManager ? 5 : 4} className="text-center py-8 text-muted-foreground">
+                        No employees match your search
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
+
+          <Separator className="my-6" />
 
           {/* Reset Password Dialog */}
           <Dialog open={!!resetPasswordEmployee} onOpenChange={(open) => { if (!open) setResetPasswordEmployee(null); }}>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Reset Password for {resetPasswordEmployee?.name}</DialogTitle>
+                <DialogDescription>Set a new temporary password for this account.</DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="newPassword">New Password</Label>
-                  <Input
-                    id="newPassword"
-                    type="password"
-                    placeholder="Enter new password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                  />
+                  <Input id="newPassword" type="password" placeholder="Enter new password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
                 </div>
-                <Button onClick={handleResetPassword} className="w-full">
-                  Reset Password
-                </Button>
+                <DialogFooter>
+                  <Button onClick={handleResetPassword} className="w-full">Reset Password</Button>
+                </DialogFooter>
               </div>
             </DialogContent>
           </Dialog>
+
+          {/* Deactivate Confirmation */}
+          <AlertDialog open={!!deactivateTarget} onOpenChange={(open) => !open && setDeactivateTarget(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{deactivateTarget?.active ? "Deactivate" : "Activate"} Employee</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to {deactivateTarget?.active ? "deactivate" : "activate"} <strong>{deactivateTarget?.name}</strong>?
+                  {deactivateTarget?.active && " They will no longer be able to log in."}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => deactivateTarget && handleToggleActive(deactivateTarget)}>
+                  {deactivateTarget?.active ? "Deactivate" : "Activate"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </TabsContent>
+
+        <Separator />
 
         {/* Tags Tab */}
         <TabsContent value="tags">
@@ -458,16 +494,12 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Create Tag</DialogTitle>
+                      <DialogDescription>Add a new tag to categorize clients.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="tagName">Tag Name</Label>
-                        <Input
-                          id="tagName"
-                          placeholder="e.g., VIP"
-                          value={newTag.name}
-                          onChange={(e) => setNewTag({ ...newTag, name: e.target.value })}
-                        />
+                        <Input id="tagName" placeholder="e.g., VIP" value={newTag.name} onChange={(e) => setNewTag({ ...newTag, name: e.target.value })} />
                       </div>
                       <div className="space-y-2">
                         <Label>Color</Label>
@@ -476,18 +508,16 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                             <button
                               key={color.name}
                               className={`w-8 h-8 rounded-full ${color.class} ${
-                                newTag.color === color.name
-                                  ? "ring-2 ring-offset-2 ring-offset-background ring-primary"
-                                  : ""
+                                newTag.color === color.name ? "ring-2 ring-offset-2 ring-offset-background ring-primary" : ""
                               }`}
                               onClick={() => setNewTag({ ...newTag, color: color.name })}
                             />
                           ))}
                         </div>
                       </div>
-                      <Button onClick={handleCreateTag} className="w-full">
-                        Create Tag
-                      </Button>
+                      <DialogFooter>
+                        <Button onClick={handleCreateTag} className="w-full">Create Tag</Button>
+                      </DialogFooter>
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -526,27 +556,19 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                             <Badge variant="secondary">{tag.usageCount}</Badge>
                           </TableCell>
                           <TableCell className="text-right">
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="sm" className="text-destructive">
-                                  <Trash2 className="h-4 w-4" />
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <MoreHorizontal className="h-4 w-4" />
                                 </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Tag</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete the <strong>{tag.name}</strong> tag? This will remove it from all clients.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDeleteTag(tag.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTagTarget(tag)}>
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       );
@@ -557,6 +579,8 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
             </CardContent>
           </Card>
         </TabsContent>
+
+        <Separator />
 
         {/* Templates Tab */}
         <TabsContent value="templates">
@@ -579,26 +603,17 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                   <DialogContent className="max-w-lg">
                     <DialogHeader>
                       <DialogTitle>Create Template</DialogTitle>
+                      <DialogDescription>Write a reusable outreach message template.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="templateName">Template Name</Label>
-                        <Input
-                          id="templateName"
-                          placeholder="e.g., Birthday Follow-up"
-                          value={newTemplate.name}
-                          onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
-                        />
+                        <Input id="templateName" placeholder="e.g., Birthday Follow-up" value={newTemplate.name} onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })} />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="templateChannel">Channel</Label>
-                        <Select
-                          value={newTemplate.channel}
-                          onValueChange={(value) => setNewTemplate({ ...newTemplate, channel: value as any })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
+                        <Select value={newTemplate.channel} onValueChange={(value) => setNewTemplate({ ...newTemplate, channel: value as any })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="text">Text</SelectItem>
                             <SelectItem value="email">Email</SelectItem>
@@ -609,12 +624,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                       {newTemplate.channel === "email" && (
                         <div className="space-y-2">
                           <Label htmlFor="templateSubject">Subject</Label>
-                          <Input
-                            id="templateSubject"
-                            placeholder="Email subject line..."
-                            value={newTemplate.subject}
-                            onChange={(e) => setNewTemplate({ ...newTemplate, subject: e.target.value })}
-                          />
+                          <Input id="templateSubject" placeholder="Email subject line..." value={newTemplate.subject} onChange={(e) => setNewTemplate({ ...newTemplate, subject: e.target.value })} />
                         </div>
                       )}
                       <div className="space-y-2">
@@ -627,9 +637,9 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                           rows={6}
                         />
                       </div>
-                      <Button onClick={handleCreateTemplate} className="w-full">
-                        Create Template
-                      </Button>
+                      <DialogFooter>
+                        <Button onClick={handleCreateTemplate} className="w-full">Create Template</Button>
+                      </DialogFooter>
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -665,27 +675,19 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                               {template.body}
                             </p>
                           </div>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="sm" className="text-destructive shrink-0">
-                                <Trash2 className="h-4 w-4" />
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0">
+                                <MoreHorizontal className="h-4 w-4" />
                               </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Template</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete the <strong>{template.name}</strong> template? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDeleteTemplate(template.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTemplateTarget(template)}>
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </CardContent>
                     </Card>
@@ -696,6 +698,42 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Delete Tag Confirmation */}
+      <AlertDialog open={!!deleteTagTarget} onOpenChange={(open) => !open && setDeleteTagTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Tag</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the <strong>{deleteTagTarget?.name}</strong> tag? This will remove it from all clients.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteTagTarget && handleDeleteTag(deleteTagTarget.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Template Confirmation */}
+      <AlertDialog open={!!deleteTemplateTarget} onOpenChange={(open) => !open && setDeleteTemplateTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Template</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the <strong>{deleteTemplateTarget?.name}</strong> template? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteTemplateTarget && handleDeleteTemplate(deleteTemplateTarget.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

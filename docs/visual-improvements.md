@@ -14,7 +14,7 @@
 | Phase 3 | **COMPLETE** | 8/8 | Sortable table, pagination, bulk select, auto-filters, row actions dropdown |
 | Phase 4 | **COMPLETE** | 8/8 | Avatar header, card structure, separator, CTA button, promo matches dialog, copy tooltips |
 | Phase 5 | **COMPLETE** | 14/14 | Follow-ups: CardHeader+CardContent, Reschedule/Snooze, OVERDUE Badge, Tabs (Overdue/Upcoming/All), AlertDialog on Done, Sheet detail, method Badge, relative time. Smart Lists: empty state CTA, Tooltips on truncated names, DropdownMenu actions, AlertDialog delete, Separator, member count badges, filter builder |
-| Phase 6 | Partial | 7/14 | Phase 1: AlertDialog+tooltips on promos/settings. Post-Phase 4: Ban/Unsubscribe actions on client list+detail (role-gated) |
+| Phase 6 | **COMPLETE** | 14/14 | Promos: Switch toggle inline, DropdownMenu actions, search/filter, pagination, Badge variants. Settings: Switch for employee status, DropdownMenu per row, search bar, Separator between tabs, Dialog descriptions |
 | Phase 7 | Partial | 5/17 | AlertDialog confirmations already added in Phase 1 (banned unban, unsubscribed remove) |
 | Phase 8 | Pending | 0/8 | |
 
@@ -81,6 +81,12 @@
 - `lib/actions.ts` -- added `smartLists` to schema imports, added `rescheduleFollowUp` (updates followUpDate), `deleteSmartList`, `duplicateSmartList`, `renameSmartList`, `createSmartList` server actions
 - `app/(app)/follow-ups/follow-ups-content.tsx` -- full rewrite: `CardHeader`+`CardContent` structure on follow-up cards, "Snooze" button (reschedules to tomorrow), "Reschedule" button (opens Dialog with date picker), "Detail" button (opens Sheet with full follow-up info), `AlertDialog` confirmation on "Done", "All" tab showing combined overdue+upcoming, relative time display ("2 days overdue"), `ScrollArea` on all tab lists, `Badge variant="outline"` for heat level per card, `Separator` in detail Sheet
 - `app/(app)/smart-lists/smart-lists-content.tsx` -- full rewrite: proper empty state with icon+CTA "Create Custom List" button, `Tooltip` on truncated list names, `DropdownMenu` per custom list (Rename, Duplicate, Delete), `AlertDialog` for delete confirmation, `Dialog` for rename, `Separator` between Built-in and Custom sections, `Dialog` for "Create Smart List" with filter builder (Heat Level, Source, On Email List), member count `Badge variant="secondary"`, clear search button (X), `Tooltip` on "+" create button, empty state in Custom Lists card with CTA
+
+**Phase 6 -- Promo Manager & Settings**
+- `lib/db/schema.ts` -- added `msrp` (real), `discountPercent` (real), `discountPrice` (real), `promoStart` (text), `promoEnd` (text) to `promoWatches`; removed `active` column from schema (kept in DB for backward compat); added `real` import from drizzle-orm/sqlite-core
+- `lib/actions.ts` -- `createPromo` updated with optional msrp/discount/discountPrice; added `importPromos(rows[], promoStart?, promoEnd?)` for bulk import with date range; added `clearAllPromos()` for weekly reset; removed `togglePromo`; fixed `createPromoMatchIfApplies` to remove `active` filter
+- `app/(app)/promos/promos-content.tsx` -- full rewrite: **import dialog** with paste area, auto-detect headers (fuzzy matching for model/collection/msrp/discount/sale price columns), tab/comma/pipe separator detection, preview table before confirming, promo date range pickers (start/end), "Load Sample" button; **Clear All** button with AlertDialog for weekly reset; removed Status column/switch/status filter entirely; 3 stat cards (Total Promos, Total Retail Value, Total Client Savings); Sale Price in green; promo period banner card showing date range; `DropdownMenu` per row (View Matches, Delete); search bar with clear; pagination (15/page); "Add Single" button for one-off entries
+- `app/(app)/settings/settings-content.tsx` -- full rewrite: `Switch` toggle inline for employee active/inactive status, `DropdownMenu` per employee row replacing individual icon buttons (Reset Password, Promote/Demote, Activate/Deactivate), search bar with clear button for employee table, `Badge variant="secondary"` for all role badges, `Separator` between tab content sections, `DialogDescription` on Add Employee/Reset Password/Create Tag/Create Template dialogs, `DropdownMenu` per tag row and template card, `AlertDialog` for tag/template delete confirmation (extracted from inline to shared)
 
 ---
 

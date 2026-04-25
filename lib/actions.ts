@@ -157,7 +157,7 @@ export async function logOutreach(data: {
 }
 
 async function createPromoMatchIfApplies(clientId: string, modelNumber: string) {
-  const promos = db.select().from(promoWatches).where(eq(promoWatches.active, true)).all();
+  const promos = db.select().from(promoWatches).all();
   for (const p of promos) {
     if (p.modelNumber === modelNumber) {
       db.insert(promoMatches).values({ id: randomUUID(), clientId, promoId: p.id, matchType: "model" }).run();
@@ -276,9 +276,9 @@ export async function unsubscribeClient(clientId: string) {
   revalidatePath("/unsubscribed");
 }
 
-export async function createPromo(modelNumber: string, collection: string) {
+export async function createPromo(modelNumber: string, collection: string, msrp?: number | null, discountPercent?: number | null, discountPrice?: number | null) {
   const id = randomUUID();
-  db.insert(promoWatches).values({ id, modelNumber, collection, active: true }).run();
+  db.insert(promoWatches).values({ id, modelNumber, collection, msrp: msrp ?? null, discountPercent: discountPercent ?? null, discountPrice: discountPrice ?? null }).run();
   const all = db.select().from(clients).all();
   for (const c of all) {
     const poi = c.productsOfInterest || [];
@@ -291,8 +291,39 @@ export async function createPromo(modelNumber: string, collection: string) {
   revalidatePath("/promos");
 }
 
-export async function togglePromo(id: string, active: boolean) {
-  db.update(promoWatches).set({ active }).where(eq(promoWatches.id, id)).run();
+export async function importPromos(rows: { modelNumber: string; collection: string; msrp?: number | null; discountPercent?: number | null; discountPrice?: number | null }[], promoStart?: string | null, promoEnd?: string | null) {
+  const all = db.select().from(clients).all();
+  let imported = 0;
+  for (const row of rows) {
+    if (!row.modelNumber?.trim() || !row.collection?.trim()) continue;
+    const id = randomUUID();
+    db.insert(promoWatches).values({
+      id,
+      modelNumber: row.modelNumber.trim(),
+      collection: row.collection.trim(),
+      msrp: row.msrp ?? null,
+      discountPercent: row.discountPercent ?? null,
+      discountPrice: row.discountPrice ?? null,
+      promoStart: promoStart ?? null,
+      promoEnd: promoEnd ?? null,
+    }).run();
+    for (const c of all) {
+      const poi = c.productsOfInterest || [];
+      if (poi.some((p) => p.toLowerCase() === row.modelNumber.trim().toLowerCase())) {
+        db.insert(promoMatches).values({ id: randomUUID(), clientId: c.id, promoId: id, matchType: "model" }).run();
+      } else if (poi.some((p) => p.toLowerCase().includes(row.collection.trim().toLowerCase()))) {
+        db.insert(promoMatches).values({ id: randomUUID(), clientId: c.id, promoId: id, matchType: "collection" }).run();
+      }
+    }
+    imported++;
+  }
+  revalidatePath("/promos");
+  return { imported };
+}
+
+export async function clearAllPromos() {
+  db.delete(promoMatches).run();
+  db.delete(promoWatches).run();
   revalidatePath("/promos");
 }
 
