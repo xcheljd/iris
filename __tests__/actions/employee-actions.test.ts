@@ -289,7 +289,10 @@ describe("Employee Actions", () => {
     it("should return error for short new password", async () => {
       vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
 
-      // Manager's password is "meridian" and unchanged
+      // Ensure manager's password is "meridian"
+      const hash = bcrypt.hashSync("meridian", 10);
+      db.update(employees).set({ passwordHash: hash }).where(eq(employees.id, MANAGER_ID)).run();
+
       const result = await changeOwnPassword("meridian", "short");
       expect(result).toEqual({ error: "New password must be at least 6 characters" });
     });
