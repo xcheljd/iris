@@ -365,7 +365,7 @@ export async function changeOwnPassword(currentPassword: string, newPassword: st
   if (!user) return { error: "Not authenticated" };
   const userRecord = db.select().from(employees).where(eq(employees.id, user.id)).get();
   if (!userRecord) return { error: "User not found" };
-  const valid = bcrypt.compare(currentPassword, userRecord.passwordHash);
+  const valid = await bcrypt.compare(currentPassword, userRecord.passwordHash);
   if (!valid) return { error: "Current password is incorrect" };
   if (!newPassword || newPassword.length < 6) return { error: "New password must be at least 6 characters" };
   const passwordHash = bcrypt.hashSync(newPassword, 10);

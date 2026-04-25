@@ -275,18 +275,8 @@ describe("Employee Actions", () => {
     it("should return error when current password is wrong", async () => {
       vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
 
-      // NOTE: There is a bug in the action — bcrypt.compare is not awaited,
-      // so `valid` is always a truthy Promise and wrong passwords are never detected.
-      // This test documents the current (buggy) behavior.
       const result = await changeOwnPassword("wrongpassword", "newpassword123");
-      // Once the bug is fixed (adding `await` before bcrypt.compare), this should return:
-      // expect(result).toEqual({ error: "Current password is incorrect" });
-      // For now, the action succeeds because the comparison result is never properly checked.
-      expect(result).toEqual({ success: true });
-
-      // Restore manager's password
-      const hash = bcrypt.hashSync("meridian", 10);
-      db.update(employees).set({ passwordHash: hash }).where(eq(employees.id, MANAGER_ID)).run();
+      expect(result).toEqual({ error: "Current password is incorrect" });
     });
 
     it("should return error when no session", async () => {
