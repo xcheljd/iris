@@ -5,29 +5,36 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
 export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const [mode, setMode] = useState<"login" | "forgot-username" | "forgot-question">("login");
   const [forgotUsername, setForgotUsername] = useState("");
   const [secretQuestion, setSecretQuestion] = useState("");
   const [secretAnswer, setSecretAnswer] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
     setLoading(true);
     const res = await signIn("credentials", { username, password, redirect: false });
     setLoading(false);
     if (res?.error) {
-      toast.error("Invalid credentials");
+      setError("Invalid username or password. Please try again.");
     } else {
       router.push("/");
       router.refresh();
@@ -97,21 +104,34 @@ export default function LoginPage() {
         <CardContent>
           {mode === "login" && (
             <form onSubmit={onSubmit} className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="username">Username</Label>
                 <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Marcus" required autoFocus />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••" required />
+                <div className="relative">
+                  <Input id="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••" required />
+                  <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowPassword(!showPassword)}>
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
               </div>
               <Button type="submit" variant="gold" className="w-full" disabled={loading}>
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                 {loading ? "Signing in…" : "Sign in"}
               </Button>
-              <button type="button" onClick={() => setMode("forgot-username")} className="block mx-auto text-sm text-accent hover:underline">
+              <Button type="button" variant="link" className="block mx-auto" onClick={() => setMode("forgot-username")}>
                 Forgot Password?
-              </button>
-              <div className="pt-2 text-xs text-muted-foreground text-center space-y-1">
+              </Button>
+              <Separator />
+              <div className="pt-1 text-xs text-muted-foreground text-center space-y-1">
                 <p>Demo accounts:</p>
                 <p><span className="font-mono">Marcus / meridian</span> (manager)</p>
                 <p><span className="font-mono">Jordan / meridian</span> (associate)</p>
@@ -136,11 +156,12 @@ export default function LoginPage() {
                 />
               </div>
               <Button type="submit" className="w-full" disabled={forgotLoading}>
+                {forgotLoading && <Loader2 className="h-4 w-4 animate-spin" />}
                 {forgotLoading ? "Looking up…" : "Continue"}
               </Button>
-              <button type="button" onClick={() => setMode("login")} className="block mx-auto text-sm text-muted-foreground hover:underline">
+              <Button type="button" variant="link" className="block mx-auto" onClick={() => setMode("login")}>
                 Back to Sign in
-              </button>
+              </Button>
             </form>
           )}
 
@@ -166,21 +187,27 @@ export default function LoginPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="forgot-new-password">New Password</Label>
-                <Input
-                  id="forgot-new-password"
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="••••••"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="forgot-new-password"
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="••••••"
+                    required
+                  />
+                  <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowNewPassword(!showNewPassword)}>
+                    {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
               </div>
               <Button type="submit" className="w-full" disabled={forgotLoading}>
+                {forgotLoading && <Loader2 className="h-4 w-4 animate-spin" />}
                 {forgotLoading ? "Resetting…" : "Reset Password"}
               </Button>
-              <button type="button" onClick={() => setMode("forgot-username")} className="block mx-auto text-sm text-muted-foreground hover:underline">
+              <Button type="button" variant="link" className="block mx-auto" onClick={() => setMode("forgot-username")}>
                 Back
-              </button>
+              </Button>
             </form>
           )}
         </CardContent>

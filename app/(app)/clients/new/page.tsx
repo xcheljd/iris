@@ -29,6 +29,7 @@ export default function AddClientPage() {
     lastName: "",
     phone: "",
     email: "",
+    customerId: "",
     source: "Walk-in",
     birthday: null as Date | null,
     anniversary: null as Date | null,
@@ -258,6 +259,15 @@ export default function AddClientPage() {
                   placeholder="Enter last name"
                   value={formData.lastName}
                   onChange={(e) => handleInputChange("lastName", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="customerId">Customer ID</Label>
+                <Input
+                  id="customerId"
+                  placeholder="e.g. 100600045"
+                  value={formData.customerId}
+                  onChange={(e) => handleInputChange("customerId", e.target.value)}
                 />
               </div>
             </div>

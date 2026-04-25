@@ -1,17 +1,24 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { clients, outreachLogs, activityEvents, promoMatches, promoWatches, clientTags } from "@/lib/db/schema";
+import { clients, outreachLogs, activityEvents, promoMatches, promoWatches, clientTags, employees } from "@/lib/db/schema";
 import { eq, desc, and, isNull } from "drizzle-orm";
 import { ClientDetailContent } from "./client-detail-content";
 
 async function getFullClient(clientId: string) {
-  const client = db
-    .select()
+  const row = db
+    .select({
+      client: clients,
+      employeeName: employees.name,
+    })
     .from(clients)
+    .leftJoin(employees, eq(clients.employeeId, employees.id))
     .where(eq(clients.id, clientId))
     .get();
 
-  if (!client) return null;
+  if (!row) return null;
+
+  const client = row.client;
+  const employeeName = row.employeeName;
 
   const outreach = db
     .select()
@@ -57,6 +64,7 @@ async function getFullClient(clientId: string) {
 
   return {
     ...client,
+    employeeName,
     outreach,
     timeline,
     matches,

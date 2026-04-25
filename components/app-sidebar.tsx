@@ -5,6 +5,8 @@ import { Home, Users, Phone, ListFilter, Tag, BarChart3, Ban, MailX, Settings, L
 import { cn } from "@/lib/utils";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton, useSidebar } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { signOut, useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { initials } from "@/lib/utils";
@@ -56,27 +58,30 @@ export function AppSidebar() {
         </Link>
       </SidebarHeader>
       <SidebarContent>
-        {nav.map((group) => (
-          <SidebarGroup key={group.section}>
-            {!collapsed && <SidebarGroupLabel>{group.section}</SidebarGroupLabel>}
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {group.items.map((item) => {
-                  const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-                  return (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton asChild isActive={active} className={cn(active && "text-accent")}>
-                        <Link href={item.href}>
-                          <item.icon className="h-4 w-4" />
-                          {!collapsed && <span>{item.label}</span>}
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+        {nav.map((group, i) => (
+          <div key={group.section}>
+            <SidebarGroup>
+              {!collapsed && <SidebarGroupLabel>{group.section}</SidebarGroupLabel>}
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {group.items.map((item) => {
+                    const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+                    return (
+                      <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton asChild isActive={active} className={cn(active && "text-accent")}>
+                          <Link href={item.href}>
+                            <item.icon className="h-4 w-4" />
+                            {!collapsed && <span>{item.label}</span>}
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            {i < nav.length - 1 && <Separator className="mx-2" />}
+          </div>
         ))}
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border">
@@ -91,16 +96,26 @@ export function AppSidebar() {
             </div>
           )}
           {!collapsed && (
-            <Link href="/change-password">
-              <Button variant="ghost" size="icon" className="h-7 w-7">
-                <KeyRound className="h-3.5 w-3.5" />
-              </Button>
-            </Link>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link href="/change-password">
+                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                    <KeyRound className="h-3.5 w-3.5" />
+                  </Button>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right">Change Password</TooltipContent>
+            </Tooltip>
           )}
           {!collapsed && (
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => signOut({ callbackUrl: "/login" })}>
-              <LogOut className="h-3.5 w-3.5" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => signOut({ callbackUrl: "/login" })}>
+                  <LogOut className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Sign Out</TooltipContent>
+            </Tooltip>
           )}
         </div>
       </SidebarFooter>

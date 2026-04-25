@@ -46,6 +46,7 @@ export async function POST(request: Request) {
       lastName: body.lastName || null,
       phone: body.phone || null,
       email: body.email || null,
+      customerId: body.customerId || null,
       productsOfInterest: body.productsOfInterest || [],
       notes: body.notes || null,
       onEmailList: body.onEmailList ?? false,

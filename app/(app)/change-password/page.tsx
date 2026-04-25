@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft } from "lucide-react";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+import { Eye, EyeOff, Loader2, Check, X } from "lucide-react";
 import { changeOwnPassword, setSecretQuestion } from "@/lib/actions";
 import { toast } from "sonner";
 
@@ -20,11 +22,58 @@ const SECRET_QUESTIONS = [
   "What is your favorite food?",
 ];
 
+const PW_REQUIREMENTS = [
+  { label: "At least 6 characters", test: (pw: string) => pw.length >= 6 },
+  { label: "Contains a number", test: (pw: string) => /\d/.test(pw) },
+  { label: "Contains uppercase letter", test: (pw: string) => /[A-Z]/.test(pw) },
+  { label: "Contains lowercase letter", test: (pw: string) => /[a-z]/.test(pw) },
+];
+
+function PasswordStrength({ password }: { password: string }) {
+  const passed = PW_REQUIREMENTS.filter((r) => r.test(password)).length;
+  const score = password.length === 0 ? 0 : Math.round((passed / PW_REQUIREMENTS.length) * 100);
+  const color = score <= 25 ? "bg-red-500" : score <= 50 ? "bg-orange-500" : score <= 75 ? "bg-yellow-500" : "bg-green-500";
+  const label = score <= 25 ? "Weak" : score <= 50 ? "Fair" : score <= 75 ? "Good" : "Strong";
+
+  if (!password) return null;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-muted-foreground">Strength</span>
+        <span className={`text-xs font-medium ${score <= 50 ? "text-orange-500" : "text-green-500"}`}>{label}</span>
+      </div>
+      <Progress value={score} className={`h-1.5 [&>div]:${color}`} />
+      <ul className="space-y-0.5">
+        {PW_REQUIREMENTS.map((r) => (
+          <li key={r.label} className="flex items-center gap-1.5 text-xs">
+            {r.test(password) ? (
+              <Check className="h-3 w-3 text-green-500" />
+            ) : (
+              <X className="h-3 w-3 text-muted-foreground/50" />
+            )}
+            <span className={r.test(password) ? "text-muted-foreground" : "text-muted-foreground/60"}>
+              {r.label}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export default function ChangePasswordPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
+
+  const passwordsMatch = newPassword && confirmPassword && newPassword === confirmPassword;
+  const passwordsMismatch = confirmPassword && newPassword && newPassword !== confirmPassword;
 
   const [secretQuestion, setSecretQuestionState] = useState("");
   const [secretAnswer, setSecretAnswer] = useState("");
@@ -89,10 +138,17 @@ export default function ChangePasswordPage() {
 
   return (
     <div className="container mx-auto py-6 px-4 max-w-lg">
-      <Link href="/settings" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6">
-        <ArrowLeft className="h-4 w-4" />
-        Back to Settings
-      </Link>
+      <Breadcrumb className="mb-4">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/settings">Settings</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Change Password</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
 
       <Card>
         <CardHeader>
@@ -103,42 +159,64 @@ export default function ChangePasswordPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="currentPassword">Current Password</Label>
-              <Input
-                id="currentPassword"
-                type="password"
-                required
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-              />
+              <div className="relative">
+                <Input
+                  id="currentPassword"
+                  type={showCurrentPw ? "text" : "password"}
+                  required
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                />
+                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowCurrentPw(!showCurrentPw)}>
+                  {showCurrentPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="newPassword">New Password</Label>
-              <Input
-                id="newPassword"
-                type="password"
-                required
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-              />
+              <div className="relative">
+                <Input
+                  id="newPassword"
+                  type={showNewPw ? "text" : "password"}
+                  required
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowNewPw(!showNewPw)}>
+                  {showNewPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+              <PasswordStrength password={newPassword} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm New Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-              />
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPw ? "text" : "password"}
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={passwordsMismatch ? "border-destructive" : passwordsMatch ? "border-green-500" : ""}
+                />
+                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowConfirmPw(!showConfirmPw)}>
+                  {showConfirmPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+              {passwordsMismatch && <p className="text-xs text-destructive">Passwords do not match</p>}
+              {passwordsMatch && <p className="text-xs text-green-500">Passwords match</p>}
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {loading ? "Changing..." : "Change Password"}
             </Button>
           </form>
         </CardContent>
       </Card>
 
-      <Card className="mt-6">
+      <Separator className="my-6" />
+
+      <Card>
         <CardHeader>
           <CardTitle>Secret Recovery Question</CardTitle>
           <CardDescription>Set a secret question to recover your password if you forget it.</CardDescription>
@@ -171,6 +249,7 @@ export default function ChangePasswordPage() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={secretLoading}>
+              {secretLoading && <Loader2 className="h-4 w-4 animate-spin" />}
               {secretLoading ? "Saving..." : "Save Question"}
             </Button>
           </form>

@@ -15,6 +15,7 @@ export const employees = sqliteTable("employees", {
 
 export const clients = sqliteTable("clients", {
   id: text("id").primaryKey(),
+  customerId: text("customer_id"),
   firstName: text("first_name").notNull(),
   lastName: text("last_name"),
   phone: text("phone"),

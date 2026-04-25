@@ -1,6 +1,6 @@
 "use server";
 import { db } from "@/lib/db";
-import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bannedCustomers, unsubscribeList, clientTags, outreachTemplates, employees } from "@/lib/db/schema";
+import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bannedCustomers, unsubscribeList, clientTags, outreachTemplates, employees, smartLists } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
@@ -168,6 +168,46 @@ async function createPromoMatchIfApplies(clientId: string, modelNumber: string) 
 export async function markFollowUpComplete(logId: string) {
   db.update(outreachLogs).set({ completed: true }).where(eq(outreachLogs.id, logId)).run();
   revalidatePath("/follow-ups");
+}
+
+export async function rescheduleFollowUp(logId: string, newDate: string) {
+  db.update(outreachLogs).set({ followUpDate: new Date(newDate) }).where(eq(outreachLogs.id, logId)).run();
+  revalidatePath("/follow-ups");
+}
+
+export async function deleteSmartList(listId: string) {
+  db.delete(smartLists).where(eq(smartLists.id, listId)).run();
+  revalidatePath("/smart-lists");
+}
+
+export async function duplicateSmartList(listId: string) {
+  const original = db.select().from(smartLists).where(eq(smartLists.id, listId)).get();
+  if (!original) return;
+  db.insert(smartLists).values({
+    id: randomUUID(),
+    name: `${original.name} (Copy)`,
+    ownerId: original.ownerId,
+    filters: original.filters,
+    sort: original.sort,
+    isShared: original.isShared,
+  }).run();
+  revalidatePath("/smart-lists");
+}
+
+export async function renameSmartList(listId: string, newName: string) {
+  db.update(smartLists).set({ name: newName }).where(eq(smartLists.id, listId)).run();
+  revalidatePath("/smart-lists");
+}
+
+export async function createSmartList(name: string, filters: Record<string, unknown>) {
+  const user = await getSessionUser();
+  db.insert(smartLists).values({
+    id: randomUUID(),
+    name,
+    ownerId: user?.id ?? null,
+    filters,
+  }).run();
+  revalidatePath("/smart-lists");
 }
 
 export async function addTag(clientId: string, tag: string) {

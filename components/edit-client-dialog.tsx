@@ -31,6 +31,7 @@ export function EditClientDialog({ client }: EditClientDialogProps) {
     lastName: client.lastName || "",
     phone: client.phone || "",
     email: client.email || "",
+    customerId: client.customerId || "",
     source: client.source,
     birthday: client.birthday ? new Date(client.birthday) : null,
     anniversary: client.anniversary ? new Date(client.anniversary) : null,
@@ -214,6 +215,15 @@ export function EditClientDialog({ client }: EditClientDialogProps) {
                   id="lastName"
                   value={formData.lastName}
                   onChange={(e) => handleInputChange("lastName", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="customerId">Customer ID</Label>
+                <Input
+                  id="customerId"
+                  placeholder="e.g. 100600045"
+                  value={formData.customerId}
+                  onChange={(e) => handleInputChange("customerId", e.target.value)}
                 />
               </div>
             </div>

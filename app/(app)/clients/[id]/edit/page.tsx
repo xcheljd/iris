@@ -62,6 +62,7 @@ export default function EditClientPage() {
     lastName: "",
     phone: "",
     email: "",
+    customerId: "",
     employeeId: "",
     source: "Walk-in",
     birthday: null as Date | null,
@@ -94,6 +95,7 @@ export default function EditClientPage() {
           lastName: data.lastName || "",
           phone: data.phone || "",
           email: data.email || "",
+          customerId: data.customerId || "",
           employeeId: data.employeeId || "",
           source: data.source,
           birthday: data.birthday ? new Date(data.birthday) : null,
@@ -344,6 +346,15 @@ export default function EditClientPage() {
                   onChange={(e) => handleInputChange("lastName", e.target.value)}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="customerId">Customer ID</Label>
+                <Input
+                  id="customerId"
+                  placeholder="e.g. 100600045"
+                  value={formData.customerId}
+                  onChange={(e) => handleInputChange("customerId", e.target.value)}
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -390,12 +401,12 @@ export default function EditClientPage() {
 
             <div className="space-y-2">
               <Label htmlFor="employeeId">Employee Assignment</Label>
-              <Select value={formData.employeeId} onValueChange={(value) => handleInputChange("employeeId", value)}>
+              <Select value={formData.employeeId || "__none__"} onValueChange={(value) => handleInputChange("employeeId", value === "__none__" ? "" : value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select employee" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Unassigned</SelectItem>
+                  <SelectItem value="__none__">Unassigned</SelectItem>
                   {employees.map((employee) => (
                     <SelectItem key={employee.id} value={employee.id}>
                       {employee.name} ({employee.role})

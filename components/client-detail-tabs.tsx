@@ -23,20 +23,31 @@ export function ClientDetailTabs() {
 
   return (
     <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight">
-          {client.firstName} {client.lastName}
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Added {format(new Date(client.dateAdded), "MMMM d, yyyy")}
-        </p>
-        <div className="flex items-center gap-2 mt-2">
-          <HeatScoreBar score={client.heatScore} />
-          <Badge variant={client.heatLevel === "hot" ? "destructive" : client.heatLevel === "warm" ? "default" : "secondary"}>
-            {client.heatLevel}
-          </Badge>
+      <div className="flex items-center gap-4 mb-4">
+        <Avatar className="h-14 w-14 text-lg">
+          <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+            {client.firstName?.[0]}{client.lastName?.[0]}
+          </AvatarFallback>
+        </Avatar>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {client.firstName} {client.lastName}
+          </h1>
+          {client.customerId && (
+            <p className="text-sm font-mono text-muted-foreground">#{client.customerId}</p>
+          )}
+          <p className="text-muted-foreground mt-0.5">
+            Added {format(new Date(client.dateAdded), "MMMM d, yyyy")}
+          </p>
+          <div className="flex items-center gap-2 mt-1">
+            <HeatScoreBar score={client.heatScore} />
+            <Badge variant={client.heatLevel === "hot" ? "destructive" : client.heatLevel === "warm" ? "default" : "secondary"}>
+              {client.heatLevel}
+            </Badge>
+          </div>
         </div>
       </div>
+      <Separator className="mb-4" />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-6">

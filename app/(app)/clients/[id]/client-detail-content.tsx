@@ -3,18 +3,35 @@
 import { ClientDetailTabs } from "@/components/client-detail-tabs";
 import { ClientSidebar } from "@/components/client-sidebar";
 import { ClientProvider } from "@/components/client-provider";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+import Link from "next/link";
 
 export function ClientDetailContent({ client }: { client: any }) {
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
-      <ClientProvider client={client}>
-        <div className="w-[280px] flex-shrink-0 border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <ClientSidebar />
-        </div>
-        <div className="flex-1 overflow-auto">
-          <ClientDetailTabs />
-        </div>
-      </ClientProvider>
+    <div className="flex flex-col h-[calc(100vh-4rem)]">
+      <div className="px-4 pt-3">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/clients">Clients</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{client.firstName} {client.lastName}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+      <div className="flex flex-1 min-h-0">
+        <ClientProvider client={client}>
+          <div className="w-[280px] flex-shrink-0 border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <ClientSidebar />
+          </div>
+          <div className="flex-1 overflow-auto">
+            <ClientDetailTabs />
+          </div>
+        </ClientProvider>
+      </div>
     </div>
   );
 }

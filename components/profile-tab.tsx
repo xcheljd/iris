@@ -3,11 +3,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Phone, Mail, Calendar, MapPin, User, Gift } from "lucide-react";
+import { Phone, Mail, Calendar, MapPin, User, Gift, Copy } from "lucide-react";
 import { format } from "date-fns";
 import { useClient } from "@/components/client-provider";
 import { Button } from "@/components/ui/button";
 import { EditClientDialog } from "@/components/edit-client-dialog";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { toast } from "sonner";
 
 interface ProfileTabProps {
   client: any;
@@ -18,10 +20,9 @@ export function ProfileTab({ client }: ProfileTabProps) {
     if (client.phone) {
       try {
         await navigator.clipboard.writeText(client.phone);
-        // This would normally use a toast, but we'll keep it simple
-        alert("Phone copied to clipboard");
+        toast.success("Phone copied to clipboard");
       } catch (err) {
-        alert("Failed to copy phone");
+        toast.error("Failed to copy phone");
       }
     }
   };
@@ -30,10 +31,9 @@ export function ProfileTab({ client }: ProfileTabProps) {
     if (client.email) {
       try {
         await navigator.clipboard.writeText(client.email);
-        // This would normally use a toast, but we'll keep it simple
-        alert("Email copied to clipboard");
+        toast.success("Email copied to clipboard");
       } catch (err) {
-        alert("Failed to copy email");
+        toast.error("Failed to copy email");
       }
     }
   };
@@ -57,14 +57,21 @@ export function ProfileTab({ client }: ProfileTabProps) {
             {client.phone ? (
               <div className="flex items-center gap-2">
                 <span className="font-mono">{client.phone}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handlePhoneCopy}
-                  className="h-8 w-8"
-                >
-                  <Phone className="h-4 w-4" />
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handlePhoneCopy}
+                        className="h-8 w-8"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Copy phone number</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             ) : (
               <span className="text-muted-foreground">Not provided</span>
@@ -79,14 +86,21 @@ export function ProfileTab({ client }: ProfileTabProps) {
             {client.email ? (
               <div className="flex items-center gap-2">
                 <span className="font-mono">{client.email}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleEmailCopy}
-                  className="h-8 w-8"
-                >
-                  <Mail className="h-4 w-4" />
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleEmailCopy}
+                        className="h-8 w-8"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Copy email address</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             ) : (
               <span className="text-muted-foreground">Not provided</span>
@@ -98,7 +112,7 @@ export function ProfileTab({ client }: ProfileTabProps) {
           <div className="space-y-2">
             <h4 className="text-sm font-medium">Employee Assignment</h4>
             <Badge variant="outline">
-              {client.employeeId ? "Assigned to associate" : "Unassigned"}
+              {client.employeeName || "Unassigned"}
             </Badge>
           </div>
         </CardContent>

@@ -1,23 +1,24 @@
 "use client";
 
-import { useClient, useActiveTab } from "@/components/client-provider";
+import { useClient } from "@/components/client-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Phone, Mail, Tag, Copy, Star } from "lucide-react";
+import { Calendar, Phone, Mail, Tag, Copy, Star, Plus, Ban, MailX } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { useState } from "react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { FollowUpForm } from "@/components/follow-up-form";
+import { OutreachLogger } from "@/components/outreach-logger";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { BanCustomerDialog, UnsubscribeCustomerDialog } from "@/components/client-status-actions";
 
 export function ClientSidebar() {
   const client = useClient();
-  const { setActiveTab } = useActiveTab();
   if (!client) return null;
 
-  const [isOpen, setIsOpen] = useState(false);
+  const [promoDialogOpen, setPromoDialogOpen] = useState(false);
 
   const handleCopy = async (text: string, type: "phone" | "email") => {
     try {
@@ -48,27 +49,39 @@ export function ClientSidebar() {
           {client.phone && (
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Phone</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleCopy(client.phone!, "phone")}
-              >
-                <Phone className="h-4 w-4 mr-1" />
-                Copy
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleCopy(client.phone!, "phone")}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Copy phone number</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           )}
           {client.email && (
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Email</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleCopy(client.email!, "email")}
-              >
-                <Mail className="h-4 w-4 mr-1" />
-                Copy
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleCopy(client.email!, "email")}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Copy email address</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           )}
           <div className="text-sm">
@@ -102,7 +115,19 @@ export function ClientSidebar() {
               )}
             </div>
           ) : (
-            <div className="text-sm text-muted-foreground">No scheduled follow-ups</div>
+            <div className="text-sm text-muted-foreground text-center py-1">
+              No scheduled follow-ups
+              <OutreachLogger
+                clientId={client.id}
+                clientName={`${client.firstName} ${client.lastName}`}
+                trigger={
+                  <Button variant="outline" size="sm" className="w-full mt-2">
+                    <Plus className="h-3.5 w-3.5 mr-1.5" />
+                    Schedule One
+                  </Button>
+                }
+              />
+            </div>
           )}
         </CardContent>
       </Card>
@@ -136,26 +161,67 @@ export function ClientSidebar() {
           <CardTitle className="text-base">Quick Actions</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          <Sheet open={isOpen} onOpenChange={setIsOpen}>
-            <SheetTrigger asChild>
+          <OutreachLogger
+            clientId={client.id}
+            clientName={`${client.firstName} ${client.lastName}`}
+            trigger={
               <Button className="w-full" variant="outline">
                 <Calendar className="h-4 w-4 mr-2" />
                 Log Outreach
               </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-[400px]">
-              <FollowUpForm
-                clientId={client.id}
-                onSuccess={() => setIsOpen(false)}
-              />
-            </SheetContent>
-          </Sheet>
+            }
+          />
           
           {client.matches.length > 0 && (
-            <Button className="w-full" variant="outline" onClick={() => setActiveTab("interests")}>
-              <Star className="h-4 w-4 mr-2" />
-              Promo Matches ({client.matches.length})
-            </Button>
+            <Dialog open={promoDialogOpen} onOpenChange={setPromoDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="w-full" variant="outline">
+                  <Star className="h-4 w-4 mr-2" />
+                  Promo Matches ({client.matches.length})
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Star className="h-5 w-5" />
+                    Promo Matches ({client.matches.length})
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3 mt-2">
+                  {client.matches.filter((match: any) => match.promo?.modelNumber || match.promo?.collection).map((match: any, index: number) => (
+                    <div key={index} className="border rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <div className="font-medium">{match.promo?.modelNumber}</div>
+                          <div className="text-sm text-muted-foreground">{match.promo?.collection}</div>
+                        </div>
+                        <Badge variant={match.matchType === "model" ? "default" : "secondary"}>
+                          {match.matchType}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+
+          {client.status === "active" && (
+            <>
+              <Separator className="my-1" />
+              <BanCustomerDialog clientId={client.id} clientName={`${client.firstName} ${client.lastName ?? ""}`}>
+                <Button className="w-full" variant="outline">
+                  <Ban className="h-4 w-4 mr-2" />
+                  Ban Customer
+                </Button>
+              </BanCustomerDialog>
+              <UnsubscribeCustomerDialog clientId={client.id} clientName={`${client.firstName} ${client.lastName ?? ""}`}>
+                <Button className="w-full" variant="outline">
+                  <MailX className="h-4 w-4 mr-2" />
+                  Unsubscribe
+                </Button>
+              </UnsubscribeCustomerDialog>
+            </>
           )}
         </CardContent>
       </Card>
@@ -163,7 +229,7 @@ export function ClientSidebar() {
       {/* Contact Info */}
       <Separator />
       <div className="space-y-2 text-sm">
-        <div><span className="text-muted-foreground">Employee:</span> {client.employeeId ? "Assigned" : "Unassigned"}</div>
+        <div><span className="text-muted-foreground">Employee:</span> {client.employeeName || "Unassigned"}</div>
         <div><span className="text-muted-foreground">Email List:</span> {client.onEmailList ? "Yes" : "No"}</div>
         <div><span className="text-muted-foreground">Status:</span> {client.status}</div>
         <div><span className="text-muted-foreground">Source:</span> {client.source}</div>
