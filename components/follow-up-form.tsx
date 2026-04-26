@@ -258,7 +258,7 @@ export function FollowUpForm({ clientId, onSuccess }: FollowUpFormProps) {
               <PopoverContent className="w-auto p-0">
                 <Calendar
                   mode="single"
-                      selected={formData.followUpDate}
+                      selected={formData.followUpDate ?? undefined}
                   onSelect={(date) => handleInputChange("followUpDate", date)}
                   initialFocus
                 />

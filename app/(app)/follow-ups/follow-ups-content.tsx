@@ -30,6 +30,7 @@ import Link from "next/link";
 import { markFollowUpComplete, rescheduleFollowUp } from "@/lib/actions";
 import { toast } from "sonner";
 import { format, formatDistanceToNow, differenceInDays } from "date-fns";
+import { Topbar } from "@/components/topbar";
 
 interface FollowUpRow {
   log: {
@@ -379,10 +380,12 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
   };
 
   return (
-    <div className="container mx-auto py-6 px-4">
+    <>
+      <Topbar title="Follow-Ups" />
+      <div className="flex-1 p-4 md:p-6">
       <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Follow-Ups</h1>
-        <p className="text-muted-foreground mt-1">
+        <h1 className="sr-only">Follow-Ups</h1>
+        <p className="text-muted-foreground">
           Track pending outreach and follow-up tasks
         </p>
       </div>
@@ -482,6 +485,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
         open={detailOpen}
         onOpenChange={setDetailOpen}
       />
-    </div>
+      </div>
+    </>
   );
 }

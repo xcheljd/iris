@@ -19,12 +19,11 @@ export function InterestsTab({ client }: InterestsTabProps) {
   const models = Array.from(
     new Set(
       client.productsOfInterest.flatMap((interest: string) => {
-        // Simple parsing - model numbers are typically alphanumeric with hyphens
         const modelMatch = interest.match(/[A-Z0-9]+[0-9-]+[A-Z0-9]*/gi);
         return modelMatch || [];
       })
     )
-  ).sort();
+  ).sort() as string[];
 
   // Extract collections (capitalized words that are clearly not model numbers)
   const collections = Array.from(
@@ -34,7 +33,7 @@ export function InterestsTab({ client }: InterestsTabProps) {
         return collectionMatch || [];
       })
     )
-  ).sort();
+  ).sort() as string[];
 
   const promoMatches = client.matches.filter(
     (match: any) => match.promo?.modelNumber || match.promo?.collection

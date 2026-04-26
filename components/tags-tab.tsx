@@ -91,7 +91,7 @@ export function TagsTab({ client }: TagsTabProps) {
     "limited-edition", "mens", "womens", "watch", "collector"
   ];
 
-  const allTags = Array.from(new Set(availableTags));
+  const allTags = Array.from(new Set(availableTags)) as string[];
   
   const clientTags = client.tags || [];
   const filteredTags = clientTags.filter((tag: string) =>

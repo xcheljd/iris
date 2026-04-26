@@ -13,6 +13,7 @@ import {
   TrendingUp,
   BarChart3
 } from "lucide-react";
+import { Topbar } from "@/components/topbar";
 import Link from "next/link";
 import type { Client } from "@/lib/db/schema";
 
@@ -117,9 +118,11 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
   }, [clients, selectedCollection]);
 
   return (
-    <div className="container mx-auto py-6 px-4">
+    <>
+      <Topbar title="Collections" />
+      <div className="flex-1 p-4 md:p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight">Collections</h1>
+        <h1 className="sr-only">Collections</h1>
         <p className="text-muted-foreground mt-1">
           Track client interest across watch collections
         </p>
@@ -258,6 +261,7 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

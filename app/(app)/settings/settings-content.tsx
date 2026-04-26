@@ -51,6 +51,7 @@ import {
 } from "lucide-react";
 import { createTag, deleteTag, createTemplate, deleteTemplate, createEmployee, resetEmployeePassword, updateEmployeeRole, toggleEmployeeActive } from "@/lib/actions";
 import { toast } from "sonner";
+import { Topbar } from "@/components/topbar";
 import type { Employee } from "@/lib/db/schema";
 import type { ClientTag } from "@/lib/db/schema";
 import type { OutreachTemplate } from "@/lib/db/schema";
@@ -241,9 +242,11 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
   };
 
   return (
-    <div className="container mx-auto py-6 px-4">
+    <>
+      <Topbar title="Settings" />
+      <div className="flex-1 p-4 md:p-6">
       <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h1>
+        <h1 className="sr-only">Settings</h1>
         <p className="text-muted-foreground mt-1">
           Manage employees, tags, and outreach templates
         </p>
@@ -738,6 +741,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </div>
+    </>
   );
 }

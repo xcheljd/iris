@@ -11,7 +11,7 @@ import { format } from "date-fns";
 import { useState } from "react";
 import { OutreachLogger } from "@/components/outreach-logger";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { BanCustomerDialog, UnsubscribeCustomerDialog } from "@/components/client-status-actions";
 
 export function ClientSidebar() {
@@ -23,9 +23,9 @@ export function ClientSidebar() {
   const handleCopy = async (text: string, type: "phone" | "email") => {
     try {
       await navigator.clipboard.writeText(text);
-      toast(`Copied ${type} to clipboard`);
+      toast.success(`Copied ${type} to clipboard`);
     } catch (err) {
-      toast(`Failed to copy ${type}`);
+      toast.error(`Failed to copy ${type}`);
     }
   };
 
@@ -188,6 +188,7 @@ export function ClientSidebar() {
                     <Star className="h-5 w-5" />
                     Promo Matches ({client.matches.length})
                   </DialogTitle>
+                  <DialogDescription>Current promo watches matching this client's interests</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-3 mt-2">
                   {client.matches.filter((match: any) => match.promo?.modelNumber || match.promo?.collection).map((match: any, index: number) => (

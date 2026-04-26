@@ -24,7 +24,7 @@ export function EditClientDialog({ client }: EditClientDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
-  const [duplicateClient, setDuplicateClient] = useState(null);
+  const [duplicateClient, setDuplicateClient] = useState<any>(null);
   
   const [formData, setFormData] = useState({
     firstName: client.firstName,
@@ -37,15 +37,15 @@ export function EditClientDialog({ client }: EditClientDialogProps) {
     anniversary: client.anniversary ? new Date(client.anniversary) : null,
     onEmailList: client.onEmailList,
     notes: client.notes || "",
-    tags: client.tags || [],
+    tags: (client.tags || []) as string[],
   });
 
   const [newTag, setNewTag] = useState("");
   const [productInterest, setProductInterest] = useState("");
-  const [productsOfInterest, setProductsOfInterest] = useState(client.productsOfInterest || []);
+  const [productsOfInterest, setProductsOfInterest] = useState<string[]>(client.productsOfInterest || []);
 
   // Fetch available employees
-  const [employees, setEmployees] = useState([]);
+  const [employees, setEmployees] = useState<{ id: string; name: string; role: string }[]>([]);
 
   useEffect(() => {
     // This would normally fetch from the API
@@ -304,7 +304,7 @@ export function EditClientDialog({ client }: EditClientDialogProps) {
                   <PopoverContent className="w-auto p-0">
                     <Calendar
                       mode="single"
-                      selected={formData.birthday}
+                      selected={formData.birthday ?? undefined}
                       onSelect={(date) => handleInputChange("birthday", date)}
                       initialFocus
                     />
@@ -325,7 +325,7 @@ export function EditClientDialog({ client }: EditClientDialogProps) {
                   <PopoverContent className="w-auto p-0">
                     <Calendar
                       mode="single"
-                      selected={formData.anniversary}
+                      selected={formData.anniversary ?? undefined}
                       onSelect={(date) => handleInputChange("anniversary", date)}
                       initialFocus
                     />

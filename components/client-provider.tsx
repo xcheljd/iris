@@ -9,6 +9,8 @@ export interface FullClient {
   phone?: string | null;
   email?: string | null;
   employeeId?: string | null;
+  employeeName?: string | null;
+  customerId?: string | null;
   dateAdded: string;
   productsOfInterest: string[];
   notes?: string | null;

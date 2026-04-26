@@ -55,6 +55,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
+import { Topbar } from "@/components/topbar";
 import { format, isAfter, isBefore, subDays, startOfDay, endOfDay } from "date-fns";
 
 interface Stats {
@@ -183,10 +184,12 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
   };
 
   return (
-    <div className="container mx-auto py-6 px-4">
+    <>
+      <Topbar title="Analytics" />
+      <div className="flex-1 p-4 md:p-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Analytics</h1>
+          <h1 className="sr-only">Analytics</h1>
           <p className="text-muted-foreground mt-1">
             Performance metrics and outreach insights
           </p>
@@ -820,6 +823,7 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </>
   );
 }

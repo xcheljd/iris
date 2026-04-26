@@ -45,6 +45,7 @@ import Link from "next/link";
 import { applyClientFilter } from "@/lib/utils";
 import { deleteSmartList, duplicateSmartList, renameSmartList, createSmartList } from "@/lib/actions";
 import { toast } from "sonner";
+import { Topbar } from "@/components/topbar";
 import type { Client } from "@/lib/db/schema";
 import type { SmartList } from "@/lib/db/schema";
 
@@ -423,9 +424,11 @@ export function SmartListsContent({ lists, allClients }: SmartListsContentProps)
   };
 
   return (
-    <div className="container mx-auto py-6 px-4">
+    <>
+      <Topbar title="Smart Lists" />
+      <div className="flex-1 p-4 md:p-6">
       <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Smart Lists</h1>
+        <h1 className="sr-only">Smart Lists</h1>
         <p className="text-muted-foreground mt-1">
           Saved filter combinations for quick access
         </p>
@@ -609,6 +612,7 @@ export function SmartListsContent({ lists, allClients }: SmartListsContentProps)
 
       {/* Create List Dialog */}
       <CreateListDialog open={createOpen} onOpenChange={setCreateOpen} allClients={allClients} />
-    </div>
+      </div>
+    </>
   );
 }

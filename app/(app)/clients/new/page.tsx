@@ -16,12 +16,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { Plus, Tag, X, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { Topbar } from "@/components/topbar";
 
 export default function AddClientPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
-  const [duplicateClient, setDuplicateClient] = useState(null);
+  const [duplicateClient, setDuplicateClient] = useState<any>(null);
   const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -178,12 +179,14 @@ export default function AddClientPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 px-4 max-w-4xl">
+    <>
+      <Topbar title="Add New Client" />
+      <div className="flex-1 p-4 md:p-6 max-w-4xl mx-auto">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Add New Client</h1>
+            <h1 className="sr-only">Add New Client</h1>
             <p className="text-muted-foreground mt-1">
               Create a new client record in the CRM
             </p>
@@ -372,7 +375,7 @@ export default function AddClientPage() {
                   <PopoverContent className="w-auto p-0">
                     <Calendar
                       mode="single"
-                      selected={formData.birthday}
+                      selected={formData.birthday ?? undefined}
                       onSelect={(date) => handleInputChange("birthday", date)}
                       initialFocus
                     />
@@ -394,7 +397,7 @@ export default function AddClientPage() {
                   <PopoverContent className="w-auto p-0">
                     <Calendar
                       mode="single"
-                      selected={formData.anniversary}
+                      selected={formData.anniversary ?? undefined}
                       onSelect={(date) => handleInputChange("anniversary", date)}
                       initialFocus
                     />
@@ -532,6 +535,7 @@ export default function AddClientPage() {
           </Button>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

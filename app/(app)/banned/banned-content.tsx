@@ -49,6 +49,7 @@ import { banClient, unbanCustomer } from "@/lib/actions";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import Link from "next/link";
+import { Topbar } from "@/components/topbar";
 import type { BannedCustomer } from "@/lib/db/schema";
 
 interface BannedRow {
@@ -141,10 +142,12 @@ export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }
   };
 
   return (
-    <div className="container mx-auto py-6 px-4">
+    <>
+      <Topbar title="Banned Customers" />
+      <div className="flex-1 p-4 md:p-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Banned Customers</h1>
+          <h1 className="sr-only">Banned Customers</h1>
           <p className="text-muted-foreground mt-1">
             Manage customer bans for compliance
           </p>
@@ -466,6 +469,7 @@ export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </div>
+    </>
   );
 }

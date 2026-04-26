@@ -12,6 +12,7 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 import { Eye, EyeOff, Loader2, Check, X } from "lucide-react";
 import { changeOwnPassword, setSecretQuestion } from "@/lib/actions";
 import { toast } from "sonner";
+import { Topbar } from "@/components/topbar";
 
 const SECRET_QUESTIONS = [
   "What is your favorite watch brand?",
@@ -137,7 +138,9 @@ export default function ChangePasswordPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 px-4 max-w-lg">
+    <>
+      <Topbar title="Change Password" />
+      <div className="flex-1 p-4 md:p-6 max-w-lg mx-auto">
       <Breadcrumb className="mb-4">
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -255,6 +258,7 @@ export default function ChangePasswordPage() {
           </form>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </>
   );
 }

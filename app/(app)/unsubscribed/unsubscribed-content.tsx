@@ -47,6 +47,7 @@ import { removeUnsubscribe, addUnsubscribeEmail, resubscribeClient } from "@/lib
 import { toast } from "sonner";
 import { format, isAfter, isBefore, subDays, startOfMonth, endOfMonth } from "date-fns";
 import Link from "next/link";
+import { Topbar } from "@/components/topbar";
 
 interface UnsubscribedRow {
   unsub: {
@@ -200,9 +201,11 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
   const matchCount = list.filter((l) => l.clientId).length;
 
   return (
-    <div className="container mx-auto py-6 px-4">
+    <>
+      <Topbar title="Unsubscribed" />
+      <div className="flex-1 p-4 md:p-6">
       <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Unsubscribed</h1>
+        <h1 className="sr-only">Unsubscribed</h1>
         <p className="text-muted-foreground mt-1">
           Manage email unsubscribe list for compliance
         </p>
@@ -503,6 +506,7 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </div>
+    </>
   );
 }

@@ -23,6 +23,7 @@ import { createPromo, deletePromo, importPromos, clearAllPromos } from "@/lib/ac
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import type { PromoWatch } from "@/lib/db/schema";
+import { Topbar } from "@/components/topbar";
 
 const PAGE_SIZE = 15;
 
@@ -382,10 +383,12 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
   };
 
   return (
-    <div className="container mx-auto py-6 px-4">
+    <>
+      <Topbar title="Promo Manager" />
+      <div className="flex-1 p-4 md:p-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Promo Manager</h1>
+          <h1 className="sr-only">Promo Manager</h1>
           <p className="text-muted-foreground mt-1">
             Weekly promo watches — match them to interested clients
           </p>
@@ -679,6 +682,7 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </div>
+    </>
   );
 }
