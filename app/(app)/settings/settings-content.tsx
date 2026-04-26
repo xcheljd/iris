@@ -243,7 +243,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
   return (
     <div className="container mx-auto py-6 px-4">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground mt-1">
           Manage employees, tags, and outreach templates
         </p>
@@ -337,11 +337,12 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
               </div>
             </CardHeader>
             <CardContent>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>Username</TableHead>
+                    <TableHead className="hidden sm:table-cell">Username</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Status</TableHead>
                     {isManager && <TableHead className="text-right">Actions</TableHead>}
@@ -351,7 +352,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                   {filteredEmployees.map((employee) => (
                     <TableRow key={employee.id}>
                       <TableCell className="font-medium">{employee.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{employee.username}</TableCell>
+                      <TableCell className="hidden sm:table-cell text-muted-foreground">{employee.username}</TableCell>
                       <TableCell>
                         <Badge variant="secondary">
                           {employee.role}
@@ -427,6 +428,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                   )}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
 
@@ -531,11 +533,12 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                   <p className="text-sm mt-1">Create tags to categorize your clients</p>
                 </div>
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Tag</TableHead>
-                      <TableHead>Color</TableHead>
+                      <TableHead className="hidden sm:table-cell">Color</TableHead>
                       <TableHead>Usage</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -546,7 +549,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                       return (
                         <TableRow key={tag.id}>
                           <TableCell className="font-medium">{tag.name}</TableCell>
-                          <TableCell>
+                          <TableCell className="hidden sm:table-cell">
                             <div className="flex items-center gap-2">
                               <div className={`w-4 h-4 rounded-full ${colorObj?.class || "bg-gray-500"}`} />
                               <span className="text-sm text-muted-foreground">{tag.color}</span>
@@ -575,6 +578,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                     })}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>

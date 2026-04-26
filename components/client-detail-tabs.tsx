@@ -22,15 +22,15 @@ export function ClientDetailTabs() {
   if (!client) return null;
 
   return (
-    <div className="p-6">
-      <div className="flex items-center gap-4 mb-4">
+    <div className="p-4 md:p-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
         <Avatar className="h-14 w-14 text-lg">
           <AvatarFallback className="bg-primary/10 text-primary font-semibold">
             {client.firstName?.[0]}{client.lastName?.[0]}
           </AvatarFallback>
         </Avatar>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
             {client.firstName} {client.lastName}
           </h1>
           {client.customerId && (
@@ -50,7 +50,7 @@ export function ClientDetailTabs() {
       <Separator className="mb-4" />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-3 md:grid-cols-6">
           <TabsTrigger value="profile" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Profile

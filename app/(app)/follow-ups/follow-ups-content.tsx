@@ -180,7 +180,7 @@ function FollowUpCard({ row, isOverdue, onDetail }: { row: FollowUpRow; isOverdu
           </div>
         </CardHeader>
         <CardContent className="px-4 pb-4 pt-0">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
             <div className="flex-1 min-w-0 space-y-2">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                 {row.client.phone && (
@@ -200,7 +200,7 @@ function FollowUpCard({ row, isOverdue, onDetail }: { row: FollowUpRow; isOverdu
                 </p>
               )}
 
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                 {row.log.followUpDate && (
                   <span className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
@@ -216,7 +216,7 @@ function FollowUpCard({ row, isOverdue, onDetail }: { row: FollowUpRow; isOverdu
               </div>
             </div>
 
-            <div className="flex flex-col gap-1.5 shrink-0">
+            <div className="flex flex-row sm:flex-col gap-1.5 shrink-0 flex-wrap">
               <Button size="sm" variant="ghost" onClick={onDetail} className="h-7 text-xs gap-1">
                 <Eye className="h-3 w-3" />
                 Detail
@@ -381,7 +381,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
   return (
     <div className="container mx-auto py-6 px-4">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight">Follow-Ups</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Follow-Ups</h1>
         <p className="text-muted-foreground mt-1">
           Track pending outreach and follow-up tasks
         </p>

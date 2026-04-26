@@ -142,9 +142,9 @@ export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }
 
   return (
     <div className="container mx-auto py-6 px-4">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Banned Customers</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Banned Customers</h1>
           <p className="text-muted-foreground mt-1">
             Manage customer bans for compliance
           </p>
@@ -167,7 +167,7 @@ export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }
               <DialogDescription>Add a customer to the banned list with a reason and category.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="banFirstName">First Name *</Label>
                   <Input

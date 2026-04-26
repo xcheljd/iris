@@ -172,13 +172,14 @@ export default async function DashboardPage() {
                 {recent.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-6">No recent activity</p>
                 ) : (
+                <div className="overflow-x-auto -mx-6 px-6">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Method</TableHead>
                         <TableHead>Client</TableHead>
                         <TableHead>Outcome</TableHead>
-                        <TableHead>Employee</TableHead>
+                        <TableHead className="hidden sm:table-cell">Employee</TableHead>
                         <TableHead className="text-right">When</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -207,6 +208,7 @@ export default async function DashboardPage() {
                       ))}
                     </TableBody>
                   </Table>
+                </div>
                 )}
               </CardContent>
             </Card>

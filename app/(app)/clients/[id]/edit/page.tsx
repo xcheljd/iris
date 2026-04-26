@@ -259,16 +259,16 @@ export default function EditClientPage() {
   }
 
   return (
-    <div className="container mx-auto py-6 max-w-4xl">
+    <div className="container mx-auto py-6 px-4 max-w-4xl">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Button variant="ghost" onClick={() => router.back()}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Edit Client</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Edit Client</h1>
               <p className="text-muted-foreground mt-1">
                 {client.firstName} {client.lastName}
               </p>

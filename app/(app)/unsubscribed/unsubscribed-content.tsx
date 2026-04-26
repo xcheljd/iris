@@ -202,7 +202,7 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
   return (
     <div className="container mx-auto py-6 px-4">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight">Unsubscribed</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Unsubscribed</h1>
         <p className="text-muted-foreground mt-1">
           Manage email unsubscribe list for compliance
         </p>
@@ -274,7 +274,7 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
       {/* Unsubscribe List */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 flex-wrap">
             <CardTitle>Unsubscribe List</CardTitle>
             <div className="flex items-center gap-2">
               {selected.size > 0 && (
@@ -367,9 +367,9 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
                       aria-label={`Select ${record.unsub.email}`}
                     />
                     <div className="flex-1 min-w-0 flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-4 min-w-0">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 min-w-0">
                         {/* Name / Client link */}
-                        <div className="min-w-0 w-[180px]">
+                        <div className="min-w-0 sm:w-[180px]">
                           {record.clientId ? (
                             <Link
                               href={`/clients/${record.clientId}`}
@@ -382,7 +382,7 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
                           )}
                         </div>
                         {/* Customer ID */}
-                        <div className="w-[110px] shrink-0">
+                        <div className="hidden sm:block sm:w-[110px] sm:shrink-0">
                           {record.customerId ? (
                             <Badge variant="outline" className="font-mono text-xs">
                               #{record.customerId}
@@ -397,7 +397,7 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
                           <span className="text-sm truncate">{record.unsub.email}</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 shrink-0">
+                      <div className="flex items-center gap-2 sm:gap-3 shrink-0 flex-wrap">
                         <span className="text-xs text-muted-foreground">
                           {record.unsub.unsubscribedAt
                             ? format(new Date(record.unsub.unsubscribedAt), "MMM d, yyyy")

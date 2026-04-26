@@ -22,9 +22,9 @@ export function ClientDetailContent({ client }: { client: any }) {
           </BreadcrumbList>
         </Breadcrumb>
       </div>
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-col md:flex-row flex-1 min-h-0">
         <ClientProvider client={client}>
-          <div className="w-[280px] flex-shrink-0 border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="md:w-[280px] md:flex-shrink-0 md:border-r md:overflow-y-auto border-b md:border-b-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <ClientSidebar />
           </div>
           <div className="flex-1 overflow-auto">

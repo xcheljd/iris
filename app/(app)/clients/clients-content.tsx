@@ -208,6 +208,7 @@ export function ClientListContent({ rows, totalClients }: { rows: ClientRow[]; t
 
         {/* Table */}
         <Card>
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -222,9 +223,9 @@ export function ClientListContent({ rows, totalClients }: { rows: ClientRow[]; t
                 <TableHead><SortableHeader label="Name" sortKey="name" currentSort={sort} currentDir={sortDir} onSort={handleSort} /></TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead><SortableHeader label="Heat" sortKey="heat" currentSort={sort} currentDir={sortDir} onSort={handleSort} /></TableHead>
-                <TableHead>Tags</TableHead>
-                <TableHead><SortableHeader label="Owner" sortKey="owner" currentSort={sort} currentDir={sortDir} onSort={handleSort} /></TableHead>
-                <TableHead><SortableHeader label="Last contact" sortKey="lastContact" currentSort={sort} currentDir={sortDir} onSort={handleSort} /></TableHead>
+                <TableHead className="hidden md:table-cell">Tags</TableHead>
+                <TableHead className="hidden md:table-cell"><SortableHeader label="Owner" sortKey="owner" currentSort={sort} currentDir={sortDir} onSort={handleSort} /></TableHead>
+                <TableHead className="hidden md:table-cell"><SortableHeader label="Last contact" sortKey="lastContact" currentSort={sort} currentDir={sortDir} onSort={handleSort} /></TableHead>
                 <TableHead className="w-10"><span className="sr-only">Actions</span></TableHead>
               </TableRow>
             </TableHeader>
@@ -252,13 +253,13 @@ export function ClientListContent({ rows, totalClients }: { rows: ClientRow[]; t
                       <div className="text-xs text-muted-foreground truncate max-w-[200px]">{r.client.email}</div>
                     </TableCell>
                     <TableCell><HeatBadge level={r.client.heatLevel} score={r.client.heatScore} showScore /></TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       <div className="flex gap-1 flex-wrap max-w-[180px]">
                         {(r.client.tags || []).slice(0, 3).map((t) => <Badge key={t} variant="secondary" className="text-[10px]">{t}</Badge>)}
                       </div>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{r.employeeName ?? "—"}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{d === null ? "Never" : d === 0 ? "Today" : `${d}d ago`}</TableCell>
+                    <TableCell className="hidden md:table-cell text-xs text-muted-foreground">{r.employeeName ?? "—"}</TableCell>
+                    <TableCell className="hidden md:table-cell text-xs text-muted-foreground">{d === null ? "Never" : d === 0 ? "Today" : `${d}d ago`}</TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -302,10 +303,11 @@ export function ClientListContent({ rows, totalClients }: { rows: ClientRow[]; t
               })}
             </TableBody>
           </Table>
+          </div>
         </Card>
 
         {/* Footer: count + pagination */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">{filtered.length} of {totalClients} clients</p>
           {totalPages > 1 && (
             <div className="flex items-center gap-2">

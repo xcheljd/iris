@@ -425,13 +425,13 @@ export function SmartListsContent({ lists, allClients }: SmartListsContentProps)
   return (
     <div className="container mx-auto py-6 px-4">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight">Smart Lists</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Smart Lists</h1>
         <p className="text-muted-foreground mt-1">
           Saved filter combinations for quick access
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6">
         {/* List Sidebar */}
         <div className="space-y-4">
           {/* Built-in Lists */}

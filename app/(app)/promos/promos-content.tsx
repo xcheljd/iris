@@ -160,7 +160,7 @@ function ImportPromoDialog({ open, onOpenChange }: { open: boolean; onOpenChange
         {!parsed ? (
           <div className="space-y-4">
             {/* Promo Date Range */}
-            <div className="flex items-end gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
               <div className="space-y-2 flex-1">
                 <Label>Promo Start</Label>
                 <Popover open={startOpen} onOpenChange={setStartOpen}>
@@ -250,7 +250,7 @@ function ImportPromoDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                 <span>Promo period: {promoStart ? format(promoStart, "MMM d") : "?"} — {promoEnd ? format(promoEnd, "MMM d, yyyy") : "?"}</span>
               </div>
             )}
-            <div className="border rounded-md overflow-hidden">
+            <div className="border rounded-md overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -383,14 +383,14 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
 
   return (
     <div className="container mx-auto py-6 px-4">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Promo Manager</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Promo Manager</h1>
           <p className="text-muted-foreground mt-1">
             Weekly promo watches — match them to interested clients
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" onClick={() => setImportOpen(true)}>
             <ClipboardPaste className="h-4 w-4 mr-2" />
             Import
@@ -408,7 +408,7 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
                 <DialogDescription>Add a single model to the current promo list.</DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label htmlFor="modelNumber">Model Number</Label>
                     <Input id="modelNumber" placeholder="e.g., HX1009-01X" value={newPromo.modelNumber} onChange={(e) => setNewPromo({ ...newPromo, modelNumber: e.target.value })} />
@@ -419,7 +419,7 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
                   </div>
                 </div>
                 <Separator />
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="space-y-2">
                     <Label htmlFor="msrp">MSRP ($)</Label>
                     <Input id="msrp" type="number" step="0.01" placeholder="395.00" value={newPromo.msrp} onChange={(e) => setNewPromo({ ...newPromo, msrp: e.target.value })} />
@@ -448,7 +448,7 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
       {promos.length > 0 && (promoStart || promoEnd) && (
         <Card className="mb-6 border-blue-800/50 bg-blue-950/20">
           <CardContent className="py-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <CalendarDays className="h-5 w-5 text-blue-400" />
                 <span className="text-sm font-medium">Current Promo Period</span>
@@ -549,14 +549,15 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
             </div>
           ) : (
             <>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Model Number</TableHead>
                     <TableHead>Collection</TableHead>
-                    <TableHead className="text-right">MSRP</TableHead>
-                    <TableHead className="text-right">Disc.</TableHead>
-                    <TableHead className="text-right">Sale Price</TableHead>
+                    <TableHead className="text-right hidden sm:table-cell">MSRP</TableHead>
+                    <TableHead className="text-right hidden md:table-cell">Disc.</TableHead>
+                    <TableHead className="text-right hidden sm:table-cell">Sale Price</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -566,9 +567,9 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
                       <TableRow>
                         <TableCell className="font-medium font-mono text-sm">{promo.modelNumber}</TableCell>
                         <TableCell><Badge variant="outline">{promo.collection}</Badge></TableCell>
-                        <TableCell className="text-right">{promo.msrp != null ? `$${promo.msrp.toFixed(2)}` : "—"}</TableCell>
-                        <TableCell className="text-right">{promo.discountPercent != null ? `${promo.discountPercent}%` : "—"}</TableCell>
-                        <TableCell className="text-right font-medium text-green-500">{promo.discountPrice != null ? `$${promo.discountPrice.toFixed(2)}` : "—"}</TableCell>
+                        <TableCell className="text-right hidden sm:table-cell">{promo.msrp != null ? `$${promo.msrp.toFixed(2)}` : "—"}</TableCell>
+                        <TableCell className="text-right hidden md:table-cell">{promo.discountPercent != null ? `${promo.discountPercent}%` : "—"}</TableCell>
+                        <TableCell className="text-right hidden sm:table-cell font-medium text-green-500">{promo.discountPrice != null ? `$${promo.discountPrice.toFixed(2)}` : "—"}</TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -616,10 +617,11 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
                   ))}
                 </TableBody>
               </Table>
+              </div>
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                <div className="flex flex-col sm:flex-row items-center justify-between mt-4 pt-4 border-t gap-2">
                   <p className="text-sm text-muted-foreground">
                     Showing {((currentPage - 1) * PAGE_SIZE) + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length}
                   </p>

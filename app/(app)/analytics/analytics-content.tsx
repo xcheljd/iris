@@ -184,15 +184,15 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
 
   return (
     <div className="container mx-auto py-6 px-4">
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Analytics</h1>
           <p className="text-muted-foreground mt-1">
             Performance metrics and outreach insights
           </p>
         </div>
         {/* Date Range Picker */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Popover open={fromOpen} onOpenChange={setFromOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
