@@ -56,6 +56,7 @@ export function ClientSidebar() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleCopy(client.phone!, "phone")}
+                      aria-label="Copy phone number"
                     >
                       <Copy className="h-4 w-4" />
                     </Button>
@@ -75,6 +76,7 @@ export function ClientSidebar() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleCopy(client.email!, "email")}
+                      aria-label="Copy email address"
                     >
                       <Copy className="h-4 w-4" />
                     </Button>

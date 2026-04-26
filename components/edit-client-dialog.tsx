@@ -363,6 +363,7 @@ export function EditClientDialog({ client }: EditClientDialogProps) {
                       size="sm"
                       className="h-5 w-5 ml-1"
                       onClick={() => handleRemoveProductInterest(product)}
+                      aria-label={`Remove ${product}`}
                     >
                       <X className="h-3 w-3" />
                     </Button>
@@ -400,6 +401,7 @@ export function EditClientDialog({ client }: EditClientDialogProps) {
                       size="sm"
                       className="h-5 w-5 ml-1"
                       onClick={() => handleRemoveTag(tag)}
+                      aria-label={`Remove tag ${tag}`}
                     >
                       <X className="h-3 w-3" />
                     </Button>

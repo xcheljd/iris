@@ -61,7 +61,7 @@ function getCategoryBadge(category: string) {
     case "Reselling":
       return <Badge variant="destructive">Reselling</Badge>;
     case "Gift Card Fraud":
-      return <Badge variant="destructive" className="bg-orange-600 hover:bg-orange-600/90">Gift Card Fraud</Badge>;
+      return <Badge variant="destructive" className="bg-orange-600 hover:bg-orange-600/90 text-white">Gift Card Fraud</Badge>;
     default:
       return <Badge variant="secondary">{category}</Badge>;
   }
@@ -305,6 +305,7 @@ export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }
                 size="sm"
                 className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
                 onClick={() => setSearchQuery("")}
+                aria-label="Clear search"
               >
                 <X className="h-3.5 w-3.5" />
               </Button>
@@ -362,6 +363,7 @@ export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0 shrink-0"
+                            aria-label="Actions"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <MoreHorizontal className="h-4 w-4" />

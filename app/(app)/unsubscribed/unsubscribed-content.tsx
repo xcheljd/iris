@@ -315,6 +315,7 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
                 size="sm"
                 className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
                 onClick={() => setSearchQuery("")}
+                aria-label="Clear search"
               >
                 <X className="h-3.5 w-3.5" />
               </Button>
@@ -405,7 +406,7 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
                         {record.clientId ? (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" aria-label="Actions">
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>

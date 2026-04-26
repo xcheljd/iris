@@ -284,7 +284,7 @@ export function FollowUpForm({ clientId, onSuccess }: FollowUpFormProps) {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Notes</Label>
-              <Button variant="ghost" size="sm" onClick={copyToClipboard}>
+              <Button variant="ghost" size="sm" onClick={copyToClipboard} aria-label="Copy notes">
                 <Copy className="h-4 w-4" />
               </Button>
             </div>

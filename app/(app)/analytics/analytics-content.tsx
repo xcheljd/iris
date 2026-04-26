@@ -376,7 +376,7 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
                     {stats.purchasesWeek} purchase{stats.purchasesWeek !== 1 ? "s" : ""} from{" "}
                     {stats.outreachWeek} outreach attempt{stats.outreachWeek !== 1 ? "s" : ""} in the last 7 days.
                   </p>
-                  <Progress value={conversionRate} className="h-2 mt-2" />
+                  <Progress value={conversionRate} className="h-2 mt-2" aria-label="Conversion rate" />
                 </div>
               </HoverCardContent>
             </HoverCard>
@@ -434,7 +434,7 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
                   <span>Conversion Rate</span>
                   <span className="font-medium">{conversionRate}%</span>
                 </div>
-                <Progress value={conversionRate} className="h-2" />
+                <Progress value={conversionRate} className="h-2" aria-label="Conversion rate" />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
@@ -443,7 +443,7 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
                     {stats.outreachWeek > 0 ? "100%" : "0%"}
                   </span>
                 </div>
-                <Progress value={stats.outreachWeek > 0 ? 100 : 0} className="h-2" />
+                <Progress value={stats.outreachWeek > 0 ? 100 : 0} className="h-2" aria-label="Outreach completion" />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
@@ -462,6 +462,7 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
                       : 0
                   }
                   className="h-2"
+                  aria-label="Purchase rate"
                 />
               </div>
             </CardContent>
@@ -567,6 +568,7 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
                           <Progress
                             value={totalOutreach > 0 ? (count / totalOutreach) * 100 : 0}
                             className="h-2 w-20"
+                            aria-label={`${outcome} outcome`}
                           />
                           <Badge variant="secondary" className="w-8 justify-center">
                             {count}
@@ -737,7 +739,7 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
                       </span>
                     </div>
                   </div>
-                  <Progress value={stats.active > 0 ? (stats.hot / stats.active) * 100 : 0} className="h-3 [&>div]:bg-orange-500" />
+                  <Progress value={stats.active > 0 ? (stats.hot / stats.active) * 100 : 0} className="h-3 [&>div]:bg-orange-500" aria-label="Hot clients percentage" />
                 </div>
 
                 <div className="space-y-2">
@@ -753,7 +755,7 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
                       </span>
                     </div>
                   </div>
-                  <Progress value={stats.active > 0 ? (stats.warm / stats.active) * 100 : 0} className="h-3 [&>div]:bg-yellow-500" />
+                  <Progress value={stats.active > 0 ? (stats.warm / stats.active) * 100 : 0} className="h-3 [&>div]:bg-yellow-500" aria-label="Warm clients percentage" />
                 </div>
 
                 <div className="space-y-2">
@@ -769,7 +771,7 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
                       </span>
                     </div>
                   </div>
-                  <Progress value={stats.active > 0 ? (stats.cold / stats.active) * 100 : 0} className="h-3 [&>div]:bg-blue-500" />
+                  <Progress value={stats.active > 0 ? (stats.cold / stats.active) * 100 : 0} className="h-3 [&>div]:bg-blue-500" aria-label="Cold clients percentage" />
                 </div>
               </div>
 

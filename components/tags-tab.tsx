@@ -145,6 +145,7 @@ export function TagsTab({ client }: TagsTabProps) {
                       size="sm"
                       onClick={() => handleRemoveTag(tag)}
                       className="h-8 w-8 text-destructive hover:text-destructive"
+                      aria-label={`Remove tag ${tag}`}
                     >
                       <X className="h-4 w-4" />
                     </Button>

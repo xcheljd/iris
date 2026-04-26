@@ -26,7 +26,7 @@ export function HeatScoreBar({ score, className }: HeatScoreBarProps) {
 
   return (
     <div className={cn("flex items-center gap-3", className)}>
-      <Progress value={score} className="flex-1 h-2" />
+      <Progress value={score} className="flex-1 h-2" aria-label={`Heat score: ${score}`} />
       <div className="flex items-center gap-1">
         <span className="text-sm font-medium">{score}</span>
         <span className={`text-xs font-medium ${heatLevel.color}`}>

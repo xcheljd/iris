@@ -92,7 +92,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <main className="min-h-screen flex items-center justify-center bg-background p-4">
+      <h1 className="sr-only">Iris Login</h1>
       <Card className="w-full max-w-md border-border/50">
         <CardHeader className="space-y-2 text-center">
           <div className="mx-auto mb-2 h-12 w-12 rounded-full bg-accent/15 flex items-center justify-center">
@@ -118,7 +119,7 @@ export default function LoginPage() {
                 <Label htmlFor="password">Password</Label>
                 <div className="relative">
                   <Input id="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••" required />
-                  <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowPassword(!showPassword)}>
+                  <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Hide password" : "Show password"}>
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
@@ -196,7 +197,7 @@ export default function LoginPage() {
                     placeholder="••••••"
                     required
                   />
-                  <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowNewPassword(!showNewPassword)}>
+                  <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowNewPassword(!showNewPassword)} aria-label={showNewPassword ? "Hide password" : "Show password"}>
                     {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
@@ -212,6 +213,6 @@ export default function LoginPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </main>
   );
 }

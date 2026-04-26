@@ -11,11 +11,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <div className="flex min-h-svh flex-col pb-16 md:pb-0">
+        <main className="flex min-h-svh flex-col pb-16 md:pb-0">
           <Suspense fallback={<><Topbar /><DashboardSkeleton /></>}>
             {children}
           </Suspense>
-        </div>
+        </main>
       </SidebarInset>
       <CommandPalette />
       <MobileNav />

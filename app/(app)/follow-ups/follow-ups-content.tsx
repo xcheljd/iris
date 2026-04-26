@@ -74,7 +74,7 @@ function getMethodBadgeVariant(method: string) {
   switch (method) {
     case "call": return "bg-green-500/10 text-green-500 border-green-500/20";
     case "text": return "bg-blue-500/10 text-blue-500 border-blue-500/20";
-    case "email": return "bg-purple-500/10 text-purple-500 border-purple-500/20";
+    case "email": return "bg-purple-500/10 text-purple-400 border-purple-500/20";
     case "in-person": return "bg-orange-500/10 text-orange-500 border-orange-500/20";
     default: return "bg-muted text-muted-foreground border-muted";
   }

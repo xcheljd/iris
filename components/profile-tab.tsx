@@ -65,6 +65,7 @@ export function ProfileTab({ client }: ProfileTabProps) {
                         size="sm"
                         onClick={handlePhoneCopy}
                         className="h-8 w-8"
+                        aria-label="Copy phone number"
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
@@ -94,6 +95,7 @@ export function ProfileTab({ client }: ProfileTabProps) {
                         size="sm"
                         onClick={handleEmailCopy}
                         className="h-8 w-8"
+                        aria-label="Copy email address"
                       >
                         <Copy className="h-4 w-4" />
                       </Button>

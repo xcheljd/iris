@@ -436,6 +436,7 @@ export default function AddClientPage() {
                       size="sm"
                       className="h-5 w-5 ml-1"
                       onClick={() => handleRemoveProductInterest(product)}
+                      aria-label={`Remove ${product}`}
                     >
                       <X className="h-3 w-3" />
                     </Button>
@@ -495,6 +496,7 @@ export default function AddClientPage() {
                       size="sm"
                       className="h-5 w-5 ml-1"
                       onClick={() => handleRemoveTag(tag)}
+                      aria-label={`Remove tag ${tag}`}
                     >
                       <X className="h-3 w-3" />
                     </Button>

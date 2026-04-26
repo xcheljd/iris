@@ -45,7 +45,7 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border">
-        <Link href="/" className="flex items-center gap-2 px-2 py-1.5">
+        <Link href="/" className="flex items-center gap-2 px-2 py-1.5" aria-label="Iris Dashboard">
           <div className="h-8 w-8 shrink-0 rounded-md bg-accent/15 border border-accent/30 flex items-center justify-center">
             <span className="text-accent text-sm font-serif">C</span>
           </div>
@@ -98,8 +98,8 @@ export function AppSidebar() {
           {!collapsed && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Link href="/change-password">
-                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                <Link href="/change-password" aria-label="Change Password">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Change Password">
                     <KeyRound className="h-3.5 w-3.5" />
                   </Button>
                 </Link>
@@ -110,7 +110,7 @@ export function AppSidebar() {
           {!collapsed && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => signOut({ callbackUrl: "/login" })}>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => signOut({ callbackUrl: "/login" })} aria-label="Sign Out">
                   <LogOut className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>

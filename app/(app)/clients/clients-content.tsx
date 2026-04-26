@@ -159,7 +159,7 @@ export function ClientListContent({ rows, totalClients }: { rows: ClientRow[]; t
           <Link href="/clients/new"><Plus className="h-4 w-4 mr-1" /> Add Client</Link>
         </Button>
       </Topbar>
-      <main className="flex-1 p-4 md:p-6 space-y-4">
+      <div className="flex-1 p-4 md:p-6 space-y-4">
         {/* Filters */}
         <Card className="p-3">
           <div className="flex flex-col md:flex-row gap-2 items-stretch md:items-center">
@@ -212,9 +212,11 @@ export function ClientListContent({ rows, totalClients }: { rows: ClientRow[]; t
             <TableHeader>
               <TableRow>
                 <TableHead className="w-10">
+                  <span className="sr-only">Select all</span>
                   <Checkbox
                     checked={paged.length > 0 && selected.size === paged.length}
                     onCheckedChange={toggleAll}
+                    aria-label="Select all clients"
                   />
                 </TableHead>
                 <TableHead><SortableHeader label="Name" sortKey="name" currentSort={sort} currentDir={sortDir} onSort={handleSort} /></TableHead>
@@ -223,7 +225,7 @@ export function ClientListContent({ rows, totalClients }: { rows: ClientRow[]; t
                 <TableHead>Tags</TableHead>
                 <TableHead><SortableHeader label="Owner" sortKey="owner" currentSort={sort} currentDir={sortDir} onSort={handleSort} /></TableHead>
                 <TableHead><SortableHeader label="Last contact" sortKey="lastContact" currentSort={sort} currentDir={sortDir} onSort={handleSort} /></TableHead>
-                <TableHead className="w-10" />
+                <TableHead className="w-10"><span className="sr-only">Actions</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -260,7 +262,7 @@ export function ClientListContent({ rows, totalClients }: { rows: ClientRow[]; t
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Actions">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -317,7 +319,7 @@ export function ClientListContent({ rows, totalClients }: { rows: ClientRow[]; t
             </div>
           )}
         </div>
-      </main>
+      </div>
     </>
   );
 }

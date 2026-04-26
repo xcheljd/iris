@@ -186,6 +186,7 @@ function SmartListItem({
                   size="sm"
                   className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
                   onClick={(e) => e.stopPropagation()}
+                  aria-label="List actions"
                 >
                   <MoreHorizontal className="h-3 w-3" />
                 </Button>
@@ -469,7 +470,7 @@ export function SmartListsContent({ lists, allClients }: SmartListsContentProps)
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button size="sm" variant="ghost" onClick={() => setCreateOpen(true)}>
+                      <Button size="sm" variant="ghost" onClick={() => setCreateOpen(true)} aria-label="Create new list">
                         <Plus className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
@@ -547,6 +548,7 @@ export function SmartListsContent({ lists, allClients }: SmartListsContentProps)
                       size="sm"
                       className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
                       onClick={() => setSearchQuery("")}
+                      aria-label="Clear search"
                     >
                       <X className="h-3 w-3" />
                     </Button>

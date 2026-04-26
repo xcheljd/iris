@@ -16,7 +16,8 @@
 | Phase 5 | **COMPLETE** | 14/14 | Follow-ups: CardHeader+CardContent, Reschedule/Snooze, OVERDUE Badge, Tabs (Overdue/Upcoming/All), AlertDialog on Done, Sheet detail, method Badge, relative time. Smart Lists: empty state CTA, Tooltips on truncated names, DropdownMenu actions, AlertDialog delete, Separator, member count badges, filter builder |
 | Phase 6 | **COMPLETE** | 14/14 | Promos: Switch toggle inline, DropdownMenu actions, search/filter, pagination, Badge variants. Settings: Switch for employee status, DropdownMenu per row, search bar, Separator between tabs, Dialog descriptions |
 | Phase 7 | **COMPLETE** | 17/17 | Banned: expandable rows, DropdownMenu, Badge categories, Dialog ban form, client link, client list exclusion. Unsubscribed: destructive Button, Form validation, Checkbox bulk select+remove, date range filter, Resubscribe, Quick Add client detection, enriched display. Analytics: Calendar date picker, recharts BarChart+PieChart, HoverCard, Progress bars, Tabs, Badge, Separator |
-| Phase 8 | **COMPLETE** | 5/8 | Dashboard: tabbed views (Overview/Activity/Metrics), stat cards with hover effects, Recent activity as Table, Overdue Badge with icon + relative time, heat distribution bar, conversion/active metrics. Items 6-8 (QA sweep, accessibility, responsiveness) deferred to ongoing maintenance |
+| Phase 8 | **COMPLETE** | 6/8 | Dashboard: tabbed views (Overview/Activity/Metrics), stat cards with hover effects, Recent activity as Table, Overdue Badge with icon + relative time, heat distribution bar, conversion/active metrics. Item 7 (accessibility audit) completed as Phase 9. Items 6 and 8 (QA sweep, responsiveness) deferred to ongoing maintenance |
+| Phase 9 | **COMPLETE** | 6/6 | Accessibility audit: icon button aria-labels (101 nodes), color contrast fixes (6 nodes), progress bar aria-labels (3 nodes), landmark-main fixes (4 nodes), empty table headers (2 nodes), page heading (1 node) |
 
 ### Post-Phase Feature Work
 
@@ -37,6 +38,21 @@
 
 **Phase 8 -- Dashboard & Polish Pass**
 - `app/(app)/page.tsx` -- full rewrite: `Tabs` for Overview/Activity/Metrics views; stat cards with `hover:border-border hover:shadow-md transition-all` and `sublabel` support; Overview tab keeps overdue follow-ups, upcoming, hot leads, birthdays; overdue `Badge variant="destructive"` with `AlertCircle` icon and relative time via `daysAgo()`; Activity tab with proper `Table` (Method, Client, Outcome, Employee, When columns with relative time); Metrics tab with `Progress` bars for conversion rate and active client %, stacked heat distribution bar, Banned/Unsubscribed stat cards with View links, `Separator` between sections
+
+**Phase 9 -- Accessibility Audit**
+- Icon button `aria-label` added across 23 files: login (show/hide password), change-password (3 show/hide), sidebar (change password, sign out), settings (3 dropdown triggers: employee, tag, template), search clear buttons (promos, banned, unsubscribed, smart-lists, settings), profile-tab (copy phone/email), client-sidebar (copy phone/email), follow-up-form (copy notes), edit-client-dialog (remove product/tag X), new client page (2 remove X), edit client page (2 remove X), tags-tab (remove tag), smart-lists (create list button), topbar (theme toggle), clients (actions dropdown), promos (actions dropdown), banned (actions dropdown), unsubscribed (actions dropdown), smart-lists (list actions dropdown)
+- `app/globals.css` -- brightened `--destructive` from `0 62.8% 45%` to `0 72% 55%` in dark mode for better contrast
+- `app/(app)/banned/banned-content.tsx` -- orange-600 badge: added explicit `text-white`
+- `app/(app)/follow-ups/follow-ups-content.tsx` -- email method badge: changed `text-purple-500` to `text-purple-400` for dark mode contrast
+- `app/(app)/analytics/analytics-content.tsx` -- added `aria-label` to all 8 `<Progress>` bars (conversion rate, outreach completion, purchase rate, outcome distribution, hot/warm/cold percentages)
+- `app/(app)/page.tsx` -- added `aria-label` to 2 `<Progress>` bars (conversion rate, active clients %)
+- `components/heat-score-bar.tsx` -- added `aria-label` with dynamic score value
+- `app/(app)/change-password/page.tsx` -- added `aria-label` to password strength `<Progress>`
+- `app/(app)/layout.tsx` -- changed wrapper `<div>` to `<main>` for proper landmark
+- `app/(app)/page.tsx` -- changed `<main>` to `<div>` (landmark now in layout)
+- `app/(app)/clients/clients-content.tsx` -- changed `<main>` to `<div>` (landmark now in layout)
+- `app/login/page.tsx` -- wrapped content in `<main>`, added `<h1 className="sr-only">Iris Login</h1>`
+- `app/(app)/clients/clients-content.tsx` -- added `sr-only` text to empty checkbox and actions `<TableHead>` columns, added `aria-label` to select-all checkbox
 
 **Phase 1 -- Shared Utilities & Safety Net**
 - `components/skeletons.tsx` -- new file with `StatCardSkeleton`, `DashboardSkeleton`, `TableSkeleton`, `ClientListSkeleton`
@@ -471,7 +487,7 @@ Each phase is designed to be independently shippable. Phases build on each other
 
 ---
 
-### Phase 8: Dashboard & Polish Pass
+### Phase 8: Dashboard & Polish Pass -- COMPLETE
 **Goal:** Final polish on the dashboard and a comprehensive QA sweep across all pages.
 **Effort:** Small-Medium | **Risk:** Low | **Dependencies:** Phases 1-7
 
@@ -490,6 +506,25 @@ Each phase is designed to be independently shippable. Phases build on each other
 
 ---
 
+### Phase 9: Accessibility Audit -- COMPLETE
+**Goal:** Resolve all actionable accessibility violations found via automated audit (axe-core).
+**Effort:** Small-Medium | **Risk:** Low | **Dependencies:** Phase 8
+
+| # | What | Violation | Severity | Nodes Fixed | Pages Affected |
+|---|------|-----------|----------|-------------|----------------|
+| 1 | Add `aria-label` to all icon-only buttons (show/hide password, actions dropdowns, copy buttons, search clear, remove X, theme toggle, create list, etc.) | button-name | Critical | 101 | Login, Change Password, Dashboard, Clients, Client Detail, Follow-Ups, Smart Lists, Promos, Analytics, Banned, Unsubscribed, Settings, Sidebar, Topbar |
+| 2 | Fix color contrast: orange-600 badge gets explicit `text-white`, purple-500 text changed to `purple-400` for dark mode, `--destructive` brightened in dark theme | color-contrast | Serious | 6 | Banned, Follow-Ups, global dark theme |
+| 3 | Add `aria-label` to all `<Progress>` bars (conversion rate, outreach completion, purchase rate, outcome breakdown, hot/warm/cold %, heat score, password strength) | aria-progressbar-name | Serious | 3+ | Analytics, Dashboard, Change Password, Client Detail |
+| 4 | Fix landmark structure: layout wrapper changed from `<div>` to `<main>`, removed duplicate `<main>` from dashboard and clients, added `<main>` to login page | landmark-main | Moderate | 4 | Layout, Dashboard, Clients, Login |
+| 5 | Add `sr-only` text to empty `<TableHead>` columns (checkbox select-all, actions) and `aria-label` on select-all checkbox | empty-table-header | Minor | 2 | Clients |
+| 6 | Add `<h1 className="sr-only">Iris Login</h1>` to login page | page-has-heading-one | Moderate | 1 | Login |
+
+**Note:** 176 region violations (sidebar layout-level from shadcn sidebar component) were excluded -- not actionable per-page fixes.
+
+**Acceptance criteria:** All actionable axe-core violations resolved. Icon buttons have accessible names. Progress bars have labels. Page landmarks are correct. Color contrast meets WCAG AA. Login has a heading.
+
+---
+
 ## Phase Dependency Graph
 
 ```
@@ -501,6 +536,8 @@ Phase 1 (Shared Utilities) ──┬── Phase 2 (Login & Auth)
                               └── Phase 7 (Compliance & Analytics)
                                         │
                               Phase 8 (Dashboard & Polish Pass)
+                                        │
+                              Phase 9 (Accessibility Audit)
 ```
 
 Phases 2-7 can be done in parallel after Phase 1 is complete. Phase 8 depends on all prior phases.
@@ -519,6 +556,7 @@ Phases 2-7 can be done in parallel after Phase 1 is complete. Phase 8 depends on
 | Phase 6 | Promo Manager & Settings | 14 items | Medium |
 | Phase 7 | Compliance & Analytics | 17 items | Medium |
 | Phase 8 | Dashboard & Polish Pass | 8 items | Small-Medium |
-| **Total** | | **88 unique items** | |
+| Phase 9 | Accessibility Audit | 6 items | Small-Medium |
+| **Total** | | **94 unique items** | |
 
-> **Note on counts:** The per-page suggestion tables above total 93 items + 10 cross-cutting = 103 numbered rows. However, some cross-cutting items duplicated per-page items (e.g., "Add Skeleton loading" appeared on 4 pages and in cross-cutting). The phases deduplicate these into 88 unique action items. No suggestions were lost -- only redundant repetition was consolidated.
+> **Note on counts:** The per-page suggestion tables above total 93 items + 10 cross-cutting = 103 numbered rows. However, some cross-cutting items duplicated per-page items (e.g., "Add Skeleton loading" appeared on 4 pages and in cross-cutting). The phases deduplicate these into 88 unique action items. No suggestions were lost -- only redundant repetition was consolidated. Phase 9 adds 6 additional accessibility audit items for a total of 94.

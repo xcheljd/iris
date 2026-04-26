@@ -34,7 +34,7 @@ export default async function DashboardPage() {
   return (
     <>
       <Topbar title="Dashboard" />
-      <main className="flex-1 p-4 md:p-6 space-y-6">
+      <div className="flex-1 p-4 md:p-6 space-y-6">
         {/* Stat Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard icon={Users} label="Total Clients" value={stats.total} sublabel={`${stats.active} active`} />
@@ -224,7 +224,7 @@ export default async function DashboardPage() {
                     </div>
                     <Target className="h-8 w-8 text-orange-500" />
                   </div>
-                  <Progress value={conversionRate} className="h-2 mt-3" />
+                  <Progress value={conversionRate} className="h-2 mt-3" aria-label="Conversion rate" />
                 </CardContent>
               </Card>
               <Card>
@@ -236,7 +236,7 @@ export default async function DashboardPage() {
                     </div>
                     <Users className="h-8 w-8 text-blue-500" />
                   </div>
-                  <Progress value={activePercent} className="h-2 mt-3" />
+                  <Progress value={activePercent} className="h-2 mt-3" aria-label="Active clients percentage" />
                 </CardContent>
               </Card>
               <Card>
@@ -338,7 +338,7 @@ export default async function DashboardPage() {
             </div>
           </TabsContent>
         </Tabs>
-      </main>
+      </div>
     </>
   );
 }

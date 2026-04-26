@@ -525,7 +525,7 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
                 className="pl-10"
               />
               {searchQuery && (
-                <Button variant="ghost" size="sm" className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0" onClick={() => setSearchQuery("")}>
+                <Button variant="ghost" size="sm" className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0" onClick={() => setSearchQuery("")} aria-label="Clear search">
                   <X className="h-3 w-3" />
                 </Button>
               )}
@@ -572,7 +572,7 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="Actions">
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>

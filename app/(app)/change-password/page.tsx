@@ -43,7 +43,7 @@ function PasswordStrength({ password }: { password: string }) {
         <span className="text-xs text-muted-foreground">Strength</span>
         <span className={`text-xs font-medium ${score <= 50 ? "text-orange-500" : "text-green-500"}`}>{label}</span>
       </div>
-      <Progress value={score} className={`h-1.5 [&>div]:${color}`} />
+      <Progress value={score} className={`h-1.5 [&>div]:${color}`} aria-label="Password strength" />
       <ul className="space-y-0.5">
         {PW_REQUIREMENTS.map((r) => (
           <li key={r.label} className="flex items-center gap-1.5 text-xs">
@@ -167,7 +167,7 @@ export default function ChangePasswordPage() {
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                 />
-                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowCurrentPw(!showCurrentPw)}>
+                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowCurrentPw(!showCurrentPw)} aria-label={showCurrentPw ? "Hide password" : "Show password"}>
                   {showCurrentPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
@@ -182,7 +182,7 @@ export default function ChangePasswordPage() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                 />
-                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowNewPw(!showNewPw)}>
+                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowNewPw(!showNewPw)} aria-label={showNewPw ? "Hide password" : "Show password"}>
                   {showNewPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
@@ -199,7 +199,7 @@ export default function ChangePasswordPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className={passwordsMismatch ? "border-destructive" : passwordsMatch ? "border-green-500" : ""}
                 />
-                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowConfirmPw(!showConfirmPw)}>
+                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowConfirmPw(!showConfirmPw)} aria-label={showConfirmPw ? "Hide password" : "Show password"}>
                   {showConfirmPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
