@@ -1,11 +1,11 @@
 import { db } from "@/lib/db";
 import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bannedCustomers, unsubscribeList, employees, clientTags, outreachTemplates, smartLists } from "@/lib/db/schema";
-import { eq, desc, and, or, isNotNull, lte, gte, sql as rawSql } from "drizzle-orm";
+import { eq, desc, and, or, isNotNull, lte, gte, ne, sql as rawSql } from "drizzle-orm";
 import type { Client } from "@/lib/db/schema";
 import { applyClientFilter } from "@/lib/utils";
 
 export async function getAllClients() {
-  return db.select().from(clients).orderBy(desc(clients.heatScore)).all();
+  return db.select().from(clients).where(ne(clients.status, "banned")).orderBy(desc(clients.heatScore)).all();
 }
 
 export async function getClient(id: string) {
@@ -16,7 +16,7 @@ export async function getClientsWithEmployee() {
   const rows = db.select({
     client: clients,
     employeeName: employees.name,
-  }).from(clients).leftJoin(employees, eq(clients.employeeId, employees.id)).orderBy(desc(clients.heatScore)).all();
+  }).from(clients).leftJoin(employees, eq(clients.employeeId, employees.id)).where(ne(clients.status, "banned")).orderBy(desc(clients.heatScore)).all();
   return rows;
 }
 
@@ -110,11 +110,26 @@ export async function getPromoMatchesForClient(clientId: string) {
 }
 
 export async function getBannedCustomers() {
-  return db.select().from(bannedCustomers).orderBy(desc(bannedCustomers.banDate)).all();
+  const rows = db.select({
+    banned: bannedCustomers,
+    clientId: clients.id,
+  }).from(bannedCustomers)
+    .leftJoin(clients, eq(bannedCustomers.customerId, clients.id))
+    .orderBy(desc(bannedCustomers.banDate)).all();
+  return rows;
 }
 
 export async function getUnsubscribeList() {
-  return db.select().from(unsubscribeList).orderBy(desc(unsubscribeList.unsubscribedAt)).all();
+  const rows = db.select({
+    unsub: unsubscribeList,
+    clientId: clients.id,
+    firstName: clients.firstName,
+    lastName: clients.lastName,
+    customerId: clients.customerId,
+  }).from(unsubscribeList)
+    .leftJoin(clients, eq(unsubscribeList.email, clients.email))
+    .orderBy(desc(unsubscribeList.unsubscribedAt)).all();
+  return rows;
 }
 
 export async function getEmployees() {
@@ -143,11 +158,14 @@ export async function getRecentOutreach(limit = 20) {
 
 export async function searchClients(query: string) {
   const q = `%${query.toLowerCase()}%`;
-  return db.select().from(clients).where(or(
-    rawSql`lower(${clients.firstName}) like ${q}`,
-    rawSql`lower(${clients.lastName}) like ${q}`,
-    rawSql`lower(${clients.email}) like ${q}`,
-    rawSql`${clients.phone} like ${q}`,
+  return db.select().from(clients).where(and(
+    ne(clients.status, "banned"),
+    or(
+      rawSql`lower(${clients.firstName}) like ${q}`,
+      rawSql`lower(${clients.lastName}) like ${q}`,
+      rawSql`lower(${clients.email}) like ${q}`,
+      rawSql`${clients.phone} like ${q}`,
+    )
   )).limit(10).all();
 }
 

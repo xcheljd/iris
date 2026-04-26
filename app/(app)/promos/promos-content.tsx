@@ -11,6 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   Tag, Plus, Trash2, Watch, Users, Search,
@@ -107,8 +109,10 @@ function ImportPromoDialog({ open, onOpenChange }: { open: boolean; onOpenChange
   const [rawText, setRawText] = useState("");
   const [parsed, setParsed] = useState<{ rows: ParsedRow[]; mapping: Record<string, number> | null; headers: string[] } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
-  const [promoStart, setPromoStart] = useState("");
-  const [promoEnd, setPromoEnd] = useState("");
+  const [promoStart, setPromoStart] = useState<Date | undefined>(undefined);
+  const [promoEnd, setPromoEnd] = useState<Date | undefined>(undefined);
+  const [startOpen, setStartOpen] = useState(false);
+  const [endOpen, setEndOpen] = useState(false);
 
   const handleParse = () => {
     if (!rawText.trim()) return;
@@ -120,9 +124,11 @@ function ImportPromoDialog({ open, onOpenChange }: { open: boolean; onOpenChange
     if (!parsed || parsed.rows.length === 0) return;
     setIsImporting(true);
     try {
-      const result = await importPromos(parsed.rows, promoStart || null, promoEnd || null);
+      const startStr = promoStart ? format(promoStart, "yyyy-MM-dd") : null;
+      const endStr = promoEnd ? format(promoEnd, "yyyy-MM-dd") : null;
+      const result = await importPromos(parsed.rows, startStr, endStr);
       toast.success(`Imported ${result.imported} promo watches`);
-      setRawText(""); setParsed(null); setPromoStart(""); setPromoEnd("");
+      setRawText(""); setParsed(null); setPromoStart(undefined); setPromoEnd(undefined);
       onOpenChange(false);
     } catch { toast.error("Failed to import promos"); }
     finally { setIsImporting(false); }
@@ -134,8 +140,8 @@ function ImportPromoDialog({ open, onOpenChange }: { open: boolean; onOpenChange
     setRawText("Model Number\tCollection\tMSRP\tDiscount %\tSale Price\nHX1009-01X\tSolaris\t395\t25\t296.25\nNR-710-12L\tMechanical\t275\t20\t220\nCA7060-87L\tWeekender\t350\t30\t245");
     const today = new Date();
     const end = new Date(today); end.setDate(end.getDate() + 7);
-    setPromoStart(today.toISOString().split("T")[0]);
-    setPromoEnd(end.toISOString().split("T")[0]);
+    setPromoStart(today);
+    setPromoEnd(end);
   };
 
   return (
@@ -157,13 +163,48 @@ function ImportPromoDialog({ open, onOpenChange }: { open: boolean; onOpenChange
             <div className="flex items-end gap-3">
               <div className="space-y-2 flex-1">
                 <Label>Promo Start</Label>
-                <Input type="date" value={promoStart} onChange={(e) => setPromoStart(e.target.value)} />
+                <Popover open={startOpen} onOpenChange={setStartOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      {promoStart ? format(promoStart, "MMM d, yyyy") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarPicker
+                      mode="single"
+                      selected={promoStart}
+                      onSelect={(d) => { setPromoStart(d); setStartOpen(false); }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="flex items-center pb-2 text-muted-foreground">—</div>
               <div className="space-y-2 flex-1">
                 <Label>Promo End</Label>
-                <Input type="date" value={promoEnd} onChange={(e) => setPromoEnd(e.target.value)} />
+                <Popover open={endOpen} onOpenChange={setEndOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      {promoEnd ? format(promoEnd, "MMM d, yyyy") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarPicker
+                      mode="single"
+                      selected={promoEnd}
+                      onSelect={(d) => { setPromoEnd(d); setEndOpen(false); }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
+              {(promoStart || promoEnd) && (
+                <Button variant="ghost" size="sm" className="mb-0.5" onClick={() => { setPromoStart(undefined); setPromoEnd(undefined); }}>
+                  Clear
+                </Button>
+              )}
             </div>
             <Separator />
             <div className="space-y-2">
@@ -206,7 +247,7 @@ function ImportPromoDialog({ open, onOpenChange }: { open: boolean; onOpenChange
             {(promoStart || promoEnd) && (
               <div className="flex items-center gap-2 text-sm">
                 <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                <span>Promo period: {promoStart ? format(parseISO(promoStart), "MMM d") : "?"} — {promoEnd ? format(parseISO(promoEnd), "MMM d, yyyy") : "?"}</span>
+                <span>Promo period: {promoStart ? format(promoStart, "MMM d") : "?"} — {promoEnd ? format(promoEnd, "MMM d, yyyy") : "?"}</span>
               </div>
             )}
             <div className="border rounded-md overflow-hidden">

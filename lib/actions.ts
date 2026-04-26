@@ -254,7 +254,7 @@ export async function banClient(clientId: string, category: "Reselling" | "Gift 
     specificBanReason: reason,
   }).run();
   db.insert(activityEvents).values({
-    id: randomUUID(), clientId, eventType: "status_changed", description: `Banned: ${category} — ${reason}`, employeeId: user?.id ?? null,
+    id: randomUUID(), clientId, eventType: "status_changed", description: `Banned: ${category} — ${reason}`, metadata: { newStatus: "banned" }, employeeId: user?.id ?? null,
   }).run();
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/banned");
@@ -270,7 +270,7 @@ export async function unsubscribeClient(clientId: string) {
     if (!existing) db.insert(unsubscribeList).values({ id: randomUUID(), email: c.email }).run();
   }
   db.insert(activityEvents).values({
-    id: randomUUID(), clientId, eventType: "status_changed", description: "Unsubscribed", employeeId: user?.id ?? null,
+    id: randomUUID(), clientId, eventType: "status_changed", description: "Unsubscribed", metadata: { newStatus: "unsubscribed" }, employeeId: user?.id ?? null,
   }).run();
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/unsubscribed");
@@ -356,15 +356,52 @@ export async function deleteTag(id: string) {
 
 export async function unbanCustomer(id: string) {
   const row = db.select().from(bannedCustomers).where(eq(bannedCustomers.id, id)).get();
-  if (row?.customerId) {
-    db.update(clients).set({ status: "active", updatedAt: new Date() }).where(eq(clients.id, row.customerId)).run();
+  if (!row) return;
+  // Find the matching client - try by customerId first, then by email
+  let client = row.customerId ? db.select().from(clients).where(eq(clients.id, row.customerId)).get() : null;
+  if (!client && row.email) {
+    client = db.select().from(clients).where(eq(clients.email, row.email)).get();
+  }
+  if (client) {
+    db.update(clients).set({ status: "active", updatedAt: new Date() }).where(eq(clients.id, client.id)).run();
+    db.insert(activityEvents).values({
+      id: randomUUID(), clientId: client.id, eventType: "status_changed", description: "Unbanned", metadata: { newStatus: "active" }, employeeId: null,
+    }).run();
+    revalidatePath(`/clients/${client.id}`);
   }
   db.delete(bannedCustomers).where(eq(bannedCustomers.id, id)).run();
   revalidatePath("/banned");
 }
 
+export async function addUnsubscribeEmail(email: string) {
+  const existing = db.select().from(unsubscribeList).where(eq(unsubscribeList.email, email)).get();
+  if (existing) throw new Error("Email already exists");
+  db.insert(unsubscribeList).values({ id: randomUUID(), email }).run();
+  // Find matching client by email and update status
+  const matchingClient = db.select().from(clients).where(eq(clients.email, email)).get();
+  if (matchingClient) {
+    db.update(clients).set({ status: "unsubscribed", onEmailList: false, updatedAt: new Date() }).where(eq(clients.id, matchingClient.id)).run();
+    db.insert(activityEvents).values({
+      id: randomUUID(), clientId: matchingClient.id, eventType: "status_changed", description: "Manually added to unsubscribe list", metadata: { newStatus: "unsubscribed" }, employeeId: null,
+    }).run();
+    revalidatePath(`/clients/${matchingClient.id}`);
+  }
+  revalidatePath("/unsubscribed");
+}
+
 export async function removeUnsubscribe(id: string) {
+  const row = db.select().from(unsubscribeList).where(eq(unsubscribeList.id, id)).get();
+  if (!row) return;
   db.delete(unsubscribeList).where(eq(unsubscribeList.id, id)).run();
+  // Find matching client and restore to active
+  const matchingClient = row.email ? db.select().from(clients).where(eq(clients.email, row.email)).get() : null;
+  if (matchingClient && matchingClient.status === "unsubscribed") {
+    db.update(clients).set({ status: "active", onEmailList: true, updatedAt: new Date() }).where(eq(clients.id, matchingClient.id)).run();
+    db.insert(activityEvents).values({
+      id: randomUUID(), clientId: matchingClient.id, eventType: "status_changed", description: "Resubscribed", metadata: { newStatus: "active" }, employeeId: null,
+    }).run();
+    revalidatePath(`/clients/${matchingClient.id}`);
+  }
   revalidatePath("/unsubscribed");
 }
 
@@ -375,6 +412,9 @@ export async function resubscribeClient(clientId: string) {
   if (c.email) {
     db.delete(unsubscribeList).where(eq(unsubscribeList.email, c.email)).run();
   }
+  db.insert(activityEvents).values({
+    id: randomUUID(), clientId, eventType: "status_changed", description: "Resubscribed", metadata: { newStatus: "active" }, employeeId: null,
+  }).run();
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/unsubscribed");
 }

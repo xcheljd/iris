@@ -238,7 +238,7 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
                         <p className="text-sm">{formatEventDescription(event)}</p>
                       </div>
 
-                      {event.metadata && Object.keys(event.metadata).length > 0 && (
+                      {event.metadata && Object.keys(event.metadata).length > 0 && event.eventType !== "status_changed" && (
                         <div className="mt-3 p-2 bg-muted/50 rounded text-xs">
                           <div className="font-medium mb-1">Details:</div>
                           {Object.entries(event.metadata).map(([key, value]: [string, any]) => (

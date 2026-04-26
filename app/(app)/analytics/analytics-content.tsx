@@ -1,11 +1,39 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+import {
+  Bar,
+  BarChart,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
 import {
   BarChart3,
   Users,
@@ -19,12 +47,15 @@ import {
   TrendingUp,
   Target,
   ShoppingCart,
-  Calendar,
+  Calendar as CalendarIcon,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  MailX,
+  Ban,
+  ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
-import { format } from "date-fns";
+import { format, isAfter, isBefore, subDays, startOfDay, endOfDay } from "date-fns";
 
 interface Stats {
   total: number;
@@ -84,37 +115,129 @@ function getOutcomeColor(outcome: string) {
   }
 }
 
+const HEAT_COLORS = ["#f97316", "#eab308", "#3b82f6"];
+const METHOD_COLORS = ["#3b82f6", "#22c55e", "#a855f7", "#f97316"];
+
+const heatChartConfig = {
+  hot: { label: "Hot", color: "#f97316" },
+  warm: { label: "Warm", color: "#eab308" },
+  cold: { label: "Cold", color: "#3b82f6" },
+} satisfies ChartConfig;
+
+const methodChartConfig = {
+  call: { label: "Call", color: "#3b82f6" },
+  text: { label: "Text", color: "#22c55e" },
+  email: { label: "Email", color: "#a855f7" },
+  "in-person": { label: "In-Person", color: "#f97316" },
+} satisfies ChartConfig;
+
 export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProps) {
-  // Compute method distribution
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [fromOpen, setFromOpen] = useState(false);
+  const [toOpen, setToOpen] = useState(false);
+
+  const filteredOutreach = useMemo(() => {
+    if (!dateFrom && !dateTo) return recentOutreach;
+    return recentOutreach.filter((r) => {
+      const d = new Date(r.log.date);
+      if (dateFrom && isBefore(d, startOfDay(dateFrom))) return false;
+      if (dateTo && isAfter(d, endOfDay(dateTo))) return false;
+      return true;
+    });
+  }, [recentOutreach, dateFrom, dateTo]);
+
   const methodDistribution = useMemo(() => {
     const counts: Record<string, number> = { call: 0, text: 0, email: 0, "in-person": 0 };
-    recentOutreach.forEach((r) => {
+    filteredOutreach.forEach((r) => {
       if (counts[r.log.method] !== undefined) counts[r.log.method]++;
     });
-    return counts;
-  }, [recentOutreach]);
+    return Object.entries(counts).map(([method, count]) => ({
+      method,
+      count,
+      label: method === "in-person" ? "In-Person" : method.charAt(0).toUpperCase() + method.slice(1),
+    }));
+  }, [filteredOutreach]);
 
-  // Compute outcome distribution
   const outcomeDistribution = useMemo(() => {
     const counts: Record<string, number> = {};
-    recentOutreach.forEach((r) => {
+    filteredOutreach.forEach((r) => {
       counts[r.log.outcome] = (counts[r.log.outcome] || 0) + 1;
     });
-    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  }, [recentOutreach]);
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([outcome, count]) => ({
+        outcome: outcome.replace(/_/g, " "),
+        count,
+      }));
+  }, [filteredOutreach]);
 
-  const totalOutreach = Object.values(methodDistribution).reduce((a, b) => a + b, 0);
-  const conversionRate = totalOutreach > 0 
-    ? Math.round((stats.purchasesWeek / stats.outreachWeek) * 100) 
+  const totalOutreach = methodDistribution.reduce((sum, m) => sum + m.count, 0);
+  const conversionRate = stats.outreachWeek > 0
+    ? Math.round((stats.purchasesWeek / stats.outreachWeek) * 100)
     : 0;
+
+  const clearDates = () => {
+    setDateFrom(undefined);
+    setDateTo(undefined);
+  };
 
   return (
     <div className="container mx-auto py-6 px-4">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
-        <p className="text-muted-foreground mt-1">
-          Performance metrics and outreach insights
-        </p>
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
+          <p className="text-muted-foreground mt-1">
+            Performance metrics and outreach insights
+          </p>
+        </div>
+        {/* Date Range Picker */}
+        <div className="flex items-center gap-2">
+          <Popover open={fromOpen} onOpenChange={setFromOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <CalendarIcon className="h-4 w-4" />
+                {dateFrom ? format(dateFrom, "MMM d") : "From"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={dateFrom}
+                onSelect={(d) => {
+                  setDateFrom(d);
+                  setFromOpen(false);
+                }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+          <span className="text-muted-foreground text-sm">to</span>
+          <Popover open={toOpen} onOpenChange={setToOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <CalendarIcon className="h-4 w-4" />
+                {dateTo ? format(dateTo, "MMM d") : "To"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={dateTo}
+                onSelect={(d) => {
+                  setDateTo(d);
+                  setToOpen(false);
+                }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+          {(dateFrom || dateTo) && (
+            <Button variant="ghost" size="sm" onClick={clearDates}>
+              Clear
+            </Button>
+          )}
+        </div>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
@@ -126,131 +249,241 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
-          {/* Key Metrics */}
+          {/* Key Metrics with HoverCards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Clients</p>
-                    <p className="text-2xl font-bold">{stats.total}</p>
-                    <p className="text-xs text-muted-foreground">{stats.active} active</p>
+            <HoverCard>
+              <HoverCardTrigger asChild>
+                <Card className="cursor-default">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total Clients</p>
+                        <p className="text-2xl font-bold">{stats.total}</p>
+                      </div>
+                      <Users className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </HoverCardTrigger>
+              <HoverCardContent className="w-64">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Client Breakdown</p>
+                  <Separator />
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Active</span>
+                    <span className="font-medium">{stats.active}</span>
                   </div>
-                  <Users className="h-8 w-8 text-muted-foreground" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Outreach (7d)</p>
-                    <p className="text-2xl font-bold">{stats.outreachWeek}</p>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Inactive</span>
+                    <span className="font-medium">{stats.total - stats.active}</span>
                   </div>
-                  <Phone className="h-8 w-8 text-blue-500" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Purchases (7d)</p>
-                    <p className="text-2xl font-bold text-emerald-500">{stats.purchasesWeek}</p>
+                  <Separator />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Hot</span><span>{stats.hot}</span>
                   </div>
-                  <ShoppingCart className="h-8 w-8 text-emerald-500" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Conversion</p>
-                    <p className="text-2xl font-bold">{conversionRate}%</p>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Warm</span><span>{stats.warm}</span>
                   </div>
-                  <Target className="h-8 w-8 text-orange-500" />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Cold</span><span>{stats.cold}</span>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
+              </HoverCardContent>
+            </HoverCard>
+
+            <HoverCard>
+              <HoverCardTrigger asChild>
+                <Card className="cursor-default">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Outreach (7d)</p>
+                        <p className="text-2xl font-bold">{stats.outreachWeek}</p>
+                      </div>
+                      <Phone className="h-8 w-8 text-blue-500" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </HoverCardTrigger>
+              <HoverCardContent className="w-64">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Outreach Methods (7d)</p>
+                  <Separator />
+                  {methodDistribution.map((m) => (
+                    <div key={m.method} className="flex justify-between text-sm">
+                      <span className="text-muted-foreground capitalize">{m.label}</span>
+                      <span className="font-medium">{m.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </HoverCardContent>
+            </HoverCard>
+
+            <HoverCard>
+              <HoverCardTrigger asChild>
+                <Card className="cursor-default">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Purchases (7d)</p>
+                        <p className="text-2xl font-bold text-emerald-500">{stats.purchasesWeek}</p>
+                      </div>
+                      <ShoppingCart className="h-8 w-8 text-emerald-500" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </HoverCardTrigger>
+              <HoverCardContent className="w-64">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Conversion Funnel</p>
+                  <Separator />
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Total Outreach</span>
+                    <span className="font-medium">{stats.outreachWeek}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Purchases</span>
+                    <span className="font-medium text-emerald-500">{stats.purchasesWeek}</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Conversion Rate</span>
+                    <span className="font-medium">{conversionRate}%</span>
+                  </div>
+                </div>
+              </HoverCardContent>
+            </HoverCard>
+
+            <HoverCard>
+              <HoverCardTrigger asChild>
+                <Card className="cursor-default">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Conversion</p>
+                        <p className="text-2xl font-bold">{conversionRate}%</p>
+                      </div>
+                      <Target className="h-8 w-8 text-orange-500" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </HoverCardTrigger>
+              <HoverCardContent className="w-64">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Conversion Rate</p>
+                  <Separator />
+                  <p className="text-xs text-muted-foreground">
+                    {stats.purchasesWeek} purchase{stats.purchasesWeek !== 1 ? "s" : ""} from{" "}
+                    {stats.outreachWeek} outreach attempt{stats.outreachWeek !== 1 ? "s" : ""} in the last 7 days.
+                  </p>
+                  <Progress value={conversionRate} className="h-2 mt-2" />
+                </div>
+              </HoverCardContent>
+            </HoverCard>
           </div>
 
-          {/* Heat Distribution */}
+          <Separator />
+
+          {/* Heat Distribution Bar Chart */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Flame className="h-5 w-5" />
                 Client Heat Distribution
               </CardTitle>
-              <CardDescription>Active clients by engagement level</CardDescription>
+              <CardDescription>
+                {stats.active} active clients by engagement level
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent>
               {stats.active > 0 ? (
-                <>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Flame className="h-4 w-4 text-orange-500" />
-                        <span className="text-sm font-medium">Hot</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm">{stats.hot}</span>
-                        <span className="text-xs text-muted-foreground">
-                          ({Math.round((stats.hot / stats.active) * 100)}%)
-                        </span>
-                      </div>
-                    </div>
-                    <Progress value={(stats.hot / stats.active) * 100} className="h-2" />
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Sun className="h-4 w-4 text-yellow-500" />
-                        <span className="text-sm font-medium">Warm</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm">{stats.warm}</span>
-                        <span className="text-xs text-muted-foreground">
-                          ({Math.round((stats.warm / stats.active) * 100)}%)
-                        </span>
-                      </div>
-                    </div>
-                    <Progress value={(stats.warm / stats.active) * 100} className="h-2" />
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Snowflake className="h-4 w-4 text-blue-500" />
-                        <span className="text-sm font-medium">Cold</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm">{stats.cold}</span>
-                        <span className="text-xs text-muted-foreground">
-                          ({Math.round((stats.cold / stats.active) * 100)}%)
-                        </span>
-                      </div>
-                    </div>
-                    <Progress value={(stats.cold / stats.active) * 100} className="h-2" />
-                  </div>
-                </>
+                <ChartContainer config={heatChartConfig} className="h-[200px] w-full">
+                  <BarChart
+                    data={[
+                      { level: "Hot", count: stats.hot, fill: "var(--color-hot)" },
+                      { level: "Warm", count: stats.warm, fill: "var(--color-warm)" },
+                      { level: "Cold", count: stats.cold, fill: "var(--color-cold)" },
+                    ]}
+                    layout="vertical"
+                    margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+                    <XAxis type="number" hide />
+                    <YAxis type="category" dataKey="level" width={50} tickLine={false} axisLine={false} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="count" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ChartContainer>
               ) : (
-                <p className="text-sm text-muted-foreground">No active clients</p>
+                <p className="text-sm text-muted-foreground py-8 text-center">
+                  No active clients to display
+                </p>
               )}
             </CardContent>
           </Card>
 
-          {/* Compliance */}
+          {/* Conversion Metrics with Progress Bars */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Conversion Metrics (7d)</CardTitle>
+              <CardDescription>Outreach effectiveness at a glance</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span>Conversion Rate</span>
+                  <span className="font-medium">{conversionRate}%</span>
+                </div>
+                <Progress value={conversionRate} className="h-2" />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span>Outreach Completion</span>
+                  <span className="font-medium">
+                    {stats.outreachWeek > 0 ? "100%" : "0%"}
+                  </span>
+                </div>
+                <Progress value={stats.outreachWeek > 0 ? 100 : 0} className="h-2" />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span>Purchase Rate</span>
+                  <span className="font-medium">
+                    {stats.active > 0
+                      ? Math.round((stats.purchasesWeek / stats.active) * 100)
+                      : 0}
+                    %
+                  </span>
+                </div>
+                <Progress
+                  value={
+                    stats.active > 0
+                      ? Math.round((stats.purchasesWeek / stats.active) * 100)
+                      : 0
+                  }
+                  className="h-2"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Compliance Cards */}
           <div className="grid grid-cols-2 gap-4">
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Banned</p>
-                    <p className="text-2xl font-bold text-red-500">{stats.banned}</p>
+                    <div className="flex items-center gap-2">
+                      <Ban className="h-4 w-4 text-red-500" />
+                      <p className="text-sm text-muted-foreground">Banned</p>
+                    </div>
+                    <p className="text-2xl font-bold text-red-500 mt-1">{stats.banned}</p>
                   </div>
-                  <AlertTriangle className="h-8 w-8 text-red-500" />
+                  <Link href="/banned">
+                    <Button variant="ghost" size="sm">
+                      View <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </Link>
                 </div>
               </CardContent>
             </Card>
@@ -258,10 +491,17 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Unsubscribed</p>
-                    <p className="text-2xl font-bold text-muted-foreground">{stats.unsubscribed}</p>
+                    <div className="flex items-center gap-2">
+                      <MailX className="h-4 w-4 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">Unsubscribed</p>
+                    </div>
+                    <p className="text-2xl font-bold mt-1">{stats.unsubscribed}</p>
                   </div>
-                  <Mail className="h-8 w-8 text-muted-foreground" />
+                  <Link href="/unsubscribed">
+                    <Button variant="ghost" size="sm">
+                      View <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </Link>
                 </div>
               </CardContent>
             </Card>
@@ -270,101 +510,170 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
 
         {/* Outreach Tab */}
         <TabsContent value="outreach" className="space-y-6">
-          {/* Method Distribution */}
+          {/* Method Distribution Bar Chart */}
           <Card>
             <CardHeader>
               <CardTitle>Method Distribution</CardTitle>
-              <CardDescription>Breakdown of outreach methods</CardDescription>
+              <CardDescription>
+                Breakdown of {totalOutreach} outreach attempts
+                {(dateFrom || dateTo) ? " (filtered)" : " (all time)"}
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent>
               {totalOutreach > 0 ? (
-                Object.entries(methodDistribution).map(([method, count]) => (
-                  <div key={method} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {getMethodIcon(method)}
-                        <span className="text-sm font-medium capitalize">{method}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm">{count}</span>
-                        <span className="text-xs text-muted-foreground">
-                          ({Math.round((count / totalOutreach) * 100)}%)
-                        </span>
-                      </div>
-                    </div>
-                    <Progress value={(count / totalOutreach) * 100} className="h-2" />
-                  </div>
-                ))
+                <ChartContainer config={methodChartConfig} className="h-[250px] w-full">
+                  <BarChart
+                    data={methodDistribution}
+                    margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} />
+                    <YAxis tickLine={false} axisLine={false} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                      {methodDistribution.map((entry, index) => (
+                        <Cell
+                          key={entry.method}
+                          fill={METHOD_COLORS[index]}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ChartContainer>
               ) : (
-                <p className="text-sm text-muted-foreground">No outreach data yet</p>
+                <p className="text-sm text-muted-foreground py-8 text-center">
+                  No outreach data for the selected period
+                </p>
               )}
             </CardContent>
           </Card>
 
-          {/* Outcome Distribution */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Outcome Breakdown</CardTitle>
-              <CardDescription>Results from recent outreach</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {outcomeDistribution.length > 0 ? (
-                outcomeDistribution.map(([outcome, count]) => (
-                  <div key={outcome} className="flex items-center justify-between">
-                    <span className={`text-sm capitalize ${getOutcomeColor(outcome)}`}>
-                      {outcome.replace(/_/g, " ")}
-                    </span>
-                    <Badge variant="secondary">{count}</Badge>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground">No outreach data yet</p>
-              )}
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Outcome Distribution */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Outcome Breakdown</CardTitle>
+                <CardDescription>Results from recent outreach</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {outcomeDistribution.length > 0 ? (
+                  outcomeDistribution.map(({ outcome, count }) => (
+                    <div key={outcome} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className={`text-sm capitalize ${getOutcomeColor(outcome.replace(/ /g, "_"))}`}>
+                          {outcome}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <Progress
+                            value={totalOutreach > 0 ? (count / totalOutreach) * 100 : 0}
+                            className="h-2 w-20"
+                          />
+                          <Badge variant="secondary" className="w-8 justify-center">
+                            {count}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">No outreach data yet</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Pie Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Method Share</CardTitle>
+                <CardDescription>Proportional breakdown</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {totalOutreach > 0 ? (
+                  <ChartContainer config={methodChartConfig} className="h-[200px] w-full">
+                    <PieChart>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Pie
+                        data={methodDistribution}
+                        dataKey="count"
+                        nameKey="label"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={40}
+                        outerRadius={80}
+                        paddingAngle={2}
+                      >
+                        {methodDistribution.map((_, index) => (
+                          <Cell key={index} fill={METHOD_COLORS[index]} />
+                        ))}
+                      </Pie>
+                      <Legend />
+                    </PieChart>
+                  </ChartContainer>
+                ) : (
+                  <p className="text-sm text-muted-foreground py-8 text-center">
+                    No outreach data for the selected period
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Recent Outreach Log */}
           <Card>
             <CardHeader>
-              <CardTitle>Recent Outreach</CardTitle>
-              <CardDescription>Last 50 outreach entries</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Recent Outreach</CardTitle>
+                  <CardDescription>
+                    {filteredOutreach.length} entr{filteredOutreach.length !== 1 ? "ies" : "y"}
+                  </CardDescription>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[400px]">
-                <div className="space-y-3">
-                  {recentOutreach.map((row) => (
-                    <div
-                      key={row.log.id}
-                      className="flex items-center justify-between p-2 rounded hover:bg-muted/50"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        {getMethodIcon(row.log.method)}
-                        <div className="min-w-0">
-                          {row.client ? (
-                            <Link
-                              href={`/clients/${row.client.id}`}
-                              className="text-sm font-medium hover:underline"
-                            >
-                              {row.client.firstName} {row.client.lastName || ""}
-                            </Link>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">Unknown client</span>
-                          )}
-                          <p className={`text-xs capitalize ${getOutcomeColor(row.log.outcome)}`}>
-                            {row.log.outcome.replace(/_/g, " ")}
+                <div className="space-y-2">
+                  {filteredOutreach.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      No outreach records for the selected period
+                    </p>
+                  ) : (
+                    filteredOutreach.map((row) => (
+                      <div
+                        key={row.log.id}
+                        className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          {getMethodIcon(row.log.method)}
+                          <div className="min-w-0">
+                            {row.client ? (
+                              <Link
+                                href={`/clients/${row.client.id}`}
+                                className="text-sm font-medium hover:underline"
+                              >
+                                {row.client.firstName} {row.client.lastName || ""}
+                              </Link>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">Unknown client</span>
+                            )}
+                            <p className={`text-xs capitalize ${getOutcomeColor(row.log.outcome)}`}>
+                              {row.log.outcome.replace(/_/g, " ")}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-xs text-muted-foreground">
+                            {row.log.date ? format(new Date(row.log.date), "MMM d") : ""}
                           </p>
+                          {row.employee && (
+                            <Badge variant="secondary" className="text-[10px]">
+                              {row.employee.name}
+                            </Badge>
+                          )}
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-xs text-muted-foreground">
-                          {row.log.date ? format(new Date(row.log.date), "MMM d") : ""}
-                        </p>
-                        {row.employee && (
-                          <p className="text-xs text-muted-foreground">{row.employee.name}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </ScrollArea>
             </CardContent>
@@ -381,27 +690,27 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Visual Bar */}
-              <div className="flex rounded-lg overflow-hidden h-8">
+              {/* Visual Stacked Bar */}
+              <div className="flex rounded-lg overflow-hidden h-10">
                 {stats.active > 0 ? (
                   <>
                     <div
-                      className="bg-orange-500 flex items-center justify-center text-white text-xs font-medium"
+                      className="bg-orange-500 flex items-center justify-center text-white text-xs font-medium transition-all"
                       style={{ width: `${(stats.hot / stats.active) * 100}%` }}
                     >
-                      {stats.hot > 0 ? `🔥 ${stats.hot}` : ""}
+                      {stats.hot > 0 ? `${stats.hot} Hot` : ""}
                     </div>
                     <div
-                      className="bg-yellow-500 flex items-center justify-center text-white text-xs font-medium"
+                      className="bg-yellow-500 flex items-center justify-center text-white text-xs font-medium transition-all"
                       style={{ width: `${(stats.warm / stats.active) * 100}%` }}
                     >
-                      {stats.warm > 0 ? `☀️ ${stats.warm}` : ""}
+                      {stats.warm > 0 ? `${stats.warm} Warm` : ""}
                     </div>
                     <div
-                      className="bg-blue-500 flex items-center justify-center text-white text-xs font-medium"
+                      className="bg-blue-500 flex items-center justify-center text-white text-xs font-medium transition-all"
                       style={{ width: `${(stats.cold / stats.active) * 100}%` }}
                     >
-                      {stats.cold > 0 ? `❄️ ${stats.cold}` : ""}
+                      {stats.cold > 0 ? `${stats.cold} Cold` : ""}
                     </div>
                   </>
                 ) : (
@@ -410,6 +719,61 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
                   </div>
                 )}
               </div>
+
+              <Separator />
+
+              {/* Heat Progress Bars */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Flame className="h-4 w-4 text-orange-500" />
+                      <span className="text-sm font-medium">Hot</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">{stats.hot}</span>
+                      <span className="text-xs text-muted-foreground">
+                        ({stats.active > 0 ? Math.round((stats.hot / stats.active) * 100) : 0}%)
+                      </span>
+                    </div>
+                  </div>
+                  <Progress value={stats.active > 0 ? (stats.hot / stats.active) * 100 : 0} className="h-3 [&>div]:bg-orange-500" />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Sun className="h-4 w-4 text-yellow-500" />
+                      <span className="text-sm font-medium">Warm</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">{stats.warm}</span>
+                      <span className="text-xs text-muted-foreground">
+                        ({stats.active > 0 ? Math.round((stats.warm / stats.active) * 100) : 0}%)
+                      </span>
+                    </div>
+                  </div>
+                  <Progress value={stats.active > 0 ? (stats.warm / stats.active) * 100 : 0} className="h-3 [&>div]:bg-yellow-500" />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Snowflake className="h-4 w-4 text-blue-500" />
+                      <span className="text-sm font-medium">Cold</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">{stats.cold}</span>
+                      <span className="text-xs text-muted-foreground">
+                        ({stats.active > 0 ? Math.round((stats.cold / stats.active) * 100) : 0}%)
+                      </span>
+                    </div>
+                  </div>
+                  <Progress value={stats.active > 0 ? (stats.cold / stats.active) * 100 : 0} className="h-3 [&>div]:bg-blue-500" />
+                </div>
+              </div>
+
+              <Separator />
 
               {/* Legend */}
               <div className="grid grid-cols-3 gap-4 text-center">

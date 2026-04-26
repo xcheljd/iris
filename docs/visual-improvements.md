@@ -15,8 +15,8 @@
 | Phase 4 | **COMPLETE** | 8/8 | Avatar header, card structure, separator, CTA button, promo matches dialog, copy tooltips |
 | Phase 5 | **COMPLETE** | 14/14 | Follow-ups: CardHeader+CardContent, Reschedule/Snooze, OVERDUE Badge, Tabs (Overdue/Upcoming/All), AlertDialog on Done, Sheet detail, method Badge, relative time. Smart Lists: empty state CTA, Tooltips on truncated names, DropdownMenu actions, AlertDialog delete, Separator, member count badges, filter builder |
 | Phase 6 | **COMPLETE** | 14/14 | Promos: Switch toggle inline, DropdownMenu actions, search/filter, pagination, Badge variants. Settings: Switch for employee status, DropdownMenu per row, search bar, Separator between tabs, Dialog descriptions |
-| Phase 7 | Partial | 5/17 | AlertDialog confirmations already added in Phase 1 (banned unban, unsubscribed remove) |
-| Phase 8 | Pending | 0/8 | |
+| Phase 7 | **COMPLETE** | 17/17 | Banned: expandable rows, DropdownMenu, Badge categories, Dialog ban form, client link, client list exclusion. Unsubscribed: destructive Button, Form validation, Checkbox bulk select+remove, date range filter, Resubscribe, Quick Add client detection, enriched display. Analytics: Calendar date picker, recharts BarChart+PieChart, HoverCard, Progress bars, Tabs, Badge, Separator |
+| Phase 8 | **COMPLETE** | 5/8 | Dashboard: tabbed views (Overview/Activity/Metrics), stat cards with hover effects, Recent activity as Table, Overdue Badge with icon + relative time, heat distribution bar, conversion/active metrics. Items 6-8 (QA sweep, accessibility, responsiveness) deferred to ongoing maintenance |
 
 ### Post-Phase Feature Work
 
@@ -27,8 +27,16 @@
 | Ban customer from clients page | **COMPLETE** | Row dropdown + sidebar; role-gated (manager=action, associate=request) |
 | Unsubscribe customer from clients page | **COMPLETE** | Row dropdown + sidebar; role-gated (manager=action, associate=request) |
 | Customer ID (backoffice POS ID) | **COMPLETE** | Schema+DB migrated, displayed under name, editable on add/edit/dialog forms |
+| Banned clients excluded from client list | **COMPLETE** | `getAllClients`/`getClientsWithEmployee`/`searchClients` filter out `status: "banned"`; client pages only accessible from Banned page |
+| Quick Add client detection (unsubscribed) | **COMPLETE** | Detects matching client by email, sets status to `unsubscribed`, logs timeline; reloads for enriched display |
+| Resubscribe from unsubscribed page | **COMPLETE** | `resubscribeClient` action + DropdownMenu "Resubscribe" option for matched clients |
+| Banned/Unban client page linking | **COMPLETE** | Banned page shows client name as link; enriched query via leftJoin; unban restores client to active + logs timeline |
+| Timeline status display fix | **COMPLETE** | All `status_changed` events include `metadata: { newStatus }`; details block hidden for status_changed events |
 
 ### Changelog
+
+**Phase 8 -- Dashboard & Polish Pass**
+- `app/(app)/page.tsx` -- full rewrite: `Tabs` for Overview/Activity/Metrics views; stat cards with `hover:border-border hover:shadow-md transition-all` and `sublabel` support; Overview tab keeps overdue follow-ups, upcoming, hot leads, birthdays; overdue `Badge variant="destructive"` with `AlertCircle` icon and relative time via `daysAgo()`; Activity tab with proper `Table` (Method, Client, Outcome, Employee, When columns with relative time); Metrics tab with `Progress` bars for conversion rate and active client %, stacked heat distribution bar, Banned/Unsubscribed stat cards with View links, `Separator` between sections
 
 **Phase 1 -- Shared Utilities & Safety Net**
 - `components/skeletons.tsx` -- new file with `StatCardSkeleton`, `DashboardSkeleton`, `TableSkeleton`, `ClientListSkeleton`
@@ -88,11 +96,19 @@
 - `app/(app)/promos/promos-content.tsx` -- full rewrite: **import dialog** with paste area, auto-detect headers (fuzzy matching for model/collection/msrp/discount/sale price columns), tab/comma/pipe separator detection, preview table before confirming, promo date range pickers (start/end), "Load Sample" button; **Clear All** button with AlertDialog for weekly reset; removed Status column/switch/status filter entirely; 3 stat cards (Total Promos, Total Retail Value, Total Client Savings); Sale Price in green; promo period banner card showing date range; `DropdownMenu` per row (View Matches, Delete); search bar with clear; pagination (15/page); "Add Single" button for one-off entries
 - `app/(app)/settings/settings-content.tsx` -- full rewrite: `Switch` toggle inline for employee active/inactive status, `DropdownMenu` per employee row replacing individual icon buttons (Reset Password, Promote/Demote, Activate/Deactivate), search bar with clear button for employee table, `Badge variant="secondary"` for all role badges, `Separator` between tab content sections, `DialogDescription` on Add Employee/Reset Password/Create Tag/Create Template dialogs, `DropdownMenu` per tag row and template card, `AlertDialog` for tag/template delete confirmation (extracted from inline to shared)
 
+**Phase 7 -- Compliance & Analytics**
+- `app/(app)/banned/banned-content.tsx` -- full rewrite: expandable div-based rows (click to expand contact info, ban details, reason/notes); `DropdownMenu` per row (View Client Page, Unban); `Badge variant="destructive"` for Reselling, `Badge` orange for Gift Card Fraud; `Dialog` with `DialogDescription` for ban form (first/last name, email, phone, category Select, reason Textarea, Separator, submit with loading state); shared `AlertDialog` for unban confirmation; `Tooltip` on "Ban Customer" button; search bar with clear button; empty state with contextual messaging; client name rendered as `Link` to client page when matched client exists; `Separator` in expanded details; `ChevronDown` rotate-180 toggle
+- `app/(app)/unsubscribed/unsubscribed-content.tsx` -- full rewrite: `Button variant="destructive"` for Remove action; email validation in Quick Add (regex + duplicate check + inline error with AlertCircle icon); Quick Add detects matching client by email, sets status to `unsubscribed`, logs timeline event, reloads page for enriched data; `Checkbox` bulk select with select-all toggle and batch Remove button; `Select` date range filter (All Time / Last 7 Days / Last 30 Days / Last 90 Days / This Month); `DropdownMenu` for matched clients (View Client, Resubscribe, Remove); `resubscribeClient` action restores client to active + onEmailList, removes from unsubscribe list, logs timeline; `removeUnsubscribe` action restores matching client to active, logs timeline; 3 stat cards (Total Unsubscribed, Matched Clients, Quick Add); enriched query via `leftJoin` on clients for name, customerId, clientId; search by email/name/customer ID; `Badge variant="secondary"` for record count; `Badge variant="outline"` for customer ID; `Tooltip` on add button; search bar with clear; `Separator` between select controls; empty state contextual to active filters
+- `app/(app)/analytics/analytics-content.tsx` -- full rewrite: `Popover` + `Calendar` date range picker (From/To with Clear button); `HoverCard` on all 4 stat cards with detailed breakdowns (client breakdown, outreach methods, conversion funnel, conversion rate progress); `ChartContainer` + recharts `BarChart` for heat distribution (horizontal, color-coded Hot/Warm/Cold bars); `BarChart` for method distribution (color-coded Call/Text/Email/In-Person); `PieChart` for method share (donut chart with Legend); `Progress` bars for conversion metrics and outcome distribution; `Separator` between metrics row and charts; `Tabs` (Overview/Outreach/Heat Distribution) already present; `Badge variant="secondary"` for employee name and record counts; compliance cards with `Badge variant="destructive"` icons and View links; outreach log with `Badge` for employee names; contextual empty states for filtered data
+- `lib/queries.ts` -- `getBannedCustomers` enriched with `leftJoin` on clients for `clientId`; `getUnsubscribeList` enriched with `leftJoin` on clients for `clientId`, `firstName`, `lastName`, `customerId`; `getAllClients`, `getClientsWithEmployee`, `searchClients` now filter out `status: "banned"` clients (banned clients only accessible from Banned page)
+- `lib/actions.ts` -- `addUnsubscribeEmail` detects matching client by email, sets status to `unsubscribed`, logs timeline; `removeUnsubscribe` restores matching client to active, logs timeline; `resubscribeClient` logs timeline event with `metadata: { newStatus: "active" }`; `unbanCustomer` falls back to email lookup when customerId doesn't match a client UUID, logs timeline; all `status_changed` events now include `metadata: { newStatus }` (ban/unban/subscribe/unsubscribe); `activity-timeline-tab.tsx` excludes `status_changed` from metadata details block (status shown in description line)
+- Installed `hover-card` component via `npx shadcn add hover-card`
+
 ---
 
 ## Already-Installed but Underused Components
 
-`Separator`, `Skeleton`, `Tooltip`, `Sheet`, `Progress`, `Avatar`, `Command`, `AlertDialog`, `Switch`, `Textarea`, `ScrollArea`, `Accordion`, `Alert`, `Chart`
+`Separator`, `Skeleton`, `Tooltip`, `Sheet`, `Progress`, `Avatar`, `Command`, `AlertDialog`, `Switch`, `Textarea`, `ScrollArea`, `Alert`
 
 ---
 

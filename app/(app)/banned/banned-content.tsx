@@ -5,7 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,38 +22,65 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Separator } from "@/components/ui/separator";
 import {
+  ChevronDown,
   Ban,
   ShieldOff,
   Search,
   AlertTriangle,
-  Trash2,
-  User,
-  Mail,
-  Phone,
-  MapPin,
-  FileText
+  MoreHorizontal,
+  Eye,
+  X,
 } from "lucide-react";
 import { banClient, unbanCustomer } from "@/lib/actions";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import Link from "next/link";
 import type { BannedCustomer } from "@/lib/db/schema";
 
-interface BannedContentProps {
-  banned: BannedCustomer[];
+interface BannedRow {
+  banned: BannedCustomer;
+  clientId: string | null;
 }
 
-export function BannedContent({ banned: initialBanned }: BannedContentProps) {
+function getCategoryBadge(category: string) {
+  switch (category) {
+    case "Reselling":
+      return <Badge variant="destructive">Reselling</Badge>;
+    case "Gift Card Fraud":
+      return <Badge variant="destructive" className="bg-orange-600 hover:bg-orange-600/90">Gift Card Fraud</Badge>;
+    default:
+      return <Badge variant="secondary">{category}</Badge>;
+  }
+}
+
+export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }) {
   const [banned, setBanned] = useState(initialBanned);
   const [searchQuery, setSearchQuery] = useState("");
   const [showBanDialog, setShowBanDialog] = useState(false);
+  const [unbanTarget, setUnbanTarget] = useState<BannedRow | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
   const [banForm, setBanForm] = useState({
     clientId: "",
     firstName: "",
@@ -56,11 +90,12 @@ export function BannedContent({ banned: initialBanned }: BannedContentProps) {
     category: "Other" as "Reselling" | "Gift Card Fraud" | "Other",
     reason: "",
   });
+  const [banSubmitting, setBanSubmitting] = useState(false);
 
   const filteredBanned = searchQuery
     ? banned.filter(
-        (b) =>
-          `${b.firstName} ${b.lastName || ""} ${b.email || ""} ${b.phone || ""}`
+        (row) =>
+          `${row.banned.firstName} ${row.banned.lastName || ""} ${row.banned.email || ""} ${row.banned.phone || ""}`
             .toLowerCase()
             .includes(searchQuery.toLowerCase())
       )
@@ -69,26 +104,24 @@ export function BannedContent({ banned: initialBanned }: BannedContentProps) {
   const handleUnban = async (id: string) => {
     try {
       await unbanCustomer(id);
-      setBanned(banned.filter((b) => b.id !== id));
+      setBanned(banned.filter((row) => row.banned.id !== id));
       toast.success("Customer unbanned");
     } catch {
       toast.error("Failed to unban customer");
+    } finally {
+      setUnbanTarget(null);
     }
   };
 
   const handleBan = async () => {
     if (!banForm.firstName.trim()) {
-      toast.error("Name is required");
+      toast.error("First name is required");
       return;
     }
-
+    setBanSubmitting(true);
     try {
-      await banClient(
-        banForm.clientId || "",
-        banForm.category,
-        banForm.reason
-      );
-      toast.success("Customer banned");
+      await banClient(banForm.clientId || "", banForm.category, banForm.reason);
+      toast.success("Customer banned successfully");
       setShowBanDialog(false);
       setBanForm({
         clientId: "",
@@ -102,6 +135,8 @@ export function BannedContent({ banned: initialBanned }: BannedContentProps) {
       window.location.reload();
     } catch {
       toast.error("Failed to ban customer");
+    } finally {
+      setBanSubmitting(false);
     }
   };
 
@@ -115,15 +150,21 @@ export function BannedContent({ banned: initialBanned }: BannedContentProps) {
           </p>
         </div>
         <Dialog open={showBanDialog} onOpenChange={setShowBanDialog}>
-          <DialogTrigger asChild>
-            <Button variant="destructive">
-              <Ban className="h-4 w-4 mr-2" />
-              Ban Customer
-            </Button>
-          </DialogTrigger>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DialogTrigger asChild>
+                <Button variant="destructive">
+                  <Ban className="h-4 w-4 mr-2" />
+                  Ban Customer
+                </Button>
+              </DialogTrigger>
+            </TooltipTrigger>
+            <TooltipContent>Add a new customer to the banned list</TooltipContent>
+          </Tooltip>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Ban Customer</DialogTitle>
+              <DialogDescription>Add a customer to the banned list with a reason and category.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -131,6 +172,7 @@ export function BannedContent({ banned: initialBanned }: BannedContentProps) {
                   <Label htmlFor="banFirstName">First Name *</Label>
                   <Input
                     id="banFirstName"
+                    placeholder="Required"
                     value={banForm.firstName}
                     onChange={(e) => setBanForm({ ...banForm, firstName: e.target.value })}
                   />
@@ -139,6 +181,7 @@ export function BannedContent({ banned: initialBanned }: BannedContentProps) {
                   <Label htmlFor="banLastName">Last Name</Label>
                   <Input
                     id="banLastName"
+                    placeholder="Optional"
                     value={banForm.lastName}
                     onChange={(e) => setBanForm({ ...banForm, lastName: e.target.value })}
                   />
@@ -149,6 +192,7 @@ export function BannedContent({ banned: initialBanned }: BannedContentProps) {
                 <Input
                   id="banEmail"
                   type="email"
+                  placeholder="Optional"
                   value={banForm.email}
                   onChange={(e) => setBanForm({ ...banForm, email: e.target.value })}
                 />
@@ -157,6 +201,7 @@ export function BannedContent({ banned: initialBanned }: BannedContentProps) {
                 <Label htmlFor="banPhone">Phone</Label>
                 <Input
                   id="banPhone"
+                  placeholder="Optional"
                   value={banForm.phone}
                   onChange={(e) => setBanForm({ ...banForm, phone: e.target.value })}
                 />
@@ -165,7 +210,7 @@ export function BannedContent({ banned: initialBanned }: BannedContentProps) {
                 <Label>Category</Label>
                 <Select
                   value={banForm.category}
-                  onValueChange={(value) => setBanForm({ ...banForm, category: value as any })}
+                  onValueChange={(value) => setBanForm({ ...banForm, category: value as typeof banForm.category })}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -178,23 +223,25 @@ export function BannedContent({ banned: initialBanned }: BannedContentProps) {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="banReason">Reason</Label>
+                <Label htmlFor="banReason">Reason / Details</Label>
                 <Textarea
                   id="banReason"
+                  placeholder="Describe the reason for this ban..."
                   value={banForm.reason}
                   onChange={(e) => setBanForm({ ...banForm, reason: e.target.value })}
                   rows={3}
                 />
               </div>
-              <Button onClick={handleBan} variant="destructive" className="w-full">
-                Ban Customer
+              <Separator />
+              <Button onClick={handleBan} variant="destructive" className="w-full" disabled={banSubmitting}>
+                {banSubmitting ? "Banning..." : "Ban Customer"}
               </Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Stats */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <Card>
           <CardContent className="pt-6">
@@ -213,7 +260,7 @@ export function BannedContent({ banned: initialBanned }: BannedContentProps) {
               <div>
                 <p className="text-sm text-muted-foreground">Reselling</p>
                 <p className="text-2xl font-bold">
-                  {banned.filter((b) => b.banReasonCategory === "Reselling").length}
+                  {banned.filter((r) => r.banned.banReasonCategory === "Reselling").length}
                 </p>
               </div>
               <AlertTriangle className="h-8 w-8 text-orange-500" />
@@ -226,7 +273,7 @@ export function BannedContent({ banned: initialBanned }: BannedContentProps) {
               <div>
                 <p className="text-sm text-muted-foreground">Gift Card Fraud</p>
                 <p className="text-2xl font-bold">
-                  {banned.filter((b) => b.banReasonCategory === "Gift Card Fraud").length}
+                  {banned.filter((r) => r.banned.banReasonCategory === "Gift Card Fraud").length}
                 </p>
               </div>
               <AlertTriangle className="h-8 w-8 text-yellow-500" />
@@ -235,113 +282,188 @@ export function BannedContent({ banned: initialBanned }: BannedContentProps) {
         </Card>
       </div>
 
-      {/* Banned Table */}
+      {/* Banned List */}
       <Card>
         <CardHeader>
-          <CardTitle>Banned List</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Banned List</CardTitle>
+            {banned.length > 0 && (
+              <Badge variant="secondary">{filteredBanned.length} record{filteredBanned.length !== 1 ? "s" : ""}</Badge>
+            )}
+          </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search banned customers..."
+              placeholder="Search by name, email, or phone..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-10 pr-10"
             />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+                onClick={() => setSearchQuery("")}
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
           {filteredBanned.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <ShieldOff className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p className="text-lg font-medium">No banned customers</p>
-              <p className="text-sm mt-1">Banned customers will appear here</p>
+              <p className="text-lg font-medium">
+                {searchQuery ? "No matching records" : "No banned customers"}
+              </p>
+              <p className="text-sm mt-1">
+                {searchQuery
+                  ? "Try a different search term"
+                  : "Banned customers will appear here"}
+              </p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredBanned.map((customer) => (
-                  <TableRow key={customer.id}>
-                    <TableCell className="font-medium">
-                      {customer.firstName} {customer.lastName || ""}
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        {customer.email && (
-                          <p className="text-sm flex items-center gap-1">
-                            <Mail className="h-3 w-3" />
-                            {customer.email}
-                          </p>
-                        )}
-                        {customer.phone && (
-                          <p className="text-sm flex items-center gap-1">
-                            <Phone className="h-3 w-3" />
-                            {customer.phone}
-                          </p>
-                        )}
+            <div className="space-y-2">
+              {filteredBanned.map((row) => {
+                const customer = row.banned;
+                const isExpanded = expandedIds.has(customer.id);
+                return (
+                  <div key={customer.id} className="border rounded-lg">
+                    <div
+                      className="flex items-center gap-3 py-3 px-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => toggleExpand(customer.id)}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          {row.clientId ? (
+                            <Link
+                              href={`/clients/${row.clientId}`}
+                              className="font-medium hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {customer.firstName} {customer.lastName || ""}
+                            </Link>
+                          ) : (
+                            <span className="font-medium">
+                              {customer.firstName} {customer.lastName || ""}
+                            </span>
+                          )}
+                          {getCategoryBadge(customer.banReasonCategory)}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Banned {customer.banDate ? format(new Date(customer.banDate), "MMM d, yyyy") : "—"}
+                        </p>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          customer.banReasonCategory === "Reselling"
-                            ? "destructive"
-                            : customer.banReasonCategory === "Gift Card Fraud"
-                            ? "default"
-                            : "secondary"
-                        }
-                      >
-                        {customer.banReasonCategory}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="max-w-[200px]">
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {customer.specificBanReason || "—"}
-                      </p>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {customer.banDate ? format(new Date(customer.banDate), "MMM d, yyyy") : "—"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <ShieldOff className="h-4 w-4 mr-1" />
-                            Unban
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 shrink-0"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Unban Customer</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to unban <strong>{customer.firstName} {customer.lastName || ""}</strong>? They will be able to interact with your business again.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleUnban(customer.id)}>
-                              Unban
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {row.clientId && (
+                            <DropdownMenuItem asChild>
+                              <Link href={`/clients/${row.clientId}`}>
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Client Page
+                              </Link>
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => setUnbanTarget(row)}
+                          >
+                            <ShieldOff className="h-4 w-4 mr-2" />
+                            Unban
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                    </div>
+                    {isExpanded && (
+                      <div className="px-4 pb-4">
+                        <Separator className="mb-4" />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <p className="text-sm font-medium text-muted-foreground">Contact</p>
+                            {(customer.email || customer.phone) ? (
+                              <div className="space-y-1">
+                                {customer.email && (
+                                  <p className="text-sm flex items-center gap-2">
+                                    <span className="text-muted-foreground">Email:</span>
+                                    {customer.email}
+                                  </p>
+                                )}
+                                {customer.phone && (
+                                  <p className="text-sm flex items-center gap-2">
+                                    <span className="text-muted-foreground">Phone:</span>
+                                    {customer.phone}
+                                  </p>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">No contact info</p>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-sm font-medium text-muted-foreground">Ban Details</p>
+                            <div className="text-sm flex items-center gap-2">
+                              <span className="text-muted-foreground">Category:</span>
+                              {getCategoryBadge(customer.banReasonCategory)}
+                            </div>
+                            {customer.specificBanReason && (
+                              <div>
+                                <p className="text-sm text-muted-foreground">Reason:</p>
+                                <p className="text-sm mt-0.5">{customer.specificBanReason}</p>
+                              </div>
+                            )}
+                            {customer.notes && (
+                              <div>
+                                <p className="text-sm text-muted-foreground">Notes:</p>
+                                <p className="text-sm mt-0.5">{customer.notes}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Unban Confirmation */}
+      <AlertDialog open={!!unbanTarget} onOpenChange={(open) => !open && setUnbanTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unban Customer</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to unban{" "}
+              <strong>
+                {unbanTarget?.banned.firstName} {unbanTarget?.banned.lastName || ""}
+              </strong>
+              ? They will be able to interact with your business again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => unbanTarget && handleUnban(unbanTarget.banned.id)}>
+              Unban
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
