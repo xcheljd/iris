@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { Home, Users, Phone, ListFilter, Tag, BarChart3, Ban, MailX, Settings, LogOut, Watch, KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton, useSidebar } from "@/components/ui/sidebar";
+import { IrisIcon } from "@/components/iris-icon";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -46,9 +47,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border">
         <Link href="/" className="flex items-center gap-2 px-2 py-1.5" aria-label="Iris Dashboard">
-          <div className="h-8 w-8 shrink-0 rounded-md bg-accent/15 border border-accent/30 flex items-center justify-center">
-            <span className="text-accent text-sm font-serif">C</span>
-          </div>
+          <IrisIcon size={32} className="shrink-0" />
           {!collapsed && (
             <div className="flex flex-col leading-tight">
               <span className="text-sm font-serif tracking-wide">Iris</span>

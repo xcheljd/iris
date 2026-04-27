@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { IrisIcon } from "@/components/iris-icon";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -96,9 +97,7 @@ export default function LoginPage() {
       <h1 className="sr-only">Iris Login</h1>
       <Card className="w-full max-w-md border-border/50">
         <CardHeader className="space-y-2 text-center">
-          <div className="mx-auto mb-2 h-12 w-12 rounded-full bg-accent/15 flex items-center justify-center">
-            <span className="text-accent text-xl font-serif">C</span>
-          </div>
+          <IrisIcon size={48} className="mx-auto mb-2" />
           <CardTitle className="text-2xl font-serif tracking-wide">Iris</CardTitle>
           <CardDescription>Meridian Customer Relationship Management</CardDescription>
         </CardHeader>
