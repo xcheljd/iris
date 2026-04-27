@@ -1,13 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Phone, Mail, MessageCircle, User, Calendar, Clock, CheckCircle } from "lucide-react";
+import { Phone, Mail, MessageCircle, User, Calendar, Clock, CheckCircle, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import type { FullClient } from "@/components/client-provider";
 import type { OutreachLog } from "@/lib/db/schema";
+
+const PAGE_SIZE = 10;
 
 interface OutreachHistoryTabProps {
   client: FullClient;
@@ -71,6 +73,9 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
   };
 
   const outreachLogs: OutreachLog[] = client.outreach || [];
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const visibleLogs = outreachLogs.slice(0, visibleCount);
+  const hasMore = visibleCount < outreachLogs.length;
 
   return (
     <div className="space-y-4">
@@ -127,9 +132,9 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
         </CardHeader>
         <CardContent>
           {outreachLogs.length > 0 ? (
-            <ScrollArea className="h-[400px] w-full">
-              <div className="space-y-4">
-                {outreachLogs.map((log: OutreachLog) => (
+            <div className="space-y-4">
+              <div className="divide-y">
+                {visibleLogs.map((log: OutreachLog) => (
                   <div key={log.id} className="border rounded-lg p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
@@ -193,7 +198,22 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
                   </div>
                 ))}
               </div>
-            </ScrollArea>
+              {hasMore && (
+                <div className="flex justify-center pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                  >
+                    <ChevronDown className="h-4 w-4 mr-1" />
+                    Load more ({outreachLogs.length - visibleCount} remaining)
+                  </Button>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground text-center">
+                {outreachLogs.length} outreach record{outreachLogs.length !== 1 ? "s" : ""}
+              </p>
+            </div>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
               <Phone className="h-12 w-12 mx-auto mb-3 opacity-50" />

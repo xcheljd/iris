@@ -305,7 +305,9 @@ export function ClientListContent({ rows, totalClients }: { rows: ClientRow[]; t
 
         {/* Footer: count + pagination */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="text-xs text-muted-foreground">{filtered.length} of {totalClients} clients</p>
+          <p className="text-xs text-muted-foreground">
+            {paged.length > 0 ? `${(page - 1) * PAGE_SIZE + 1}\u2013${(page - 1) * PAGE_SIZE + paged.length} of ${filtered.length}` : "0"} clients{filtered.length !== totalClients ? ` (${totalClients} total)` : ""}
+          </p>
           {totalPages > 1 && (
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>

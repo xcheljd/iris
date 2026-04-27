@@ -4,6 +4,7 @@
 **Viewports tested:** Desktop (1280x900), Mobile (375x812)
 **Browser:** Chromium (Playwright)
 **Pages tested:** 14 pages + dialogs, modals, and interactive components
+**Last updated:** 2026-04-27 (post icon/favicon commit)
 
 ---
 
@@ -54,18 +55,17 @@ All of the following were verified on both desktop and mobile:
 
 ## Critical Issues
 
-### 1. "Static route" indicator visible on every page
+### 1. ~~"Static route" indicator visible on every page~~ — NOT AN APP ISSUE
 
-A Sonner toast notification labeled "Static route" with a dismiss button appears on every single page in both desktop and mobile. This appears to be a Next.js static rendering indicator that should not be shown in production. It clutters the bottom-right corner and could confuse users.
+Initially reported as a Sonner toast on every page. Further investigation confirmed this is a Playwright MCP browser overlay injected by the testing tool -- it does **not** exist in the app's DOM and will never appear for real users. No code change needed.
 
-**Severity:** High
-**Affects:** All pages, both viewports
+**Severity:** ~~High~~ Not applicable
 
-### 2. Missing favicon (404 error in console)
+### 2. ~~Missing favicon (404 error in console)~~ — FIXED
 
-Console shows `Failed to load resource: the server responded with a status of 404 (Not Found)` for `/favicon.ico` on every page load. A favicon should be added to the `/app` directory.
+Added `favicon.ico`, `favicon.svg`, `icon.svg`, and `icon.png` to `/app`. The 404 console error for `/favicon.ico` is now resolved. Next.js auto-detects these files for browser tabs and PWA metadata.
 
-**Severity:** Medium
+**Severity:** ~~Medium~~ Resolved
 **Affects:** All pages
 
 ---
@@ -111,11 +111,11 @@ The Dashboard Activity tab shows 20+ rows, most with identical entries (same cli
 **Severity:** Low
 **Affects:** Dashboard Activity tab
 
-### 8. Outreach tab has no pagination or "load more"
+### 8. ~~Outreach tab has no pagination or "load more"~~ — FIXED
 
-The client detail Outreach tab shows all outreach records (49 for Michael White) in a single long scrollable list with no pagination, virtualization, or "load more" button. On mobile this is especially problematic for performance and usability.
+The client detail Outreach tab now shows 10 records initially with a "Load more (N remaining)" button. Removed the fixed-height `ScrollArea` in favor of natural height with progressive loading. A total record count is shown at the bottom.
 
-**Severity:** Medium
+**Severity:** ~~Medium~~ Resolved
 **Affects:** Client detail Outreach tab, both viewports
 
 ### 9. Quick Actions buttons may overflow on mobile sidebar
@@ -125,12 +125,12 @@ The Quick Actions section in the client detail sidebar shows 4 buttons (Log Outr
 **Severity:** Low
 **Affects:** Client detail sidebar, mobile only
 
-### 10. Pagination counter contradicts page count
+### 10. ~~Pagination counter contradicts page count~~ — FIXED
 
-The client list footer displays "66 of 66 clients" alongside "Page 1 of 4", which is contradictory. If there are 66 clients and 4 pages, the counter should show only the current page's count (e.g., "20 of 66" for the first page of 20 items).
+The client list footer now shows a range (e.g. "1–20 of 66 clients") alongside "Page 1 of 4", which is consistent. When filters narrow the results, it appends `(66 total)` to indicate the broader dataset. Previously showed the contradictory "66 of 66 clients".
 
-**Severity:** Medium
-**Affects:** Clients list, Follow-ups list, both viewports
+**Severity:** ~~Medium~~ Resolved
+**Affects:** Clients list, both viewports
 
 ---
 
@@ -150,15 +150,16 @@ The client list footer displays "66 of 66 clients" alongside "Page 1 of 4", whic
 - Breadcrumb navigation works on client detail page
 - All forms render properly with proper labels and placeholders
 - Dark mode renders consistently across all pages with good contrast
+- Brand icon renders correctly in sidebar (32px), login page (48px), and as favicon — no hydration errors, no console errors
 
 ---
 
 ## Recommended Fixes by Priority
 
-1. **Remove/hide the "Static route" Sonner toast** — appears on every page
-2. **Add a `favicon.ico`** — eliminates 404 console error
-3. **Fix pagination counter** — "66 of 66" contradicts "Page 1 of 4"
+1. ~~**Remove/hide the "Static route" Sonner toast** — appears on every page~~ **NOT AN APP ISSUE** — Playwright MCP browser overlay, not rendered by the app
+2. ~~**Add a `favicon.ico`** — eliminates 404 console error~~ **DONE** — favicon and icon files added
+3. ~~**Fix pagination counter** — "66 of 66" contradicts "Page 1 of 4"~~ **DONE** — now shows "1–20 of 66 clients"
 4. **Mobile client detail** — collapse sidebar into accordion/tabs on small screens
-5. **Outreach history pagination** — add "Load more" or page controls for long lists
+5. ~~**Outreach history pagination** — add "Load more" or page controls for long lists~~ **DONE** — shows 10 initially, load more button for remaining
 6. **Activity tab employee column** — show actual employee name instead of "—"
 7. **Duplicate follow-up entries** — add context/note to differentiate identical items

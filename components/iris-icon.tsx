@@ -32,20 +32,17 @@ const END_Y = CY + R * cos45;    // 256 + 141.42 = 397.42
 //   10 o'clock = upper-left, 10/12 * 360 = 300deg @@@@CLOCRVXSEU@@@@ from 12
 //   In math angle: 90 - 300 = -210 = 150deg
 //   10:10 pose: minute at 2, hour at 10
-const MIN_ANGLE = (2 / 12) * 360;    // 60deg @@@@CLOCRVXSEU@@@@ from 12 = math angle 30deg
-const HOUR_ANGLE = (10 / 12) * 360;  // 300deg @@@@CLOCRVXSEU@@@@ from 12 = math angle 150deg
-
 const toRad = (deg: number) => deg * Math.PI / 180;
 
-// Minute hand: math angle = 90 - 60 = 30deg, length 120
+// Minute hand at 2 o'clock (60deg @@@@CLOCRVXSEU@@@@ from 12)
 const MIN_LEN = 120;
-const minAngleRad = toRad(90 - 60);
+const minAngleRad = toRad(30);
 const MIN_X2 = +(CX + MIN_LEN * Math.cos(minAngleRad)).toFixed(2);
 const MIN_Y2 = +(CY - MIN_LEN * Math.sin(minAngleRad)).toFixed(2);
 
-// Hour hand: math angle = 90 - 300 = -210 = 150deg, length 80
+// Hour hand at 10 o'clock (300deg @@@@CLOCRVXSEU@@@@ from 12)
 const HOUR_LEN = 80;
-const hourAngleRad = toRad(90 - 300 + 360);
+const hourAngleRad = toRad(150);
 const HOUR_X2 = +(CX + HOUR_LEN * Math.cos(hourAngleRad)).toFixed(2);
 const HOUR_Y2 = +(CY - HOUR_LEN * Math.sin(hourAngleRad)).toFixed(2);
 
