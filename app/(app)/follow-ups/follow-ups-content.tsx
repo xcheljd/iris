@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Clock, 
   AlertTriangle, 
@@ -428,11 +429,13 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-3">
-              {overdue.map((row) => (
-                <FollowUpCard key={row.log.id} row={row} isOverdue onDetail={() => openDetail(row)} />
-              ))}
-            </div>
+            <ScrollArea className="h-[600px]">
+              <div className="space-y-3">
+                {overdue.map((row) => (
+                  <FollowUpCard key={row.log.id} row={row} isOverdue onDetail={() => openDetail(row)} />
+                ))}
+              </div>
+            </ScrollArea>
           )}
         </TabsContent>
 
@@ -448,11 +451,13 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-3">
-              {upcoming.map((row) => (
-                <FollowUpCard key={row.log.id} row={row} isOverdue={false} onDetail={() => openDetail(row)} />
-              ))}
-            </div>
+            <ScrollArea className="h-[600px]">
+              <div className="space-y-3">
+                {upcoming.map((row) => (
+                  <FollowUpCard key={row.log.id} row={row} isOverdue={false} onDetail={() => openDetail(row)} />
+                ))}
+              </div>
+            </ScrollArea>
           )}
         </TabsContent>
 
@@ -466,8 +471,9 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-3">
-              {uniqueAll.map((row) => {
+            <ScrollArea className="h-[600px]">
+              <div className="space-y-3">
+                {uniqueAll.map((row) => {
                 const isOverdue = row.log.followUpDate
                   ? new Date(row.log.followUpDate) <= new Date()
                   : false;
@@ -475,7 +481,8 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
                   <FollowUpCard key={row.log.id} row={row} isOverdue={isOverdue} onDetail={() => openDetail(row)} />
                 );
               })}
-            </div>
+              </div>
+            </ScrollArea>
           )}
         </TabsContent>
       </Tabs>

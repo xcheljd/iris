@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -28,14 +27,12 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  ResponsiveContainer,
   PieChart,
   Pie,
   Cell,
   Legend,
 } from "recharts";
 import {
-  BarChart3,
   Users,
   Flame,
   Snowflake,
@@ -44,19 +41,16 @@ import {
   MessageCircle,
   Mail,
   User,
-  TrendingUp,
   Target,
   ShoppingCart,
   Calendar as CalendarIcon,
-  CheckCircle2,
-  AlertTriangle,
   MailX,
   Ban,
   ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
 import { Topbar } from "@/components/topbar";
-import { format, isAfter, isBefore, subDays, startOfDay, endOfDay } from "date-fns";
+import { format, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
 
 interface Stats {
   total: number;
@@ -116,7 +110,6 @@ function getOutcomeColor(outcome: string) {
   }
 }
 
-const HEAT_COLORS = ["#f97316", "#eab308", "#3b82f6"];
 const METHOD_COLORS = ["#3b82f6", "#22c55e", "#a855f7", "#f97316"];
 
 const heatChartConfig = {

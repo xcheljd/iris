@@ -1,8 +1,10 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { clients, outreachLogs, activityEvents, promoMatches, promoWatches, clientTags, employees } from "@/lib/db/schema";
 import { eq, desc, and, isNull } from "drizzle-orm";
 import { ClientDetailContent } from "./client-detail-content";
+import { ClientDetailSkeleton } from "@/components/skeletons";
 
 async function getFullClient(clientId: string) {
   const row = db
@@ -73,17 +75,23 @@ async function getFullClient(clientId: string) {
   };
 }
 
-export default async function ClientDetailPage({
+export default function ClientDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  return (
+    <Suspense fallback={<ClientDetailSkeleton />}>
+      <ClientDetailFetcher params={params} />
+    </Suspense>
+  );
+}
 
+async function ClientDetailFetcher({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const client = await getFullClient(id);
   if (!client) {
     notFound();
   }
-
   return <ClientDetailContent client={JSON.parse(JSON.stringify(client))} />;
 }

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Topbar } from "@/components/topbar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,8 +12,17 @@ import { getStats, getOverdueFollowUps, getUpcomingFollowUps, getRecentOutreach,
 import Link from "next/link";
 import { Flame, Phone, ShoppingBag, Users, AlertCircle, Calendar, ArrowRight, TrendingUp, Target, Clock, CheckCircle2 } from "lucide-react";
 import { formatDate, formatDateTime, daysAgo } from "@/lib/utils";
+import { DashboardSkeleton } from "@/components/skeletons";
 
-export default async function DashboardPage() {
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<><Topbar title="Dashboard" /><DashboardSkeleton /></>}>
+      <DashboardContent />
+    </Suspense>
+  );
+}
+
+async function DashboardContent() {
   const stats = await getStats();
   const overdue = await getOverdueFollowUps();
   const upcoming = await getUpcomingFollowUps();
