@@ -83,11 +83,13 @@ async function DashboardContent() {
                     <ul className="divide-y">
                       {overdue.slice(0, 6).map((row) => (
                         <li key={row.log.id} className="flex items-center justify-between py-2">
-                          <Link href={`/clients/${row.client?.id}`} className="hover:underline text-sm">
+                          <Link href={`/clients/${row.client?.id}`} className="hover:underline text-sm min-w-0 flex-1 mr-2">
                             <span className="font-medium">{row.client?.firstName} {row.client?.lastName ?? ""}</span>
                             <span className="text-muted-foreground ml-2 text-xs">due {formatDate(row.log.followUpDate)}</span>
+                            {row.log.notes && <span className="block text-xs text-muted-foreground truncate">{row.log.notes}</span>}
+                            {!row.log.notes && <span className="block text-xs text-muted-foreground capitalize">{row.log.method} — {row.log.outcome.replace(/_/g, " ")}</span>}
                           </Link>
-                          <Badge variant="destructive" className="text-[10px]">
+                          <Badge variant="destructive" className="text-[10px] shrink-0">
                             <AlertCircle className="h-3 w-3 mr-1" />
                             {daysAgo(row.log.followUpDate)}
                           </Badge>
@@ -107,11 +109,18 @@ async function DashboardContent() {
                   {upcoming.length === 0 ? <p className="text-sm text-muted-foreground">None.</p> : (
                     <ul className="space-y-2">
                       {upcoming.slice(0, 6).map((row) => (
-                        <li key={row.log.id} className="text-sm flex justify-between">
-                          <Link href={`/clients/${row.client?.id}`} className="hover:underline truncate">
-                            {row.client?.firstName} {row.client?.lastName ?? ""}
-                          </Link>
-                          <span className="text-xs text-muted-foreground shrink-0 ml-2">{formatDate(row.log.followUpDate)}</span>
+                        <li key={row.log.id} className="text-sm flex flex-col">
+                          <div className="flex justify-between">
+                            <Link href={`/clients/${row.client?.id}`} className="hover:underline truncate">
+                              {row.client?.firstName} {row.client?.lastName ?? ""}
+                            </Link>
+                            <span className="text-xs text-muted-foreground shrink-0 ml-2">{formatDate(row.log.followUpDate)}</span>
+                          </div>
+                          {(row.log.notes || row.log.method) && (
+                            <span className="text-xs text-muted-foreground truncate mt-0.5">
+                              {row.log.notes || `${row.log.method} — ${row.log.outcome.replace(/_/g, " ")}`}
+                            </span>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -365,13 +374,13 @@ function StatCard({ icon: Icon, label, value, sublabel, accent, color }: {
 }) {
   return (
     <Card className="border-border/50 hover:border-border hover:shadow-md transition-all">
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className={`h-10 w-10 rounded-md flex items-center justify-center ${accent ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground"}`}>
-          <Icon className="h-5 w-5" />
+      <CardContent className="p-3 md:p-4 flex items-center gap-3">
+        <div className={`h-9 w-9 md:h-10 md:w-10 rounded-md flex items-center justify-center shrink-0 ${accent ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground"}`}>
+          <Icon className="h-4 w-4 md:h-5 md:w-5" />
         </div>
-        <div>
-          <p className={`text-2xl font-semibold font-mono ${color || ""}`}>{value}</p>
-          <p className="text-xs text-muted-foreground">{sublabel || label}</p>
+        <div className="min-w-0">
+          <p className={`text-xl md:text-2xl font-semibold font-mono leading-tight ${color || ""}`}>{value}</p>
+          <p className="text-[11px] md:text-xs text-muted-foreground truncate">{sublabel || label}</p>
         </div>
       </CardContent>
     </Card>

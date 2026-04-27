@@ -246,8 +246,8 @@ export function ClientListContent({ rows, totalClients }: { rows: ClientRow[]; t
                       {r.client.status !== "active" && <Badge variant="outline" className="ml-2 text-[10px] capitalize">{r.client.status}</Badge>}
                     </TableCell>
                     <TableCell>
-                      <div className="text-xs">{formatPhone(r.client.phone)}</div>
-                      <div className="text-xs text-muted-foreground truncate max-w-[200px]">{r.client.email}</div>
+                      {r.client.phone && <div className="text-xs">{formatPhone(r.client.phone)}</div>}
+                      {r.client.email && <div className="text-xs text-muted-foreground truncate max-w-[120px] md:max-w-[200px]">{r.client.email}</div>}
                     </TableCell>
                     <TableCell><HeatBadge level={r.client.heatLevel} score={r.client.heatScore} showScore /></TableCell>
                     <TableCell className="hidden md:table-cell">

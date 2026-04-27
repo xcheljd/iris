@@ -173,9 +173,9 @@ export function ClientSidebar() {
             clientId={client.id}
             clientName={`${client.firstName} ${client.lastName}`}
             trigger={
-              <Button className="w-full" variant="outline">
-                <Calendar className="h-4 w-4 mr-2" />
-                Log Outreach
+              <Button className="w-full justify-start" variant="outline">
+                <Calendar className="h-4 w-4 mr-2 shrink-0" />
+                <span className="truncate">Log Outreach</span>
               </Button>
             }
           />
@@ -183,9 +183,9 @@ export function ClientSidebar() {
           {client.matches.length > 0 && (
             <Dialog open={promoDialogOpen} onOpenChange={setPromoDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="w-full" variant="outline">
-                  <Star className="h-4 w-4 mr-2" />
-                  Promo Matches ({client.matches.length})
+                <Button className="w-full justify-start" variant="outline">
+                  <Star className="h-4 w-4 mr-2 shrink-0" />
+                  <span className="truncate">Promos ({client.matches.length})</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
@@ -219,15 +219,15 @@ export function ClientSidebar() {
             <>
               <Separator className="my-1" />
               <BanCustomerDialog clientId={client.id} clientName={`${client.firstName} ${client.lastName ?? ""}`}>
-                <Button className="w-full" variant="outline">
-                  <Ban className="h-4 w-4 mr-2" />
-                  Ban Customer
+                <Button className="w-full justify-start" variant="outline">
+                  <Ban className="h-4 w-4 mr-2 shrink-0" />
+                  <span className="truncate">Ban Customer</span>
                 </Button>
               </BanCustomerDialog>
               <UnsubscribeCustomerDialog clientId={client.id} clientName={`${client.firstName} ${client.lastName ?? ""}`}>
-                <Button className="w-full" variant="outline">
-                  <MailX className="h-4 w-4 mr-2" />
-                  Unsubscribe
+                <Button className="w-full justify-start" variant="outline">
+                  <MailX className="h-4 w-4 mr-2 shrink-0" />
+                  <span className="truncate">Unsubscribe</span>
                 </Button>
               </UnsubscribeCustomerDialog>
             </>

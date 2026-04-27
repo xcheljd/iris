@@ -72,43 +72,43 @@ Added `favicon.ico`, `favicon.svg`, `icon.svg`, and `icon.png` to `/app`. The 40
 
 ## Mobile Layout Issues
 
-### 3. Client detail page shows stacked sidebar + main content
+### 3. ~~Client detail page shows stacked sidebar + main content~~ — FIXED
 
-On mobile (375px), the client detail page shows the left sidebar info panel (contact, tags, quick actions) AND the right main content (profile tab) stacked vertically. This creates a very long scrollable page. The sidebar info panel should collapse into an expandable section or tab on mobile to reduce scroll fatigue.
+On mobile, the client detail page now uses a collapsible "Client Info & Actions" panel that defaults to collapsed. Clicking the toggle expands the sidebar content (contact info, follow-ups, tags, quick actions). On desktop (md+), the sidebar remains visible as a persistent 280px panel. This eliminates the long-scroll problem on mobile screens.
 
-**Severity:** Medium
+**Severity:** ~~Medium~~ Resolved
 **Affects:** Client detail page, mobile only
 
-### 4. Clients table "Contact" column cramped on mobile
+### 4. ~~Clients table "Contact" column cramped on mobile~~ — FIXED
 
-The Contact column shows both phone number and email stacked on mobile. While the table does horizontal scroll, the phone/email info in each cell gets squeezed. Consider truncating email or using a single-line format on mobile.
+Email text now truncates more aggressively on mobile (`max-w-[120px]`) vs desktop (`max-w-[200px]`). Also added null checks so empty phone/email rows don't render blank lines.
 
-**Severity:** Low
+**Severity:** ~~Low~~ Resolved
 **Affects:** Clients list, mobile only
 
-### 5. Dashboard stat cards readability on mobile
+### 5. ~~Dashboard stat cards readability on mobile~~ — FIXED
 
-The 4 stat cards (70 clients, 0 Hot Leads, 57 Outreach, 14 Purchases) render in a 2x2 grid on mobile which works, but the numbers and labels could be larger for better readability on small screens.
+Stat card icons and text now use responsive sizing: `h-9 w-9` icon containers on mobile scaling to `h-10 w-10` on desktop, `text-xl` numbers on mobile scaling to `text-2xl` on desktop, and `text-[11px]` labels scaling to `text-xs`. Added `leading-tight` and `truncate` to prevent overflow.
 
-**Severity:** Low
+**Severity:** ~~Low~~ Resolved
 **Affects:** Dashboard, mobile only
 
 ---
 
 ## Visual Polish Issues
 
-### 6. Duplicate client names in dashboard lists
+### 6. ~~Duplicate client names in dashboard lists~~ — FIXED
 
-Richard Lee appears twice in both the "Overdue follow-ups" and "Upcoming (7d)" lists on the dashboard. While this is a data issue (two follow-ups for same client), the list items look identical with no visual distinction. Consider showing follow-up note or context to differentiate.
+Follow-up lists now show outreach context below each client name: either the notes text (if present) or the method + outcome (e.g., "Email — voicemail"). This differentiates duplicate entries for the same client (e.g., "Richard Lee — Email — voicemail" vs "Richard Lee — Call — voicemail").
 
-**Severity:** Low
+**Severity:** ~~Low~~ Resolved
 **Affects:** Dashboard Overview tab
 
-### 7. Activity tab shows repetitive data
+### 7. ~~Activity tab shows repetitive data~~ — FIXED
 
-The Dashboard Activity tab shows 20+ rows, most with identical entries (same client "Michael White", same date Apr 24, same employee "—"). The activity feed lacks variety and visual differentiation. The employee column consistently shows "—" (dash) which looks like missing data.
+The employee column now shows actual employee names instead of "—". This was caused by all seed outreach logs having `null` employee_id. A data backfill was run to copy the client's assigned employee_id to each outreach log (53 rows updated). New outreach logs correctly set employee_id from the session user.
 
-**Severity:** Low
+**Severity:** ~~Low~~ Resolved
 **Affects:** Dashboard Activity tab
 
 ### 8. ~~Outreach tab has no pagination or "load more"~~ — FIXED
@@ -118,11 +118,11 @@ The client detail Outreach tab now shows 10 records initially with a "Load more 
 **Severity:** ~~Medium~~ Resolved
 **Affects:** Client detail Outreach tab, both viewports
 
-### 9. Quick Actions buttons may overflow on mobile sidebar
+### 9. ~~Quick Actions buttons may overflow on mobile sidebar~~ — FIXED
 
-The Quick Actions section in the client detail sidebar shows 4 buttons (Log Outreach, Promo Matches, Ban Customer, Unsubscribe). On mobile they stack vertically which is fine, but "Promo Matches (3)" text is long and may wrap awkwardly at 375px.
+Quick Actions buttons now use `justify-start` alignment with `shrink-0` on icons and `truncate` on text. The "Promo Matches (3)" text was shortened to "Promos (3)" to prevent wrapping at 375px.
 
-**Severity:** Low
+**Severity:** ~~Low~~ Resolved
 **Affects:** Client detail sidebar, mobile only
 
 ### 10. ~~Pagination counter contradicts page count~~ — FIXED
@@ -159,7 +159,12 @@ The client list footer now shows a range (e.g. "1–20 of 66 clients") alongside
 1. ~~**Remove/hide the "Static route" Sonner toast** — appears on every page~~ **NOT AN APP ISSUE** — Playwright MCP browser overlay, not rendered by the app
 2. ~~**Add a `favicon.ico`** — eliminates 404 console error~~ **DONE** — favicon and icon files added
 3. ~~**Fix pagination counter** — "66 of 66" contradicts "Page 1 of 4"~~ **DONE** — now shows "1–20 of 66 clients"
-4. **Mobile client detail** — collapse sidebar into accordion/tabs on small screens
+4. ~~**Mobile client detail** — collapse sidebar into accordion/tabs on small screens~~ **DONE** — collapsible "Client Info & Actions" panel on mobile
 5. ~~**Outreach history pagination** — add "Load more" or page controls for long lists~~ **DONE** — shows 10 initially, load more button for remaining
-6. **Activity tab employee column** — show actual employee name instead of "—"
-7. **Duplicate follow-up entries** — add context/note to differentiate identical items
+6. ~~**Activity tab employee column** — show actual employee name instead of "—"~~ **DONE** — backfilled 53 outreach logs with employee_id
+7. ~~**Duplicate follow-up entries** — add context/note to differentiate identical items~~ **DONE** — shows method/outcome below each entry
+8. ~~**Dashboard stat cards readability** — improve sizing on mobile~~ **DONE** — responsive icon/text sizing
+9. ~~**Clients table Contact column** — cramped on mobile~~ **DONE** — responsive truncation
+10. ~~**Quick Actions button overflow** — "Promo Matches (3)" wraps at 375px~~ **DONE** — shortened text + truncation
+
+All 10 issues resolved.
