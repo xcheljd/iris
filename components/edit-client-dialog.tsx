@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,22 +9,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { Edit3, Save, X, Plus, Tag, Trash2 } from "lucide-react";
+import { Edit3, X, Plus } from "lucide-react";
 import { toast } from "sonner";
+import type { FullClient } from "@/components/client-provider";
 
 interface EditClientDialogProps {
-  client: any;
+  client: FullClient;
 }
 
 export function EditClientDialog({ client }: EditClientDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
-  const [duplicateClient, setDuplicateClient] = useState<any>(null);
+  const [duplicateClient, setDuplicateClient] = useState<{ id: string; firstName: string; lastName?: string | null; phone?: string | null; email?: string | null } | null>(null);
   
   const [formData, setFormData] = useState({
     firstName: client.firstName,
@@ -44,22 +44,9 @@ export function EditClientDialog({ client }: EditClientDialogProps) {
   const [productInterest, setProductInterest] = useState("");
   const [productsOfInterest, setProductsOfInterest] = useState<string[]>(client.productsOfInterest || []);
 
-  // Fetch available employees
-  const [employees, setEmployees] = useState<{ id: string; name: string; role: string }[]>([]);
 
-  useEffect(() => {
-    // This would normally fetch from the API
-    // For now, we'll use some mock data
-    setEmployees([
-      { id: "1", name: "Marcus", role: "manager" },
-      { id: "2", name: "Jordan", role: "associate" },
-      { id: "3", name: "Riley", role: "associate" },
-      { id: "4", name: "Cameron", role: "associate" },
-      { id: "5", name: "Morgan", role: "associate" },
-    ]);
-  }, []);
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: string | boolean | Date | null | undefined) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -119,7 +106,7 @@ export function EditClientDialog({ client }: EditClientDialogProps) {
       } else {
         toast.error("Failed to update client");
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to update client");
     } finally {
       setIsLoading(false);
@@ -149,7 +136,7 @@ export function EditClientDialog({ client }: EditClientDialogProps) {
       } else {
         toast.error("Failed to merge clients");
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to merge clients");
     }
   };

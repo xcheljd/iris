@@ -41,27 +41,6 @@ const MERIDIAN_COLLECTIONS = [
   "Horologia",
 ];
 
-function extractCollections(productsOfInterest: string[]): { name: string; count: number }[] {
-  const collections: Record<string, number> = {};
-  const poi = productsOfInterest || [];
-  
-  poi.forEach((product) => {
-    const productLower = product.toLowerCase();
-    for (const collection of MERIDIAN_COLLECTIONS) {
-      if (productLower.includes(collection.toLowerCase())) {
-        collections[collection] = (collections[collection] || 0) + 1;
-        return;
-      }
-    }
-    // If no collection match, use the product as-is
-    collections[product] = (collections[product] || 0) + 1;
-  });
-
-  return Object.entries(collections)
-    .sort((a, b) => b[1] - a[1])
-    .map(([name, count]) => ({ name, count }));
-}
-
 function getHeatBadge(level: string) {
   switch (level) {
     case "hot": return <Badge className="bg-orange-500/10 text-orange-500 border-orange-500/20 text-xs">Hot</Badge>;

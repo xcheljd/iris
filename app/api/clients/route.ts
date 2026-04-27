@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { clients, outreachLogs, activityEvents, employees } from "@/lib/db/schema";
+import { clients, activityEvents } from "@/lib/db/schema";
 import { eq, desc, or, sql as rawSql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
-import { calcHeatScore } from "@/lib/heat-score";
 
 // GET /api/clients — list all clients
 export async function GET(request: Request) {
@@ -65,7 +64,7 @@ export async function POST(request: Request) {
 
     revalidatePath("/clients");
     return NextResponse.json({ id });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: "Failed to create client" }, { status: 500 });
   }
 }
@@ -97,7 +96,7 @@ export async function PUT(request: Request) {
     revalidatePath(`/clients/${id}`);
     revalidatePath("/clients");
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: "Failed to update client" }, { status: 500 });
   }
 }

@@ -2,20 +2,19 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Star, Gem, Clock, Users } from "lucide-react";
-import { useClient } from "@/components/client-provider";
-import { useState, useCallback } from "react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { OutreachLogger } from "@/components/outreach-logger";
+import type { FullClient, PromoMatchWithPromo } from "@/components/client-provider";
 
 interface InterestsTabProps {
-  client: any;
+  client: FullClient;
 }
 
 export function InterestsTab({ client }: InterestsTabProps) {
   const [activeTab, setActiveTab] = useState<"models" | "collections" | "matches">("models");
 
-  // Extract unique model numbers and collections from products of interest
   const models = Array.from(
     new Set(
       client.productsOfInterest.flatMap((interest: string) => {
@@ -25,7 +24,6 @@ export function InterestsTab({ client }: InterestsTabProps) {
     )
   ).sort() as string[];
 
-  // Extract collections (capitalized words that are clearly not model numbers)
   const collections = Array.from(
     new Set(
       client.productsOfInterest.flatMap((interest: string) => {
@@ -36,22 +34,16 @@ export function InterestsTab({ client }: InterestsTabProps) {
   ).sort() as string[];
 
   const promoMatches = client.matches.filter(
-    (match: any) => match.promo?.modelNumber || match.promo?.collection
+    (match: PromoMatchWithPromo) => match.promo?.modelNumber || match.promo?.collection
   );
 
-  const handleCopyTemplate = (template: string, clientName: string) => {
-    const personalized = template
-      .replace(/{{first_name}}/g, client.firstName)
-      .replace(/{{last_name}}/g, client.lastName || "")
-      .replace(/{{client_name}}/g, `${client.firstName} ${client.lastName || ""}`)
-      .replace(/{{employee_name}}/g, "Your Associate"); // This would come from auth context
-
-    navigator.clipboard.writeText(personalized);
+  const handleCopyTemplate = (modelNumber: string, collection: string) => {
+    const template = `Hi ${client.firstName}, we have a great promo on the ${modelNumber} from the ${collection} collection. Would you like to come in and take a look?`;
+    navigator.clipboard.writeText(template);
   };
 
   return (
     <div className="space-y-6">
-      {/* Navigation Tabs */}
       <div className="flex gap-2">
         <button
           onClick={() => setActiveTab("models")}
@@ -85,7 +77,6 @@ export function InterestsTab({ client }: InterestsTabProps) {
         </button>
       </div>
 
-      {/* Models Tab */}
       {activeTab === "models" && (
         <Card>
           <CardHeader>
@@ -118,7 +109,6 @@ export function InterestsTab({ client }: InterestsTabProps) {
         </Card>
       )}
 
-      {/* Collections Tab */}
       {activeTab === "collections" && (
         <Card>
           <CardHeader>
@@ -151,10 +141,8 @@ export function InterestsTab({ client }: InterestsTabProps) {
         </Card>
       )}
 
-      {/* Promo Matches Tab */}
       {activeTab === "matches" && (
         <div className="space-y-4">
-          {/* Summary */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -168,13 +156,12 @@ export function InterestsTab({ client }: InterestsTabProps) {
                   {promoMatches.length}
                 </div>
                 <div className="text-muted-foreground">
-                  Promos match this client's interests
+                  Promos match this client&apos;s interests
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Individual Matches */}
           {promoMatches.length > 0 && (
             <Card>
               <CardHeader>
@@ -182,7 +169,7 @@ export function InterestsTab({ client }: InterestsTabProps) {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {promoMatches.map((match: any, index: number) => (
+                  {promoMatches.map((match: PromoMatchWithPromo, index: number) => (
                     <div key={index} className="border rounded-lg p-4">
                       <div className="flex items-start justify-between mb-2">
                         <div>
@@ -194,15 +181,15 @@ export function InterestsTab({ client }: InterestsTabProps) {
                           </div>
                         </div>
                         <Badge
-                          variant={match.matchType === "model" ? "default" : "secondary"}
+                          variant={match.match.matchType === "model" ? "default" : "secondary"}
                           className="flex items-center gap-1"
                         >
-                          {match.matchType === "model" ? (
+                          {match.match.matchType === "model" ? (
                             <Star className="h-3 w-3" />
                           ) : (
                             <Gem className="h-3 w-3" />
                           )}
-                          {match.matchType}
+                          {match.match.matchType}
                         </Badge>
                       </div>
                       
@@ -221,6 +208,15 @@ export function InterestsTab({ client }: InterestsTabProps) {
                           onClick={() => navigator.clipboard.writeText(match.promo?.modelNumber || "")}
                         >
                           Copy Model
+                        </button>
+                        <button
+                          className="px-3 py-1 text-sm border border-border rounded hover:bg-accent transition-colors"
+                          onClick={() => {
+                            handleCopyTemplate(match.promo?.modelNumber || "", match.promo?.collection || "");
+                            toast.success("Outreach template copied");
+                          }}
+                        >
+                          Copy Template
                         </button>
                       </div>
                     </div>

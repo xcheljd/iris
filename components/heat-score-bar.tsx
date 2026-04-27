@@ -1,6 +1,5 @@
 "use client";
 
-import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
 interface HeatScoreBarProps {
@@ -9,7 +8,6 @@ interface HeatScoreBarProps {
 }
 
 export function HeatScoreBar({ score, className }: HeatScoreBarProps) {
-  // Determine the color based on score
   const getHeatColor = (score: number) => {
     if (score >= 70) return "bg-orange-500"; // Hot
     if (score >= 40) return "bg-yellow-500"; // Warm
@@ -23,10 +21,16 @@ export function HeatScoreBar({ score, className }: HeatScoreBarProps) {
   };
 
   const heatLevel = getHeatLevel(score);
+  const barColor = getHeatColor(score);
 
   return (
     <div className={cn("flex items-center gap-3", className)}>
-      <Progress value={score} className="flex-1 h-2" aria-label={`Heat score: ${score}`} />
+      <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden" aria-label={`Heat score: ${score}`}>
+        <div
+          className={cn("h-full rounded-full transition-all", barColor)}
+          style={{ width: `${score}%` }}
+        />
+      </div>
       <div className="flex items-center gap-1">
         <span className="text-sm font-medium">{score}</span>
         <span className={`text-xs font-medium ${heatLevel.color}`}>

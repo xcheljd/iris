@@ -1,9 +1,7 @@
 import { db } from "@/lib/db";
 import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bannedCustomers, unsubscribeList, employees, clientTags, outreachTemplates, smartLists } from "@/lib/db/schema";
 import { eq, desc, and, or, isNotNull, lte, gte, ne, sql as rawSql } from "drizzle-orm";
-import type { Client } from "@/lib/db/schema";
 import { applyClientFilter } from "@/lib/utils";
-
 export async function getAllClients() {
   return db.select().from(clients).where(ne(clients.status, "banned")).orderBy(desc(clients.heatScore)).all();
 }

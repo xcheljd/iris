@@ -3,31 +3,26 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { 
   Calendar, 
   Clock,
-  Phone, 
-  Mail, 
   Tag, 
-  Package, 
   UserPlus, 
   Edit3, 
   ArrowRightLeft,
   Archive, 
-  Trash2,
-  Star,
-  Gift,
   ShoppingCart,
   MessageSquare
 } from "lucide-react";
-import { format, isToday, isAfter } from "date-fns";
-import { useClient } from "@/components/client-provider";
+import { format } from "date-fns";
+import type { FullClient } from "@/components/client-provider";
+import type { ActivityEvent } from "@/lib/db/schema";
+
+type ActivityEventWithName = ActivityEvent & { employeeName?: string | null };
 
 interface ActivityTimelineTabProps {
-  client: any;
+  client: FullClient;
 }
 
 export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
@@ -63,7 +58,7 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
     return variantMap[eventType] || "outline";
   };
 
-  const formatEventDescription = (event: any) => {
+  const formatEventDescription = (event: ActivityEventWithName) => {
     const { eventType, description, metadata } = event;
 
     switch (eventType) {
@@ -72,8 +67,8 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
       
       case "edited":
         if (metadata?.fieldChanges) {
-          const changes = Object.entries(metadata.fieldChanges)
-            .map(([field, change]) => {
+          const changes = Object.entries(metadata.fieldChanges as Record<string, unknown>)
+            .map(([field]) => {
               const fieldLabels: Record<string, string> = {
                 firstName: "First name",
                 lastName: "Last name",
@@ -93,52 +88,35 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
         return description;
       
       case "outreach_logged":
-        const method = metadata?.method || "outreach";
-        const outcome = metadata?.outcome || "logged";
-        return `${method} — ${outcome.replace(/_/g, " ")}`;
+        return `${(metadata?.method as string) || "outreach"} — ${String(metadata?.outcome || "logged").replace(/_/g, " ")}`;
       
       case "purchase":
-        return `Purchase: ${metadata?.purchasedModel || "Product"}`;
+        return `Purchase: ${(metadata?.purchasedModel as string) || "Product"}`;
       
       case "tag_added":
-        return `Tag added: ${metadata?.tagName || "Tag"}`;
+        return `Tag added: ${(metadata?.tagName as string) || "Tag"}`;
       
       case "tag_removed":
-        return `Tag removed: ${metadata?.tagName || "Tag"}`;
+        return `Tag removed: ${(metadata?.tagName as string) || "Tag"}`;
       
       case "transferred":
-        return `Transferred to ${metadata?.newEmployeeName || "another associate"}`;
+        return `Transferred to ${(metadata?.newEmployeeName as string) || "another associate"}`;
       
       case "status_changed":
-        return `Status changed to: ${metadata?.newStatus || event.description.split(": ")[1]}`;
+        return `Status changed to: ${(metadata?.newStatus as string) || event.description.split(": ")[1]}`;
       
       case "note_added":
-        return `Note added: ${metadata?.notePreview || "New note"}`;
+        return `Note added: ${(metadata?.notePreview as string) || "New note"}`;
       
       case "merged":
-        return `Merged from ${metadata?.sourceClientId || "another record"}`;
+        return `Merged from ${(metadata?.sourceClientId as string) || "another record"}`;
       
       default:
         return description;
     }
   };
 
-  const getEventBadgeColor = (eventType: string) => {
-    switch (eventType) {
-      case "created":
-      case "purchase":
-        return "default";
-      case "outreach_logged":
-      case "tag_added":
-        return "secondary";
-      case "status_changed":
-        return "destructive";
-      default:
-        return "outline";
-    }
-  };
-
-  const timelineEvents = [...client.timeline].sort((a: any, b: any) => 
+  const timelineEvents = ([...client.timeline] as ActivityEventWithName[]).sort((a, b) => 
     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
@@ -164,7 +142,7 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
               <ShoppingCart className="h-5 w-5 text-green-600" />
               <div>
                 <div className="text-2xl font-bold">
-                  {timelineEvents.filter((e: any) => e.eventType === "purchase").length}
+                  {timelineEvents.filter((e) => e.eventType === "purchase").length}
                 </div>
                 <div className="text-sm text-muted-foreground">Purchases</div>
               </div>
@@ -178,7 +156,7 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
               <MessageSquare className="h-5 w-5 text-purple-600" />
               <div>
                 <div className="text-2xl font-bold">
-                  {timelineEvents.filter((e: any) => e.eventType === "outreach_logged").length}
+                  {timelineEvents.filter((e) => e.eventType === "outreach_logged").length}
                 </div>
                 <div className="text-sm text-muted-foreground">Outreach</div>
               </div>
@@ -198,7 +176,7 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
         <CardContent>
           <ScrollArea className="h-[500px] w-full">
             <div className="space-y-4">
-              {timelineEvents.map((event: any, index: number) => (
+              {timelineEvents.map((event) => (
                 <div key={event.id} className="flex gap-4">
                   {/* Timeline Line */}
                   <div className="flex flex-col items-center">
@@ -213,7 +191,7 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
                     <div className="border rounded-lg p-4">
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          <Badge variant={getEventTypeBadge(event.eventType) as any}>
+                          <Badge variant={getEventTypeBadge(event.eventType)}>
                             {event.eventType.replace(/_/g, " ")}
                           </Badge>
                           <span className="text-sm text-muted-foreground">
@@ -241,7 +219,7 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
                       {event.metadata && Object.keys(event.metadata).length > 0 && event.eventType !== "status_changed" && (
                         <div className="mt-3 p-2 bg-muted/50 rounded text-xs">
                           <div className="font-medium mb-1">Details:</div>
-                          {Object.entries(event.metadata).map(([key, value]: [string, any]) => (
+                          {Object.entries(event.metadata).map(([key, value]) => (
                             <div key={key} className="flex justify-between">
                               <span className="text-muted-foreground">{key}:</span>
                               <span>{String(value)}</span>

@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 
     revalidatePath(`/clients/${clientId}`);
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: "Failed to add tag" }, { status: 500 });
   }
 }
@@ -67,7 +67,7 @@ export async function DELETE(request: Request) {
 
     revalidatePath(`/clients/${clientId}`);
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: "Failed to remove tag" }, { status: 500 });
   }
 }

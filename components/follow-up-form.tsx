@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, CheckCircle, Phone, Mail, MessageCircle, User, Copy, Star } from "lucide-react";
+import { Calendar as CalendarIcon, Phone, Mail, MessageCircle, User, Copy, Star } from "lucide-react";
 import { toast } from "sonner";
 
 interface FollowUpFormProps {
@@ -68,7 +68,7 @@ export function FollowUpForm({ clientId, onSuccess }: FollowUpFormProps) {
     }
   }, [open]);
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: string | Date | null) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
     // Clear purchased model if outcome is not purchased
@@ -140,7 +140,7 @@ export function FollowUpForm({ clientId, onSuccess }: FollowUpFormProps) {
       } else {
         toast.error("Failed to log outreach");
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to log outreach");
     } finally {
       setIsLoading(false);
@@ -259,7 +259,7 @@ export function FollowUpForm({ clientId, onSuccess }: FollowUpFormProps) {
                 <Calendar
                   mode="single"
                       selected={formData.followUpDate ?? undefined}
-                  onSelect={(date) => handleInputChange("followUpDate", date)}
+                  onSelect={(date) => handleInputChange("followUpDate", date ?? null)}
                   initialFocus
                 />
               </PopoverContent>

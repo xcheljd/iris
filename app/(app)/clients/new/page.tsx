@@ -10,11 +10,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { Plus, Tag, X, CheckCircle, AlertCircle } from "lucide-react";
+import { Plus, X, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Topbar } from "@/components/topbar";
 
@@ -22,8 +21,7 @@ export default function AddClientPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
-  const [duplicateClient, setDuplicateClient] = useState<any>(null);
-  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
+  const [duplicateClient, setDuplicateClient] = useState<{ id: string; firstName: string; lastName?: string | null; phone?: string | null; email?: string | null } | null>(null);
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -42,7 +40,6 @@ export default function AddClientPage() {
   const [newTag, setNewTag] = useState("");
   const [productInterest, setProductInterest] = useState("");
   const [productsOfInterest, setProductsOfInterest] = useState<string[]>([]);
-  const [clientSearch, setClientSearch] = useState("");
 
   const clientSources = [
     "Client Log",
@@ -60,7 +57,6 @@ export default function AddClientPage() {
   const checkForDuplicates = async () => {
     if (!formData.firstName && !formData.phone && !formData.email) return;
 
-    setIsCheckingDuplicates(true);
     try {
       const response = await fetch(`/api/clients/check-duplicates?firstName=${formData.firstName}&phone=${formData.phone}&email=${formData.email}`);
       if (response.ok) {
@@ -73,14 +69,12 @@ export default function AddClientPage() {
           setDuplicateClient(null);
         }
       }
-    } catch (error) {
-      console.error("Failed to check duplicates:", error);
-    } finally {
-      setIsCheckingDuplicates(false);
+    } catch (_error) {
+      console.error("Failed to check duplicates:", _error);
     }
   };
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: string | boolean | Date | null | undefined) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -144,7 +138,7 @@ export default function AddClientPage() {
       } else {
         toast.error("Failed to create client");
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to create client");
     } finally {
       setIsLoading(false);
@@ -173,7 +167,7 @@ export default function AddClientPage() {
       } else {
         toast.error("Failed to merge clients");
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to merge clients");
     }
   };
@@ -249,8 +243,8 @@ export default function AddClientPage() {
                   onChange={(e) => {
                     handleInputChange("firstName", e.target.value);
                     if (e.target.value) {
-                      clearTimeout((window as any).checkTimeout);
-                      (window as any).checkTimeout = setTimeout(checkForDuplicates, 500);
+                      clearTimeout((window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout);
+                      (window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout = setTimeout(checkForDuplicates, 500);
                     }
                   }}
                 />
@@ -293,8 +287,8 @@ export default function AddClientPage() {
                   onChange={(e) => {
                     handleInputChange("phone", e.target.value);
                     if (e.target.value) {
-                      clearTimeout((window as any).checkTimeout);
-                      (window as any).checkTimeout = setTimeout(checkForDuplicates, 500);
+                      clearTimeout((window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout);
+                      (window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout = setTimeout(checkForDuplicates, 500);
                     }
                   }}
                 />
@@ -309,8 +303,8 @@ export default function AddClientPage() {
                   onChange={(e) => {
                     handleInputChange("email", e.target.value);
                     if (e.target.value) {
-                      clearTimeout((window as any).checkTimeout);
-                      (window as any).checkTimeout = setTimeout(checkForDuplicates, 500);
+                      clearTimeout((window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout);
+                      (window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout = setTimeout(checkForDuplicates, 500);
                     }
                   }}
                 />

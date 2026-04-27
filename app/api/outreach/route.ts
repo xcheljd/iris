@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     revalidatePath("/");
 
     return NextResponse.json({ success: true, id });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: "Failed to log outreach" }, { status: 500 });
   }
 }

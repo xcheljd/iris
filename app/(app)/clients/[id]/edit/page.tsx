@@ -10,11 +10,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { Plus, Tag, X, CheckCircle, ArrowLeft } from "lucide-react";
+import { Plus, X, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Topbar } from "@/components/topbar";
 
@@ -52,7 +51,7 @@ export default function EditClientPage() {
   const params = useParams();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
+  const [_isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [duplicateClient, setDuplicateClient] = useState<ClientData | null>(null);
   const [client, setClient] = useState<ClientData | null>(null);
@@ -108,7 +107,7 @@ export default function EditClientPage() {
         });
         setProductsOfInterest(data.productsOfInterest || []);
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to fetch client data");
     }
   };
@@ -148,11 +147,11 @@ export default function EditClientPage() {
     }
   };
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: string | boolean | Date | null | undefined) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (field !== "notes") {
-      clearTimeout((window as any).checkTimeout);
-      (window as any).checkTimeout = setTimeout(checkForDuplicates, 500);
+      clearTimeout((window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout);
+      (window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout = setTimeout(checkForDuplicates, 500);
     }
   };
 
@@ -215,7 +214,7 @@ export default function EditClientPage() {
       } else {
         toast.error("Failed to update client");
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to update client");
     } finally {
       setIsLoading(false);
@@ -244,7 +243,7 @@ export default function EditClientPage() {
       } else {
         toast.error("Failed to merge clients");
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to merge clients");
     }
   };
@@ -329,8 +328,8 @@ export default function EditClientPage() {
                   onChange={(e) => {
                     handleInputChange("firstName", e.target.value);
                     if (e.target.value) {
-                      clearTimeout((window as any).checkTimeout);
-                      (window as any).checkTimeout = setTimeout(checkForDuplicates, 500);
+                      clearTimeout((window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout);
+                      (window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout = setTimeout(checkForDuplicates, 500);
                     }
                   }}
                 />
@@ -373,8 +372,8 @@ export default function EditClientPage() {
                   onChange={(e) => {
                     handleInputChange("phone", e.target.value);
                     if (e.target.value) {
-                      clearTimeout((window as any).checkTimeout);
-                      (window as any).checkTimeout = setTimeout(checkForDuplicates, 500);
+                      clearTimeout((window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout);
+                      (window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout = setTimeout(checkForDuplicates, 500);
                     }
                   }}
                 />
@@ -389,8 +388,8 @@ export default function EditClientPage() {
                   onChange={(e) => {
                     handleInputChange("email", e.target.value);
                     if (e.target.value) {
-                      clearTimeout((window as any).checkTimeout);
-                      (window as any).checkTimeout = setTimeout(checkForDuplicates, 500);
+                      clearTimeout((window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout);
+                      (window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout = setTimeout(checkForDuplicates, 500);
                     }
                   }}
                 />
@@ -425,7 +424,7 @@ export default function EditClientPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
-                <Select value={formData.status} onValueChange={(value) => handleInputChange("status", value as any)}>
+                <Select value={formData.status} onValueChange={(value) => handleInputChange("status", value as "active" | "inactive" | "banned" | "unsubscribed")}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>

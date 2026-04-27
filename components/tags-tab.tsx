@@ -5,23 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Plus, 
   X, 
   Tag, 
   Hash, 
-  Palette, 
-  Trash2,
-  Users,
-  Search
+  Search,
+  Palette,
+  Users
 } from "lucide-react";
-import { useClient } from "@/components/client-provider";
 import { toast } from "sonner";
+import type { FullClient } from "@/components/client-provider";
 
 interface TagsTabProps {
-  client: any;
+  client: FullClient;
 }
 
 export function TagsTab({ client }: TagsTabProps) {
@@ -55,7 +53,7 @@ export function TagsTab({ client }: TagsTabProps) {
       } else {
         toast.error("Failed to add tag");
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to add tag");
     }
   };
@@ -79,13 +77,12 @@ export function TagsTab({ client }: TagsTabProps) {
       } else {
         toast.error("Failed to remove tag");
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to remove tag");
     }
   };
 
-  // Get available tags from client.allTags and add some common ones
-  const availableTags = client.allTags?.map((tag: any) => tag.name) || [
+  const availableTags = client.allTags?.map((tag) => tag.name) || [
     "VIP", "repeat-buyer", "high-spender", "military", "birthday-this-month",
     "talker", "no-texts", "email-only", "crimson-ace", "meridian", "solar",
     "limited-edition", "mens", "womens", "watch", "collector"
@@ -132,25 +129,37 @@ export function TagsTab({ client }: TagsTabProps) {
 
               {/* Tag List */}
               <div className="space-y-2">
-                {filteredTags.map((tag: string, index: number) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-2 border rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <Badge variant="secondary" className="cursor-pointer">
-                      {tag}
-                    </Badge>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveTag(tag)}
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                      aria-label={`Remove tag ${tag}`}
+                {filteredTags.map((tag: string, index: number) => {
+                  const tagRecord = client.allTags?.find((t) => t.name === tag);
+                  return (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-2 border rounded-lg hover:bg-muted/50 transition-colors"
                     >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
+                      <div className="flex items-center gap-2">
+                        <Palette className="h-3.5 w-3.5" style={{ color: tagRecord?.color || undefined }} />
+                        <Badge variant="secondary" className="cursor-pointer">
+                          {tag}
+                        </Badge>
+                        {tagRecord && tagRecord.usageCount > 0 && (
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Users className="h-3 w-3" />
+                            {tagRecord.usageCount}
+                          </span>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveTag(tag)}
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        aria-label={`Remove tag ${tag}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Add New Tag */}

@@ -11,7 +11,7 @@ import { HeatBadge } from "@/components/heat-badge";
 import { getStats, getOverdueFollowUps, getUpcomingFollowUps, getRecentOutreach, getAllClients } from "@/lib/queries";
 import Link from "next/link";
 import { Flame, Phone, ShoppingBag, Users, AlertCircle, Calendar, ArrowRight, TrendingUp, Target, Clock, CheckCircle2 } from "lucide-react";
-import { formatDate, formatDateTime, daysAgo } from "@/lib/utils";
+import { formatDate, daysAgo } from "@/lib/utils";
 import { DashboardSkeleton } from "@/components/skeletons";
 
 export default function DashboardPage() {

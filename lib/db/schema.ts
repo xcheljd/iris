@@ -141,6 +141,7 @@ export type Client = typeof clients.$inferSelect;
 export type NewClient = typeof clients.$inferInsert;
 export type Employee = typeof employees.$inferSelect;
 export type OutreachLog = typeof outreachLogs.$inferSelect;
+export type PromoMatch = typeof promoMatches.$inferSelect;
 export type PromoWatch = typeof promoWatches.$inferSelect;
 export type BannedCustomer = typeof bannedCustomers.$inferSelect;
 export type ActivityEvent = typeof activityEvents.$inferSelect;

@@ -44,7 +44,7 @@ export async function PUT(
     revalidatePath(`/clients/${id}`);
     revalidatePath("/clients");
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: "Failed to update client" }, { status: 500 });
   }
 }

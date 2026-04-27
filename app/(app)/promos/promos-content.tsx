@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,11 @@ import type { PromoWatch } from "@/lib/db/schema";
 import { Topbar } from "@/components/topbar";
 
 const PAGE_SIZE = 15;
+
+interface PromoClientMatch {
+  match: { id: string; matchType: string };
+  client?: { firstName: string; lastName: string | null; phone: string | null };
+}
 
 interface PromosContentProps {
   promos: PromoWatch[];
@@ -301,7 +306,7 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
   const [promos, setPromos] = useState(initialPromos);
   const [isCreating, setIsCreating] = useState(false);
   const [showMatches, setShowMatches] = useState<string | null>(null);
-  const [matches, setMatches] = useState<any[]>([]);
+  const [matches, setMatches] = useState<PromoClientMatch[]>([]);
   const [newPromo, setNewPromo] = useState({ modelNumber: "", collection: "", msrp: "", discountPercent: "", discountPrice: "" });
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -603,7 +608,7 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
                                 <p className="text-sm text-muted-foreground">No client matches yet</p>
                               ) : (
                                 <div className="space-y-1">
-                                  {matches.map((m: any) => (
+                                  {matches.map((m) => (
                                     <div key={m.match.id} className="flex items-center gap-2 text-sm">
                                       <Badge variant="outline" className="text-xs">{m.match.matchType}</Badge>
                                       <span>{m.client?.firstName} {m.client?.lastName || ""}</span>

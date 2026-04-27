@@ -20,7 +20,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
@@ -32,13 +31,11 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  Settings,
   Users,
   Tag,
   FileText,
   Plus,
   Trash2,
-  Palette,
   Mail,
   MessageCircle,
   File,
@@ -619,7 +616,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="templateChannel">Channel</Label>
-                        <Select value={newTemplate.channel} onValueChange={(value) => setNewTemplate({ ...newTemplate, channel: value as any })}>
+                        <Select value={newTemplate.channel} onValueChange={(value) => setNewTemplate({ ...newTemplate, channel: value as "text" | "email" | "general" })}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="text">Text</SelectItem>

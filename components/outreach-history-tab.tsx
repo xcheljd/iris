@@ -3,14 +3,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Phone, Mail, MessageCircle, User, Calendar, Clock, CheckCircle, XCircle } from "lucide-react";
-import { format, isToday, isAfter, isBefore } from "date-fns";
-import { useClient } from "@/components/client-provider";
+import { Phone, Mail, MessageCircle, User, Calendar, Clock, CheckCircle } from "lucide-react";
+import { format } from "date-fns";
+import type { FullClient } from "@/components/client-provider";
+import type { OutreachLog } from "@/lib/db/schema";
 
 interface OutreachHistoryTabProps {
-  client: any;
+  client: FullClient;
 }
 
 export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
@@ -57,12 +57,12 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
     );
   };
 
-  const isFollowUpOverdue = (followUpDate: string | null) => {
+  const isFollowUpOverdue = (followUpDate: Date | string | null) => {
     if (!followUpDate) return false;
     return new Date(followUpDate) < new Date();
   };
 
-  const isFollowUpUpcoming = (followUpDate: string | null) => {
+  const isFollowUpUpcoming = (followUpDate: Date | string | null) => {
     if (!followUpDate) return false;
     const today = new Date();
     const followUp = new Date(followUpDate);
@@ -70,11 +70,10 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
     return daysDiff >= 0 && daysDiff <= 7;
   };
 
-  const outreachLogs = client.outreach || [];
+  const outreachLogs: OutreachLog[] = client.outreach || [];
 
   return (
     <div className="space-y-4">
-      {/* Stats Summary */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardContent className="pt-6">
@@ -89,7 +88,7 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
               <div className="text-2xl font-bold text-green-600">
-                {outreachLogs.filter((log: any) => log.outcome === "responded" || log.outcome === "purchased").length}
+                {outreachLogs.filter((log: OutreachLog) => log.outcome === "responded" || log.outcome === "purchased").length}
               </div>
               <div className="text-sm text-muted-foreground">Positive</div>
             </div>
@@ -100,7 +99,7 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
               <div className="text-2xl font-bold text-blue-600">
-                {outreachLogs.filter((log: any) => log.outcome === "wants_to_come_in").length}
+                {outreachLogs.filter((log: OutreachLog) => log.outcome === "wants_to_come_in").length}
               </div>
               <div className="text-sm text-muted-foreground">Visits Scheduled</div>
             </div>
@@ -111,7 +110,7 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
               <div className="text-2xl font-bold text-red-600">
-                {outreachLogs.filter((log: any) => log.outcome === "not_interested").length}
+                {outreachLogs.filter((log: OutreachLog) => log.outcome === "not_interested").length}
               </div>
               <div className="text-sm text-muted-foreground">Not Interested</div>
             </div>
@@ -119,7 +118,6 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
         </Card>
       </div>
 
-      {/* Outreach Logs */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -131,7 +129,7 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
           {outreachLogs.length > 0 ? (
             <ScrollArea className="h-[400px] w-full">
               <div className="space-y-4">
-                {outreachLogs.map((log: any, index: number) => (
+                {outreachLogs.map((log: OutreachLog) => (
                   <div key={log.id} className="border rounded-lg p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
@@ -161,7 +159,6 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
                       </div>
                     )}
 
-                    {/* Follow-up Status */}
                     {log.followUpDate && !log.completed && (
                       <div className="flex items-center justify-between mt-3 pt-3 border-t">
                         <div className="flex items-center gap-2">
@@ -184,7 +181,6 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
                           <Button
                             size="sm"
                             onClick={() => {
-                              // This would mark the follow-up as complete
                               alert("Mark follow-up complete");
                             }}
                           >

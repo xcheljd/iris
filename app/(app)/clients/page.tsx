@@ -3,7 +3,7 @@ import { getClientsWithEmployee } from "@/lib/queries";
 import { ClientListContent } from "./clients-content";
 import { ClientListSkeleton } from "@/components/skeletons";
 
-export default function ClientListPage({ searchParams }: { searchParams: Promise<{ q?: string; filter?: string; heat?: string }> }) {
+export default function ClientListPage({ searchParams: _searchParams }: { searchParams: Promise<{ q?: string; filter?: string; heat?: string }> }) {
   return (
     <Suspense fallback={<ClientListSkeleton />}>
       <ClientListFetcher />

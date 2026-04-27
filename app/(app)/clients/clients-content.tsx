@@ -10,13 +10,11 @@ import { HeatBadge } from "@/components/heat-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Topbar } from "@/components/topbar";
-import { Skeleton } from "@/components/ui/skeleton";
 import { formatPhone, daysAgo } from "@/lib/utils";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Search, ChevronUp, ChevronDown, ChevronsUpDown, MoreHorizontal, Eye, Edit, Calendar, Users, Ban, MailX } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Plus, Search, ChevronUp, ChevronDown, ChevronsUpDown, MoreHorizontal, Eye, Edit, Ban, MailX } from "lucide-react";
 import { BanCustomerDialog, UnsubscribeCustomerDialog } from "@/components/client-status-actions";
 import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
@@ -58,7 +56,6 @@ function SortableHeader({ label, sortKey, currentSort, currentDir, onSort }: {
 }
 
 export function ClientListContent({ rows, totalClients }: { rows: ClientRow[]; totalClients: number }) {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   const [q, setQ] = useState(searchParams.get("q") || "");

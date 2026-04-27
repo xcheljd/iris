@@ -5,15 +5,25 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Edit3, MessageSquare, Calendar, Trash2 } from "lucide-react";
+import { Plus, MessageSquare, Calendar, Trash2 } from "lucide-react";
 import { format } from "date-fns";
-import { useClient } from "@/components/client-provider";
 import { toast } from "sonner";
+import type { FullClient } from "@/components/client-provider";
+
+interface ParsedNote {
+  id: string;
+  content: string;
+  createdAt: string;
+  author: string;
+}
 
 interface NotesTabProps {
-  client: any;
+  client: FullClient;
+}
+
+interface NotesTabProps {
+  client: FullClient;
 }
 
 export function NotesTab({ client }: NotesTabProps) {
@@ -42,12 +52,11 @@ export function NotesTab({ client }: NotesTabProps) {
         setNewNote("");
         setIsAdding(false);
         toast.success("Note added");
-        // Revalidate the page to show the new note
         window.location.reload();
       } else {
         toast.error("Failed to add note");
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to add note");
     }
   };
@@ -68,31 +77,31 @@ export function NotesTab({ client }: NotesTabProps) {
       } else {
         toast.error("Failed to delete note");
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to delete note");
     }
   };
 
-  // Parse notes from the client object
-  // In a real implementation, this would be stored in a dedicated notes table
-  const notes = client.notes
+  const notes: ParsedNote[] = client.notes
     ? typeof client.notes === "string"
       ? []
-      : client.notes.map((note: any, index: number) => ({
-          id: `note-${index}`,
-          content: note.content || note,
-          createdAt: note.createdAt || client.updatedAt,
-          author: note.author || "You",
-        }))
+      : (client.notes as unknown[]).map((rawNote, index: number) => {
+          const note = rawNote as Record<string, unknown>;
+          return {
+            id: `note-${index}`,
+            content: (note.content || rawNote) as string,
+            createdAt: (note.createdAt || client.updatedAt) as string,
+            author: (note.author || "You") as string,
+          };
+        })
     : [];
 
   const sortedNotes = [...notes].sort(
-    (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
   return (
     <div className="space-y-4">
-      {/* Add Note Section */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -130,7 +139,6 @@ export function NotesTab({ client }: NotesTabProps) {
         )}
       </Card>
 
-      {/* Notes List */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -145,7 +153,7 @@ export function NotesTab({ client }: NotesTabProps) {
           {sortedNotes.length > 0 ? (
             <ScrollArea className="h-[400px] w-full">
               <div className="space-y-4">
-                {sortedNotes.map((note: any) => (
+                {sortedNotes.map((note: ParsedNote) => (
                   <div key={note.id} className="border rounded-lg p-4">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">

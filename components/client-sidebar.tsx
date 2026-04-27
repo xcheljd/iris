@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Phone, Mail, Tag, Copy, Star, Plus, Ban, MailX } from "lucide-react";
+import { Calendar, Tag, Copy, Star, Plus, Ban, MailX, Phone, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { useState } from "react";
@@ -16,15 +16,15 @@ import { BanCustomerDialog, UnsubscribeCustomerDialog } from "@/components/clien
 
 export function ClientSidebar() {
   const client = useClient();
-  if (!client) return null;
-
   const [promoDialogOpen, setPromoDialogOpen] = useState(false);
+
+  if (!client) return null;
 
   const handleCopy = async (text: string, type: "phone" | "email") => {
     try {
       await navigator.clipboard.writeText(text);
       toast.success(`Copied ${type} to clipboard`);
-    } catch (err) {
+    } catch (_err) {
       toast.error(`Failed to copy ${type}`);
     }
   };
@@ -48,7 +48,10 @@ export function ClientSidebar() {
         <CardContent className="space-y-3">
           {client.phone && (
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Phone</span>
+              <div className="flex items-center gap-2">
+                <Phone className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm">{client.phone}</span>
+              </div>
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -68,7 +71,10 @@ export function ClientSidebar() {
           )}
           {client.email && (
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Email</span>
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm truncate">{client.email}</span>
+              </div>
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -188,18 +194,18 @@ export function ClientSidebar() {
                     <Star className="h-5 w-5" />
                     Promo Matches ({client.matches.length})
                   </DialogTitle>
-                  <DialogDescription>Current promo watches matching this client's interests</DialogDescription>
+                  <DialogDescription>Current promo watches matching this client&apos;s interests</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-3 mt-2">
-                  {client.matches.filter((match: any) => match.promo?.modelNumber || match.promo?.collection).map((match: any, index: number) => (
+                  {client.matches.filter((m) => m.promo?.modelNumber || m.promo?.collection).map((m, index: number) => (
                     <div key={index} className="border rounded-lg p-4">
                       <div className="flex items-start justify-between mb-2">
                         <div>
-                          <div className="font-medium">{match.promo?.modelNumber}</div>
-                          <div className="text-sm text-muted-foreground">{match.promo?.collection}</div>
+                          <div className="font-medium">{m.promo?.modelNumber}</div>
+                          <div className="text-sm text-muted-foreground">{m.promo?.collection}</div>
                         </div>
-                        <Badge variant={match.matchType === "model" ? "default" : "secondary"}>
-                          {match.matchType}
+                        <Badge variant={m.match.matchType === "model" ? "default" : "secondary"}>
+                          {m.match.matchType}
                         </Badge>
                       </div>
                     </div>

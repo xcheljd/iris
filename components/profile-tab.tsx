@@ -3,16 +3,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Phone, Mail, Calendar, MapPin, User, Gift, Copy } from "lucide-react";
+import { Phone, Mail, Calendar, User, Gift, Copy } from "lucide-react";
 import { format } from "date-fns";
-import { useClient } from "@/components/client-provider";
 import { Button } from "@/components/ui/button";
 import { EditClientDialog } from "@/components/edit-client-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import type { FullClient } from "@/components/client-provider";
 
 interface ProfileTabProps {
-  client: any;
+  client: FullClient;
 }
 
 export function ProfileTab({ client }: ProfileTabProps) {
@@ -21,7 +21,7 @@ export function ProfileTab({ client }: ProfileTabProps) {
       try {
         await navigator.clipboard.writeText(client.phone);
         toast.success("Phone copied to clipboard");
-      } catch (err) {
+      } catch (_err) {
         toast.error("Failed to copy phone");
       }
     }
@@ -32,7 +32,7 @@ export function ProfileTab({ client }: ProfileTabProps) {
       try {
         await navigator.clipboard.writeText(client.email);
         toast.success("Email copied to clipboard");
-      } catch (err) {
+      } catch (_err) {
         toast.error("Failed to copy email");
       }
     }
@@ -40,7 +40,6 @@ export function ProfileTab({ client }: ProfileTabProps) {
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      {/* Contact Information */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -120,7 +119,6 @@ export function ProfileTab({ client }: ProfileTabProps) {
         </CardContent>
       </Card>
 
-      {/* Personal Information */}
       <Card>
         <CardHeader>
           <CardTitle>Personal Information</CardTitle>
@@ -170,7 +168,6 @@ export function ProfileTab({ client }: ProfileTabProps) {
         </CardContent>
       </Card>
 
-      {/* Additional Details */}
       <Card className="md:col-span-2">
         <CardHeader>
           <CardTitle>Additional Details</CardTitle>
@@ -220,7 +217,6 @@ export function ProfileTab({ client }: ProfileTabProps) {
         </CardContent>
       </Card>
 
-      {/* Edit Button */}
       <div className="md:col-span-2">
         <EditClientDialog client={client} />
       </div>

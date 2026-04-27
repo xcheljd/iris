@@ -37,7 +37,7 @@ export const SidebarProvider = React.forwardRef<
   const [openMobile, setOpenMobile] = React.useState(false);
   const [_open, _setOpen] = React.useState(defaultOpen);
   const open = openProp ?? _open;
-  const setOpen = React.useCallback((v: boolean) => { onOpenChange ? onOpenChange(v) : _setOpen(v); }, [onOpenChange]);
+  const setOpen = React.useCallback((v: boolean) => { if (onOpenChange) { onOpenChange(v); } else { _setOpen(v); } }, [onOpenChange]);
 
   React.useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);

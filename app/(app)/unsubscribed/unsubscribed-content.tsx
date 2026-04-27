@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -40,7 +40,6 @@ import {
   AlertCircle,
   ExternalLink,
   MoreHorizontal,
-  User,
   UserX,
 } from "lucide-react";
 import { removeUnsubscribe, addUnsubscribeEmail, resubscribeClient } from "@/lib/actions";
@@ -193,8 +192,9 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
       toast.success("Email added to unsubscribe list");
       // Reload to get enriched data from server (client name, id, etc.)
       window.location.reload();
-    } catch (e: any) {
-      toast.error(e.message || "Failed to add email");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Failed to add email";
+      toast.error(message);
     }
   };
 

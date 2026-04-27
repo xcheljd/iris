@@ -25,7 +25,6 @@ import {
   Search, 
   Users, 
   Flame, 
-  Snowflake, 
   Clock,
   Calendar,
   Mail,
@@ -110,10 +109,12 @@ function ClientRow({ client }: { client: Client }) {
   );
 }
 
+type FilterValue = string | number | boolean | string[] | null | undefined;
+
 interface ResolvedList {
   id: string;
   name: string;
-  filters: Record<string, any>;
+  filters: Record<string, FilterValue>;
   sort: string | null;
   isShared: boolean;
   isBuiltIn: boolean;
@@ -159,7 +160,7 @@ function SmartListItem({
               <TooltipTrigger asChild>
                 <span className="flex items-center gap-2 min-w-0">
                   {list.isBuiltIn
-                    ? getFilterIcon(list.filters.type)
+                    ? getFilterIcon(list.filters.type as string)
                     : list.isShared
                       ? <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
                       : <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -238,6 +239,14 @@ function CreateListDialog({ open, onOpenChange, allClients }: { open: boolean; o
   const [onEmailList, setOnEmailList] = useState(false);
   const [isPending, startTransition] = useTransition();
 
+  const matchingCount = useMemo(() => {
+    let filtered = allClients;
+    if (heatLevel !== "__none__") filtered = filtered.filter((c) => c.heatLevel === heatLevel);
+    if (source !== "__none__") filtered = filtered.filter((c) => c.source === source);
+    if (onEmailList) filtered = filtered.filter((c) => c.onEmailList);
+    return filtered.length;
+  }, [allClients, heatLevel, source, onEmailList]);
+
   const handleCreate = () => {
     if (!name.trim()) return;
     const filters: Record<string, unknown> = {};
@@ -309,6 +318,9 @@ function CreateListDialog({ open, onOpenChange, allClients }: { open: boolean; o
               <Label htmlFor="email-list-filter" className="text-sm">On email list only</Label>
             </div>
           </div>
+          <p className="text-sm text-muted-foreground">
+            {matchingCount} client{matchingCount !== 1 ? "s" : ""} match current filters
+          </p>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -347,21 +359,21 @@ export function SmartListsContent({ lists, allClients }: SmartListsContentProps)
 
   const customLists = useMemo(() => {
     return lists.map((list) => {
-      const filters = list.filters as Record<string, any>;
+      const filters = list.filters as Record<string, FilterValue>;
       let filtered: Client[] = allClients;
 
       if (filters.heatLevel) {
-        filtered = filtered.filter((c) => c.heatLevel === filters.heatLevel);
+        filtered = filtered.filter((c) => c.heatLevel === String(filters.heatLevel));
       }
       if (filters.tags) {
         const tagsArr = Array.isArray(filters.tags) ? filters.tags : [filters.tags];
-        filtered = filtered.filter((c) => tagsArr.some((t: string) => c.tags?.includes(t)));
+        filtered = filtered.filter((c) => tagsArr.some((t) => c.tags?.includes(String(t))));
       }
       if (filters.tag) {
-        filtered = filtered.filter((c) => c.tags?.includes(filters.tag));
+        filtered = filtered.filter((c) => c.tags?.includes(String(filters.tag)));
       }
       if (filters.source) {
-        filtered = filtered.filter((c) => c.source === filters.source);
+        filtered = filtered.filter((c) => c.source === String(filters.source));
       }
       if (filters.onEmailList) {
         filtered = filtered.filter((c) => c.onEmailList);
@@ -516,7 +528,7 @@ export function SmartListsContent({ lists, allClients }: SmartListsContentProps)
               <>
                 <CardTitle className="flex items-center gap-2">
                   {selectedList.isBuiltIn
-                    ? getFilterIcon(selectedList.filters.type)
+                    ? getFilterIcon(selectedList.filters.type as string)
                     : <Filter className="h-4 w-4" />
                   }
                   {selectedList.name}
@@ -603,8 +615,8 @@ export function SmartListsContent({ lists, allClients }: SmartListsContentProps)
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
+            <AlertDialogAction onClick={handleDelete} disabled={isPending} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {isPending ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

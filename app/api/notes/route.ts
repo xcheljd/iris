@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     }).run();
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: "Failed to add note" }, { status: 500 });
   }
 }
@@ -44,7 +44,7 @@ export async function DELETE(request: Request) {
     db.delete(activityEvents).where(eq(activityEvents.id, noteId)).run();
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: "Failed to delete note" }, { status: 500 });
   }
 }

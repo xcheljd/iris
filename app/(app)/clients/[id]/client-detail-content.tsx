@@ -5,9 +5,9 @@ import { ClientSidebar } from "@/components/client-sidebar";
 import { ClientProvider } from "@/components/client-provider";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Topbar } from "@/components/topbar";
-import Link from "next/link";
+import type { FullClient } from "@/components/client-provider";
 
-export function ClientDetailContent({ client }: { client: any }) {
+export function ClientDetailContent({ client }: { client: FullClient }) {
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
       <Topbar title={`${client.firstName} ${client.lastName}`} />
