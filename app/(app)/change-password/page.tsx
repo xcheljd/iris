@@ -162,49 +162,51 @@ export default function ChangePasswordPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="currentPassword">Current Password</Label>
-              <div className="relative">
+              <div className="relative flex items-center rounded-md border border-input bg-transparent shadow-sm focus-within:ring-1 focus-within:ring-ring has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring">
                 <Input
                   id="currentPassword"
                   type={showCurrentPw ? "text" : "password"}
                   required
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="border-0 shadow-none focus-visible:ring-0 focus-visible:outline-none pr-9"
                 />
-                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowCurrentPw(!showCurrentPw)} aria-label={showCurrentPw ? "Hide password" : "Show password"}>
+                <button type="button" className="absolute right-0 flex h-9 w-9 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground" onClick={() => setShowCurrentPw(!showCurrentPw)} aria-label={showCurrentPw ? "Hide password" : "Show password"}>
                   {showCurrentPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
+                </button>
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="newPassword">New Password</Label>
-              <div className="relative">
+              <div className="relative flex items-center rounded-md border border-input bg-transparent shadow-sm focus-within:ring-1 focus-within:ring-ring has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring">
                 <Input
                   id="newPassword"
                   type={showNewPw ? "text" : "password"}
                   required
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
+                  className="border-0 shadow-none focus-visible:ring-0 focus-visible:outline-none pr-9"
                 />
-                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowNewPw(!showNewPw)} aria-label={showNewPw ? "Hide password" : "Show password"}>
+                <button type="button" className="absolute right-0 flex h-9 w-9 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground" onClick={() => setShowNewPw(!showNewPw)} aria-label={showNewPw ? "Hide password" : "Show password"}>
                   {showNewPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
+                </button>
               </div>
               <PasswordStrength password={newPassword} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm New Password</Label>
-              <div className="relative">
+              <div className={`relative flex items-center rounded-md border bg-transparent shadow-sm focus-within:ring-1 focus-within:ring-ring has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring ${passwordsMismatch ? "border-destructive" : passwordsMatch ? "border-green-500" : "border-input"}`}>
                 <Input
                   id="confirmPassword"
                   type={showConfirmPw ? "text" : "password"}
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={passwordsMismatch ? "border-destructive" : passwordsMatch ? "border-green-500" : ""}
+                  className="border-0 shadow-none focus-visible:ring-0 focus-visible:outline-none pr-9"
                 />
-                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowConfirmPw(!showConfirmPw)} aria-label={showConfirmPw ? "Hide password" : "Show password"}>
+                <button type="button" className="absolute right-0 flex h-9 w-9 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground" onClick={() => setShowConfirmPw(!showConfirmPw)} aria-label={showConfirmPw ? "Hide password" : "Show password"}>
                   {showConfirmPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
+                </button>
               </div>
               {passwordsMismatch && <p className="text-xs text-destructive">Passwords do not match</p>}
               {passwordsMatch && <p className="text-xs text-green-500">Passwords match</p>}
