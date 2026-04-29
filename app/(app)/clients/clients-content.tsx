@@ -10,6 +10,7 @@ import { SearchInput } from "@/components/search-input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { PaginationFooter } from "@/components/pagination-footer";
 import { Topbar } from "@/components/topbar";
 import { formatPhone, daysAgo } from "@/lib/utils";
 import Link from "next/link";
@@ -300,23 +301,15 @@ export function ClientListContent({ rows, totalClients }: { rows: ClientRow[]; t
           </div>
         </Card>
 
-        {/* Footer: count + pagination */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="text-xs text-muted-foreground">
-            {paged.length > 0 ? `${(page - 1) * PAGE_SIZE + 1}\u2013${(page - 1) * PAGE_SIZE + paged.length} of ${filtered.length}` : "0"} clients{filtered.length !== totalClients ? ` (${totalClients} total)` : ""}
-          </p>
-          {totalPages > 1 && (
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-                Previous
-              </Button>
-              <span className="text-xs text-muted-foreground">Page {page} of {totalPages}</span>
-              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
-                Next
-              </Button>
-            </div>
-          )}
-        </div>
+        <PaginationFooter
+          currentPage={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          totalItems={filtered.length}
+          pageSize={PAGE_SIZE}
+          itemLabel="clients"
+          extraTotal={filtered.length !== totalClients ? totalClients : undefined}
+        />
       </div>
     </>
   );

@@ -14,10 +14,11 @@ import { SearchInput } from "@/components/search-input";
 import { DatePicker } from "@/components/date-picker";
 import { EmptyState } from "@/components/empty-state";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { PaginationFooter } from "@/components/pagination-footer";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   Tag, Plus, Trash2, Watch, Users,
-  MoreHorizontal, ChevronLeft, ChevronRight, Upload, ClipboardPaste,
+  MoreHorizontal, Upload, ClipboardPaste,
   FileSpreadsheet, AlertCircle, CheckCircle2, Trash, CalendarDays, Calendar,
 } from "lucide-react";
 import { createPromo, deletePromo, importPromos, clearAllPromos } from "@/lib/actions";
@@ -591,23 +592,15 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
               </Table>
               </div>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between mt-4 pt-4 border-t gap-2">
-                  <p className="text-sm text-muted-foreground">
-                    Showing {((currentPage - 1) * PAGE_SIZE) + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setPage((p) => p - 1)}>
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <span className="text-sm font-medium">Page {currentPage} of {totalPages}</span>
-                    <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <PaginationFooter
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setPage}
+                totalItems={filtered.length}
+                pageSize={PAGE_SIZE}
+                variant="icons"
+                showBorder
+              />
             </>
           )}
         </CardContent>
