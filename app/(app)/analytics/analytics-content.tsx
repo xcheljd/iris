@@ -85,28 +85,8 @@ interface AnalyticsContentProps {
   recentOutreach: OutreachRow[];
 }
 
-function getMethodIcon(method: string) {
-  switch (method) {
-    case "call": return <Phone className="h-3.5 w-3.5" />;
-    case "text": return <MessageCircle className="h-3.5 w-3.5" />;
-    case "email": return <Mail className="h-3.5 w-3.5" />;
-    case "in-person": return <User className="h-3.5 w-3.5" />;
-    default: return <MessageCircle className="h-3.5 w-3.5" />;
-  }
-}
+import { getMethodIcon, getOutcomeColor } from "@/lib/outreach-helpers";
 
-function getOutcomeColor(outcome: string) {
-  switch (outcome) {
-    case "purchased": return "text-emerald-500";
-    case "wants_to_come_in": return "text-green-500";
-    case "responded": return "text-blue-500";
-    case "not_interested": return "text-red-500";
-    case "no_answer": return "text-muted-foreground";
-    case "voicemail": return "text-yellow-500";
-    case "voicemail_full": return "text-red-400";
-    default: return "text-muted-foreground";
-  }
-}
 
 const METHOD_COLORS = ["#3b82f6", "#22c55e", "#a855f7", "#f97316"];
 
@@ -610,7 +590,7 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
                         className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          {getMethodIcon(row.log.method)}
+                          {getMethodIcon(row.log.method, "h-3.5 w-3.5")}
                           <div className="min-w-0">
                             {row.client ? (
                               <Link

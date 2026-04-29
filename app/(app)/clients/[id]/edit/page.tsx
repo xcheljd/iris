@@ -2,18 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { DatePicker } from "@/components/date-picker";
-import { Plus, X, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Topbar } from "@/components/topbar";
+import { ClientForm } from "@/components/client-form";
+import type { ClientFormData } from "@/components/client-form";
 
 interface ClientData {
   id: string;
@@ -55,7 +48,7 @@ export default function EditClientPage() {
   const [client, setClient] = useState<ClientData | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ClientFormData>({
     firstName: "",
     lastName: "",
     phone: "",
@@ -63,12 +56,12 @@ export default function EditClientPage() {
     customerId: "",
     employeeId: "",
     source: "Walk-in",
-    birthday: null as Date | null,
-    anniversary: null as Date | null,
+    birthday: null,
+    anniversary: null,
     onEmailList: false,
-    status: "active" as "active" | "inactive" | "banned" | "unsubscribed",
+    status: "active",
     notes: "",
-    tags: [] as string[],
+    tags: [],
   });
 
   const [newTag, setNewTag] = useState("");
@@ -145,7 +138,7 @@ export default function EditClientPage() {
     }
   };
 
-  const handleInputChange = (field: string, value: string | boolean | Date | null | undefined) => {
+  const handleFieldChange = (field: string, value: string | boolean | Date | null | undefined | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (field !== "notes") {
       clearTimeout((window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout);
@@ -155,29 +148,23 @@ export default function EditClientPage() {
 
   const handleAddTag = () => {
     if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        tags: [...prev.tags, newTag.trim()]
-      }));
+      setFormData(prev => ({ ...prev, tags: [...prev.tags, newTag.trim()] }));
       setNewTag("");
     }
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
-    setFormData(prev => ({
-      ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
-    }));
+    setFormData(prev => ({ ...prev, tags: prev.tags.filter(tag => tag !== tagToRemove) }));
   };
 
-  const handleAddProductInterest = () => {
+  const handleAddProduct = () => {
     if (productInterest.trim() && !productsOfInterest.includes(productInterest.trim())) {
       setProductsOfInterest(prev => [...prev, productInterest.trim()]);
       setProductInterest("");
     }
   };
 
-  const handleRemoveProductInterest = (productToRemove: string) => {
+  const handleRemoveProduct = (productToRemove: string) => {
     setProductsOfInterest(prev => prev.filter(product => product !== productToRemove));
   };
 
@@ -192,20 +179,14 @@ export default function EditClientPage() {
     try {
       const response = await fetch(`/api/clients/${client?.id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...formData,
-          productsOfInterest,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...formData, productsOfInterest }),
       });
 
       if (response.ok) {
         toast.success("Client updated successfully");
         router.push(`/clients/${client?.id}`);
       } else if (response.status === 409) {
-        // Handle duplicate detection
         const duplicateData = await response.json();
         setDuplicateClient(duplicateData);
         setShowDuplicateWarning(true);
@@ -225,13 +206,8 @@ export default function EditClientPage() {
     try {
       const response = await fetch("/api/clients/merge", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          sourceClientId: client?.id,
-          targetClientId: duplicateClient.id,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceClientId: client?.id, targetClientId: duplicateClient.id }),
       });
 
       if (response.ok) {
@@ -260,346 +236,42 @@ export default function EditClientPage() {
     <>
       <Topbar title="Edit Client" />
       <div className="flex-1 p-4 md:p-6 max-w-4xl mx-auto">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="sr-only">Edit Client</h1>
-            <p className="text-muted-foreground">
-              {client.firstName} {client.lastName}
-            </p>
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="sr-only">Edit Client</h1>
+              <p className="text-muted-foreground">
+                {client.firstName} {client.lastName}
+              </p>
+            </div>
+            <Button variant="outline" onClick={() => router.back()}>
+              Cancel
+            </Button>
           </div>
-          <Button variant="outline" onClick={() => router.back()}>
-            Cancel
-          </Button>
+
+          <ClientForm
+            formData={formData}
+            productsOfInterest={productsOfInterest}
+            newTag={newTag}
+            productInterest={productInterest}
+            onFieldChange={handleFieldChange}
+            onNewTagChange={setNewTag}
+            onProductInterestChange={setProductInterest}
+            onAddTag={handleAddTag}
+            onRemoveTag={handleRemoveTag}
+            onAddProduct={handleAddProduct}
+            onRemoveProduct={handleRemoveProduct}
+            showDuplicateWarning={showDuplicateWarning}
+            duplicateClient={duplicateClient}
+            onDismissDuplicate={() => setShowDuplicateWarning(false)}
+            onMergeDuplicate={handleMergeDuplicate}
+            employees={employees}
+            isLoading={isLoading}
+            submitLabel="Save Changes"
+            onSubmit={handleSubmit}
+            onCancel={() => router.back()}
+          />
         </div>
-
-        {/* Duplicate Warning */}
-        {showDuplicateWarning && duplicateClient && (
-          <Card className="border-yellow-200 bg-yellow-50">
-            <CardContent className="pt-6">
-              <div className="flex items-start gap-3">
-                <CheckCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
-                <div className="flex-1">
-                  <h4 className="font-semibold text-yellow-800 mb-2">Potential Duplicate Found</h4>
-                  <p className="text-sm text-yellow-700 mb-3">
-                    This client may be a duplicate of another client. Would you like to merge them?
-                  </p>
-                  <div className="space-y-2 mb-3">
-                    <div className="text-sm">
-                      <strong>Existing client:</strong> {duplicateClient.firstName} {duplicateClient.lastName}
-                    </div>
-                    {duplicateClient.phone && (
-                      <div className="text-sm text-muted-foreground">Phone: {duplicateClient.phone}</div>
-                    )}
-                    {duplicateClient.email && (
-                      <div className="text-sm text-muted-foreground">Email: {duplicateClient.email}</div>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={handleMergeDuplicate} variant="default">
-                      Merge Clients
-                    </Button>
-                    <Button onClick={() => setShowDuplicateWarning(false)} variant="outline">
-                      Keep Separate
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Basic Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Basic Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">First Name *</Label>
-                <Input
-                  id="firstName"
-                  placeholder="Enter first name"
-                  value={formData.firstName}
-                  onChange={(e) => {
-                    handleInputChange("firstName", e.target.value);
-                    if (e.target.value) {
-                      clearTimeout((window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout);
-                      (window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout = setTimeout(checkForDuplicates, 500);
-                    }
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
-                <Input
-                  id="lastName"
-                  placeholder="Enter last name"
-                  value={formData.lastName}
-                  onChange={(e) => handleInputChange("lastName", e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="customerId">Customer ID</Label>
-                <Input
-                  id="customerId"
-                  placeholder="e.g. 100600045"
-                  value={formData.customerId}
-                  onChange={(e) => handleInputChange("customerId", e.target.value)}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Contact Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Contact Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  placeholder="(XXX) XXX-XXXX"
-                  value={formData.phone}
-                  onChange={(e) => {
-                    handleInputChange("phone", e.target.value);
-                    if (e.target.value) {
-                      clearTimeout((window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout);
-                      (window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout = setTimeout(checkForDuplicates, 500);
-                    }
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="client@example.com"
-                  value={formData.email}
-                  onChange={(e) => {
-                    handleInputChange("email", e.target.value);
-                    if (e.target.value) {
-                      clearTimeout((window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout);
-                      (window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout = setTimeout(checkForDuplicates, 500);
-                    }
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="employeeId">Employee Assignment</Label>
-              <Select value={formData.employeeId || "__none__"} onValueChange={(value) => handleInputChange("employeeId", value === "__none__" ? "" : value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select employee" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Unassigned</SelectItem>
-                  {employees.map((employee) => (
-                    <SelectItem key={employee.id} value={employee.id}>
-                      {employee.name} ({employee.role})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Status and Preferences */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Status & Preferences</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
-                <Select value={formData.status} onValueChange={(value) => handleInputChange("status", value as "active" | "inactive" | "banned" | "unsubscribed")}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="banned">Banned</SelectItem>
-                    <SelectItem value="unsubscribed">Unsubscribed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="source">Source</Label>
-                <Select value={formData.source} onValueChange={(value) => handleInputChange("source", value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Client Log">Client Log</SelectItem>
-                    <SelectItem value="Customer Report">Customer Report</SelectItem>
-                    <SelectItem value="Walk-in">Walk-in</SelectItem>
-                    <SelectItem value="Referral">Referral</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Email List</Label>
-                <p className="text-sm text-muted-foreground">Add client to email marketing list</p>
-              </div>
-              <Switch
-                checked={formData.onEmailList}
-                onCheckedChange={(checked) => handleInputChange("onEmailList", checked)}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Important Dates */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Important Dates</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Birthday</Label>
-                <DatePicker
-                  date={formData.birthday ?? undefined}
-                  onSelect={(date) => handleInputChange("birthday", date)}
-                  className="w-full"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Anniversary</Label>
-                <DatePicker
-                  date={formData.anniversary ?? undefined}
-                  onSelect={(date) => handleInputChange("anniversary", date)}
-                  className="w-full"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Products of Interest */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Products of Interest</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Add model number or collection..."
-                  value={productInterest}
-                  onChange={(e) => setProductInterest(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === "Enter") {
-                      handleAddProductInterest();
-                    }
-                  }}
-                />
-                <Button onClick={handleAddProductInterest} variant="outline">
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {productsOfInterest.map((product, index) => (
-                  <Badge key={index} variant="secondary" className="cursor-pointer">
-                    {product}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-5 w-5 ml-1"
-                      onClick={() => handleRemoveProductInterest(product)}
-                      aria-label={`Remove ${product}`}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Tags */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Tags</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Add tag..."
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === "Enter") {
-                      handleAddTag();
-                    }
-                  }}
-                />
-                <Button onClick={handleAddTag} variant="outline">
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {formData.tags.map((tag, index) => (
-                  <Badge key={index} variant="outline" className="cursor-pointer">
-                    {tag}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-5 w-5 ml-1"
-                      onClick={() => handleRemoveTag(tag)}
-                      aria-label={`Remove tag ${tag}`}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Notes */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Notes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Textarea
-              placeholder="Add any additional notes about this client..."
-              value={formData.notes}
-              onChange={(e) => handleInputChange("notes", e.target.value)}
-              rows={4}
-            />
-          </CardContent>
-        </Card>
-
-        {/* Submit */}
-        <div className="flex justify-end gap-4 pt-4 border-t">
-          <Button variant="outline" onClick={() => router.back()}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={isLoading}>
-            {isLoading ? "Saving..." : "Save Changes"}
-          </Button>
-        </div>
-      </div>
       </div>
     </>
   );

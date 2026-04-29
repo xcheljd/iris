@@ -8,9 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
+import { getMethodIcon } from "@/lib/outreach-helpers";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Phone, Mail, MessageCircle, User, Copy, Star } from "lucide-react";
+import { Calendar as CalendarIcon, Copy, Star } from "lucide-react";
 import { toast } from "sonner";
 
 interface FollowUpFormProps {
@@ -154,15 +155,7 @@ export function FollowUpForm({ clientId, onSuccess }: FollowUpFormProps) {
     }
   };
 
-  const getMethodIcon = (method: string) => {
-    switch (method) {
-      case "call": return <Phone className="h-4 w-4" />;
-      case "text": return <MessageCircle className="h-4 w-4" />;
-      case "email": return <Mail className="h-4 w-4" />;
-      case "in-person": return <User className="h-4 w-4" />;
-      default: return <MessageCircle className="h-4 w-4" />;
-    }
-  };
+
 
   const outcomes = [
     { value: "no_answer", label: "No answer" },

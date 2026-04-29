@@ -63,38 +63,7 @@ interface FollowUpsContentProps {
   upcoming: FollowUpRow[];
 }
 
-function getMethodIcon(method: string) {
-  switch (method) {
-    case "call": return <Phone className="h-4 w-4" />;
-    case "text": return <MessageCircle className="h-4 w-4" />;
-    case "email": return <Mail className="h-4 w-4" />;
-    case "in-person": return <User className="h-4 w-4" />;
-    default: return <MessageCircle className="h-4 w-4" />;
-  }
-}
-
-function getMethodBadgeVariant(method: string) {
-  switch (method) {
-    case "call": return "bg-green-500/10 text-green-500 border-green-500/20";
-    case "text": return "bg-blue-500/10 text-blue-500 border-blue-500/20";
-    case "email": return "bg-purple-500/10 text-purple-400 border-purple-500/20";
-    case "in-person": return "bg-orange-500/10 text-orange-500 border-orange-500/20";
-    default: return "bg-muted text-muted-foreground border-muted";
-  }
-}
-
-function getOutcomeColor(outcome: string) {
-  switch (outcome) {
-    case "no_answer": return "text-muted-foreground";
-    case "voicemail": return "text-yellow-500";
-    case "voicemail_full": return "text-red-500";
-    case "responded": return "text-green-500";
-    case "not_interested": return "text-red-500";
-    case "wants_to_come_in": return "text-green-500";
-    case "purchased": return "text-emerald-500";
-    default: return "text-muted-foreground";
-  }
-}
+import { getMethodIcon, getMethodBadgeVariant, getOutcomeColor } from "@/lib/outreach-helpers";
 
 function getRelativeTime(date: Date) {
   const now = new Date();
