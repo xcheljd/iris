@@ -8,8 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
+import { DatePicker } from "@/components/date-picker";
 import {
   HoverCard,
   HoverCardContent,
@@ -43,7 +42,6 @@ import {
   User,
   Target,
   ShoppingCart,
-  Calendar as CalendarIcon,
   MailX,
   Ban,
   ChevronRight,
@@ -128,8 +126,6 @@ const methodChartConfig = {
 export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProps) {
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
-  const [fromOpen, setFromOpen] = useState(false);
-  const [toOpen, setToOpen] = useState(false);
 
   const filteredOutreach = useMemo(() => {
     if (!dateFrom && !dateTo) return recentOutreach;
@@ -189,45 +185,17 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
         </div>
         {/* Date Range Picker */}
         <div className="flex items-center gap-2 flex-wrap">
-          <Popover open={fromOpen} onOpenChange={setFromOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <CalendarIcon className="h-4 w-4" />
-                {dateFrom ? format(dateFrom, "MMM d") : "From"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                mode="single"
-                selected={dateFrom}
-                onSelect={(d) => {
-                  setDateFrom(d);
-                  setFromOpen(false);
-                }}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
+          <DatePicker
+            date={dateFrom}
+            onSelect={setDateFrom}
+            placeholder="From"
+          />
           <span className="text-muted-foreground text-sm">to</span>
-          <Popover open={toOpen} onOpenChange={setToOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <CalendarIcon className="h-4 w-4" />
-                {dateTo ? format(dateTo, "MMM d") : "To"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                mode="single"
-                selected={dateTo}
-                onSelect={(d) => {
-                  setDateTo(d);
-                  setToOpen(false);
-                }}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
+          <DatePicker
+            date={dateTo}
+            onSelect={setDateTo}
+            placeholder="To"
+          />
           {(dateFrom || dateTo) && (
             <Button variant="ghost" size="sm" onClick={clearDates}>
               Clear

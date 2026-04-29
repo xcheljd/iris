@@ -7,16 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { SearchInput } from "@/components/search-input";
+import { EmptyState } from "@/components/empty-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Tooltip,
@@ -32,11 +25,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   MailX,
-  Search,
   Mail,
   Trash2,
   Plus,
-  X,
   AlertCircle,
   ExternalLink,
   MoreHorizontal,
@@ -304,42 +295,19 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
               </Select>
             </div>
           </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by email, name, or customer ID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-10"
-            />
-            {searchQuery && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
-                onClick={() => setSearchQuery("")}
-                aria-label="Clear search"
-              >
-                <X className="h-3.5 w-3.5" />
-              </Button>
-            )}
-          </div>
+          <SearchInput
+            placeholder="Search by email, name, or customer ID..."
+            value={searchQuery}
+            onChange={setSearchQuery}
+          />
         </CardHeader>
         <CardContent>
           {filteredList.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Mail className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p className="text-lg font-medium">
-                {searchQuery || dateRange !== "all"
-                  ? "No matching records"
-                  : "No unsubscribed emails"}
-              </p>
-              <p className="text-sm mt-1">
-                {searchQuery || dateRange !== "all"
-                  ? "Try adjusting your search or date filter"
-                  : "Unsubscribed email addresses will appear here"}
-              </p>
-            </div>
+            <EmptyState
+              icon={Mail}
+              title={searchQuery || dateRange !== "all" ? "No matching records" : "No unsubscribed emails"}
+              description={searchQuery || dateRange !== "all" ? "Try adjusting your search or date filter" : "Unsubscribed email addresses will appear here"}
+            />
           ) : (
             <>
               <div className="flex items-center gap-3 mb-3 px-1">
@@ -463,49 +431,32 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
       </Card>
 
       {/* Single Remove Confirmation */}
-      <AlertDialog open={!!removeTarget} onOpenChange={(open) => !open && setRemoveTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove from Unsubscribe List</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to remove{" "}
-              <strong>{removeTarget?.unsub.email}</strong> from the unsubscribe list?
-              This means they may receive marketing emails again.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => removeTarget && handleRemove(removeTarget.unsub.id)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Remove
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!removeTarget}
+        onOpenChange={(open) => !open && setRemoveTarget(null)}
+        title="Remove from Unsubscribe List"
+        description={
+          <>
+            Are you sure you want to remove{" "}
+            <strong>{removeTarget?.unsub.email}</strong> from the unsubscribe list?
+            This means they may receive marketing emails again.
+          </>
+        }
+        confirmLabel="Remove"
+        onConfirm={() => removeTarget && handleRemove(removeTarget.unsub.id)}
+        variant="destructive"
+      />
 
       {/* Batch Remove Confirmation */}
-      <AlertDialog open={batchRemoveOpen} onOpenChange={setBatchRemoveOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove {selected.size} Records</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to remove {selected.size} email{selected.size !== 1 ? "s" : ""}{" "}
-              from the unsubscribe list? They may receive marketing emails again.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleBatchRemove}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Remove All
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={batchRemoveOpen}
+        onOpenChange={setBatchRemoveOpen}
+        title={`Remove ${selected.size} Records`}
+        description={`Are you sure you want to remove ${selected.size} email${selected.size !== 1 ? "s" : ""} from the unsubscribe list? They may receive marketing emails again.`}
+        confirmLabel="Remove All"
+        onConfirm={handleBatchRemove}
+        variant="destructive"
+      />
       </div>
     </>
   );

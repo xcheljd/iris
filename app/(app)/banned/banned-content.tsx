@@ -13,16 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,17 +30,17 @@ import {
   ChevronDown,
   Ban,
   ShieldOff,
-  Search,
   AlertTriangle,
   MoreHorizontal,
   Eye,
-  X,
 } from "lucide-react";
+import { SearchInput } from "@/components/search-input";
 import { banClient, unbanCustomer } from "@/lib/actions";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import Link from "next/link";
 import { Topbar } from "@/components/topbar";
+import { EmptyState } from "@/components/empty-state";
 import type { BannedCustomer } from "@/lib/db/schema";
 
 interface BannedRow {
@@ -294,40 +285,19 @@ export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }
               <Badge variant="secondary">{filteredBanned.length} record{filteredBanned.length !== 1 ? "s" : ""}</Badge>
             )}
           </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, email, or phone..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-10"
-            />
-            {searchQuery && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
-                onClick={() => setSearchQuery("")}
-                aria-label="Clear search"
-              >
-                <X className="h-3.5 w-3.5" />
-              </Button>
-            )}
-          </div>
+          <SearchInput
+            placeholder="Search by name, email, or phone..."
+            value={searchQuery}
+            onChange={setSearchQuery}
+          />
         </CardHeader>
         <CardContent>
           {filteredBanned.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <ShieldOff className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p className="text-lg font-medium">
-                {searchQuery ? "No matching records" : "No banned customers"}
-              </p>
-              <p className="text-sm mt-1">
-                {searchQuery
-                  ? "Try a different search term"
-                  : "Banned customers will appear here"}
-              </p>
-            </div>
+            <EmptyState
+              icon={ShieldOff}
+              title={searchQuery ? "No matching records" : "No banned customers"}
+              description={searchQuery ? "Try a different search term" : "Banned customers will appear here"}
+            />
           ) : (
             <div className="space-y-2">
               {filteredBanned.map((row) => {
@@ -449,26 +419,22 @@ export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }
       </Card>
 
       {/* Unban Confirmation */}
-      <AlertDialog open={!!unbanTarget} onOpenChange={(open) => !open && setUnbanTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Unban Customer</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to unban{" "}
-              <strong>
-                {unbanTarget?.banned.firstName} {unbanTarget?.banned.lastName || ""}
-              </strong>
-              ? They will be able to interact with your business again.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => unbanTarget && handleUnban(unbanTarget.banned.id)}>
-              Unban
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!unbanTarget}
+        onOpenChange={(open) => !open && setUnbanTarget(null)}
+        title="Unban Customer"
+        description={
+          <>
+            Are you sure you want to unban{" "}
+            <strong>
+              {unbanTarget?.banned.firstName} {unbanTarget?.banned.lastName || ""}
+            </strong>
+            ? They will be able to interact with your business again.
+          </>
+        }
+        confirmLabel="Unban"
+        onConfirm={() => unbanTarget && handleUnban(unbanTarget.banned.id)}
+      />
       </div>
     </>
   );

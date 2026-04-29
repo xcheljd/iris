@@ -17,13 +17,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { SearchInput } from "@/components/search-input";
+import { EmptyState } from "@/components/empty-state";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   ListFilter, 
   Plus, 
-  Search, 
   Users, 
   Flame, 
   Clock,
@@ -39,7 +40,6 @@ import {
   Globe,
   Sparkles,
   Filter,
-  X,
 } from "lucide-react";
 import Link from "next/link";
 import { applyClientFilter } from "@/lib/utils";
@@ -541,32 +541,14 @@ export function SmartListsContent({ lists, allClients }: SmartListsContentProps)
           <CardContent>
             {selectedList ? (
               <div className="space-y-3">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search within list..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                  {searchQuery && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
-                      onClick={() => setSearchQuery("")}
-                      aria-label="Clear search"
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  )}
-                </div>
+                <SearchInput
+                  placeholder="Search within list..."
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                />
 
                 {filteredClients.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p>No clients match this filter</p>
-                  </div>
+                  <EmptyState icon={Users} description="No clients match this filter" compact />
                 ) : (
                   <ScrollArea className="h-[500px]">
                     <div className="space-y-1">
@@ -597,22 +579,16 @@ export function SmartListsContent({ lists, allClients }: SmartListsContentProps)
       </div>
 
       {/* Delete Confirmation */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Smart List?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete &ldquo;{deleteTarget?.name}&rdquo;. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={isPending} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {isPending ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete Smart List?"
+        description={`This will permanently delete "${deleteTarget?.name}". This action cannot be undone.`}
+        confirmLabel={isPending ? "Deleting..." : "Delete"}
+        onConfirm={handleDelete}
+        variant="destructive"
+        disabled={isPending}
+      />
 
       {/* Create List Dialog */}
       <CreateListDialog open={createOpen} onOpenChange={setCreateOpen} allClients={allClients} />

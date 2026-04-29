@@ -10,9 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
+import { DatePicker } from "@/components/date-picker";
 import { Plus, X, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Topbar } from "@/components/topbar";
@@ -475,45 +473,19 @@ export default function EditClientPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Birthday</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal"
-                    >
-                      {formData.birthday ? format(formData.birthday, "MMM d, yyyy") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={formData.birthday ?? undefined}
-                      onSelect={(date) => handleInputChange("birthday", date)}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DatePicker
+                  date={formData.birthday ?? undefined}
+                  onSelect={(date) => handleInputChange("birthday", date)}
+                  className="w-full"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Anniversary</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal"
-                    >
-                      {formData.anniversary ? format(formData.anniversary, "MMM d, yyyy") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={formData.anniversary ?? undefined}
-                      onSelect={(date) => handleInputChange("anniversary", date)}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DatePicker
+                  date={formData.anniversary ?? undefined}
+                  onSelect={(date) => handleInputChange("anniversary", date)}
+                  className="w-full"
+                />
               </div>
             </div>
           </CardContent>

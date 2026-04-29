@@ -9,14 +9,15 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { SearchInput } from "@/components/search-input";
+import { DatePicker } from "@/components/date-picker";
+import { EmptyState } from "@/components/empty-state";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
-  Tag, Plus, Trash2, Watch, Users, Search,
-  MoreHorizontal, ChevronLeft, ChevronRight, X, Upload, ClipboardPaste,
+  Tag, Plus, Trash2, Watch, Users,
+  MoreHorizontal, ChevronLeft, ChevronRight, Upload, ClipboardPaste,
   FileSpreadsheet, AlertCircle, CheckCircle2, Trash, CalendarDays, Calendar,
 } from "lucide-react";
 import { createPromo, deletePromo, importPromos, clearAllPromos } from "@/lib/actions";
@@ -117,8 +118,6 @@ function ImportPromoDialog({ open, onOpenChange }: { open: boolean; onOpenChange
   const [isImporting, setIsImporting] = useState(false);
   const [promoStart, setPromoStart] = useState<Date | undefined>(undefined);
   const [promoEnd, setPromoEnd] = useState<Date | undefined>(undefined);
-  const [startOpen, setStartOpen] = useState(false);
-  const [endOpen, setEndOpen] = useState(false);
 
   const handleParse = () => {
     if (!rawText.trim()) return;
@@ -169,42 +168,20 @@ function ImportPromoDialog({ open, onOpenChange }: { open: boolean; onOpenChange
             <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
               <div className="space-y-2 flex-1">
                 <Label>Promo Start</Label>
-                <Popover open={startOpen} onOpenChange={setStartOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      {promoStart ? format(promoStart, "MMM d, yyyy") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarPicker
-                      mode="single"
-                      selected={promoStart}
-                      onSelect={(d) => { setPromoStart(d); setStartOpen(false); }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DatePicker
+                  date={promoStart}
+                  onSelect={setPromoStart}
+                  className="w-full"
+                />
               </div>
               <div className="flex items-center pb-2 text-muted-foreground">—</div>
               <div className="space-y-2 flex-1">
                 <Label>Promo End</Label>
-                <Popover open={endOpen} onOpenChange={setEndOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      {promoEnd ? format(promoEnd, "MMM d, yyyy") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarPicker
-                      mode="single"
-                      selected={promoEnd}
-                      onSelect={(d) => { setPromoEnd(d); setEndOpen(false); }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DatePicker
+                  date={promoEnd}
+                  onSelect={setPromoEnd}
+                  className="w-full"
+                />
               </div>
               {(promoStart || promoEnd) && (
                 <Button variant="ghost" size="sm" className="mb-0.5" onClick={() => { setPromoStart(undefined); setPromoEnd(undefined); }}>
@@ -524,37 +501,24 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
           </div>
           {/* Search */}
           <div className="mt-3">
-            <div className="relative max-w-sm">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search model or collection..."
-                value={searchQuery}
-                onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-                className="pl-10"
-              />
-              {searchQuery && (
-                <Button variant="ghost" size="sm" className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0" onClick={() => setSearchQuery("")} aria-label="Clear search">
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
+            <SearchInput
+              placeholder="Search model or collection..."
+              value={searchQuery}
+              onChange={(v) => { setSearchQuery(v); setPage(1); }}
+              className="max-w-sm"
+            />
           </div>
         </CardHeader>
         <CardContent>
           {promos.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Watch className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p className="text-lg font-medium">No active promos</p>
-              <p className="text-sm mt-1 mb-4">Import this week&apos;s promo list to get started</p>
-              <Button variant="outline" onClick={() => setImportOpen(true)}>
-                <ClipboardPaste className="h-4 w-4 mr-2" />
-                Import from Excel
-              </Button>
-            </div>
+            <EmptyState
+              icon={Watch}
+              title="No active promos"
+              description="Import this week's promo list to get started"
+              action={{ label: "Import from Excel", onClick: () => setImportOpen(true), icon: ClipboardPaste }}
+            />
           ) : filtered.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>No promos match your search</p>
-            </div>
+            <EmptyState description="No promos match your search" compact />
           ) : (
             <>
               <div className="overflow-x-auto">
@@ -653,40 +617,26 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
       <ImportPromoDialog open={importOpen} onOpenChange={setImportOpen} />
 
       {/* Delete Confirmation */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Promo Watch</AlertDialogTitle>
-            <AlertDialogDescription>
-              Remove <strong>{deleteTarget?.modelNumber}</strong> from the current promo list?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteTarget && handleDelete(deleteTarget.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete Promo Watch"
+        description={<>Remove <strong>{deleteTarget?.modelNumber}</strong> from the current promo list?</>}
+        confirmLabel="Delete"
+        onConfirm={() => deleteTarget && handleDelete(deleteTarget.id)}
+        variant="destructive"
+      />
 
       {/* Clear All Confirmation */}
-      <AlertDialog open={clearAllOpen} onOpenChange={setClearAllOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Clear All Promos</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete all {promos.length} promo watches and their client matches. Use this to reset before importing next week&apos;s promo list.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleClearAll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Clear All
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={clearAllOpen}
+        onOpenChange={setClearAllOpen}
+        title="Clear All Promos"
+        description={`This will permanently delete all ${promos.length} promo watches and their client matches. Use this to reset before importing next week's promo list.`}
+        confirmLabel="Clear All"
+        onConfirm={handleClearAll}
+        variant="destructive"
+      />
       </div>
     </>
   );

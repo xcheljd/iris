@@ -3,10 +3,10 @@
 import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { HeatBadge } from "@/components/heat-badge";
+import { SearchInput } from "@/components/search-input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -14,7 +14,7 @@ import { Topbar } from "@/components/topbar";
 import { formatPhone, daysAgo } from "@/lib/utils";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Plus, Search, ChevronUp, ChevronDown, ChevronsUpDown, MoreHorizontal, Eye, Edit, Ban, MailX } from "lucide-react";
+import { Plus, ChevronUp, ChevronDown, ChevronsUpDown, MoreHorizontal, Eye, Edit, Ban, MailX } from "lucide-react";
 import { BanCustomerDialog, UnsubscribeCustomerDialog } from "@/components/client-status-actions";
 import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
@@ -160,10 +160,7 @@ export function ClientListContent({ rows, totalClients }: { rows: ClientRow[]; t
         {/* Filters */}
         <Card className="p-3">
           <div className="flex flex-col md:flex-row gap-2 items-stretch md:items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder="Search name, email, phone…" className="pl-8" />
-            </div>
+            <SearchInput value={q} onChange={(v) => { setQ(v); setPage(1); }} placeholder="Search name, email, phone…" className="flex-1" />
             <Select value={heat} onValueChange={(v) => { setHeat(v); setPage(1); }}>
               <SelectTrigger className="md:w-40"><SelectValue placeholder="Heat" /></SelectTrigger>
               <SelectContent>

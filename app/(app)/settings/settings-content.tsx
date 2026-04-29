@@ -11,16 +11,9 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { SearchInput } from "@/components/search-input";
+import { EmptyState } from "@/components/empty-state";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,8 +36,6 @@ import {
   Shield,
   UserPlus,
   MoreHorizontal,
-  Search,
-  X,
 } from "lucide-react";
 import { createTag, deleteTag, createTemplate, deleteTemplate, createEmployee, resetEmployeePassword, updateEmployeeRole, toggleEmployeeActive } from "@/lib/actions";
 import { toast } from "sonner";
@@ -325,19 +316,13 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                 )}
               </div>
               {/* Search */}
-              <div className="relative mt-3">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
+              <div className="mt-3">
+                <SearchInput
                   placeholder="Search employees..."
                   value={employeeSearch}
-                  onChange={(e) => setEmployeeSearch(e.target.value)}
-                  className="pl-10 max-w-sm"
+                  onChange={setEmployeeSearch}
+                  className="max-w-sm"
                 />
-                {employeeSearch && (
-                  <Button variant="ghost" size="sm" className="absolute left-[260px] top-1/2 -translate-y-1/2 h-6 w-6 p-0" onClick={() => setEmployeeSearch("")} aria-label="Clear search">
-                    <X className="h-3 w-3" />
-                  </Button>
-                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -458,23 +443,20 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
           </Dialog>
 
           {/* Deactivate Confirmation */}
-          <AlertDialog open={!!deactivateTarget} onOpenChange={(open) => !open && setDeactivateTarget(null)}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>{deactivateTarget?.active ? "Deactivate" : "Activate"} Employee</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to {deactivateTarget?.active ? "deactivate" : "activate"} <strong>{deactivateTarget?.name}</strong>?
-                  {deactivateTarget?.active && " They will no longer be able to log in."}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => deactivateTarget && handleToggleActive(deactivateTarget)}>
-                  {deactivateTarget?.active ? "Deactivate" : "Activate"}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <ConfirmDialog
+            open={!!deactivateTarget}
+            onOpenChange={(open) => !open && setDeactivateTarget(null)}
+            title={<>{deactivateTarget?.active ? "Deactivate" : "Activate"} Employee</>}
+            description={
+              <>
+                Are you sure you want to {deactivateTarget?.active ? "deactivate" : "activate"}{" "}
+                <strong>{deactivateTarget?.name}</strong>?
+                {deactivateTarget?.active && " They will no longer be able to log in."}
+              </>
+            }
+            confirmLabel={deactivateTarget?.active ? "Deactivate" : "Activate"}
+            onConfirm={() => deactivateTarget && handleToggleActive(deactivateTarget)}
+          />
         </TabsContent>
 
         <Separator />
@@ -531,11 +513,11 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
             </CardHeader>
             <CardContent>
               {tags.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Tag className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p className="text-lg font-medium">No tags created</p>
-                  <p className="text-sm mt-1">Create tags to categorize your clients</p>
-                </div>
+                <EmptyState
+                  icon={Tag}
+                  title="No tags created"
+                  description="Create tags to categorize your clients"
+                />
               ) : (
                 <div className="overflow-x-auto">
                 <Table>
@@ -655,11 +637,11 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
             </CardHeader>
             <CardContent>
               {templates.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p className="text-lg font-medium">No templates created</p>
-                  <p className="text-sm mt-1">Create templates for faster outreach</p>
-                </div>
+                <EmptyState
+                  icon={FileText}
+                  title="No templates created"
+                  description="Create templates for faster outreach"
+                />
               ) : (
                 <div className="space-y-4">
                   {templates.map((template) => (
@@ -708,40 +690,26 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
       </Tabs>
 
       {/* Delete Tag Confirmation */}
-      <AlertDialog open={!!deleteTagTarget} onOpenChange={(open) => !open && setDeleteTagTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Tag</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete the <strong>{deleteTagTarget?.name}</strong> tag? This will remove it from all clients.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteTagTarget && handleDeleteTag(deleteTagTarget.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!deleteTagTarget}
+        onOpenChange={(open) => !open && setDeleteTagTarget(null)}
+        title="Delete Tag"
+        description={<>Are you sure you want to delete the <strong>{deleteTagTarget?.name}</strong> tag? This will remove it from all clients.</>}
+        confirmLabel="Delete"
+        onConfirm={() => deleteTagTarget && handleDeleteTag(deleteTagTarget.id)}
+        variant="destructive"
+      />
 
       {/* Delete Template Confirmation */}
-      <AlertDialog open={!!deleteTemplateTarget} onOpenChange={(open) => !open && setDeleteTemplateTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Template</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete the <strong>{deleteTemplateTarget?.name}</strong> template? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteTemplateTarget && handleDeleteTemplate(deleteTemplateTarget.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!deleteTemplateTarget}
+        onOpenChange={(open) => !open && setDeleteTemplateTarget(null)}
+        title="Delete Template"
+        description={<>Are you sure you want to delete the <strong>{deleteTemplateTarget?.name}</strong> template? This action cannot be undone.</>}
+        confirmLabel="Delete"
+        onConfirm={() => deleteTemplateTarget && handleDeleteTemplate(deleteTemplateTarget.id)}
+        variant="destructive"
+      />
       </div>
     </>
   );

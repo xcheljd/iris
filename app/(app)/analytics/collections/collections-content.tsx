@@ -4,11 +4,11 @@ import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { HeatBadge } from "@/components/heat-badge";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/search-input";
+import { EmptyState } from "@/components/empty-state";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Watch,
-  Search,
   BarChart3
 } from "lucide-react";
 import { Topbar } from "@/components/topbar";
@@ -110,21 +110,15 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search collections..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+              <SearchInput
+                placeholder="Search collections..."
+                value={searchQuery}
+                onChange={setSearchQuery}
+                className="mb-4"
+              />
 
               {filteredCollections.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Watch className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>No collections found</p>
-                </div>
+                <EmptyState icon={Watch} description="No collections found" compact />
               ) : (
                 <ScrollArea className="h-[500px]">
                   <div className="space-y-2">
