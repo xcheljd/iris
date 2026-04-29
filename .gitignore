@@ -1,9 +1,36 @@
+# Dependencies
 node_modules/
+
+# Next.js
 .next/
+dist/
+
+# Environment
 .env
 .env.local
+.env*.local
+
+# Database
 *.db
+*.db-shm
+*.db-wal
 *.sqlite
+
+# Build
 .turbo/
-dist/
+tsconfig.tsbuildinfo
+
+# Drizzle ORM
+drizzle/
+
+# Testing & QA
+qa-results/
+screenshots/
+
+# AI / Dev tools
+.factory/
+.playwright-mcp/
+
+# Misc
+*.log
 
