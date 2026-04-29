@@ -4,6 +4,6 @@ import { employees } from "@/lib/db/schema";
 
 export async function GET() {
   const all = db.select().from(employees).orderBy(employees.name).all();
-  const safe = all.map(({ passwordHash, secretAnswerHash, ...rest }) => rest);
+  const safe = all.map(({ passwordHash: _passwordHash, secretAnswerHash: _secretAnswerHash, ...rest }) => rest);
   return NextResponse.json(safe);
 }

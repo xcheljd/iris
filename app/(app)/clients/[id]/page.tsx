@@ -30,11 +30,16 @@ async function getFullClient(clientId: string) {
     .all();
 
   const timeline = db
-    .select()
+    .select({
+      event: activityEvents,
+      eventEmployeeName: employees.name,
+    })
     .from(activityEvents)
+    .leftJoin(employees, eq(activityEvents.employeeId, employees.id))
     .where(eq(activityEvents.clientId, clientId))
     .orderBy(desc(activityEvents.createdAt))
-    .all();
+    .all()
+    .map((row) => ({ ...row.event, employeeName: row.eventEmployeeName }));
 
   const matches = db
     .select({

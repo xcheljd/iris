@@ -22,10 +22,6 @@ interface NotesTabProps {
   client: FullClient;
 }
 
-interface NotesTabProps {
-  client: FullClient;
-}
-
 export function NotesTab({ client }: NotesTabProps) {
   const [newNote, setNewNote] = useState("");
   const [isAdding, setIsAdding] = useState(false);
@@ -67,8 +63,10 @@ export function NotesTab({ client }: NotesTabProps) {
     }
 
     try {
-      const response = await fetch(`/api/notes/${noteId}`, {
+      const response = await fetch(`/api/notes`, {
         method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ noteId }),
       });
 
       if (response.ok) {
@@ -82,19 +80,14 @@ export function NotesTab({ client }: NotesTabProps) {
     }
   };
 
-  const notes: ParsedNote[] = client.notes
-    ? typeof client.notes === "string"
-      ? []
-      : (client.notes as unknown[]).map((rawNote, index: number) => {
-          const note = rawNote as Record<string, unknown>;
-          return {
-            id: `note-${index}`,
-            content: (note.content || rawNote) as string,
-            createdAt: (note.createdAt || client.updatedAt) as string,
-            author: (note.author || "You") as string,
-          };
-        })
-    : [];
+  const notes: ParsedNote[] = (client.timeline || [])
+    .filter((event) => event.eventType === "note_added")
+    .map((event) => ({
+      id: event.id,
+      content: event.description,
+      createdAt: String(event.createdAt),
+      author: (event as Record<string, unknown>).employeeName as string || "System",
+    }));
 
   const sortedNotes = [...notes].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()

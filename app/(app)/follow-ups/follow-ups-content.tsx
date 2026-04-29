@@ -163,7 +163,7 @@ function FollowUpCard({ row, isOverdue, onDetail }: { row: FollowUpRow; isOverdu
                   OVERDUE
                 </Badge>
               )}
-              <HeatBadge level={row.client.heatLevel} />
+              <HeatBadge level={row.client.heatLevel as "hot" | "warm" | "cold"} />
             </div>
             <div className="flex items-center gap-1">
               <Badge variant="outline" className={getMethodBadgeVariant(row.log.method)}>
@@ -318,7 +318,7 @@ function FollowUpDetailSheet({ row, open, onOpenChange }: { row: FollowUpRow | n
             <div>
               <p className="text-sm font-medium text-muted-foreground">Heat</p>
               <div className="flex items-center gap-2">
-                <HeatBadge level={row.client.heatLevel} />
+                <HeatBadge level={row.client.heatLevel as "hot" | "warm" | "cold"} />
                 <span className="text-sm"><Flame className="h-4 w-4 inline" /> {row.client.heatScore}</span>
               </div>
             </div>
