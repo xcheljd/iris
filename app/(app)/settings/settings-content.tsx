@@ -163,7 +163,11 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
 
   const handleCreateEmployee = async () => {
     if (!newEmployee.name.trim() || !newEmployee.username.trim() || !newEmployee.password.trim()) {
-      toast.error("All fields are required");
+      toast.error("Name, username, and password are required");
+      return;
+    }
+    if (newEmployee.password.length < 6) {
+      toast.error("Password must be at least 6 characters");
       return;
     }
     try {

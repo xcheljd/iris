@@ -4,6 +4,7 @@ import { useState, useMemo, useTransition } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { HeatBadge } from "@/components/heat-badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -77,15 +78,6 @@ function getFilterLabel(filter: string) {
   }
 }
 
-function getHeatBadge(level: string) {
-  switch (level) {
-    case "hot": return <Badge className="bg-orange-500/10 text-orange-500 border-orange-500/20 text-xs">Hot</Badge>;
-    case "warm": return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 text-xs">Warm</Badge>;
-    case "cold": return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-xs">Cold</Badge>;
-    default: return null;
-  }
-}
-
 function ClientRow({ client }: { client: Client }) {
   return (
     <Link
@@ -102,7 +94,7 @@ function ClientRow({ client }: { client: Client }) {
             {client.email && <span className="truncate">{client.email}</span>}
           </div>
         </div>
-        {getHeatBadge(client.heatLevel)}
+        <HeatBadge level={client.heatLevel} />
       </div>
       <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
     </Link>

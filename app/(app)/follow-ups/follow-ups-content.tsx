@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { HeatBadge } from "@/components/heat-badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -95,15 +96,6 @@ function getOutcomeColor(outcome: string) {
   }
 }
 
-function getHeatBadge(level: string) {
-  switch (level) {
-    case "hot": return <Badge className="bg-orange-500/10 text-orange-500 border-orange-500/20 text-xs">Hot</Badge>;
-    case "warm": return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 text-xs">Warm</Badge>;
-    case "cold": return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-xs">Cold</Badge>;
-    default: return null;
-  }
-}
-
 function getRelativeTime(date: Date) {
   const now = new Date();
   const diff = differenceInDays(now, date);
@@ -171,7 +163,7 @@ function FollowUpCard({ row, isOverdue, onDetail }: { row: FollowUpRow; isOverdu
                   OVERDUE
                 </Badge>
               )}
-              {getHeatBadge(row.client.heatLevel)}
+              <HeatBadge level={row.client.heatLevel} />
             </div>
             <div className="flex items-center gap-1">
               <Badge variant="outline" className={getMethodBadgeVariant(row.log.method)}>
@@ -326,7 +318,7 @@ function FollowUpDetailSheet({ row, open, onOpenChange }: { row: FollowUpRow | n
             <div>
               <p className="text-sm font-medium text-muted-foreground">Heat</p>
               <div className="flex items-center gap-2">
-                {getHeatBadge(row.client.heatLevel)}
+                <HeatBadge level={row.client.heatLevel} />
                 <span className="text-sm"><Flame className="h-4 w-4 inline" /> {row.client.heatScore}</span>
               </div>
             </div>

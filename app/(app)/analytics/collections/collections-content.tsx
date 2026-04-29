@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { HeatBadge } from "@/components/heat-badge";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -40,15 +41,6 @@ const MERIDIAN_COLLECTIONS = [
   "NEX-100",
   "Horologia",
 ];
-
-function getHeatBadge(level: string) {
-  switch (level) {
-    case "hot": return <Badge className="bg-orange-500/10 text-orange-500 border-orange-500/20 text-xs">Hot</Badge>;
-    case "warm": return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 text-xs">Warm</Badge>;
-    case "cold": return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-xs">Cold</Badge>;
-    default: return null;
-  }
-}
 
 export function CollectionsContent({ clients }: CollectionsContentProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -215,7 +207,7 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
                                 {client.phone || client.email || "No contact"}
                               </p>
                             </div>
-                            {getHeatBadge(client.heatLevel)}
+                            <HeatBadge level={client.heatLevel} />
                           </Link>
                         ))
                       )}

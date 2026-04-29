@@ -117,7 +117,7 @@ export const SidebarTrigger = React.forwardRef<React.ElementRef<typeof Button>, 
 SidebarTrigger.displayName = "SidebarTrigger";
 
 export const SidebarInset = React.forwardRef<HTMLElement, React.ComponentProps<"main">>(({ className, ...props }, ref) => (
-  <main ref={ref} className={cn("relative flex min-h-svh flex-1 flex-col bg-background", className)} {...props} />
+  <main ref={ref} className={cn("relative flex min-h-svh flex-1 flex-col bg-background overflow-x-hidden", className)} {...props} />
 ));
 SidebarInset.displayName = "SidebarInset";
 

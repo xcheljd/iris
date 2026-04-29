@@ -44,6 +44,27 @@ export function EditClientDialog({ client }: EditClientDialogProps) {
   const [productInterest, setProductInterest] = useState("");
   const [productsOfInterest, setProductsOfInterest] = useState<string[]>(client.productsOfInterest || []);
 
+  const resetForm = () => {
+    setFormData({
+      firstName: client.firstName,
+      lastName: client.lastName || "",
+      phone: client.phone || "",
+      email: client.email || "",
+      customerId: client.customerId || "",
+      source: client.source,
+      birthday: client.birthday ? new Date(client.birthday) : null,
+      anniversary: client.anniversary ? new Date(client.anniversary) : null,
+      onEmailList: client.onEmailList,
+      notes: client.notes || "",
+      tags: (client.tags || []) as string[],
+    });
+    setProductsOfInterest(client.productsOfInterest || []);
+    setNewTag("");
+    setProductInterest("");
+    setShowDuplicateWarning(false);
+    setDuplicateClient(null);
+  };
+
 
 
   const handleInputChange = (field: string, value: string | boolean | Date | null | undefined) => {
@@ -142,7 +163,7 @@ export function EditClientDialog({ client }: EditClientDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) resetForm(); }}>
       <DialogTrigger asChild>
         <Button variant="outline" className="w-full">
           <Edit3 className="h-4 w-4 mr-2" />
