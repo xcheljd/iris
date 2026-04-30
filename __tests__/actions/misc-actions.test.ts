@@ -1,0 +1,182 @@
+import { vi, describe, it, expect, afterEach } from "vitest";
+
+vi.mock("next-auth", () => ({
+  getServerSession: vi.fn(),
+}));
+
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+}));
+
+import { getServerSession } from "next-auth";
+import {
+  rescheduleFollowUp,
+  unbanCustomer,
+  addUnsubscribeEmail,
+  removeUnsubscribe,
+  banClient,
+} from "@/lib/actions";
+import { db } from "@/lib/db";
+import { outreachLogs, bannedCustomers, unsubscribeList, clients } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+
+const MANAGER_ID = "e09564a0-2ef8-4470-a149-fc8fcf695636";
+const FIRST_CLIENT_ID = "5aff9797-ad89-4661-906c-cde72c306181";
+
+const managerSession = {
+  user: { id: MANAGER_ID, name: "Marcus", role: "manager" },
+};
+
+describe("Misc Actions", () => {
+  const cleanupUnsubIds: string[] = [];
+  const cleanupBannedIds: string[] = [];
+
+  afterEach(() => {
+    for (const id of cleanupUnsubIds) {
+      try {
+        db.delete(unsubscribeList).where(eq(unsubscribeList.id, id)).run();
+      } catch {
+        // ignore
+      }
+    }
+    cleanupUnsubIds.length = 0;
+
+    for (const id of cleanupBannedIds) {
+      try {
+        db.delete(bannedCustomers).where(eq(bannedCustomers.id, id)).run();
+      } catch {
+        // ignore
+      }
+    }
+    cleanupBannedIds.length = 0;
+
+    // Restore client to active
+    try {
+      db.update(clients)
+        .set({ status: "active", onEmailList: true, updatedAt: new Date() })
+        .where(eq(clients.id, FIRST_CLIENT_ID))
+        .run();
+    } catch {
+      // ignore
+    }
+  });
+
+  describe("rescheduleFollowUp", () => {
+    it("should update followUpDate on an outreach log", async () => {
+      const { revalidatePath } = await import("next/cache");
+
+      // Find an existing outreach log
+      const logs = db.select().from(outreachLogs).all();
+      if (logs.length === 0) return; // Skip if no logs
+
+      const log = logs[0];
+      const newDate = "2026-12-31";
+
+      await rescheduleFollowUp(log.id, newDate);
+
+      const updated = db.select().from(outreachLogs).where(eq(outreachLogs.id, log.id)).get();
+      expect(updated!.followUpDate).toBeDefined();
+      expect(new Date(updated!.followUpDate!).getFullYear()).toBe(2026);
+
+      // Restore original date
+      db.update(outreachLogs).set({ followUpDate: log.followUpDate }).where(eq(outreachLogs.id, log.id)).run();
+
+      expect(revalidatePath).toHaveBeenCalledWith("/follow-ups");
+    });
+  });
+
+  describe("unbanCustomer", () => {
+    it("should restore a banned client to active and delete banned record", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+
+      // First ban the client
+      await banClient(FIRST_CLIENT_ID, "Other", "Test ban for unban test");
+
+      const banned = db.select().from(bannedCustomers)
+        .where(eq(bannedCustomers.customerId, FIRST_CLIENT_ID))
+        .get();
+      expect(banned).toBeDefined();
+      cleanupBannedIds.push(banned!.id);
+
+      // Now unban
+      await unbanCustomer(banned!.id);
+
+      // Client should be active again
+      const client = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
+      expect(client!.status).toBe("active");
+
+      // Banned record should be deleted
+      const deleted = db.select().from(bannedCustomers)
+        .where(eq(bannedCustomers.id, banned!.id))
+        .get();
+      expect(deleted).toBeUndefined();
+    });
+
+    it("should do nothing for nonexistent banned customer id", async () => {
+      // Should not throw
+      await unbanCustomer("nonexistent-banned-id");
+    });
+  });
+
+  describe("addUnsubscribeEmail", () => {
+    it("should add email to unsubscribe list and update matching client", async () => {
+      // Ensure client has a known email
+      const testEmail = `unsub-test-${Date.now()}@example.com`;
+      db.update(clients).set({ email: testEmail, status: "active", onEmailList: true }).where(eq(clients.id, FIRST_CLIENT_ID)).run();
+
+      await addUnsubscribeEmail(testEmail);
+
+      // Check unsubscribe list
+      const entry = db.select().from(unsubscribeList).where(eq(unsubscribeList.email, testEmail)).get();
+      expect(entry).toBeDefined();
+      if (entry) cleanupUnsubIds.push(entry.id);
+
+      // Check client status
+      const client = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
+      expect(client!.status).toBe("unsubscribed");
+      expect(client!.onEmailList).toBe(false);
+    });
+
+    it("should throw error for duplicate email", async () => {
+      const testEmail = `dup-unsub-${Date.now()}@example.com`;
+      db.update(clients).set({ email: testEmail }).where(eq(clients.id, FIRST_CLIENT_ID)).run();
+
+      await addUnsubscribeEmail(testEmail);
+
+      const entry = db.select().from(unsubscribeList).where(eq(unsubscribeList.email, testEmail)).get();
+      if (entry) cleanupUnsubIds.push(entry.id);
+
+      await expect(addUnsubscribeEmail(testEmail)).rejects.toThrow("Email already exists");
+    });
+  });
+
+  describe("removeUnsubscribe", () => {
+    it("should remove from unsubscribe list and restore client to active", async () => {
+      const testEmail = `resub-test-${Date.now()}@example.com`;
+      db.update(clients).set({ email: testEmail, status: "unsubscribed", onEmailList: false }).where(eq(clients.id, FIRST_CLIENT_ID)).run();
+
+      // Add to unsubscribe list first
+      await addUnsubscribeEmail(testEmail);
+
+      const entry = db.select().from(unsubscribeList).where(eq(unsubscribeList.email, testEmail)).get();
+      expect(entry).toBeDefined();
+
+      // Now remove
+      await removeUnsubscribe(entry!.id);
+
+      // Check unsubscribe list is empty
+      const removed = db.select().from(unsubscribeList).where(eq(unsubscribeList.id, entry!.id)).get();
+      expect(removed).toBeUndefined();
+
+      // Check client is active again
+      const client = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
+      expect(client!.status).toBe("active");
+      expect(client!.onEmailList).toBe(true);
+    });
+
+    it("should do nothing for nonexistent id", async () => {
+      await removeUnsubscribe("nonexistent-unsub-id");
+      // Should not throw
+    });
+  });
+});
