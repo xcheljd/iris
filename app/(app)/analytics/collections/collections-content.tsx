@@ -13,7 +13,10 @@ import {
 } from "lucide-react";
 import { Topbar } from "@/components/topbar";
 import Link from "next/link";
+import { PaginationFooter } from "@/components/pagination-footer";
 import type { Client } from "@/lib/db/schema";
+
+const PAGE_SIZE = 20;
 
 interface CollectionsContentProps {
   clients: Client[];
@@ -45,6 +48,7 @@ const MERIDIAN_COLLECTIONS = [
 export function CollectionsContent({ clients }: CollectionsContentProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
+  const [clientsPage, setClientsPage] = useState(1);
 
   // Extract all collections from client products of interest
   const collectionData = useMemo(() => {
@@ -84,6 +88,9 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
       return poi.some((p) => p.toLowerCase().includes(selectedCollection.toLowerCase()));
     });
   }, [clients, selectedCollection]);
+
+  const clientsTotalPages = Math.ceil(collectionClients.length / PAGE_SIZE);
+  const pagedClients = collectionClients.slice((clientsPage - 1) * PAGE_SIZE, clientsPage * PAGE_SIZE);
 
   return (
     <>
@@ -130,11 +137,12 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
                             ? "bg-accent text-accent-foreground"
                             : "hover:bg-muted/50"
                         }`}
-                        onClick={() =>
+                        onClick={() => {
                           setSelectedCollection(
                             selectedCollection === collection.name ? null : collection.name
-                          )
-                        }
+                          );
+                          setClientsPage(1);
+                        }}
                       >
                         <div className="flex items-center gap-3">
                           <Watch className="h-4 w-4 text-muted-foreground" />
@@ -180,33 +188,39 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ScrollArea className="h-[400px]">
-                    <div className="space-y-1">
-                      {collectionClients.length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-4">
-                          No clients interested
-                        </p>
-                      ) : (
-                        collectionClients.map((client) => (
-                          <Link
-                            key={client.id}
-                            href={`/clients/${client.id}`}
-                            className="flex items-center justify-between p-2 rounded hover:bg-muted/50 transition-colors"
-                          >
-                            <div className="min-w-0">
-                              <p className="font-medium text-sm truncate">
-                                {client.firstName} {client.lastName || ""}
-                              </p>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {client.phone || client.email || "No contact"}
-                              </p>
-                            </div>
-                            <HeatBadge level={client.heatLevel} />
-                          </Link>
-                        ))
-                      )}
-                    </div>
-                  </ScrollArea>
+                  <div className="space-y-1">
+                    {collectionClients.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        No clients interested
+                      </p>
+                    ) : (
+                      pagedClients.map((client) => (
+                        <Link
+                          key={client.id}
+                          href={`/clients/${client.id}`}
+                          className="flex items-center justify-between p-2 rounded hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm truncate">
+                              {client.firstName} {client.lastName || ""}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {client.phone || client.email || "No contact"}
+                            </p>
+                          </div>
+                          <HeatBadge level={client.heatLevel} />
+                        </Link>
+                      ))
+                    )}
+                  </div>
+                  <PaginationFooter
+                    currentPage={clientsPage}
+                    totalPages={clientsTotalPages}
+                    onPageChange={setClientsPage}
+                    totalItems={collectionClients.length}
+                    pageSize={PAGE_SIZE}
+                    itemLabel="clients"
+                  />
                 </CardContent>
               </Card>
             </>

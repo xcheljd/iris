@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { HeatBadge } from "@/components/heat-badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -20,6 +19,7 @@ import {
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SearchInput } from "@/components/search-input";
 import { EmptyState } from "@/components/empty-state";
+import { PaginationFooter } from "@/components/pagination-footer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
@@ -325,9 +325,12 @@ function CreateListDialog({ open, onOpenChange, allClients }: { open: boolean; o
   );
 }
 
+const PAGE_SIZE = 20;
+
 export function SmartListsContent({ lists, allClients }: SmartListsContentProps) {
   const [selectedList, setSelectedList] = useState<ResolvedList | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [clientPage, setClientPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<ResolvedList | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -403,6 +406,9 @@ export function SmartListsContent({ lists, allClients }: SmartListsContentProps)
       )
     : activeClients;
 
+  const clientTotalPages = Math.ceil(filteredClients.length / PAGE_SIZE);
+  const pagedClients = filteredClients.slice((clientPage - 1) * PAGE_SIZE, clientPage * PAGE_SIZE);
+
   const handleDelete = () => {
     if (!deleteTarget) return;
     startTransition(async () => {
@@ -455,7 +461,7 @@ export function SmartListsContent({ lists, allClients }: SmartListsContentProps)
                   key={list.id}
                   list={list}
                   isSelected={selectedList?.id === list.id}
-                  onSelect={() => setSelectedList(list)}
+                  onSelect={() => { setSelectedList(list); setClientPage(1); }}
                   onDelete={() => {}}
                   onDuplicate={() => {}}
                   onRename={() => {}}
@@ -502,7 +508,7 @@ export function SmartListsContent({ lists, allClients }: SmartListsContentProps)
                     key={list.id}
                     list={list}
                     isSelected={selectedList?.id === list.id}
-                    onSelect={() => setSelectedList(list)}
+                    onSelect={() => { setSelectedList(list); setClientPage(1); }}
                     onDelete={() => setDeleteTarget(list)}
                     onDuplicate={() => handleDuplicate(list)}
                     onRename={(newName) => handleRename(list.id, newName)}
@@ -544,20 +550,26 @@ export function SmartListsContent({ lists, allClients }: SmartListsContentProps)
                 <SearchInput
                   placeholder="Search within list..."
                   value={searchQuery}
-                  onChange={setSearchQuery}
+                  onChange={(v) => { setSearchQuery(v); setClientPage(1); }}
                 />
 
                 {filteredClients.length === 0 ? (
                   <EmptyState icon={Users} description="No clients match this filter" compact />
                 ) : (
-                  <ScrollArea className="h-[500px]">
-                    <div className="space-y-1">
-                      {filteredClients.map((client) => (
-                        <ClientRow key={client.id} client={client} />
-                      ))}
-                    </div>
-                  </ScrollArea>
+                  <div className="space-y-1">
+                    {pagedClients.map((client) => (
+                      <ClientRow key={client.id} client={client} />
+                    ))}
+                  </div>
                 )}
+                <PaginationFooter
+                  currentPage={clientPage}
+                  totalPages={clientTotalPages}
+                  onPageChange={setClientPage}
+                  totalItems={filteredClients.length}
+                  pageSize={PAGE_SIZE}
+                  itemLabel="clients"
+                />
               </div>
             ) : (
               <div className="text-center py-16">

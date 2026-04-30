@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SearchInput } from "@/components/search-input";
 import { EmptyState } from "@/components/empty-state";
+import { PaginationFooter } from "@/components/pagination-footer";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,6 +56,8 @@ interface SettingsContentProps {
   currentUserRole: string;
 }
 
+const PAGE_SIZE = 20;
+
 export function SettingsContent({ employees, tags: initialTags, templates: initialTemplates, deletedClients, currentUserRole }: SettingsContentProps) {
   const [tags, setTags] = useState(initialTags);
   const [templates, setTemplates] = useState(initialTemplates);
@@ -84,6 +87,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
   const [deleteTemplateTarget, setDeleteTemplateTarget] = useState<OutreachTemplate | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<Client | null>(null);
   const [purgeTarget, setPurgeTarget] = useState<Client | null>(null);
+  const [deletedPage, setDeletedPage] = useState(1);
 
   const tagColors = [
     { name: "blue", class: "bg-blue-500" },
@@ -103,6 +107,9 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
       e.name.toLowerCase().includes(q) || e.username.toLowerCase().includes(q)
     );
   }, [employees, employeeSearch]);
+
+  const deletedTotalPages = Math.ceil(deletedClients.length / PAGE_SIZE);
+  const pagedDeleted = deletedClients.slice((deletedPage - 1) * PAGE_SIZE, deletedPage * PAGE_SIZE);
 
   const handleCreateTag = async () => {
     if (!newTag.name.trim()) {
@@ -741,6 +748,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                     description="Deleted clients will appear here for recovery"
                   />
                 ) : (
+                  <>
                   <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -752,7 +760,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {deletedClients.map((dc) => (
+                      {pagedDeleted.map((dc) => (
                         <TableRow key={dc.id}>
                           <TableCell className="font-medium">{dc.firstName} {dc.lastName ?? ""}</TableCell>
                           <TableCell className="hidden sm:table-cell">
@@ -778,6 +786,15 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                     </TableBody>
                   </Table>
                   </div>
+                  <PaginationFooter
+                    currentPage={deletedPage}
+                    totalPages={deletedTotalPages}
+                    onPageChange={setDeletedPage}
+                    totalItems={deletedClients.length}
+                    pageSize={PAGE_SIZE}
+                    itemLabel="clients"
+                  />
+                  </>
                 )}
               </CardContent>
             </Card>

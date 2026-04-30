@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { PaginationFooter } from "@/components/pagination-footer";
 import { 
   Clock, 
   AlertTriangle, 
@@ -30,6 +30,8 @@ import { markFollowUpComplete, rescheduleFollowUp } from "@/lib/actions";
 import { toast } from "sonner";
 import { format, differenceInDays } from "date-fns";
 import { Topbar } from "@/components/topbar";
+
+const PAGE_SIZE = 20;
 
 interface FollowUpRow {
   log: {
@@ -329,9 +331,19 @@ function FollowUpDetailSheet({ row, open, onOpenChange }: { row: FollowUpRow | n
 export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
   const [selectedRow, setSelectedRow] = useState<FollowUpRow | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [overduePage, setOverduePage] = useState(1);
+  const [upcomingPage, setUpcomingPage] = useState(1);
+  const [allPage, setAllPage] = useState(1);
 
   const all = [...overdue, ...upcoming];
   const uniqueAll = all.filter((row, i, arr) => arr.findIndex((r) => r.log.id === row.log.id) === i);
+
+  const overdueTotalPages = Math.ceil(overdue.length / PAGE_SIZE);
+  const pagedOverdue = overdue.slice((overduePage - 1) * PAGE_SIZE, overduePage * PAGE_SIZE);
+  const upcomingTotalPages = Math.ceil(upcoming.length / PAGE_SIZE);
+  const pagedUpcoming = upcoming.slice((upcomingPage - 1) * PAGE_SIZE, upcomingPage * PAGE_SIZE);
+  const allTotalPages = Math.ceil(uniqueAll.length / PAGE_SIZE);
+  const pagedAll = uniqueAll.slice((allPage - 1) * PAGE_SIZE, allPage * PAGE_SIZE);
 
   const openDetail = (row: FollowUpRow) => {
     setSelectedRow(row);
@@ -387,13 +399,21 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
               </CardContent>
             </Card>
           ) : (
-            <ScrollArea className="h-[600px]">
-              <div className="space-y-3">
-                {overdue.map((row) => (
-                  <FollowUpCard key={row.log.id} row={row} isOverdue onDetail={() => openDetail(row)} />
-                ))}
-              </div>
-            </ScrollArea>
+            <>
+            <div className="space-y-3">
+              {pagedOverdue.map((row) => (
+                <FollowUpCard key={row.log.id} row={row} isOverdue onDetail={() => openDetail(row)} />
+              ))}
+            </div>
+            <PaginationFooter
+              currentPage={overduePage}
+              totalPages={overdueTotalPages}
+              onPageChange={setOverduePage}
+              totalItems={overdue.length}
+              pageSize={PAGE_SIZE}
+              itemLabel="follow-ups"
+            />
+            </>
           )}
         </TabsContent>
 
@@ -409,13 +429,21 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
               </CardContent>
             </Card>
           ) : (
-            <ScrollArea className="h-[600px]">
-              <div className="space-y-3">
-                {upcoming.map((row) => (
-                  <FollowUpCard key={row.log.id} row={row} isOverdue={false} onDetail={() => openDetail(row)} />
-                ))}
-              </div>
-            </ScrollArea>
+            <>
+            <div className="space-y-3">
+              {pagedUpcoming.map((row) => (
+                <FollowUpCard key={row.log.id} row={row} isOverdue={false} onDetail={() => openDetail(row)} />
+              ))}
+            </div>
+            <PaginationFooter
+              currentPage={upcomingPage}
+              totalPages={upcomingTotalPages}
+              onPageChange={setUpcomingPage}
+              totalItems={upcoming.length}
+              pageSize={PAGE_SIZE}
+              itemLabel="follow-ups"
+            />
+            </>
           )}
         </TabsContent>
 
@@ -429,9 +457,9 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
               </CardContent>
             </Card>
           ) : (
-            <ScrollArea className="h-[600px]">
-              <div className="space-y-3">
-                {uniqueAll.map((row) => {
+            <>
+            <div className="space-y-3">
+              {pagedAll.map((row) => {
                 const isOverdue = row.log.followUpDate
                   ? new Date(row.log.followUpDate) <= new Date()
                   : false;
@@ -439,8 +467,16 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
                   <FollowUpCard key={row.log.id} row={row} isOverdue={isOverdue} onDetail={() => openDetail(row)} />
                 );
               })}
-              </div>
-            </ScrollArea>
+            </div>
+            <PaginationFooter
+              currentPage={allPage}
+              totalPages={allTotalPages}
+              onPageChange={setAllPage}
+              totalItems={uniqueAll.length}
+              pageSize={PAGE_SIZE}
+              itemLabel="follow-ups"
+            />
+            </>
           )}
         </TabsContent>
       </Tabs>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { PaginationFooter } from "@/components/pagination-footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -53,6 +54,8 @@ interface UnsubscribedRow {
 
 type DateRange = "all" | "7d" | "30d" | "90d" | "this_month";
 
+const PAGE_SIZE = 20;
+
 function filterByDate(records: UnsubscribedRow[], range: DateRange): UnsubscribedRow[] {
   const now = new Date();
   switch (range) {
@@ -78,6 +81,7 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
   const [addEmailError, setAddEmailError] = useState("");
   const [dateRange, setDateRange] = useState<DateRange>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
   const [removeTarget, setRemoveTarget] = useState<UnsubscribedRow | null>(null);
   const [batchRemoveOpen, setBatchRemoveOpen] = useState(false);
 
@@ -102,8 +106,11 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
     [filteredBySearch, dateRange]
   );
 
+  const totalPages = Math.ceil(filteredList.length / PAGE_SIZE);
+  const paged = filteredList.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   const allSelected =
-    filteredList.length > 0 && filteredList.every((r) => selected.has(r.unsub.id));
+    paged.length > 0 && paged.every((r) => selected.has(r.unsub.id));
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -118,7 +125,7 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
     if (allSelected) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(filteredList.map((r) => r.unsub.id)));
+      setSelected(new Set(paged.map((r) => r.unsub.id)));
     }
   };
 
@@ -281,7 +288,7 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
                   Remove ({selected.size})
                 </Button>
               )}
-              <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
+              <Select value={dateRange} onValueChange={(v) => { setDateRange(v as DateRange); setPage(1); }}>
                 <SelectTrigger className="w-[160px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -298,7 +305,7 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
           <SearchInput
             placeholder="Search by email, name, or customer ID..."
             value={searchQuery}
-            onChange={setSearchQuery}
+            onChange={(v) => { setSearchQuery(v); setPage(1); }}
           />
         </CardHeader>
         <CardContent>
@@ -325,7 +332,7 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
                 </Badge>
               </div>
               <div className="space-y-1">
-                {filteredList.map((record) => (
+                {paged.map((record) => (
                   <div
                     key={record.unsub.id}
                     className={`flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors ${
@@ -425,6 +432,14 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
                   </div>
                 ))}
               </div>
+              <PaginationFooter
+                currentPage={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+                totalItems={filteredList.length}
+                pageSize={PAGE_SIZE}
+                itemLabel="records"
+              />
             </>
           )}
         </CardContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PaginationFooter } from "@/components/pagination-footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -53,6 +54,8 @@ interface BannedRow {
   clientId: string | null;
 }
 
+const PAGE_SIZE = 20;
+
 function getCategoryBadge(category: string) {
   switch (category) {
     case "Reselling":
@@ -67,6 +70,7 @@ function getCategoryBadge(category: string) {
 export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }) {
   const [banned, setBanned] = useState(initialBanned);
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
   const [showBanDialog, setShowBanDialog] = useState(false);
   const [unbanTarget, setUnbanTarget] = useState<BannedRow | null>(null);
   const [banForm, setBanForm] = useState({
@@ -88,6 +92,9 @@ export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }
             .includes(searchQuery.toLowerCase())
       )
     : banned;
+
+  const totalPages = Math.ceil(filteredBanned.length / PAGE_SIZE);
+  const paged = filteredBanned.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const handleUnban = async (id: string) => {
     try {
@@ -284,7 +291,7 @@ export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }
           <SearchInput
             placeholder="Search by name, email, or phone..."
             value={searchQuery}
-            onChange={setSearchQuery}
+            onChange={(v) => { setSearchQuery(v); setPage(1); }}
           />
         </CardHeader>
         <CardContent>
@@ -295,8 +302,9 @@ export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }
               description={searchQuery ? "Try a different search term" : "Banned customers will appear here"}
             />
           ) : (
+            <>
             <Accordion type="multiple" className="space-y-2">
-              {filteredBanned.map((row) => {
+              {paged.map((row) => {
                 const customer = row.banned;
                 return (
                   <AccordionItem key={customer.id} value={customer.id} className="border rounded-lg px-0">
@@ -403,6 +411,15 @@ export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }
                 );
               })}
             </Accordion>
+            <PaginationFooter
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              totalItems={filteredBanned.length}
+              pageSize={PAGE_SIZE}
+              itemLabel="records"
+            />
+            </>
           )}
         </CardContent>
       </Card>

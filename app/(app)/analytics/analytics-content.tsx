@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { DatePicker } from "@/components/date-picker";
+import { PaginationFooter } from "@/components/pagination-footer";
 import {
   HoverCard,
   HoverCardContent,
@@ -100,9 +100,12 @@ const methodChartConfig = {
   "in-person": { label: "In-Person", color: "#f97316" },
 } satisfies ChartConfig;
 
+const PAGE_SIZE = 20;
+
 export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProps) {
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [outreachPage, setOutreachPage] = useState(1);
 
   const filteredOutreach = useMemo(() => {
     if (!dateFrom && !dateTo) return recentOutreach;
@@ -113,6 +116,9 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
       return true;
     });
   }, [recentOutreach, dateFrom, dateTo]);
+
+  const outreachTotalPages = Math.ceil(filteredOutreach.length / PAGE_SIZE);
+  const pagedOutreach = filteredOutreach.slice((outreachPage - 1) * PAGE_SIZE, outreachPage * PAGE_SIZE);
 
   const methodDistribution = useMemo(() => {
     const counts: Record<string, number> = { call: 0, text: 0, email: 0, "in-person": 0 };
@@ -147,6 +153,7 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
   const clearDates = () => {
     setDateFrom(undefined);
     setDateTo(undefined);
+    setOutreachPage(1);
   };
 
   return (
@@ -164,13 +171,13 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
         <div className="flex items-center gap-2 flex-wrap">
           <DatePicker
             date={dateFrom}
-            onSelect={setDateFrom}
+            onSelect={(d) => { setDateFrom(d); setOutreachPage(1); }}
             placeholder="From"
           />
           <span className="text-muted-foreground text-sm">to</span>
           <DatePicker
             date={dateTo}
-            onSelect={setDateTo}
+            onSelect={(d) => { setDateTo(d); setOutreachPage(1); }}
             placeholder="To"
           />
           {(dateFrom || dateTo) && (
@@ -574,51 +581,57 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
               </div>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[400px]">
-                <div className="space-y-2">
-                  {filteredOutreach.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">
-                      No outreach records for the selected period
-                    </p>
-                  ) : (
-                    filteredOutreach.map((row) => (
-                      <div
-                        key={row.log.id}
-                        className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          {getMethodIcon(row.log.method, "h-3.5 w-3.5")}
-                          <div className="min-w-0">
-                            {row.client ? (
-                              <Link
-                                href={`/clients/${row.client.id}`}
-                                className="text-sm font-medium hover:underline"
-                              >
-                                {row.client.firstName} {row.client.lastName || ""}
-                              </Link>
-                            ) : (
-                              <span className="text-sm text-muted-foreground">Unknown client</span>
-                            )}
-                            <p className={`text-xs capitalize ${getOutcomeColor(row.log.outcome)}`}>
-                              {row.log.outcome.replace(/_/g, " ")}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-xs text-muted-foreground">
-                            {row.log.date ? format(new Date(row.log.date), "MMM d") : ""}
-                          </p>
-                          {row.employee && (
-                            <Badge variant="secondary" className="text-[10px]">
-                              {row.employee.name}
-                            </Badge>
+              <div className="space-y-2">
+                {filteredOutreach.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    No outreach records for the selected period
+                  </p>
+                ) : (
+                  pagedOutreach.map((row) => (
+                    <div
+                      key={row.log.id}
+                      className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        {getMethodIcon(row.log.method, "h-3.5 w-3.5")}
+                        <div className="min-w-0">
+                          {row.client ? (
+                            <Link
+                              href={`/clients/${row.client.id}`}
+                              className="text-sm font-medium hover:underline"
+                            >
+                              {row.client.firstName} {row.client.lastName || ""}
+                            </Link>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">Unknown client</span>
                           )}
+                          <p className={`text-xs capitalize ${getOutcomeColor(row.log.outcome)}`}>
+                            {row.log.outcome.replace(/_/g, " ")}
+                          </p>
                         </div>
                       </div>
-                    ))
-                  )}
-                </div>
-              </ScrollArea>
+                      <div className="text-right shrink-0">
+                        <p className="text-xs text-muted-foreground">
+                          {row.log.date ? format(new Date(row.log.date), "MMM d") : ""}
+                        </p>
+                        {row.employee && (
+                          <Badge variant="secondary" className="text-[10px]">
+                            {row.employee.name}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <PaginationFooter
+                currentPage={outreachPage}
+                totalPages={outreachTotalPages}
+                onPageChange={setOutreachPage}
+                totalItems={filteredOutreach.length}
+                pageSize={PAGE_SIZE}
+                itemLabel="records"
+              />
             </CardContent>
           </Card>
         </TabsContent>
