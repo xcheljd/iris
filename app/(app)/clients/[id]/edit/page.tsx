@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Topbar } from "@/components/topbar";
 import { ClientForm } from "@/components/client-form";
 import type { ClientFormData } from "@/components/client-form";
+import { ClientDetailSkeleton } from "@/components/skeletons";
 
 interface ClientData {
   id: string;
@@ -207,11 +208,10 @@ export default function EditClientPage() {
 
   if (!client) {
     return (
-      <div className="container mx-auto py-6 max-w-4xl">
-        <div className="text-center">
-          <p>Loading client data...</p>
-        </div>
-      </div>
+      <>
+        <Topbar title="Edit Client" />
+        <ClientDetailSkeleton />
+      </>
     );
   }
 
