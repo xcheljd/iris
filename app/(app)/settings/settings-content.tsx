@@ -38,6 +38,8 @@ import {
   UserPlus,
   MoreHorizontal,
   RotateCcw,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { createTag, deleteTag, createTemplate, deleteTemplate, createEmployee, resetEmployeePassword, updateEmployeeRole, toggleEmployeeActive, restoreClient, purgeClient } from "@/lib/actions";
 import { toast } from "sonner";
@@ -82,6 +84,8 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
   const [newEmployee, setNewEmployee] = useState({ name: "", username: "", password: "", role: "associate" as "associate" | "manager" });
   const [resetPasswordEmployee, setResetPasswordEmployee] = useState<Employee | null>(null);
   const [newPassword, setNewPassword] = useState("");
+  const [showEmpPw, setShowEmpPw] = useState(false);
+  const [showResetPw, setShowResetPw] = useState(false);
   const [deactivateTarget, setDeactivateTarget] = useState<Employee | null>(null);
   const [deleteTagTarget, setDeleteTagTarget] = useState<ClientTag | null>(null);
   const [deleteTemplateTarget, setDeleteTemplateTarget] = useState<OutreachTemplate | null>(null);
@@ -338,7 +342,12 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="empPassword">Temporary Password</Label>
-                          <Input id="empPassword" type="password" placeholder="Temporary password" value={newEmployee.password} onChange={(e) => setNewEmployee({ ...newEmployee, password: e.target.value })} />
+                          <div className="relative flex items-center">
+                            <Input id="empPassword" type={showEmpPw ? "text" : "password"} placeholder="Temporary password" value={newEmployee.password} onChange={(e) => setNewEmployee({ ...newEmployee, password: e.target.value })} className="pr-9" />
+                            <button type="button" className="absolute right-0 flex h-9 w-9 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground" onClick={() => setShowEmpPw(!showEmpPw)} aria-label={showEmpPw ? "Hide password" : "Show password"}>
+                              {showEmpPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          </div>
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="empRole">Role</Label>
@@ -476,7 +485,12 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="newPassword">New Password</Label>
-                  <Input id="newPassword" type="password" placeholder="Enter new password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+                  <div className="relative flex items-center">
+                    <Input id="newPassword" type={showResetPw ? "text" : "password"} placeholder="Enter new password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="pr-9" />
+                    <button type="button" className="absolute right-0 flex h-9 w-9 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground" onClick={() => setShowResetPw(!showResetPw)} aria-label={showResetPw ? "Hide password" : "Show password"}>
+                      {showResetPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
                 <DialogFooter>
                   <Button onClick={handleResetPassword} className="w-full">Reset Password</Button>
