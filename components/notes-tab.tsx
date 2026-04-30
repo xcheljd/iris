@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Plus, MessageSquare, Calendar, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import type { FullClient } from "@/components/client-provider";
 
 interface ParsedNote {
@@ -25,6 +26,7 @@ interface NotesTabProps {
 export function NotesTab({ client }: NotesTabProps) {
   const [newNote, setNewNote] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const handleAddNote = async () => {
     if (!newNote.trim()) {
@@ -58,10 +60,6 @@ export function NotesTab({ client }: NotesTabProps) {
   };
 
   const handleDeleteNote = async (noteId: string) => {
-    if (!confirm("Are you sure you want to delete this note?")) {
-      return;
-    }
-
     try {
       const response = await fetch(`/api/notes`, {
         method: "DELETE",
@@ -71,6 +69,7 @@ export function NotesTab({ client }: NotesTabProps) {
 
       if (response.ok) {
         toast.success("Note deleted");
+        setDeleteTarget(null);
         window.location.reload();
       } else {
         toast.error("Failed to delete note");
@@ -161,7 +160,7 @@ export function NotesTab({ client }: NotesTabProps) {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDeleteNote(note.id)}
+                        onClick={() => setDeleteTarget(note.id)}
                         className="h-8 w-8 text-destructive hover:text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -183,6 +182,16 @@ export function NotesTab({ client }: NotesTabProps) {
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title="Delete Note"
+        description="Are you sure you want to delete this note? This action cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={() => { if (deleteTarget) handleDeleteNote(deleteTarget); }}
+      />
     </div>
   );
 }

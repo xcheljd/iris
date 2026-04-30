@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { getMethodIcon } from "@/lib/outreach-helpers";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon, Copy, Star } from "lucide-react";
 import { toast } from "sonner";
@@ -31,7 +32,6 @@ export function FollowUpForm({ clientId, onSuccess }: FollowUpFormProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
-  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
 
   const [formData, setFormData] = useState({
     method: "call" as "call" | "text" | "email" | "in-person",
@@ -155,8 +155,6 @@ export function FollowUpForm({ clientId, onSuccess }: FollowUpFormProps) {
     }
   };
 
-
-
   const outcomes = [
     { value: "no_answer", label: "No answer" },
     { value: "voicemail", label: "Voicemail" },
@@ -251,7 +249,7 @@ export function FollowUpForm({ clientId, onSuccess }: FollowUpFormProps) {
               <PopoverContent className="w-auto p-0">
                 <Calendar
                   mode="single"
-                      selected={formData.followUpDate ?? undefined}
+                  selected={formData.followUpDate ?? undefined}
                   onSelect={(date) => handleInputChange("followUpDate", date ?? null)}
                   initialFocus
                 />
@@ -284,15 +282,39 @@ export function FollowUpForm({ clientId, onSuccess }: FollowUpFormProps) {
             
             {/* Template Picker */}
             <div className="flex gap-2 mb-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowTemplatePicker(!showTemplatePicker)}
-                className="flex items-center gap-1"
-              >
-                <Star className="h-4 w-4" />
-                Templates
-              </Button>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1"
+                  >
+                    <Star className="h-4 w-4" />
+                    Templates
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-2 w-64" align="start">
+                  <ScrollArea className="max-h-48">
+                    {templates.length > 0 ? (
+                      templates.map((template) => (
+                        <Button
+                          key={template.id}
+                          variant="ghost"
+                          className="text-left justify-start w-full mb-1"
+                          onClick={() => handleTemplateSelect(template)}
+                        >
+                          <div>
+                            <div className="font-medium text-sm">{template.name}</div>
+                            <div className="text-xs text-muted-foreground">{template.channel}</div>
+                          </div>
+                        </Button>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground p-2">No templates available</p>
+                    )}
+                  </ScrollArea>
+                </PopoverContent>
+              </Popover>
               
               {selectedTemplate && (
                 <Button
@@ -305,21 +327,6 @@ export function FollowUpForm({ clientId, onSuccess }: FollowUpFormProps) {
                 </Button>
               )}
             </div>
-
-            {showTemplatePicker && (
-              <div className="border rounded-lg p-2 mb-2 max-h-32 overflow-y-auto">
-                {templates.map((template) => (
-                  <button
-                    key={template.id}
-                    className="text-left p-2 hover:bg-muted rounded w-full"
-                    onClick={() => handleTemplateSelect(template)}
-                  >
-                    <div className="font-medium text-sm">{template.name}</div>
-                    <div className="text-xs text-muted-foreground">{template.channel}</div>
-                  </button>
-                ))}
-              </div>
-            )}
 
             <Textarea
               placeholder="Add notes about the outreach..."

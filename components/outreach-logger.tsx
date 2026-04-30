@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { DatePicker } from "@/components/date-picker";
 import { logOutreach } from "@/lib/actions";
 import { toast } from "sonner";
 import { Phone, MessageSquare, Mail, User } from "lucide-react";
@@ -24,12 +25,12 @@ export function OutreachLogger({ clientId, clientName, trigger, templates = [] }
   const [outcome, setOutcome] = useState<string>("no_answer");
   const [purchasedModel, setPurchasedModel] = useState("");
   const [notes, setNotes] = useState("");
-  const [followUp, setFollowUp] = useState("");
+  const [followUp, setFollowUp] = useState<Date | null>(null);
   const [templateId, setTemplateId] = useState<string>("");
   const [pending, start] = useTransition();
 
   function reset() {
-    setMethod("call"); setOutcome("no_answer"); setPurchasedModel(""); setNotes(""); setFollowUp(""); setTemplateId("");
+    setMethod("call"); setOutcome("no_answer"); setPurchasedModel(""); setNotes(""); setFollowUp(null); setTemplateId("");
   }
 
   function submit() {
@@ -40,7 +41,7 @@ export function OutreachLogger({ clientId, clientName, trigger, templates = [] }
         outcome: outcome as "no_answer" | "voicemail" | "voicemail_full" | "responded" | "not_interested" | "wants_to_come_in" | "purchased",
         purchasedModel: purchasedModel || undefined,
         notes: notes || undefined,
-        followUpDate: followUp || null,
+        followUpDate: followUp ? followUp.toISOString().split("T")[0] : null,
         templateId: templateId || undefined,
       });
       toast.success("Outreach logged");
@@ -122,7 +123,7 @@ export function OutreachLogger({ clientId, clientName, trigger, templates = [] }
 
           <div className="space-y-2">
             <Label>Follow-up date (optional)</Label>
-            <Input type="date" value={followUp} onChange={(e) => setFollowUp(e.target.value)} />
+            <DatePicker date={followUp ?? undefined} onSelect={(d) => setFollowUp(d ?? null)} />
           </div>
         </div>
         <DialogFooter>
