@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -32,15 +32,18 @@ export default function AddClientPage() {
   const [productInterest, setProductInterest] = useState("");
   const [productsOfInterest, setProductsOfInterest] = useState<string[]>([]);
 
-  const checkForDuplicates = async () => {
-    if (!formData.firstName && !formData.phone && !formData.email) return;
+  const formDataRef = useRef(formData);
+  formDataRef.current = formData;
+
+  const checkForDuplicates = async (data: ClientFormData) => {
+    if (!data.firstName && !data.phone && !data.email) return;
 
     try {
-      const response = await fetch(`/api/clients/check-duplicates?firstName=${formData.firstName}&phone=${formData.phone}&email=${formData.email}`);
+      const response = await fetch(`/api/clients/check-duplicates?firstName=${data.firstName}&phone=${data.phone}&email=${data.email}`);
       if (response.ok) {
-        const data = await response.json();
-        if (data.duplicate) {
-          setDuplicateClient(data.duplicate);
+        const result = await response.json();
+        if (result.duplicate) {
+          setDuplicateClient(result.duplicate);
           setShowDuplicateWarning(true);
         } else {
           setShowDuplicateWarning(false);
@@ -53,10 +56,11 @@ export default function AddClientPage() {
   };
 
   const handleFieldChange = (field: string, value: string | boolean | Date | null | undefined | string[]) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    const updated = { ...formDataRef.current, [field]: value };
+    setFormData(updated);
     if (field === "firstName" || field === "phone" || field === "email") {
       clearTimeout((window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout);
-      (window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout = setTimeout(checkForDuplicates, 500);
+      (window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout = setTimeout(() => checkForDuplicates(updated), 500);
     }
   };
 
@@ -115,26 +119,9 @@ export default function AddClientPage() {
     }
   };
 
-  const handleMergeDuplicate = async () => {
+  const handleEditExisting = () => {
     if (!duplicateClient) return;
-
-    try {
-      const response = await fetch("/api/clients/merge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceClientId: null, targetClientId: duplicateClient.id }),
-      });
-
-      if (response.ok) {
-        toast.success("Clients merged successfully");
-        setShowDuplicateWarning(false);
-        router.push(`/clients/${duplicateClient.id}`);
-      } else {
-        toast.error("Failed to merge clients");
-      }
-    } catch (_error) {
-      toast.error("Failed to merge clients");
-    }
+    router.push(`/clients/${duplicateClient.id}`);
   };
 
   return (
@@ -169,7 +156,7 @@ export default function AddClientPage() {
             showDuplicateWarning={showDuplicateWarning}
             duplicateClient={duplicateClient}
             onDismissDuplicate={() => setShowDuplicateWarning(false)}
-            onMergeDuplicate={handleMergeDuplicate}
+            onEditExisting={handleEditExisting}
             showCommonTags
             isLoading={isLoading}
             submitLabel="Create Client"

@@ -200,26 +200,9 @@ export default function EditClientPage() {
     }
   };
 
-  const handleMergeDuplicate = async () => {
+  const handleEditExisting = () => {
     if (!duplicateClient) return;
-
-    try {
-      const response = await fetch("/api/clients/merge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceClientId: client?.id, targetClientId: duplicateClient.id }),
-      });
-
-      if (response.ok) {
-        toast.success("Clients merged successfully");
-        setShowDuplicateWarning(false);
-        router.push(`/clients/${duplicateClient.id}`);
-      } else {
-        toast.error("Failed to merge clients");
-      }
-    } catch (_error) {
-      toast.error("Failed to merge clients");
-    }
+    router.push(`/clients/${duplicateClient.id}`);
   };
 
   if (!client) {
@@ -264,7 +247,7 @@ export default function EditClientPage() {
             showDuplicateWarning={showDuplicateWarning}
             duplicateClient={duplicateClient}
             onDismissDuplicate={() => setShowDuplicateWarning(false)}
-            onMergeDuplicate={handleMergeDuplicate}
+            onEditExisting={handleEditExisting}
             employees={employees}
             isLoading={isLoading}
             submitLabel="Save Changes"

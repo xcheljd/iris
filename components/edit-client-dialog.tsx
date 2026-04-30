@@ -9,8 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DatePicker } from "@/components/date-picker";
-import { Edit3, X, Plus } from "lucide-react";
+import { Edit3, X, Plus, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import type { FullClient } from "@/components/client-provider";
 
@@ -132,34 +133,6 @@ export function EditClientDialog({ client }: EditClientDialogProps) {
     }
   };
 
-  const handleMergeDuplicate = async () => {
-    if (!duplicateClient) return;
-
-    try {
-      const response = await fetch("/api/clients/merge", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          sourceClientId: client.id,
-          targetClientId: duplicateClient.id,
-        }),
-      });
-
-      if (response.ok) {
-        toast.success("Clients merged successfully");
-        setShowDuplicateWarning(false);
-        setOpen(false);
-        window.location.href = `/clients/${duplicateClient.id}`;
-      } else {
-        toast.error("Failed to merge clients");
-      }
-    } catch (_error) {
-      toast.error("Failed to merge clients");
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) resetForm(); }}>
       <DialogTrigger asChild>
@@ -175,31 +148,32 @@ export function EditClientDialog({ client }: EditClientDialogProps) {
         </DialogHeader>
 
         {showDuplicateWarning && duplicateClient && (
-          <div className="p-4 border border-yellow-200 bg-yellow-50 rounded-lg">
-            <h4 className="font-semibold text-yellow-800 mb-2">Potential Duplicate Found</h4>
-            <p className="text-sm text-yellow-700 mb-3">
-              This client may be a duplicate of another client. Would you like to merge them?
-            </p>
-            <div className="space-y-2 mb-3">
-              <div className="text-sm">
-                <strong>Existing client:</strong> {duplicateClient.firstName} {duplicateClient.lastName}
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Potential Duplicate Found</AlertTitle>
+            <AlertDescription>
+              This client may be a duplicate of another client.
+              <div className="mt-2 space-y-1">
+                <div className="text-sm">
+                  <strong>Existing client:</strong> {duplicateClient.firstName} {duplicateClient.lastName}
+                </div>
+                {duplicateClient.phone && (
+                  <div className="text-sm text-muted-foreground">Phone: {duplicateClient.phone}</div>
+                )}
+                {duplicateClient.email && (
+                  <div className="text-sm text-muted-foreground">Email: {duplicateClient.email}</div>
+                )}
               </div>
-              {duplicateClient.phone && (
-                <div className="text-sm text-muted-foreground">Phone: {duplicateClient.phone}</div>
-              )}
-              {duplicateClient.email && (
-                <div className="text-sm text-muted-foreground">Email: {duplicateClient.email}</div>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={handleMergeDuplicate} variant="default">
-                Merge Clients
-              </Button>
-              <Button onClick={() => setShowDuplicateWarning(false)} variant="outline">
-                Keep Separate
-              </Button>
-            </div>
-          </div>
+              <div className="flex gap-2 mt-3">
+                <Button onClick={() => { setOpen(false); window.location.href = `/clients/${duplicateClient.id}`; }} variant="default" size="sm">
+                  Edit Existing
+                </Button>
+                <Button onClick={() => setShowDuplicateWarning(false)} variant="outline" size="sm">
+                  Keep Editing
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
         )}
 
         <div className="space-y-6">

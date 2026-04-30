@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DatePicker } from "@/components/date-picker";
 import { Plus, X, AlertCircle } from "lucide-react";
 
@@ -64,7 +65,7 @@ interface ClientFormProps {
   showDuplicateWarning: boolean;
   duplicateClient: DuplicateClient | null;
   onDismissDuplicate: () => void;
-  onMergeDuplicate: () => void;
+  onEditExisting: () => void;
   // Edit-only
   employees?: { id: string; name: string; role: string }[];
   showCommonTags?: boolean;
@@ -90,7 +91,7 @@ export function ClientForm({
   showDuplicateWarning,
   duplicateClient,
   onDismissDuplicate,
-  onMergeDuplicate,
+  onEditExisting,
   employees,
   showCommonTags = false,
   isLoading,
@@ -102,38 +103,32 @@ export function ClientForm({
     <div className="space-y-6">
       {/* Duplicate Warning */}
       {showDuplicateWarning && duplicateClient && (
-        <Card className="border-yellow-200 bg-yellow-50">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
-              <div className="flex-1">
-                <h4 className="font-semibold text-yellow-800 mb-2">Potential Duplicate Found</h4>
-                <p className="text-sm text-yellow-700 mb-3">
-                  This client may already exist in the system. Would you like to merge with the existing record?
-                </p>
-                <div className="space-y-2 mb-3">
-                  <div className="text-sm">
-                    <strong>Existing client:</strong> {duplicateClient.firstName} {duplicateClient.lastName}
-                  </div>
-                  {duplicateClient.phone && (
-                    <div className="text-sm text-muted-foreground">Phone: {duplicateClient.phone}</div>
-                  )}
-                  {duplicateClient.email && (
-                    <div className="text-sm text-muted-foreground">Email: {duplicateClient.email}</div>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={onMergeDuplicate} variant="default">
-                    Merge with Existing
-                  </Button>
-                  <Button onClick={onDismissDuplicate} variant="outline">
-                    Create New Record
-                  </Button>
-                </div>
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Potential Duplicate Found</AlertTitle>
+          <AlertDescription>
+            This client may already exist in the system. Would you like to merge with the existing record?
+            <div className="mt-2 space-y-1">
+              <div className="text-sm">
+                <strong>Existing client:</strong> {duplicateClient.firstName} {duplicateClient.lastName}
               </div>
+              {duplicateClient.phone && (
+                <div className="text-sm text-muted-foreground">Phone: {duplicateClient.phone}</div>
+              )}
+              {duplicateClient.email && (
+                <div className="text-sm text-muted-foreground">Email: {duplicateClient.email}</div>
+              )}
             </div>
-          </CardContent>
-        </Card>
+            <div className="flex gap-2 mt-3">
+              <Button onClick={onEditExisting} variant="default" size="sm">
+                Edit Existing
+              </Button>
+              <Button onClick={onDismissDuplicate} variant="outline" size="sm">
+                Create New Record
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* Basic Information */}
