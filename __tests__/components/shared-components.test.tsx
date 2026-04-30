@@ -96,12 +96,12 @@ describe("PaginationFooter", () => {
 
   it("disables Previous button when currentPage is 1", () => {
     render(<PaginationFooter {...defaults} currentPage={1} />);
-    expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Go to previous page" })).toBeDisabled();
   });
 
   it("disables Next button when currentPage equals totalPages", () => {
     render(<PaginationFooter {...defaults} currentPage={5} totalPages={5} />);
-    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Go to next page" })).toBeDisabled();
   });
 
   it("calls onPageChange with correct page when buttons are clicked", async () => {
@@ -115,9 +115,9 @@ describe("PaginationFooter", () => {
         onPageChange={onPageChange}
       />,
     );
-    await user.click(screen.getByRole("button", { name: "Previous" }));
+    await user.click(screen.getByRole("button", { name: "Go to previous page" }));
     expect(onPageChange).toHaveBeenCalledWith(1);
-    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(screen.getByRole("button", { name: "Go to next page" }));
     expect(onPageChange).toHaveBeenCalledWith(3);
   });
 
@@ -126,8 +126,8 @@ describe("PaginationFooter", () => {
     const { unmount } = render(
       <PaginationFooter {...defaults} variant="text" />,
     );
-    expect(screen.getByRole("button", { name: "Previous" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Next" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Go to previous page" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Go to next page" })).toBeInTheDocument();
     unmount();
 
     // icons variant — buttons contain SVGs instead of text

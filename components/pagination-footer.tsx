@@ -1,6 +1,11 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+} from "@/components/ui/pagination";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface PaginationFooterProps {
@@ -36,29 +41,38 @@ export function PaginationFooter({
     : `0${itemLabel ? ` ${itemLabel}` : ""}`;
 
   return (
-    <div className={`flex flex-col sm:flex-row items-center justify-between gap-2${showBorder ? " mt-4 pt-4 border-t" : ""}`}>
+    <Pagination
+      aria-label="Pagination"
+      className={`flex flex-col sm:flex-row items-center justify-between gap-2${showBorder ? " mt-4 pt-4 border-t" : ""}`}
+    >
       <p className="text-xs text-muted-foreground">{countText}</p>
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={currentPage <= 1}
-          onClick={() => onPageChange(currentPage - 1)}
-        >
-          {variant === "icons" ? <ChevronLeft className="h-4 w-4" /> : "Previous"}
-        </Button>
-        <span className="text-xs text-muted-foreground">
+      <PaginationContent>
+        <PaginationItem>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={currentPage <= 1}
+            onClick={() => onPageChange(currentPage - 1)}
+            aria-label="Go to previous page"
+          >
+            {variant === "icons" ? <ChevronLeft className="h-4 w-4" /> : "Previous"}
+          </Button>
+        </PaginationItem>
+        <li className="text-xs text-muted-foreground flex items-center px-2">
           Page {currentPage} of {totalPages}
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={currentPage >= totalPages}
-          onClick={() => onPageChange(currentPage + 1)}
-        >
-          {variant === "icons" ? <ChevronRight className="h-4 w-4" /> : "Next"}
-        </Button>
-      </div>
-    </div>
+        </li>
+        <PaginationItem>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={currentPage >= totalPages}
+            onClick={() => onPageChange(currentPage + 1)}
+            aria-label="Go to next page"
+          >
+            {variant === "icons" ? <ChevronRight className="h-4 w-4" /> : "Next"}
+          </Button>
+        </PaginationItem>
+      </PaginationContent>
+    </Pagination>
   );
 }
