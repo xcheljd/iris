@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DatePicker } from "@/components/date-picker";
 import { logOutreach } from "@/lib/actions";
 import { toast } from "sonner";
@@ -62,19 +63,25 @@ export function OutreachLogger({ clientId, clientName, trigger, templates = [] }
         <div className="space-y-4 py-2">
           <div className="space-y-2">
             <Label>Method</Label>
-            <div className="grid grid-cols-4 gap-2">
+            <ToggleGroup
+              type="single"
+              value={method}
+              onValueChange={(v) => { if (v) setMethod(v as "call" | "text" | "email" | "in-person"); }}
+              variant="outline"
+              className="grid grid-cols-4 gap-2"
+            >
               {([
                 { v: "call", label: "Call", I: Phone },
                 { v: "text", label: "Text", I: MessageSquare },
                 { v: "email", label: "Email", I: Mail },
                 { v: "in-person", label: "In-person", I: User },
               ] as const).map((m) => (
-                <Button key={m.v} type="button" variant={method === m.v ? "default" : "outline"} size="sm" className="flex-col h-auto py-2" onClick={() => setMethod(m.v)}>
+                <ToggleGroupItem key={m.v} value={m.v} className="flex-col h-auto py-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
                   <m.I className="h-4 w-4 mb-1" />
                   <span className="text-xs">{m.label}</span>
-                </Button>
+                </ToggleGroupItem>
               ))}
-            </div>
+            </ToggleGroup>
           </div>
 
           <div className="space-y-2">

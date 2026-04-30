@@ -11,6 +11,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { getMethodIcon } from "@/lib/outreach-helpers";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon, Copy, Star } from "lucide-react";
 import { toast } from "sonner";
@@ -183,19 +184,24 @@ export function FollowUpForm({ clientId, onSuccess }: FollowUpFormProps) {
           {/* Method Selection */}
           <div className="space-y-2">
             <Label>Method</Label>
-            <div className="grid grid-cols-2 gap-2">
+            <ToggleGroup
+              type="single"
+              value={formData.method}
+              onValueChange={(v) => { if (v) handleInputChange("method", v); }}
+              variant="outline"
+              className="grid grid-cols-2 gap-2"
+            >
               {["call", "text", "email", "in-person"].map((method) => (
-                <Button
+                <ToggleGroupItem
                   key={method}
-                  variant={formData.method === method ? "default" : "outline"}
-                  className="capitalize flex items-center gap-2"
-                  onClick={() => handleInputChange("method", method)}
+                  value={method}
+                  className="capitalize flex items-center gap-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
                 >
                   {getMethodIcon(method)}
                   {method}
-                </Button>
+                </ToggleGroupItem>
               ))}
-            </div>
+            </ToggleGroup>
           </div>
 
           {/* Outcome Selection */}
