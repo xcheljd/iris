@@ -7,7 +7,7 @@ import { Phone, Mail, Calendar, User, Gift, Copy } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { EditClientDialog } from "@/components/edit-client-dialog";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import type { FullClient } from "@/components/client-provider";
 
@@ -56,22 +56,20 @@ export function ProfileTab({ client }: ProfileTabProps) {
             {client.phone ? (
               <div className="flex items-center gap-2">
                 <span className="font-mono">{client.phone}</span>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handlePhoneCopy}
-                        className="h-8 w-8"
-                        aria-label="Copy phone number"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Copy phone number</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handlePhoneCopy}
+                      className="h-8 w-8"
+                      aria-label="Copy phone number"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Copy phone number</TooltipContent>
+                </Tooltip>
               </div>
             ) : (
               <span className="text-muted-foreground">Not provided</span>
@@ -86,22 +84,20 @@ export function ProfileTab({ client }: ProfileTabProps) {
             {client.email ? (
               <div className="flex items-center gap-2">
                 <span className="font-mono">{client.email}</span>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleEmailCopy}
-                        className="h-8 w-8"
-                        aria-label="Copy email address"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Copy email address</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleEmailCopy}
+                      className="h-8 w-8"
+                      aria-label="Copy email address"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Copy email address</TooltipContent>
+                </Tooltip>
               </div>
             ) : (
               <span className="text-muted-foreground">Not provided</span>

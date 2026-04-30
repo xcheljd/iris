@@ -8,7 +8,7 @@ import { HeatBadge } from "@/components/heat-badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -147,8 +147,7 @@ function SmartListItem({
         }`}
       >
         <button className="flex items-center gap-2 min-w-0 flex-1" onClick={onSelect}>
-          <TooltipProvider>
-            <Tooltip>
+          <Tooltip>
               <TooltipTrigger asChild>
                 <span className="flex items-center gap-2 min-w-0">
                   {list.isBuiltIn
@@ -166,7 +165,6 @@ function SmartListItem({
                 </TooltipContent>
               )}
             </Tooltip>
-          </TooltipProvider>
         </button>
         <div className="flex items-center gap-1">
           <Badge variant="secondary" className="text-xs shrink-0">
@@ -480,7 +478,6 @@ export function SmartListsContent({ lists, allClients }: SmartListsContentProps)
                   <Star className="h-4 w-4" />
                   Custom Lists
                 </CardTitle>
-                <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button size="sm" variant="ghost" onClick={() => setCreateOpen(true)} aria-label="Create new list">
@@ -489,7 +486,6 @@ export function SmartListsContent({ lists, allClients }: SmartListsContentProps)
                     </TooltipTrigger>
                     <TooltipContent>Create new list</TooltipContent>
                   </Tooltip>
-                </TooltipProvider>
               </div>
             </CardHeader>
             <CardContent className="space-y-1">

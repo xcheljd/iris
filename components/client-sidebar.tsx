@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { useState } from "react";
 import { OutreachLogger } from "@/components/outreach-logger";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { BanCustomerDialog, UnsubscribeCustomerDialog } from "@/components/client-status-actions";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -66,21 +66,19 @@ export function ClientSidebar({ currentUserRole }: { currentUserRole?: string })
                 <Phone className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm">{client.phone}</span>
               </div>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleCopy(client.phone!, "phone")}
-                      aria-label="Copy phone number"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Copy phone number</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCopy(client.phone!, "phone")}
+                    aria-label="Copy phone number"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Copy phone number</TooltipContent>
+              </Tooltip>
             </div>
           )}
           {client.email && (
@@ -89,21 +87,19 @@ export function ClientSidebar({ currentUserRole }: { currentUserRole?: string })
                 <Mail className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm truncate">{client.email}</span>
               </div>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleCopy(client.email!, "email")}
-                      aria-label="Copy email address"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Copy email address</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCopy(client.email!, "email")}
+                    aria-label="Copy email address"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Copy email address</TooltipContent>
+              </Tooltip>
             </div>
           )}
           <div className="text-sm">
