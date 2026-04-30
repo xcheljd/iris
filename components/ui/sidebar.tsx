@@ -37,7 +37,17 @@ export const SidebarProvider = React.forwardRef<
   const [openMobile, setOpenMobile] = React.useState(false);
   const [_open, _setOpen] = React.useState(defaultOpen);
   const open = openProp ?? _open;
-  const setOpen = React.useCallback((v: boolean) => { if (onOpenChange) { onOpenChange(v); } else { _setOpen(v); } }, [onOpenChange]);
+  const setOpen = React.useCallback((v: boolean) => {
+    if (onOpenChange) { onOpenChange(v); } else { _setOpen(v); }
+    try { localStorage.setItem("sidebar:collapsed", String(!v)); } catch {}
+  }, [onOpenChange]);
+
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem("sidebar:collapsed");
+      if (stored !== null) _setOpen(stored !== "true");
+    } catch {}
+  }, []);
 
   React.useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -95,7 +105,7 @@ export const Sidebar = React.forwardRef<HTMLDivElement, React.ComponentProps<"di
     return (
       <div ref={ref} className="group peer hidden md:block" data-state={state} data-collapsible={state === "collapsed" ? collapsible : ""}>
         <div className={cn("duration-200 relative h-svh bg-transparent transition-[width] ease-linear", state === "expanded" ? "w-[--sidebar-width]" : "w-[--sidebar-width-icon]")} />
-        <div className={cn("duration-200 fixed inset-y-0 left-0 z-10 hidden h-svh transition-[width] ease-linear md:flex", state === "expanded" ? "w-[--sidebar-width]" : "w-[--sidebar-width-icon]", className)} {...props}>
+        <div className={cn("duration-200 fixed inset-y-0 left-0 z-10 hidden h-svh overflow-hidden transition-[width] ease-linear md:flex", state === "expanded" ? "w-[--sidebar-width]" : "w-[--sidebar-width-icon]", className)} {...props}>
           <div className="flex h-full w-full flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">{children}</div>
         </div>
       </div>
@@ -133,7 +143,7 @@ export const SidebarFooter = React.forwardRef<HTMLDivElement, React.ComponentPro
 SidebarFooter.displayName = "SidebarFooter";
 
 export const SidebarContent = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("flex min-h-0 flex-1 flex-col gap-2 overflow-auto", className)} {...props} />
+  <div ref={ref} className={cn("flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden", className)} {...props} />
 ));
 SidebarContent.displayName = "SidebarContent";
 

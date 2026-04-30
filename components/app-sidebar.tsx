@@ -1,7 +1,8 @@
 "use client";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Users, Phone, ListFilter, Tag, BarChart3, Ban, MailX, Settings, LogOut, Watch, KeyRound } from "lucide-react";
+import { Home, Users, Phone, ListFilter, Tag, BarChart3, Ban, MailX, Settings, LogOut, Watch, KeyRound, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton, useSidebar } from "@/components/ui/sidebar";
 import { IrisIcon } from "@/components/iris-icon";
@@ -10,9 +11,10 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { signOut, useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { initials } from "@/lib/utils";
 
-const nav = [
+const baseNav = [
   { section: "Overview", items: [
     { href: "/", label: "Dashboard", icon: Home },
   ]},
@@ -33,6 +35,7 @@ const nav = [
     { href: "/unsubscribed", label: "Unsubscribed", icon: MailX },
   ]},
   { section: "System", items: [
+    { href: "/approvals", label: "Approvals", icon: ShieldCheck, managerOnly: true },
     { href: "/settings", label: "Settings", icon: Settings },
   ]},
 ];
@@ -42,11 +45,18 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const { data: session } = useSession();
   const collapsed = state === "collapsed";
+  const isManager = session?.user?.role === "manager";
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    if (!isManager) return;
+    fetch("/api/approvals/count").then(r => r.ok ? r.json() : { count: 0 }).then(d => setPendingCount(d.count)).catch(() => {});
+  }, [isManager, pathname]);
 
   return (
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border">
-        <Link href="/" className="flex items-center gap-2 px-2 py-1.5" aria-label="Iris Dashboard">
+        <Link href="/" className={cn("flex items-center gap-2 py-1.5", collapsed ? "justify-center px-0" : "px-2")} aria-label="Iris Dashboard">
           <IrisIcon size={32} className="shrink-0" />
           {!collapsed && (
             <div className="flex flex-col leading-tight">
@@ -57,64 +67,95 @@ export function AppSidebar() {
         </Link>
       </SidebarHeader>
       <SidebarContent>
-        {nav.map((group, i) => (
+        {baseNav.map((group, i) => {
+          const visibleItems = group.items.filter((item) => !("managerOnly" in item && item.managerOnly && !isManager));
+          if (visibleItems.length === 0) return null;
+          return (
           <div key={group.section}>
             <SidebarGroup>
               {!collapsed && <SidebarGroupLabel>{group.section}</SidebarGroupLabel>}
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {group.items.map((item) => {
-                    const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+                  {visibleItems.map((item) => {
+                    const active = pathname === item.href;
+                    const isApprovals = item.href === "/approvals";
                     return (
                       <SidebarMenuItem key={item.href}>
-                        <SidebarMenuButton asChild isActive={active} className={cn(active && "text-accent")}>
-                          <Link href={item.href}>
-                            <item.icon className="h-4 w-4" />
-                            {!collapsed && <span>{item.label}</span>}
-                          </Link>
-                        </SidebarMenuButton>
+                        {collapsed ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <SidebarMenuButton asChild isActive={active} className={cn(active && "text-accent")}>
+                                <Link href={item.href}>
+                                  <item.icon className="h-4 w-4" />
+                                </Link>
+                              </SidebarMenuButton>
+                            </TooltipTrigger>
+                            <TooltipContent side="right">{item.label}</TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <SidebarMenuButton asChild isActive={active} className={cn(active && "text-accent")}>
+                            <Link href={item.href}>
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.label}</span>
+                              {isApprovals && pendingCount > 0 && (
+                                <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1.5 text-[10px]">{pendingCount}</Badge>
+                              )}
+                            </Link>
+                          </SidebarMenuButton>
+                        )}
                       </SidebarMenuItem>
                     );
                   })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
-            {i < nav.length - 1 && <Separator className="mx-2" />}
+            {i < baseNav.length - 1 && <Separator className="mx-2" />}
           </div>
-        ))}
+          );
+        })}
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border">
-        <div className="flex items-center gap-2 px-2 py-1.5">
-          <Avatar className="h-7 w-7">
-            <AvatarFallback className="bg-accent/20 text-accent text-xs">{initials(session?.user?.name || "U")}</AvatarFallback>
-          </Avatar>
-          {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium truncate">{session?.user?.name}</p>
-              <p className="text-[10px] text-sidebar-foreground/60 capitalize">{session?.user?.role}</p>
-            </div>
-          )}
-          {!collapsed && (
+        <div className={cn("flex items-center gap-2 py-1.5", collapsed ? "justify-center px-0" : "px-2")}>
+          {collapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Link href="/change-password" aria-label="Change Password">
-                  <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Change Password">
-                    <KeyRound className="h-3.5 w-3.5" />
+                <Avatar className="h-7 w-7 cursor-default">
+                  <AvatarFallback className="bg-accent/20 text-accent text-xs">{initials(session?.user?.firstName || session?.user?.name || "U", session?.user?.lastName)}</AvatarFallback>
+                </Avatar>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p className="text-xs font-medium">{session?.user?.name}</p>
+                <p className="text-[10px] text-muted-foreground capitalize">{session?.user?.role}</p>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <>
+              <Avatar className="h-7 w-7">
+                <AvatarFallback className="bg-accent/20 text-accent text-xs">{initials(session?.user?.firstName || session?.user?.name || "U", session?.user?.lastName)}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium truncate">{session?.user?.name}</p>
+                <p className="text-[10px] text-sidebar-foreground/60 capitalize">{session?.user?.role}</p>
+              </div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/change-password" aria-label="Change Password">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Change Password">
+                      <KeyRound className="h-3.5 w-3.5" />
+                    </Button>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">Change Password</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => signOut({ callbackUrl: "/login" })} aria-label="Sign Out">
+                    <LogOut className="h-3.5 w-3.5" />
                   </Button>
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent side="right">Change Password</TooltipContent>
-            </Tooltip>
-          )}
-          {!collapsed && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => signOut({ callbackUrl: "/login" })} aria-label="Sign Out">
-                  <LogOut className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">Sign Out</TooltipContent>
-            </Tooltip>
+                </TooltipTrigger>
+                <TooltipContent side="right">Sign Out</TooltipContent>
+              </Tooltip>
+            </>
           )}
         </div>
       </SidebarFooter>
