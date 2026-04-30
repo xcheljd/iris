@@ -21,7 +21,7 @@ export interface FullClient {
   productsOfInterest: string[];
   notes?: string | null;
   onEmailList: boolean;
-  status: "active" | "inactive" | "banned" | "unsubscribed";
+  status: "active" | "inactive" | "banned" | "unsubscribed" | "deleted";
   source: "Client Log" | "Customer Report" | "Walk-in" | "Referral";
   birthday?: string | null;
   anniversary?: string | null;

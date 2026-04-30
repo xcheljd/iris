@@ -1,5 +1,4 @@
 import { Phone, MessageCircle, Mail, User } from "lucide-react";
-import type { ComponentType } from "react";
 
 export function getMethodIcon(method: string, size = "h-4 w-4") {
   const props = { className: size };

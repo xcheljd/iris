@@ -484,6 +484,81 @@ export async function changeOwnPassword(currentPassword: string, newPassword: st
   return { success: true as const };
 }
 
+async function requireManager() {
+  const user = await getSessionUser();
+  if (!user) throw new Error("Not authenticated");
+  if ((user as { role?: string }).role !== "manager") throw new Error("Manager access required");
+  return user;
+}
+
+export async function deleteClient(clientId: string) {
+  const user = await requireManager();
+
+  const client = db.select().from(clients).where(eq(clients.id, clientId)).get();
+  if (!client) throw new Error("Client not found");
+  if (client.status === "deleted") throw new Error("Client already deleted");
+
+  db.update(clients).set({
+    status: "deleted",
+    previousStatus: client.status,
+    deletedAt: new Date(),
+    deletedBy: (user as { id?: string }).id,
+    updatedAt: new Date(),
+  }).where(eq(clients.id, clientId)).run();
+
+  db.insert(activityEvents).values({
+    id: randomUUID(),
+    clientId,
+    eventType: "status_changed",
+    description: `Client deleted by ${user.name}`,
+    employeeId: (user as { id?: string }).id,
+  }).run();
+
+  revalidatePath("/clients");
+  revalidatePath("/settings");
+}
+
+export async function restoreClient(clientId: string) {
+  const user = await requireManager();
+
+  const client = db.select().from(clients).where(eq(clients.id, clientId)).get();
+  if (!client) throw new Error("Client not found");
+  if (client.status !== "deleted") throw new Error("Client is not deleted");
+
+  db.update(clients).set({
+    status: client.previousStatus ?? "active",
+    previousStatus: null,
+    deletedAt: null,
+    deletedBy: null,
+    updatedAt: new Date(),
+  }).where(eq(clients.id, clientId)).run();
+
+  db.insert(activityEvents).values({
+    id: randomUUID(),
+    clientId,
+    eventType: "status_changed",
+    description: `Client restored to ${client.previousStatus ?? "active"} by ${user.name}`,
+    employeeId: (user as { id?: string }).id,
+  }).run();
+
+  revalidatePath("/clients");
+  revalidatePath("/settings");
+}
+
+export async function purgeClient(clientId: string) {
+  await requireManager();
+
+  const client = db.select().from(clients).where(eq(clients.id, clientId)).get();
+  if (!client) throw new Error("Client not found");
+
+  db.delete(activityEvents).where(eq(activityEvents.clientId, clientId)).run();
+  db.delete(outreachLogs).where(eq(outreachLogs.clientId, clientId)).run();
+  db.delete(clients).where(eq(clients.id, clientId)).run();
+
+  revalidatePath("/clients");
+  revalidatePath("/settings");
+}
+
 export async function setSecretQuestion(question: string, answer: string) {
   const user = await getSessionUser();
   if (!user) return { error: "Not authenticated" };

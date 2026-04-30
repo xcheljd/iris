@@ -27,7 +27,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import {
-  ChevronDown,
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   Ban,
   ShieldOff,
   AlertTriangle,
@@ -64,15 +69,6 @@ export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }
   const [searchQuery, setSearchQuery] = useState("");
   const [showBanDialog, setShowBanDialog] = useState(false);
   const [unbanTarget, setUnbanTarget] = useState<BannedRow | null>(null);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-
-  const toggleExpand = (id: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
   const [banForm, setBanForm] = useState({
     clientId: "",
     firstName: "",
@@ -299,17 +295,13 @@ export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }
               description={searchQuery ? "Try a different search term" : "Banned customers will appear here"}
             />
           ) : (
-            <div className="space-y-2">
+            <Accordion type="multiple" className="space-y-2">
               {filteredBanned.map((row) => {
                 const customer = row.banned;
-                const isExpanded = expandedIds.has(customer.id);
                 return (
-                  <div key={customer.id} className="border rounded-lg">
-                    <div
-                      className="flex items-center gap-3 py-3 px-4 cursor-pointer hover:bg-muted/50 transition-colors"
-                      onClick={() => toggleExpand(customer.id)}
-                    >
-                      <div className="flex-1 min-w-0">
+                  <AccordionItem key={customer.id} value={customer.id} className="border rounded-lg px-0">
+                    <AccordionTrigger className="flex items-center gap-3 py-3 px-4 hover:bg-muted/50 transition-colors hover:no-underline">
+                      <div className="flex-1 min-w-0 text-left">
                         <div className="flex items-center gap-2">
                           {row.clientId ? (
                             <Link
@@ -361,59 +353,56 @@ export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                      <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
-                    </div>
-                    {isExpanded && (
-                      <div className="px-4 pb-4">
-                        <Separator className="mb-4" />
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <p className="text-sm font-medium text-muted-foreground">Contact</p>
-                            {(customer.email || customer.phone) ? (
-                              <div className="space-y-1">
-                                {customer.email && (
-                                  <p className="text-sm flex items-center gap-2">
-                                    <span className="text-muted-foreground">Email:</span>
-                                    {customer.email}
-                                  </p>
-                                )}
-                                {customer.phone && (
-                                  <p className="text-sm flex items-center gap-2">
-                                    <span className="text-muted-foreground">Phone:</span>
-                                    {customer.phone}
-                                  </p>
-                                )}
-                              </div>
-                            ) : (
-                              <p className="text-sm text-muted-foreground">No contact info</p>
-                            )}
-                          </div>
-                          <div className="space-y-2">
-                            <p className="text-sm font-medium text-muted-foreground">Ban Details</p>
-                            <div className="text-sm flex items-center gap-2">
-                              <span className="text-muted-foreground">Category:</span>
-                              {getCategoryBadge(customer.banReasonCategory)}
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4">
+                      <Separator className="mb-4" />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-muted-foreground">Contact</p>
+                          {(customer.email || customer.phone) ? (
+                            <div className="space-y-1">
+                              {customer.email && (
+                                <p className="text-sm flex items-center gap-2">
+                                  <span className="text-muted-foreground">Email:</span>
+                                  {customer.email}
+                                </p>
+                              )}
+                              {customer.phone && (
+                                <p className="text-sm flex items-center gap-2">
+                                  <span className="text-muted-foreground">Phone:</span>
+                                  {customer.phone}
+                                </p>
+                              )}
                             </div>
-                            {customer.specificBanReason && (
-                              <div>
-                                <p className="text-sm text-muted-foreground">Reason:</p>
-                                <p className="text-sm mt-0.5">{customer.specificBanReason}</p>
-                              </div>
-                            )}
-                            {customer.notes && (
-                              <div>
-                                <p className="text-sm text-muted-foreground">Notes:</p>
-                                <p className="text-sm mt-0.5">{customer.notes}</p>
-                              </div>
-                            )}
+                          ) : (
+                            <p className="text-sm text-muted-foreground">No contact info</p>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-muted-foreground">Ban Details</p>
+                          <div className="text-sm flex items-center gap-2">
+                            <span className="text-muted-foreground">Category:</span>
+                            {getCategoryBadge(customer.banReasonCategory)}
                           </div>
+                          {customer.specificBanReason && (
+                            <div>
+                              <p className="text-sm text-muted-foreground">Reason:</p>
+                              <p className="text-sm mt-0.5">{customer.specificBanReason}</p>
+                            </div>
+                          )}
+                          {customer.notes && (
+                            <div>
+                              <p className="text-sm text-muted-foreground">Notes:</p>
+                              <p className="text-sm mt-0.5">{customer.notes}</p>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    )}
-                  </div>
+                    </AccordionContent>
+                  </AccordionItem>
                 );
               })}
-            </div>
+            </Accordion>
           )}
         </CardContent>
       </Card>

@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getEmployees, getTags, getTemplates } from "@/lib/queries";
+import { getEmployees, getTags, getTemplates, getDeletedClients } from "@/lib/queries";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { SettingsContent } from "./settings-content";
@@ -18,5 +18,6 @@ async function SettingsFetcher() {
   const employees = await getEmployees();
   const tags = await getTags();
   const templates = await getTemplates();
-  return <SettingsContent employees={employees} tags={tags} templates={templates} currentUserRole={session?.user?.role ?? "associate"} />;
+  const deletedClients = await getDeletedClients();
+  return <SettingsContent employees={employees} tags={tags} templates={templates} deletedClients={JSON.parse(JSON.stringify(deletedClients))} currentUserRole={session?.user?.role ?? "associate"} />;
 }

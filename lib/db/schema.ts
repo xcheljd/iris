@@ -25,7 +25,7 @@ export const clients = sqliteTable("clients", {
   productsOfInterest: text("products_of_interest", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
   notes: text("notes"),
   onEmailList: integer("on_email_list", { mode: "boolean" }).notNull().default(false),
-  status: text("status", { enum: ["active", "inactive", "banned", "unsubscribed"] }).notNull().default("active"),
+  status: text("status", { enum: ["active", "inactive", "banned", "unsubscribed", "deleted"] }).notNull().default("active"),
   source: text("source", { enum: ["Client Log", "Customer Report", "Walk-in", "Referral"] }).notNull().default("Walk-in"),
   birthday: text("birthday"),
   anniversary: text("anniversary"),
@@ -36,6 +36,9 @@ export const clients = sqliteTable("clients", {
   lastPurchaseAt: integer("last_purchase_at", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  deletedAt: integer("deleted_at", { mode: "timestamp" }),
+  deletedBy: text("deleted_by"),
+  previousStatus: text("previous_status", { enum: ["active", "inactive", "banned", "unsubscribed"] }),
 });
 
 export const outreachLogs = sqliteTable("outreach_logs", {

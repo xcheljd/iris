@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Tag, Copy, Star, Plus, Ban, MailX, Phone, Mail } from "lucide-react";
+import { Calendar, Tag, Copy, Star, Plus, Ban, MailX, Phone, Mail, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { useState } from "react";
@@ -13,12 +13,25 @@ import { OutreachLogger } from "@/components/outreach-logger";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { BanCustomerDialog, UnsubscribeCustomerDialog } from "@/components/client-status-actions";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { deleteClient } from "@/lib/actions";
 
-export function ClientSidebar() {
+export function ClientSidebar({ currentUserRole }: { currentUserRole?: string }) {
   const client = useClient();
   const [promoDialogOpen, setPromoDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(false);
 
   if (!client) return null;
+
+  const handleDelete = async () => {
+    try {
+      await deleteClient(client.id);
+      toast.success("Client deleted");
+      window.location.href = "/clients";
+    } catch {
+      toast.error("Failed to delete client");
+    }
+  };
 
   const handleCopy = async (text: string, type: "phone" | "email") => {
     try {
@@ -230,6 +243,24 @@ export function ClientSidebar() {
                   <span className="truncate">Unsubscribe</span>
                 </Button>
               </UnsubscribeCustomerDialog>
+            </>
+          )}
+          {currentUserRole === "manager" && client.status !== "deleted" && (
+            <>
+              <Separator className="my-1" />
+              <ConfirmDialog
+                open={!!deleteTarget}
+                onOpenChange={(open) => !open && setDeleteTarget(false)}
+                title="Delete Client"
+                description={<>Are you sure you want to delete <strong>{client.firstName} {client.lastName}</strong>? This hides the client from all views. It can be restored by a manager from Settings.</>}
+                confirmLabel="Delete"
+                variant="destructive"
+                onConfirm={handleDelete}
+              />
+              <Button className="w-full justify-start" variant="outline" onClick={() => setDeleteTarget(true)}>
+                <Trash2 className="h-4 w-4 mr-2 shrink-0" />
+                <span className="truncate text-destructive">Delete Client</span>
+              </Button>
             </>
           )}
         </CardContent>

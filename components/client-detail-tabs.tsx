@@ -49,28 +49,28 @@ export function ClientDetailTabs() {
       <Separator className="mb-4" />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 md:grid-cols-6">
-          <TabsTrigger value="profile" className="flex items-center gap-2">
+        <TabsList className="flex w-full overflow-x-auto">
+          <TabsTrigger value="profile" className="flex items-center gap-2 shrink-0">
             <Users className="h-4 w-4" />
             Profile
           </TabsTrigger>
-          <TabsTrigger value="interests" className="flex items-center gap-2">
+          <TabsTrigger value="interests" className="flex items-center gap-2 shrink-0">
             <Gift className="h-4 w-4" />
             Interests
           </TabsTrigger>
-          <TabsTrigger value="outreach" className="flex items-center gap-2">
+          <TabsTrigger value="outreach" className="flex items-center gap-2 shrink-0">
             <Calendar className="h-4 w-4" />
             Outreach
           </TabsTrigger>
-          <TabsTrigger value="timeline" className="flex items-center gap-2">
+          <TabsTrigger value="timeline" className="flex items-center gap-2 shrink-0">
             <Briefcase className="h-4 w-4" />
             Timeline
           </TabsTrigger>
-          <TabsTrigger value="notes" className="flex items-center gap-2">
+          <TabsTrigger value="notes" className="flex items-center gap-2 shrink-0">
             <MapPin className="h-4 w-4" />
             Notes
           </TabsTrigger>
-          <TabsTrigger value="tags" className="flex items-center gap-2">
+          <TabsTrigger value="tags" className="flex items-center gap-2 shrink-0">
             <Mail className="h-4 w-4" />
             Tags
           </TabsTrigger>

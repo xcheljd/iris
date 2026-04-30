@@ -54,6 +54,10 @@ export default function AddClientPage() {
 
   const handleFieldChange = (field: string, value: string | boolean | Date | null | undefined | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    if (field === "firstName" || field === "phone" || field === "email") {
+      clearTimeout((window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout);
+      (window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout = setTimeout(checkForDuplicates, 500);
+    }
   };
 
   const handleAddTag = () => {

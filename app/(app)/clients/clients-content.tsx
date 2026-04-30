@@ -15,9 +15,12 @@ import { Topbar } from "@/components/topbar";
 import { formatPhone, daysAgo } from "@/lib/utils";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Plus, ChevronUp, ChevronDown, ChevronsUpDown, MoreHorizontal, Eye, Edit, Ban, MailX } from "lucide-react";
+import { Plus, ChevronUp, ChevronDown, ChevronsUpDown, MoreHorizontal, Eye, Edit, Ban, MailX, Trash2 } from "lucide-react";
 import { BanCustomerDialog, UnsubscribeCustomerDialog } from "@/components/client-status-actions";
 import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { deleteClient } from "@/lib/actions";
+import { toast } from "sonner";
 
 const PAGE_SIZE = 20;
 
@@ -56,7 +59,7 @@ function SortableHeader({ label, sortKey, currentSort, currentDir, onSort }: {
   );
 }
 
-export function ClientListContent({ rows, totalClients }: { rows: ClientRow[]; totalClients: number }) {
+export function ClientListContent({ rows, totalClients, currentUserRole }: { rows: ClientRow[]; totalClients: number; currentUserRole?: string }) {
   const searchParams = useSearchParams();
 
   const [q, setQ] = useState(searchParams.get("q") || "");
@@ -67,6 +70,7 @@ export function ClientListContent({ rows, totalClients }: { rows: ClientRow[]; t
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleteTarget, setDeleteTarget] = useState<ClientRow | null>(null);
 
   const owners = useMemo(() => {
     const set = new Set<string>();
@@ -148,6 +152,18 @@ export function ClientListContent({ rows, totalClients }: { rows: ClientRow[]; t
     const next = new Set(selected);
     if (next.has(id)) next.delete(id); else next.add(id);
     setSelected(next);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteClient(deleteTarget.client.id);
+      toast.success("Client deleted");
+      setDeleteTarget(null);
+      window.location.reload();
+    } catch {
+      toast.error("Failed to delete client");
+    }
   };
 
   return (
@@ -290,6 +306,15 @@ export function ClientListContent({ rows, totalClients }: { rows: ClientRow[]; t
                               </UnsubscribeCustomerDialog>
                             </>
                           )}
+                          {currentUserRole === "manager" && r.client.status !== "deleted" && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget(r)}>
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete Client
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -311,6 +336,16 @@ export function ClientListContent({ rows, totalClients }: { rows: ClientRow[]; t
           extraTotal={filtered.length !== totalClients ? totalClients : undefined}
         />
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete Client"
+        description={<>Are you sure you want to delete <strong>{deleteTarget?.client.firstName} {deleteTarget?.client.lastName}</strong>? This hides the client from all views. It can be restored by a manager from Settings.</>}
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={handleDelete}
+      />
     </>
   );
 }

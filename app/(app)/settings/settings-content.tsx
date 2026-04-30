@@ -36,22 +36,26 @@ import {
   Shield,
   UserPlus,
   MoreHorizontal,
+  RotateCcw,
 } from "lucide-react";
-import { createTag, deleteTag, createTemplate, deleteTemplate, createEmployee, resetEmployeePassword, updateEmployeeRole, toggleEmployeeActive } from "@/lib/actions";
+import { createTag, deleteTag, createTemplate, deleteTemplate, createEmployee, resetEmployeePassword, updateEmployeeRole, toggleEmployeeActive, restoreClient, purgeClient } from "@/lib/actions";
 import { toast } from "sonner";
+import { format } from "date-fns";
 import { Topbar } from "@/components/topbar";
 import type { Employee } from "@/lib/db/schema";
 import type { ClientTag } from "@/lib/db/schema";
 import type { OutreachTemplate } from "@/lib/db/schema";
+import type { Client } from "@/lib/db/schema";
 
 interface SettingsContentProps {
   employees: Employee[];
   tags: ClientTag[];
   templates: OutreachTemplate[];
+  deletedClients: Client[];
   currentUserRole: string;
 }
 
-export function SettingsContent({ employees, tags: initialTags, templates: initialTemplates, currentUserRole }: SettingsContentProps) {
+export function SettingsContent({ employees, tags: initialTags, templates: initialTemplates, deletedClients, currentUserRole }: SettingsContentProps) {
   const [tags, setTags] = useState(initialTags);
   const [templates, setTemplates] = useState(initialTemplates);
   const [employeeSearch, setEmployeeSearch] = useState("");
@@ -78,6 +82,8 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
   const [deactivateTarget, setDeactivateTarget] = useState<Employee | null>(null);
   const [deleteTagTarget, setDeleteTagTarget] = useState<ClientTag | null>(null);
   const [deleteTemplateTarget, setDeleteTemplateTarget] = useState<OutreachTemplate | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<Client | null>(null);
+  const [purgeTarget, setPurgeTarget] = useState<Client | null>(null);
 
   const tagColors = [
     { name: "blue", class: "bg-blue-500" },
@@ -225,6 +231,30 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
     }
   };
 
+  const handleRestore = async () => {
+    if (!restoreTarget) return;
+    try {
+      await restoreClient(restoreTarget.id);
+      toast.success("Client restored");
+      setRestoreTarget(null);
+      window.location.reload();
+    } catch {
+      toast.error("Failed to restore client");
+    }
+  };
+
+  const handlePurge = async () => {
+    if (!purgeTarget) return;
+    try {
+      await purgeClient(purgeTarget.id);
+      toast.success("Client permanently deleted");
+      setPurgeTarget(null);
+      window.location.reload();
+    } catch {
+      toast.error("Failed to purge client");
+    }
+  };
+
   const getChannelIcon = (channel: string) => {
     switch (channel) {
       case "text": return <MessageCircle className="h-4 w-4" />;
@@ -258,6 +288,12 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
             <FileText className="h-4 w-4" />
             Templates
           </TabsTrigger>
+          {isManager && (
+            <TabsTrigger value="deleted" className="gap-1">
+              <Trash2 className="h-4 w-4" />
+              Deleted
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Employees Tab */}
@@ -687,6 +723,66 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
             </CardContent>
           </Card>
         </TabsContent>
+
+        {isManager && (
+          <TabsContent value="deleted">
+            <Card>
+              <CardHeader>
+                <CardTitle>Deleted Clients</CardTitle>
+                <CardDescription>
+                  {deletedClients.length} deleted client{deletedClients.length !== 1 ? "s" : ""}. Restore or permanently remove them.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {deletedClients.length === 0 ? (
+                  <EmptyState
+                    icon={Trash2}
+                    title="No deleted clients"
+                    description="Deleted clients will appear here for recovery"
+                  />
+                ) : (
+                  <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead className="hidden sm:table-cell">Previous Status</TableHead>
+                        <TableHead className="hidden sm:table-cell">Deleted Date</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {deletedClients.map((dc) => (
+                        <TableRow key={dc.id}>
+                          <TableCell className="font-medium">{dc.firstName} {dc.lastName ?? ""}</TableCell>
+                          <TableCell className="hidden sm:table-cell">
+                            <Badge variant="outline" className="capitalize">{dc.previousStatus ?? "active"}</Badge>
+                          </TableCell>
+                          <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
+                            {dc.deletedAt ? format(new Date(dc.deletedAt), "MMM d, yyyy") : "—"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button variant="outline" size="sm" onClick={() => setRestoreTarget(dc)}>
+                                <RotateCcw className="h-4 w-4 mr-1" />
+                                Restore
+                              </Button>
+                              <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setPurgeTarget(dc)}>
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Purge
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Delete Tag Confirmation */}
@@ -709,6 +805,27 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
         confirmLabel="Delete"
         onConfirm={() => deleteTemplateTarget && handleDeleteTemplate(deleteTemplateTarget.id)}
         variant="destructive"
+      />
+
+      {/* Restore Client Confirmation */}
+      <ConfirmDialog
+        open={!!restoreTarget}
+        onOpenChange={(open) => !open && setRestoreTarget(null)}
+        title="Restore Client"
+        description={<>Are you sure you want to restore <strong>{restoreTarget?.firstName} {restoreTarget?.lastName}</strong>? They will reappear in the client list with their previous status.</>}
+        confirmLabel="Restore"
+        onConfirm={handleRestore}
+      />
+
+      {/* Purge Client Confirmation */}
+      <ConfirmDialog
+        open={!!purgeTarget}
+        onOpenChange={(open) => !open && setPurgeTarget(null)}
+        title="Permanently Delete Client"
+        description={<>Are you sure you want to permanently delete <strong>{purgeTarget?.firstName} {purgeTarget?.lastName}</strong>? This permanently removes the client and all their data. This cannot be undone.</>}
+        confirmLabel="Purge"
+        variant="destructive"
+        onConfirm={handlePurge}
       />
       </div>
     </>

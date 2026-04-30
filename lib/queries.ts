@@ -1,9 +1,9 @@
 import { db } from "@/lib/db";
 import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bannedCustomers, unsubscribeList, employees, clientTags, outreachTemplates, smartLists } from "@/lib/db/schema";
-import { eq, desc, and, or, isNotNull, lte, gte, ne, sql as rawSql } from "drizzle-orm";
+import { eq, desc, and, or, isNotNull, lte, gte, ne, notInArray, sql as rawSql } from "drizzle-orm";
 import { applyClientFilter } from "@/lib/utils";
 export async function getAllClients() {
-  return db.select().from(clients).where(ne(clients.status, "banned")).orderBy(desc(clients.heatScore)).all();
+  return db.select().from(clients).where(notInArray(clients.status, ["banned", "deleted"])).orderBy(desc(clients.heatScore)).all();
 }
 
 export async function getClient(id: string) {
@@ -14,7 +14,7 @@ export async function getClientsWithEmployee() {
   const rows = db.select({
     client: clients,
     employeeName: employees.name,
-  }).from(clients).leftJoin(employees, eq(clients.employeeId, employees.id)).where(ne(clients.status, "banned")).orderBy(desc(clients.heatScore)).all();
+  }).from(clients).leftJoin(employees, eq(clients.employeeId, employees.id)).where(notInArray(clients.status, ["banned", "deleted"])).orderBy(desc(clients.heatScore)).all();
   return rows;
 }
 
@@ -66,7 +66,7 @@ export async function getOverdueFollowUps() {
 }
 
 export async function getStats() {
-  const total = db.select({ c: rawSql<number>`count(*)` }).from(clients).get();
+  const total = db.select({ c: rawSql<number>`count(*)` }).from(clients).where(ne(clients.status, "deleted")).get();
   const active = db.select({ c: rawSql<number>`count(*)` }).from(clients).where(eq(clients.status, "active")).get();
   const hot = db.select({ c: rawSql<number>`count(*)` }).from(clients).where(and(eq(clients.heatLevel, "hot"), eq(clients.status, "active"))).get();
   const warm = db.select({ c: rawSql<number>`count(*)` }).from(clients).where(and(eq(clients.heatLevel, "warm"), eq(clients.status, "active"))).get();
@@ -157,7 +157,7 @@ export async function getRecentOutreach(limit = 20) {
 export async function searchClients(query: string) {
   const q = `%${query.toLowerCase()}%`;
   return db.select().from(clients).where(and(
-    ne(clients.status, "banned"),
+    notInArray(clients.status, ["banned", "deleted"]),
     or(
       rawSql`lower(${clients.firstName}) like ${q}`,
       rawSql`lower(${clients.lastName}) like ${q}`,
@@ -165,6 +165,10 @@ export async function searchClients(query: string) {
       rawSql`${clients.phone} like ${q}`,
     )
   )).limit(10).all();
+}
+
+export async function getDeletedClients() {
+  return db.select().from(clients).where(eq(clients.status, "deleted")).orderBy(desc(clients.deletedAt)).all();
 }
 
 export { applyClientFilter };

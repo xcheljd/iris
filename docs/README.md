@@ -18,6 +18,7 @@ Historical documents from completed work. Kept for reference.
 | [Archive/plan-001-employee-management.md](Archive/plan-001-employee-management.md) | Implementation plan for employee CRUD (5 server actions, change-password page) | April 2026 |
 | [Archive/visual-improvements.md](Archive/visual-improvements.md) | 10-phase UI polish changelog (skeletons, mobile, accessibility, component upgrades) | April 2026 |
 | [Archive/visual-testing-report.md](Archive/visual-testing-report.md) | Visual and interaction testing report across 14 pages (all issues resolved) | April 2026 |
+| [Archive/DESIGN-SYSTEM-GAP-ANALYSIS.md](Archive/DESIGN-SYSTEM-GAP-ANALYSIS.md) | Design system audit: 9 gaps identified, 7 components extracted, 1 evaluated and skipped, all resolved | April 2026 |
 
 ## Contributing
 
