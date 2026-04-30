@@ -3,6 +3,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Kbd } from "@/components/ui/kbd";
 import { Search, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
@@ -25,7 +26,7 @@ export function Topbar({ title, children }: { title?: string; children?: React.R
       }}>
         <Search className="h-3.5 w-3.5" />
         <span className="hidden sm:inline">Search</span>
-        <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium">⌘K</kbd>
+        <Kbd>⌘K</Kbd>
       </Button>
       {mounted && (
         <Tooltip>
