@@ -18,9 +18,10 @@ import type { FullClient } from "@/components/client-provider";
 
 interface EditClientDialogProps {
   client: FullClient;
+  children?: React.ReactNode;
 }
 
-export function EditClientDialog({ client }: EditClientDialogProps) {
+export function EditClientDialog({ client, children }: EditClientDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
@@ -137,10 +138,12 @@ export function EditClientDialog({ client }: EditClientDialogProps) {
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) resetForm(); }}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="w-full">
-          <Edit3 className="h-4 w-4 mr-2" />
-          Edit Client
-        </Button>
+        {children ? <div>{children}</div> : (
+          <Button variant="outline" className="w-full">
+            <Edit3 className="h-4 w-4 mr-2" />
+            Edit Client
+          </Button>
+        )}
       </DialogTrigger>
       
       <DialogContent className="max-w-2xl">

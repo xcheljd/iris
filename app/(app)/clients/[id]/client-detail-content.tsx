@@ -13,7 +13,7 @@ export function ClientDetailContent({ client, currentUserRole }: { client: FullC
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
+    <div className="flex flex-col h-svh">
       <Topbar title={`${client.firstName} ${client.lastName}`} />
       <div className="px-4 pt-3">
         <Breadcrumb>
@@ -55,7 +55,7 @@ export function ClientDetailContent({ client, currentUserRole }: { client: FullC
           </div>
 
           <div className="flex-1 overflow-auto">
-            <ClientDetailTabs />
+            <ClientDetailTabs currentUserRole={currentUserRole} />
           </div>
         </div>
       </ClientProvider>

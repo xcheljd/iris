@@ -6,7 +6,6 @@ import { Separator } from "@/components/ui/separator";
 import { Phone, Mail, Calendar, User, Gift, Copy } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { EditClientDialog } from "@/components/edit-client-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import type { FullClient } from "@/components/client-provider";
@@ -48,21 +47,21 @@ export function ProfileTab({ client }: ProfileTabProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <div className="flex items-center gap-2 shrink-0">
               <Phone className="h-4 w-4 text-muted-foreground" />
               <span>Phone</span>
             </div>
             {client.phone ? (
-              <div className="flex items-center gap-2">
-                <span className="font-mono">{client.phone}</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="font-mono truncate">{client.phone}</span>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={handlePhoneCopy}
-                      className="h-8 w-8"
+                      className="h-8 w-8 shrink-0"
                       aria-label="Copy phone number"
                     >
                       <Copy className="h-4 w-4" />
@@ -76,21 +75,21 @@ export function ProfileTab({ client }: ProfileTabProps) {
             )}
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <div className="flex items-center gap-2 shrink-0">
               <Mail className="h-4 w-4 text-muted-foreground" />
               <span>Email</span>
             </div>
             {client.email ? (
-              <div className="flex items-center gap-2">
-                <span className="font-mono">{client.email}</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="font-mono truncate">{client.email}</span>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={handleEmailCopy}
-                      className="h-8 w-8"
+                      className="h-8 w-8 shrink-0"
                       aria-label="Copy email address"
                     >
                       <Copy className="h-4 w-4" />
@@ -212,10 +211,6 @@ export function ProfileTab({ client }: ProfileTabProps) {
           </div>
         </CardContent>
       </Card>
-
-      <div className="md:col-span-2">
-        <EditClientDialog client={client} />
-      </div>
     </div>
   );
 }

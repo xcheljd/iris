@@ -5,34 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Calendar, Tag, Copy, Star, Plus, Ban, MailX, Phone, Mail, Trash2 } from "lucide-react";
+import { Tag, Copy, Calendar, Plus, Phone, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { useState } from "react";
 import { OutreachLogger } from "@/components/outreach-logger";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
-import { BanCustomerDialog, UnsubscribeCustomerDialog } from "@/components/client-status-actions";
-import { ConfirmDialog } from "@/components/confirm-dialog";
-import { deleteClient } from "@/lib/actions";
 
-export function ClientSidebar({ currentUserRole }: { currentUserRole?: string }) {
+export function ClientSidebar(_props: { currentUserRole?: string }) {
   const client = useClient();
-  const [promoDialogOpen, setPromoDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState(false);
 
   if (!client) return null;
-
-  const handleDelete = async () => {
-    try {
-      await deleteClient(client.id);
-      toast.success("Client deleted");
-      window.location.href = "/clients";
-    } catch {
-      toast.error("Failed to delete client");
-    }
-  };
 
   const handleCopy = async (text: string, type: "phone" | "email") => {
     try {
@@ -61,16 +43,17 @@ export function ClientSidebar({ currentUserRole }: { currentUserRole?: string })
         </CardHeader>
         <CardContent className="space-y-3">
           {client.phone && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">{client.phone}</span>
+            <div className="flex items-center justify-between gap-2 min-w-0">
+              <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+                <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-sm truncate">{client.phone}</span>
               </div>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost"
                     size="sm"
+                    className="shrink-0"
                     onClick={() => handleCopy(client.phone!, "phone")}
                     aria-label="Copy phone number"
                   >
@@ -82,9 +65,9 @@ export function ClientSidebar({ currentUserRole }: { currentUserRole?: string })
             </div>
           )}
           {client.email && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-muted-foreground" />
+            <div className="flex items-center justify-between gap-2 min-w-0">
+              <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+                <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className="text-sm truncate">{client.email}</span>
               </div>
               <Tooltip>
@@ -92,6 +75,7 @@ export function ClientSidebar({ currentUserRole }: { currentUserRole?: string })
                   <Button
                     variant="ghost"
                     size="sm"
+                    className="shrink-0"
                     onClick={() => handleCopy(client.email!, "email")}
                     aria-label="Copy email address"
                   >
@@ -169,98 +153,6 @@ export function ClientSidebar({ currentUserRole }: { currentUserRole?: string })
             </div>
           ) : (
             <div className="text-sm text-muted-foreground">No tags</div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <OutreachLogger
-            clientId={client.id}
-            clientName={`${client.firstName} ${client.lastName}`}
-            trigger={
-              <Button className="w-full justify-start" variant="outline">
-                <Calendar className="h-4 w-4 mr-2 shrink-0" />
-                <span className="truncate">Log Outreach</span>
-              </Button>
-            }
-          />
-          
-          {client.matches.length > 0 && (
-            <Dialog open={promoDialogOpen} onOpenChange={setPromoDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="w-full justify-start" variant="outline">
-                  <Star className="h-4 w-4 mr-2 shrink-0" />
-                  <span className="truncate">Promos ({client.matches.length})</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <Star className="h-5 w-5" />
-                    Promo Matches ({client.matches.length})
-                  </DialogTitle>
-                  <DialogDescription>Current promo watches matching this client&apos;s interests</DialogDescription>
-                </DialogHeader>
-                <ScrollArea className="max-h-[70vh]">
-                <div className="space-y-3 mt-2">
-                  {client.matches.filter((m) => m.promo?.modelNumber || m.promo?.collection).map((m, index: number) => (
-                    <div key={index} className="border rounded-lg p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <div className="font-medium">{m.promo?.modelNumber}</div>
-                          <div className="text-sm text-muted-foreground">{m.promo?.collection}</div>
-                        </div>
-                        <Badge variant={m.match.matchType === "model" ? "default" : "secondary"}>
-                          {m.match.matchType}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                </ScrollArea>
-              </DialogContent>
-            </Dialog>
-          )}
-
-          {client.status === "active" && (
-            <>
-              <Separator className="my-1" />
-              <BanCustomerDialog clientId={client.id} clientName={`${client.firstName} ${client.lastName ?? ""}`}>
-                <Button className="w-full justify-start" variant="outline">
-                  <Ban className="h-4 w-4 mr-2 shrink-0" />
-                  <span className="truncate">Ban Customer</span>
-                </Button>
-              </BanCustomerDialog>
-              <UnsubscribeCustomerDialog clientId={client.id} clientName={`${client.firstName} ${client.lastName ?? ""}`}>
-                <Button className="w-full justify-start" variant="outline">
-                  <MailX className="h-4 w-4 mr-2 shrink-0" />
-                  <span className="truncate">Unsubscribe</span>
-                </Button>
-              </UnsubscribeCustomerDialog>
-            </>
-          )}
-          {currentUserRole === "manager" && client.status !== "deleted" && (
-            <>
-              <Separator className="my-1" />
-              <ConfirmDialog
-                open={!!deleteTarget}
-                onOpenChange={(open) => !open && setDeleteTarget(false)}
-                title="Delete Client"
-                description={<>Are you sure you want to delete <strong>{client.firstName} {client.lastName}</strong>? This hides the client from all views. It can be restored by a manager from Settings.</>}
-                confirmLabel="Delete"
-                variant="destructive"
-                onConfirm={handleDelete}
-              />
-              <Button className="w-full justify-start" variant="outline" onClick={() => setDeleteTarget(true)}>
-                <Trash2 className="h-4 w-4 mr-2 shrink-0" />
-                <span className="truncate text-destructive">Delete Client</span>
-              </Button>
-            </>
           )}
         </CardContent>
       </Card>
