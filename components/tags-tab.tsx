@@ -16,6 +16,7 @@ import {
   Users
 } from "lucide-react";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/empty-state";
 import type { FullClient } from "@/components/client-provider";
 
 interface TagsTabProps {
@@ -175,18 +176,12 @@ export function TagsTab({ client }: TagsTabProps) {
               </div>
             </div>
           ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <Tag className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>No tags assigned to this client</p>
-              <Button
-                variant="outline"
-                onClick={() => setIsAdding(true)}
-                className="mt-3"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add First Tag
-              </Button>
-            </div>
+            <EmptyState
+              icon={Tag}
+              title="No tags assigned to this client"
+              action={{ label: "Add First Tag", onClick: () => setIsAdding(true), icon: Plus }}
+              compact
+            />
           )}
         </CardContent>
       </Card>

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Phone, Mail, MessageCircle, User, Calendar, Clock, CheckCircle, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
+import { EmptyState } from "@/components/empty-state";
 import type { FullClient } from "@/components/client-provider";
 import type { OutreachLog } from "@/lib/db/schema";
 
@@ -215,10 +216,10 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
               </p>
             </div>
           ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              <Phone className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>No outreach history recorded</p>
-            </div>
+            <EmptyState
+              icon={Phone}
+              title="No outreach history recorded"
+            />
           )}
         </CardContent>
       </Card>

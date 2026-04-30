@@ -10,6 +10,7 @@ import { Plus, MessageSquare, Calendar, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { EmptyState } from "@/components/empty-state";
 import type { FullClient } from "@/components/client-provider";
 
 interface ParsedNote {
@@ -174,11 +175,11 @@ export function NotesTab({ client }: NotesTabProps) {
               </div>
             </ScrollArea>
           ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>No notes recorded for this client</p>
-              <p className="text-sm mt-1">Add your first note to get started</p>
-            </div>
+            <EmptyState
+              icon={MessageSquare}
+              title="No notes recorded for this client"
+              description="Add your first note to get started"
+            />
           )}
         </CardContent>
       </Card>

@@ -2,6 +2,14 @@
 
 import type { ComponentType } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 
 interface EmptyStateAction {
   label: string;
@@ -20,18 +28,24 @@ interface EmptyStateProps {
 export function EmptyState({ icon: Icon, title, description, action, compact }: EmptyStateProps) {
   const ActionIcon = action?.icon;
   return (
-    <div className={`text-center ${compact ? "py-8" : "py-12"} text-muted-foreground`}>
-      {Icon && (
-        <Icon className="h-12 w-12 mx-auto mb-3 opacity-50" />
-      )}
-      {title && <p className="text-lg font-medium">{title}</p>}
-      {description && <p className={`text-sm mt-1 ${action ? "mb-4" : ""}`}>{description}</p>}
+    <Empty className={compact ? "py-8" : "py-12"}>
+      <EmptyHeader>
+        {Icon && (
+          <EmptyMedia variant="icon">
+            <Icon className="size-6" />
+          </EmptyMedia>
+        )}
+        {title && <EmptyTitle>{title}</EmptyTitle>}
+        {description && <EmptyDescription>{description}</EmptyDescription>}
+      </EmptyHeader>
       {action && (
-        <Button variant="outline" onClick={action.onClick} className="mt-4">
-          {ActionIcon && <ActionIcon className="h-4 w-4 mr-2" />}
-          {action.label}
-        </Button>
+        <EmptyContent>
+          <Button variant="outline" onClick={action.onClick}>
+            {ActionIcon && <ActionIcon className="h-4 w-4 mr-2" />}
+            {action.label}
+          </Button>
+        </EmptyContent>
       )}
-    </div>
+    </Empty>
   );
 }
