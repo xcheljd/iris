@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SearchInput } from "@/components/search-input";
 import { DatePicker } from "@/components/date-picker";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { EmptyState } from "@/components/empty-state";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PaginationFooter } from "@/components/pagination-footer";
@@ -152,7 +153,7 @@ function ImportPromoDialog({ open, onOpenChange }: { open: boolean; onOpenChange
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleReset(); onOpenChange(v); }}>
-      <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5" />
@@ -162,6 +163,8 @@ function ImportPromoDialog({ open, onOpenChange }: { open: boolean; onOpenChange
             Paste tab-delimited data from Excel. Headers are auto-detected.
           </DialogDescription>
         </DialogHeader>
+
+        <ScrollArea className="max-h-[70vh]">
 
         {!parsed ? (
           <div className="space-y-4">
@@ -275,6 +278,7 @@ function ImportPromoDialog({ open, onOpenChange }: { open: boolean; onOpenChange
             </DialogFooter>
           </div>
         )}
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

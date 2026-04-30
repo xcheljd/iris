@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Calendar, Tag, Copy, Star, Plus, Ban, MailX, Phone, Mail, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -201,7 +202,7 @@ export function ClientSidebar({ currentUserRole }: { currentUserRole?: string })
                   <span className="truncate">Promos ({client.matches.length})</span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
+              <DialogContent className="max-w-2xl">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
                     <Star className="h-5 w-5" />
@@ -209,6 +210,7 @@ export function ClientSidebar({ currentUserRole }: { currentUserRole?: string })
                   </DialogTitle>
                   <DialogDescription>Current promo watches matching this client&apos;s interests</DialogDescription>
                 </DialogHeader>
+                <ScrollArea className="max-h-[70vh]">
                 <div className="space-y-3 mt-2">
                   {client.matches.filter((m) => m.promo?.modelNumber || m.promo?.collection).map((m, index: number) => (
                     <div key={index} className="border rounded-lg p-4">
@@ -224,6 +226,7 @@ export function ClientSidebar({ currentUserRole }: { currentUserRole?: string })
                     </div>
                   ))}
                 </div>
+                </ScrollArea>
               </DialogContent>
             </Dialog>
           )}

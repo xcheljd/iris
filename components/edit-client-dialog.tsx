@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DatePicker } from "@/components/date-picker";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Edit3, X, Plus, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import type { FullClient } from "@/components/client-provider";
@@ -142,7 +143,7 @@ export function EditClientDialog({ client }: EditClientDialogProps) {
         </Button>
       </DialogTrigger>
       
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Edit Client</DialogTitle>
         </DialogHeader>
@@ -176,6 +177,7 @@ export function EditClientDialog({ client }: EditClientDialogProps) {
           </Alert>
         )}
 
+        <ScrollArea className="max-h-[70vh]">
         <div className="space-y-6">
           {/* Basic Information */}
           <div className="space-y-4">
@@ -376,6 +378,7 @@ export function EditClientDialog({ client }: EditClientDialogProps) {
             />
           </div>
         </div>
+        </ScrollArea>
 
         <div className="flex justify-end gap-2 pt-4 border-t">
           <Button variant="outline" onClick={() => setOpen(false)}>
