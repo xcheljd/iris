@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,7 @@ interface PromoClientMatch {
 
 interface PromosContentProps {
   promos: PromoWatch[];
+  isManager: boolean;
 }
 
 interface ParsedRow {
@@ -284,7 +286,8 @@ function ImportPromoDialog({ open, onOpenChange }: { open: boolean; onOpenChange
   );
 }
 
-export function PromosContent({ promos: initialPromos }: PromosContentProps) {
+export function PromosContent({ promos: initialPromos, isManager }: PromosContentProps) {
+  const router = useRouter();
   const [promos, setPromos] = useState(initialPromos);
   const [isCreating, setIsCreating] = useState(false);
   const [showMatches, setShowMatches] = useState<string | null>(null);
@@ -338,7 +341,7 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
       );
       toast.success("Promo watch created");
       setNewPromo({ modelNumber: "", collection: "", msrp: "", discountPercent: "", discountPrice: "" });
-      window.location.reload();
+      router.refresh();
     } catch { toast.error("Failed to create promo watch"); }
     finally { setIsCreating(false); }
   };
@@ -380,6 +383,7 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
             Weekly promo watches — match them to interested clients
           </p>
         </div>
+        {isManager && (
         <div className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" onClick={() => setImportOpen(true)}>
             <ClipboardPaste className="h-4 w-4 mr-2" />
@@ -432,6 +436,7 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
             </DialogContent>
           </Dialog>
         </div>
+        )}
       </div>
 
       {/* Promo Period Banner */}
@@ -446,10 +451,12 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
                   {promoStart ? format(parseISO(promoStart), "MMM d") : "?"} — {promoEnd ? format(parseISO(promoEnd), "MMM d, yyyy") : "?"}
                 </span>
               </div>
+              {isManager && (
               <Button variant="outline" size="sm" className="text-destructive h-7" onClick={() => setClearAllOpen(true)}>
                 <Trash className="h-3 w-3 mr-1" />
                 Clear All &amp; Reset
               </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -497,7 +504,7 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Current Promo List</CardTitle>
-            {promos.length > 0 && !(promoStart || promoEnd) && (
+            {isManager && promos.length > 0 && !(promoStart || promoEnd) && (
               <Button variant="outline" size="sm" className="text-destructive" onClick={() => setClearAllOpen(true)}>
                 <Trash className="h-4 w-4 mr-2" />
                 Clear All
@@ -520,7 +527,7 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
               icon={Watch}
               title="No active promos"
               description="Import this week's promo list to get started"
-              action={{ label: "Import from Excel", onClick: () => setImportOpen(true), icon: ClipboardPaste }}
+              {...(isManager ? { action: { label: "Import from Excel", onClick: () => setImportOpen(true), icon: ClipboardPaste } } : {})}
             />
           ) : filtered.length === 0 ? (
             <EmptyState description="No promos match your search" compact />
@@ -535,7 +542,7 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
                     <TableHead className="text-right hidden sm:table-cell">MSRP</TableHead>
                     <TableHead className="text-right hidden md:table-cell">Disc.</TableHead>
                     <TableHead className="text-right hidden sm:table-cell">Sale Price</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    {isManager && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -547,6 +554,7 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
                         <TableCell className="text-right hidden sm:table-cell">{promo.msrp != null ? `$${promo.msrp.toFixed(2)}` : "—"}</TableCell>
                         <TableCell className="text-right hidden md:table-cell">{promo.discountPercent != null ? `${promo.discountPercent}%` : "—"}</TableCell>
                         <TableCell className="text-right hidden sm:table-cell font-medium text-green-500">{promo.discountPrice != null ? `$${promo.discountPrice.toFixed(2)}` : "—"}</TableCell>
+                        {isManager && (
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -567,10 +575,11 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
+                        )}
                       </TableRow>
                       {showMatches === promo.id && (
                         <TableRow key={`${promo.id}-matches`}>
-                          <TableCell colSpan={6} className="bg-muted/30 p-4">
+                          <TableCell colSpan={isManager ? 6 : 5} className="bg-muted/30 p-4">
                             <div className="space-y-2">
                               <h4 className="text-sm font-medium">Matched Clients</h4>
                               {matches.length === 0 ? (
@@ -611,9 +620,10 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
       </Card>
 
       {/* Import Dialog */}
-      <ImportPromoDialog open={importOpen} onOpenChange={setImportOpen} />
+      {isManager && <ImportPromoDialog open={importOpen} onOpenChange={setImportOpen} />}
 
       {/* Delete Confirmation */}
+      {isManager && (
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
@@ -623,8 +633,10 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
         onConfirm={() => deleteTarget && handleDelete(deleteTarget.id)}
         variant="destructive"
       />
+      )}
 
       {/* Clear All Confirmation */}
+      {isManager && (
       <ConfirmDialog
         open={clearAllOpen}
         onOpenChange={setClearAllOpen}
@@ -634,6 +646,7 @@ export function PromosContent({ promos: initialPromos }: PromosContentProps) {
         onConfirm={handleClearAll}
         variant="destructive"
       />
+      )}
       </div>
     </>
   );

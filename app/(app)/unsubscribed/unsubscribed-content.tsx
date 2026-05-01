@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { PaginationFooter } from "@/components/pagination-footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -75,6 +76,7 @@ function filterByDate(records: UnsubscribedRow[], range: DateRange): Unsubscribe
 }
 
 export function UnsubscribedContent({ list: initialList, isManager }: { list: UnsubscribedRow[]; isManager: boolean }) {
+  const router = useRouter();
   const [list, setList] = useState(initialList);
   const [searchQuery, setSearchQuery] = useState("");
   const [addEmail, setAddEmail] = useState("");
@@ -190,8 +192,7 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
     try {
       await addUnsubscribeEmail(addEmail.trim());
       toast.success("Email added to unsubscribe list");
-      // Reload to get enriched data from server (client name, id, etc.)
-      window.location.reload();
+      router.refresh();
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Failed to add email";
       toast.error(message);

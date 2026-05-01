@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { PaginationFooter } from "@/components/pagination-footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -68,6 +69,7 @@ function getCategoryBadge(category: string) {
 }
 
 export function BannedContent({ banned: initialBanned, isManager }: { banned: BannedRow[]; isManager: boolean }) {
+  const router = useRouter();
   const [banned, setBanned] = useState(initialBanned);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -128,7 +130,7 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
         category: "Other",
         reason: "",
       });
-      window.location.reload();
+      router.refresh();
     } catch {
       toast.error("Failed to ban customer");
     } finally {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,11 +41,15 @@ import {
   RotateCcw,
   Eye,
   EyeOff,
+  UserCircle,
+  Pencil,
 } from "lucide-react";
-import { createTag, deleteTag, createTemplate, deleteTemplate, createEmployee, resetEmployeePassword, updateEmployeeRole, toggleEmployeeActive, restoreClient, purgeClient } from "@/lib/actions";
+import { createTag, deleteTag, createTemplate, deleteTemplate, createEmployee, resetEmployeePassword, updateEmployeeRole, toggleEmployeeActive, restoreClient, purgeClient, updateEmployee } from "@/lib/actions";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Topbar } from "@/components/topbar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { initials } from "@/lib/utils";
 import type { Employee } from "@/lib/db/schema";
 import type { ClientTag } from "@/lib/db/schema";
 import type { OutreachTemplate } from "@/lib/db/schema";
@@ -56,11 +61,16 @@ interface SettingsContentProps {
   templates: OutreachTemplate[];
   deletedClients: Client[];
   currentUserRole: string;
+  currentUserId: string;
 }
 
 const PAGE_SIZE = 20;
 
-export function SettingsContent({ employees, tags: initialTags, templates: initialTemplates, deletedClients, currentUserRole }: SettingsContentProps) {
+const fullName = (e: { firstName: string; lastName: string | null }) =>
+  [e.firstName, e.lastName].filter(Boolean).join(" ");
+
+export function SettingsContent({ employees, tags: initialTags, templates: initialTemplates, deletedClients, currentUserRole, currentUserId }: SettingsContentProps) {
+  const router = useRouter();
   const [tags, setTags] = useState(initialTags);
   const [templates, setTemplates] = useState(initialTemplates);
   const [employeeSearch, setEmployeeSearch] = useState("");
@@ -81,7 +91,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
   // Employee management
   const isManager = currentUserRole === "manager";
   const [showAddEmployeeDialog, setShowAddEmployeeDialog] = useState(false);
-  const [newEmployee, setNewEmployee] = useState({ name: "", username: "", password: "", role: "associate" as "associate" | "manager" });
+  const [newEmployee, setNewEmployee] = useState({ firstName: "", lastName: "", username: "", password: "", role: "associate" as "associate" | "manager" });
   const [resetPasswordEmployee, setResetPasswordEmployee] = useState<Employee | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [showEmpPw, setShowEmpPw] = useState(false);
@@ -92,6 +102,15 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
   const [restoreTarget, setRestoreTarget] = useState<Client | null>(null);
   const [purgeTarget, setPurgeTarget] = useState<Client | null>(null);
   const [deletedPage, setDeletedPage] = useState(1);
+
+  // Profile management
+  const currentUser = employees.find((e) => e.id === currentUserId);
+  const [showEditProfileDialog, setShowEditProfileDialog] = useState(false);
+  const [editProfile, setEditProfile] = useState({ firstName: "", lastName: "", username: "" });
+
+  // Edit employee management
+  const [editEmployeeTarget, setEditEmployeeTarget] = useState<Employee | null>(null);
+  const [editEmployee, setEditEmployee] = useState({ firstName: "", lastName: "", username: "", role: "associate" as "associate" | "manager", active: true });
 
   const tagColors = [
     { name: "blue", class: "bg-blue-500" },
@@ -108,7 +127,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
     if (!employeeSearch) return employees;
     const q = employeeSearch.toLowerCase();
     return employees.filter((e) =>
-      e.name.toLowerCase().includes(q) || e.username.toLowerCase().includes(q)
+      e.firstName.toLowerCase().includes(q) || (e.lastName ?? "").toLowerCase().includes(q) || e.username.toLowerCase().includes(q)
     );
   }, [employees, employeeSearch]);
 
@@ -125,7 +144,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
       toast.success("Tag created");
       setShowTagDialog(false);
       setNewTag({ name: "", color: "blue" });
-      window.location.reload();
+      router.refresh();
     } catch {
       toast.error("Failed to create tag");
     }
@@ -152,7 +171,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
       toast.success("Template created");
       setShowTemplateDialog(false);
       setNewTemplate({ name: "", body: "", subject: "", channel: "general" });
-      window.location.reload();
+      router.refresh();
     } catch {
       toast.error("Failed to create template");
     }
@@ -170,8 +189,8 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
   };
 
   const handleCreateEmployee = async () => {
-    if (!newEmployee.name.trim() || !newEmployee.username.trim() || !newEmployee.password.trim()) {
-      toast.error("Name, username, and password are required");
+    if (!newEmployee.firstName.trim() || !newEmployee.username.trim() || !newEmployee.password.trim()) {
+      toast.error("First name, username, and password are required");
       return;
     }
     if (newEmployee.password.length < 6) {
@@ -186,8 +205,8 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
       }
       toast.success("Employee created");
       setShowAddEmployeeDialog(false);
-      setNewEmployee({ name: "", username: "", password: "", role: "associate" });
-      window.location.reload();
+      setNewEmployee({ firstName: "", lastName: "", username: "", password: "", role: "associate" });
+      router.refresh();
     } catch {
       toast.error("Failed to create employee");
     }
@@ -204,7 +223,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
         toast.error(result.error);
         return;
       }
-      toast.success(`Password reset for ${resetPasswordEmployee.name}`);
+      toast.success(`Password reset for ${fullName(resetPasswordEmployee)}`);
       setResetPasswordEmployee(null);
       setNewPassword("");
     } catch {
@@ -220,8 +239,8 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
         toast.error(result.error);
         return;
       }
-      toast.success(`${employee.name} is now ${newRole}`);
-      window.location.reload();
+      toast.success(`${fullName(employee)} is now ${newRole}`);
+      router.refresh();
     } catch {
       toast.error("Failed to update role");
     }
@@ -234,9 +253,9 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
         toast.error(result.error);
         return;
       }
-      toast.success(`${employee.name} ${employee.active ? "deactivated" : "activated"}`);
+      toast.success(`${fullName(employee)} ${employee.active ? "deactivated" : "activated"}`);
       setDeactivateTarget(null);
-      window.location.reload();
+      router.refresh();
     } catch {
       toast.error("Failed to update status");
     }
@@ -248,7 +267,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
       await restoreClient(restoreTarget.id);
       toast.success("Client restored");
       setRestoreTarget(null);
-      window.location.reload();
+      router.refresh();
     } catch {
       toast.error("Failed to restore client");
     }
@@ -260,9 +279,54 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
       await purgeClient(purgeTarget.id);
       toast.success("Client permanently deleted");
       setPurgeTarget(null);
-      window.location.reload();
+      router.refresh();
     } catch {
       toast.error("Failed to purge client");
+    }
+  };
+
+  const handleEditProfile = async () => {
+    if (!editProfile.firstName.trim() || !editProfile.username.trim()) {
+      toast.error("First name and username are required");
+      return;
+    }
+    try {
+      const result = await updateEmployee(currentUserId, { firstName: editProfile.firstName, lastName: editProfile.lastName, username: editProfile.username });
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Profile updated");
+      setShowEditProfileDialog(false);
+      router.refresh();
+    } catch {
+      toast.error("Failed to update profile");
+    }
+  };
+
+  const handleEditEmployee = async () => {
+    if (!editEmployeeTarget) return;
+    if (!editEmployee.firstName.trim() || !editEmployee.username.trim()) {
+      toast.error("First name and username are required");
+      return;
+    }
+    try {
+      const result = await updateEmployee(editEmployeeTarget.id, {
+        firstName: editEmployee.firstName,
+        lastName: editEmployee.lastName,
+        username: editEmployee.username,
+        role: editEmployee.role,
+        active: editEmployee.active,
+      });
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(`${editEmployee.firstName} updated`);
+      setEditEmployeeTarget(null);
+      router.refresh();
+    } catch {
+      toast.error("Failed to update employee");
     }
   };
 
@@ -285,8 +349,12 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
         </p>
       </div>
 
-      <Tabs defaultValue="employees" className="space-y-6">
+      <Tabs defaultValue="profile" className="space-y-6">
         <TabsList>
+          <TabsTrigger value="profile" className="gap-1">
+            <UserCircle className="h-4 w-4" />
+            Profile
+          </TabsTrigger>
           <TabsTrigger value="employees" className="gap-1">
             <Users className="h-4 w-4" />
             Employees
@@ -306,6 +374,70 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
             </TabsTrigger>
           )}
         </TabsList>
+
+        {/* Profile Tab */}
+        <TabsContent value="profile">
+          <Card>
+            <CardHeader>
+              <CardTitle>Your Profile</CardTitle>
+              <CardDescription>View and manage your account information</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {currentUser ? (
+                <div className="flex items-start gap-6">
+                  <Avatar className="h-16 w-16 text-lg">
+                    <AvatarFallback className="bg-primary text-primary-foreground">
+                       {initials(currentUser.firstName, currentUser.lastName)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 space-y-1">
+                    <h3 className="text-lg font-semibold">{currentUser.firstName} {currentUser.lastName}</h3>
+                    <p className="text-sm text-muted-foreground">@{currentUser.username}</p>
+                    <Badge variant="secondary" className="capitalize">{currentUser.role}</Badge>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                       setEditProfile({ firstName: currentUser.firstName, lastName: currentUser.lastName ?? "", username: currentUser.username });
+                      setShowEditProfileDialog(true);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Edit Profile
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-muted-foreground">Could not load profile information.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Dialog open={showEditProfileDialog} onOpenChange={setShowEditProfileDialog}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Profile</DialogTitle>
+                <DialogDescription>Update your name and username.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="profileFirstName">First Name</Label>
+                  <Input id="profileFirstName" value={editProfile.firstName} onChange={(e) => setEditProfile({ ...editProfile, firstName: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profileLastName">Last Name</Label>
+                  <Input id="profileLastName" value={editProfile.lastName} onChange={(e) => setEditProfile({ ...editProfile, lastName: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profileUsername">Username</Label>
+                  <Input id="profileUsername" value={editProfile.username} onChange={(e) => setEditProfile({ ...editProfile, username: e.target.value })} />
+                </div>
+                <DialogFooter>
+                  <Button onClick={handleEditProfile} className="w-full">Save Changes</Button>
+                </DialogFooter>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </TabsContent>
 
         {/* Employees Tab */}
         <TabsContent value="employees">
@@ -333,8 +465,12 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                       </DialogHeader>
                       <div className="space-y-4">
                         <div className="space-y-2">
-                          <Label htmlFor="empName">Name</Label>
-                          <Input id="empName" placeholder="Full name" value={newEmployee.name} onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })} />
+                          <Label htmlFor="empFirstName">First Name</Label>
+                          <Input id="empFirstName" placeholder="First name" value={newEmployee.firstName} onChange={(e) => setNewEmployee({ ...newEmployee, firstName: e.target.value })} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="empLastName">Last Name</Label>
+                          <Input id="empLastName" placeholder="Last name" value={newEmployee.lastName} onChange={(e) => setNewEmployee({ ...newEmployee, lastName: e.target.value })} />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="empUsername">Username</Label>
@@ -392,7 +528,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                 <TableBody>
                   {filteredEmployees.map((employee) => (
                     <TableRow key={employee.id}>
-                      <TableCell className="font-medium">{employee.name}</TableCell>
+                       <TableCell className="font-medium">{fullName(employee)}</TableCell>
                       <TableCell className="hidden sm:table-cell text-muted-foreground">{employee.username}</TableCell>
                       <TableCell>
                         <Badge variant="secondary">
@@ -432,6 +568,13 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => {
+                                setEditEmployeeTarget(employee);
+                                setEditEmployee({ firstName: employee.firstName, lastName: employee.lastName ?? "", username: employee.username, role: employee.role, active: employee.active });
+                              }}>
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { setResetPasswordEmployee(employee); setNewPassword(""); }}>
                                 <KeyRound className="h-4 w-4 mr-2" />
                                 Reset Password
@@ -479,7 +622,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
           <Dialog open={!!resetPasswordEmployee} onOpenChange={(open) => { if (!open) setResetPasswordEmployee(null); }}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Reset Password for {resetPasswordEmployee?.name}</DialogTitle>
+                <DialogTitle>Reset Password for {resetPasswordEmployee ? fullName(resetPasswordEmployee) : ""}</DialogTitle>
                 <DialogDescription>Set a new temporary password for this account.</DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
@@ -507,13 +650,54 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
             description={
               <>
                 Are you sure you want to {deactivateTarget?.active ? "deactivate" : "activate"}{" "}
-                <strong>{deactivateTarget?.name}</strong>?
+                <strong>{deactivateTarget ? fullName(deactivateTarget) : ""}</strong>?
                 {deactivateTarget?.active && " They will no longer be able to log in."}
               </>
             }
             confirmLabel={deactivateTarget?.active ? "Deactivate" : "Activate"}
             onConfirm={() => deactivateTarget && handleToggleActive(deactivateTarget)}
           />
+
+          {/* Edit Employee Dialog */}
+          <Dialog open={!!editEmployeeTarget} onOpenChange={(open) => { if (!open) setEditEmployeeTarget(null); }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Employee</DialogTitle>
+                <DialogDescription>Update {editEmployeeTarget ? fullName(editEmployeeTarget) : ""}&apos;s information.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="editEmpFirstName">First Name</Label>
+                  <Input id="editEmpFirstName" value={editEmployee.firstName} onChange={(e) => setEditEmployee({ ...editEmployee, firstName: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="editEmpLastName">Last Name</Label>
+                  <Input id="editEmpLastName" value={editEmployee.lastName} onChange={(e) => setEditEmployee({ ...editEmployee, lastName: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="editEmpUsername">Username</Label>
+                  <Input id="editEmpUsername" value={editEmployee.username} onChange={(e) => setEditEmployee({ ...editEmployee, username: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="editEmpRole">Role</Label>
+                  <Select value={editEmployee.role} onValueChange={(value) => setEditEmployee({ ...editEmployee, role: value as "associate" | "manager" })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="associate">Associate</SelectItem>
+                      <SelectItem value="manager">Manager</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="editEmpActive">Active</Label>
+                  <Switch id="editEmpActive" checked={editEmployee.active} onCheckedChange={(checked) => setEditEmployee({ ...editEmployee, active: checked })} />
+                </div>
+                <DialogFooter>
+                  <Button onClick={handleEditEmployee} className="w-full">Save Changes</Button>
+                </DialogFooter>
+              </div>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <Separator />
@@ -529,6 +713,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                     {tags.length} tags available for client categorization
                   </CardDescription>
                 </div>
+                {isManager && (
                 <Dialog open={showTagDialog} onOpenChange={setShowTagDialog}>
                   <DialogTrigger asChild>
                     <Button size="sm">
@@ -566,6 +751,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                     </div>
                   </DialogContent>
                 </Dialog>
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -601,6 +787,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                           <TableCell>
                             <Badge variant="secondary">{tag.usageCount}</Badge>
                           </TableCell>
+                          {isManager && (
                           <TableCell className="text-right">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -616,6 +803,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
+                          )}
                         </TableRow>
                       );
                     })}
@@ -640,6 +828,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                     {templates.length} template{templates.length !== 1 ? "s" : ""} for outreach messages
                   </CardDescription>
                 </div>
+                {isManager && (
                 <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
                   <DialogTrigger asChild>
                     <Button size="sm">
@@ -690,6 +879,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                     </div>
                   </DialogContent>
                 </Dialog>
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -722,6 +912,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                               {template.body}
                             </p>
                           </div>
+                          {isManager && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" aria-label="Template actions">
@@ -735,6 +926,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -770,7 +962,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                         <TableHead>Name</TableHead>
                         <TableHead className="hidden sm:table-cell">Previous Status</TableHead>
                         <TableHead className="hidden sm:table-cell">Deleted Date</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                      {isManager && <TableHead className="text-right">Actions</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -817,6 +1009,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
       </Tabs>
 
       {/* Delete Tag Confirmation */}
+      {isManager && (
       <ConfirmDialog
         open={!!deleteTagTarget}
         onOpenChange={(open) => !open && setDeleteTagTarget(null)}
@@ -826,8 +1019,10 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
         onConfirm={() => deleteTagTarget && handleDeleteTag(deleteTagTarget.id)}
         variant="destructive"
       />
+      )}
 
       {/* Delete Template Confirmation */}
+      {isManager && (
       <ConfirmDialog
         open={!!deleteTemplateTarget}
         onOpenChange={(open) => !open && setDeleteTemplateTarget(null)}
@@ -837,6 +1032,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
         onConfirm={() => deleteTemplateTarget && handleDeleteTemplate(deleteTemplateTarget.id)}
         variant="destructive"
       />
+      )}
 
       {/* Restore Client Confirmation */}
       <ConfirmDialog

@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 22 | 16 | 0 | 6 |
-| MEDIUM | 33 | 31 | 0 | 2 |
+| MEDIUM | 33 | 30 | 0 | 3 |
 | LOW | 17 | 2 | 0 | 15 |
-| **TOTAL** | **80** | **58** | **0** | **22** |
+| **TOTAL** | **80** | **57** | **0** | **23** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,7 +28,7 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 22 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 33 (2 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🟡 MEDIUM | 33 (3 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (2 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
@@ -242,11 +242,12 @@
 
 ## 🟡 MEDIUM
 
-- [ ] ### M-01: `window.location.reload()` Used in 15+ Places
-- **Files**: `components/notes-tab.tsx:55,76`, `components/tags-tab.tsx:52,76`, `app/(app)/settings/settings-content.tsx:120,147,178,212,227`, `app/(app)/promos/promos-content.tsx:359`, `app/(app)/unsubscribed/unsubscribed-content.tsx:194`, `app/(app)/clients/clients-content.tsx`, `app/(app)/banned/banned-content.tsx`
+- [x] ### M-01: `window.location.reload()` Used in 15+ Places
+- **Files**: `components/notes-tab.tsx`, `components/tags-tab.tsx`, `app/(app)/settings/settings-content.tsx`, `app/(app)/promos/promos-content.tsx`, `app/(app)/unsubscribed/unsubscribed-content.tsx`, `app/(app)/clients/clients-content.tsx`, `app/(app)/banned/banned-content.tsx`
 - **Category**: UX / Architecture
 - Full page reload after mutations, losing scroll position and client state. The server actions already call `revalidatePath()`.
 - **Fix**: Use `router.refresh()` from `next/navigation` or rely on `revalidatePath()`.
+- **Resolved**: Replaced all 18 `window.location.reload()` calls with `router.refresh()` across 7 files. Server actions already call `revalidatePath()` which marks cache stale; `router.refresh()` triggers immediate client-side re-render with fresh server data without full page reload.
 
 - [x] ### M-02: All Clients Loaded Client-Side for Filtering
 - **Files**: `app/(app)/clients/clients-content.tsx:58-126`, `app/(app)/smart-lists/smart-lists-content.tsx:336`, `app/(app)/analytics/collections/collections-content.tsx:53-78`

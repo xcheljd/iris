@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,6 +26,7 @@ interface NotesTabProps {
 }
 
 export function NotesTab({ client }: NotesTabProps) {
+  const router = useRouter();
   const [newNote, setNewNote] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -51,7 +53,7 @@ export function NotesTab({ client }: NotesTabProps) {
         setNewNote("");
         setIsAdding(false);
         toast.success("Note added");
-        window.location.reload();
+        router.refresh();
       } else {
         toast.error("Failed to add note");
       }
@@ -73,7 +75,7 @@ export function NotesTab({ client }: NotesTabProps) {
       if (response.ok) {
         toast.success("Note deleted");
         setDeleteTarget(null);
-        window.location.reload();
+        router.refresh();
       } else {
         toast.error("Failed to delete note");
       }

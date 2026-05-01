@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +25,7 @@ interface TagsTabProps {
 }
 
 export function TagsTab({ client }: TagsTabProps) {
+  const router = useRouter();
   const [newTag, setNewTag] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -50,7 +52,7 @@ export function TagsTab({ client }: TagsTabProps) {
         setNewTag("");
         setIsAdding(false);
         toast.success("Tag added");
-        window.location.reload();
+        router.refresh();
       } else {
         toast.error("Failed to add tag");
       }
@@ -76,7 +78,7 @@ export function TagsTab({ client }: TagsTabProps) {
 
       if (response.ok) {
         toast.success("Tag removed");
-        window.location.reload();
+        router.refresh();
       } else {
         toast.error("Failed to remove tag");
       }

@@ -14,7 +14,7 @@ import { PaginationFooter } from "@/components/pagination-footer";
 import { Topbar } from "@/components/topbar";
 import { formatPhone, daysAgo } from "@/lib/utils";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Plus, ChevronUp, ChevronDown, ChevronsUpDown, MoreHorizontal, Eye, Edit, Ban, MailX, Trash2 } from "lucide-react";
 import { BanCustomerDialog, UnsubscribeCustomerDialog } from "@/components/client-status-actions";
 import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -60,6 +60,7 @@ function SortableHeader({ label, sortKey, currentSort, currentDir, onSort }: {
 }
 
 export function ClientListContent({ rows, totalClients, currentUserRole }: { rows: ClientRow[]; totalClients: number; currentUserRole?: string }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   const [q, setQ] = useState(searchParams.get("q") || "");
@@ -160,7 +161,7 @@ export function ClientListContent({ rows, totalClients, currentUserRole }: { row
       await deleteClient(deleteTarget.client.id);
       toast.success("Client deleted");
       setDeleteTarget(null);
-      window.location.reload();
+      router.refresh();
     } catch {
       toast.error("Failed to delete client");
     }
