@@ -41,7 +41,7 @@ import {
   Eye,
 } from "lucide-react";
 import { SearchInput } from "@/components/search-input";
-import { banClient, unbanCustomer } from "@/lib/actions";
+import { banClient, unbanClient } from "@/lib/actions";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import Link from "next/link";
@@ -67,7 +67,7 @@ function getCategoryBadge(category: string) {
   }
 }
 
-export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }) {
+export function BannedContent({ banned: initialBanned, isManager }: { banned: BannedRow[]; isManager: boolean }) {
   const [banned, setBanned] = useState(initialBanned);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -96,10 +96,11 @@ export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }
   const totalPages = Math.ceil(filteredBanned.length / PAGE_SIZE);
   const paged = filteredBanned.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const handleUnban = async (id: string) => {
+  const handleUnban = async (row: BannedRow) => {
+    if (!row.clientId) return;
     try {
-      await unbanCustomer(id);
-      setBanned(banned.filter((row) => row.banned.id !== id));
+      await unbanClient(row.clientId);
+      setBanned(banned.filter((r) => r.banned.id !== row.banned.id));
       toast.success("Customer unbanned");
     } catch {
       toast.error("Failed to unban customer");
@@ -146,6 +147,7 @@ export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }
             Manage customer bans for compliance
           </p>
         </div>
+        {isManager && (
         <Dialog open={showBanDialog} onOpenChange={setShowBanDialog}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -236,6 +238,7 @@ export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }
             </div>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -307,7 +310,7 @@ export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }
               {paged.map((row) => {
                 const customer = row.banned;
                 return (
-                  <AccordionItem key={customer.id} value={customer.id} className="border rounded-lg px-0">
+                  <AccordionItem key={customer.id} value={customer.id} className="border rounded-lg px-0 relative">
                     <AccordionTrigger className="flex items-center gap-3 py-3 px-4 hover:bg-muted/50 transition-colors hover:no-underline">
                       <div className="flex-1 min-w-0 text-left">
                         <div className="flex items-center gap-2">
@@ -330,38 +333,40 @@ export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }
                           Banned {customer.banDate ? format(new Date(customer.banDate), "MMM d, yyyy") : "—"}
                         </p>
                       </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 shrink-0"
-                            aria-label="Actions"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {row.clientId && (
-                            <DropdownMenuItem asChild>
-                              <Link href={`/clients/${row.clientId}`}>
-                                <Eye className="h-4 w-4 mr-2" />
-                                View Client Page
-                              </Link>
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => setUnbanTarget(row)}
-                          >
-                            <ShieldOff className="h-4 w-4 mr-2" />
-                            Unban
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
                     </AccordionTrigger>
+                    {isManager && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 shrink-0 absolute right-10 top-1/2 -translate-y-1/2 z-10"
+                          aria-label="Actions"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {row.clientId && (
+                          <DropdownMenuItem asChild>
+                            <Link href={`/clients/${row.clientId}`}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Client Page
+                            </Link>
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => setUnbanTarget(row)}
+                        >
+                          <ShieldOff className="h-4 w-4 mr-2" />
+                          Unban
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    )}
                     <AccordionContent className="px-4 pb-4">
                       <Separator className="mb-4" />
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -425,6 +430,7 @@ export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }
       </Card>
 
       {/* Unban Confirmation */}
+      {isManager && (
       <ConfirmDialog
         open={!!unbanTarget}
         onOpenChange={(open) => !open && setUnbanTarget(null)}
@@ -439,8 +445,9 @@ export function BannedContent({ banned: initialBanned }: { banned: BannedRow[] }
           </>
         }
         confirmLabel="Unban"
-        onConfirm={() => unbanTarget && handleUnban(unbanTarget.banned.id)}
+        onConfirm={() => unbanTarget && handleUnban(unbanTarget)}
       />
+      )}
       </div>
     </>
   );

@@ -204,9 +204,13 @@ export function ProfileTab({ client }: ProfileTabProps) {
               <h4 className="text-sm font-medium text-muted-foreground mb-2">
                 Email List
               </h4>
-              <Badge variant={client.onEmailList ? "default" : "secondary"}>
-                {client.onEmailList ? "Subscribed" : "Unsubscribed"}
-              </Badge>
+              {client.status === "unsubscribed" ? (
+                <Badge variant="destructive">Do Not Contact</Badge>
+              ) : (
+                <Badge variant={client.onEmailList ? "default" : "secondary"}>
+                  {client.onEmailList ? "Subscribed" : "Not on list"}
+                </Badge>
+              )}
             </div>
           </div>
         </CardContent>

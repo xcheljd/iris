@@ -34,7 +34,7 @@ import {
   MoreHorizontal,
   UserX,
 } from "lucide-react";
-import { removeUnsubscribe, addUnsubscribeEmail, resubscribeClient } from "@/lib/actions";
+import { addUnsubscribeEmail, resubscribeClient } from "@/lib/actions";
 import { toast } from "sonner";
 import { format, isAfter, isBefore, subDays, startOfMonth, endOfMonth } from "date-fns";
 import Link from "next/link";
@@ -74,7 +74,7 @@ function filterByDate(records: UnsubscribedRow[], range: DateRange): Unsubscribe
   }
 }
 
-export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedRow[] }) {
+export function UnsubscribedContent({ list: initialList, isManager }: { list: UnsubscribedRow[]; isManager: boolean }) {
   const [list, setList] = useState(initialList);
   const [searchQuery, setSearchQuery] = useState("");
   const [addEmail, setAddEmail] = useState("");
@@ -129,13 +129,14 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
     }
   };
 
-  const handleRemove = async (id: string) => {
+  const handleRemove = async (row: UnsubscribedRow) => {
+    if (!row.clientId) return;
     try {
-      await removeUnsubscribe(id);
-      setList(list.filter((l) => l.unsub.id !== id));
+      await resubscribeClient(row.clientId);
+      setList(list.filter((l) => l.unsub.id !== row.unsub.id));
       setSelected((prev) => {
         const next = new Set(prev);
-        next.delete(id);
+        next.delete(row.unsub.id);
         return next;
       });
       toast.success("Removed from unsubscribe list");
@@ -148,7 +149,8 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
 
   const handleBatchRemove = async () => {
     try {
-      await Promise.all(Array.from(selected).map((id) => removeUnsubscribe(id)));
+      const rows = list.filter((l) => selected.has(l.unsub.id) && l.clientId);
+      await Promise.all(rows.map((row) => resubscribeClient(row.clientId!)));
       setList(list.filter((l) => !selected.has(l.unsub.id)));
       toast.success(`Removed ${selected.size} record${selected.size !== 1 ? "s" : ""}`);
       setSelected(new Set());
@@ -235,39 +237,46 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Quick Add Email</p>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <Input
-                    placeholder="email@example.com"
-                    value={addEmail}
-                    onChange={(e) => {
-                      setAddEmail(e.target.value);
-                      setAddEmailError("");
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleAddEmail();
-                    }}
-                    className={addEmailError ? "border-destructive" : ""}
-                  />
-                  {addEmailError && (
-                    <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      {addEmailError}
-                    </p>
-                  )}
+            {isManager ? (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">Quick Add Email</p>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Input
+                      placeholder="email@example.com"
+                      value={addEmail}
+                      onChange={(e) => {
+                        setAddEmail(e.target.value);
+                        setAddEmailError("");
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleAddEmail();
+                      }}
+                      className={addEmailError ? "border-destructive" : ""}
+                    />
+                    {addEmailError && (
+                      <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {addEmailError}
+                      </p>
+                    )}
+                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" onClick={handleAddEmail}>
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Add to unsubscribe list (detects existing clients)</TooltipContent>
+                  </Tooltip>
                 </div>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" onClick={handleAddEmail}>
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Add to unsubscribe list (detects existing clients)</TooltipContent>
-                </Tooltip>
               </div>
-            </div>
+            ) : (
+              <div>
+                <p className="text-sm text-muted-foreground">Quick Add Email</p>
+                <p className="text-sm text-muted-foreground mt-2">Manager access required to add emails</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -278,7 +287,7 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 flex-wrap">
             <CardTitle>Unsubscribe List</CardTitle>
             <div className="flex items-center gap-2">
-              {selected.size > 0 && (
+              {isManager && selected.size > 0 && (
                 <Button
                   variant="destructive"
                   size="sm"
@@ -317,6 +326,7 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
             />
           ) : (
             <>
+              {isManager && (
               <div className="flex items-center gap-3 mb-3 px-1">
                 <Checkbox
                   checked={allSelected}
@@ -331,6 +341,7 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
                   {filteredList.length} record{filteredList.length !== 1 ? "s" : ""}
                 </Badge>
               </div>
+              )}
               <div className="space-y-1">
                 {paged.map((record) => (
                   <div
@@ -339,11 +350,13 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
                       selected.has(record.unsub.id) ? "bg-muted/30" : ""
                     }`}
                   >
+                    {isManager && (
                     <Checkbox
                       checked={selected.has(record.unsub.id)}
                       onCheckedChange={() => toggleSelect(record.unsub.id)}
                       aria-label={`Select ${record.unsub.email}`}
                     />
+                    )}
                     <div className="flex-1 min-w-0 flex items-center justify-between gap-4">
                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 min-w-0">
                         {/* Name / Client link */}
@@ -381,52 +394,65 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
                             ? format(new Date(record.unsub.unsubscribedAt), "MMM d, yyyy")
                             : "—"}
                         </span>
-                        {record.clientId ? (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" aria-label="Actions">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem asChild>
-                                <Link href={`/clients/${record.clientId}`}>
-                                  <ExternalLink className="h-4 w-4 mr-2" />
-                                  View Client
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleResubscribe(record)}
-                              >
-                                <Mail className="h-4 w-4 mr-2" />
-                                Resubscribe
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
-                                onClick={() => setRemoveTarget(record)}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Remove
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        ) : (
+                        {isManager ? (
+                          record.clientId ? (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" aria-label="Actions">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/clients/${record.clientId}`}>
+                                    <ExternalLink className="h-4 w-4 mr-2" />
+                                    View Client
+                                  </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleResubscribe(record)}
+                                >
+                                  <Mail className="h-4 w-4 mr-2" />
+                                  Resubscribe
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => setRemoveTarget(record)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Remove
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          ) : (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  className="h-7"
+                                  onClick={() => setRemoveTarget(record)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                  Remove
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Remove from unsubscribe list</TooltipContent>
+                            </Tooltip>
+                          )
+                        ) : record.clientId ? (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                className="h-7"
-                                onClick={() => setRemoveTarget(record)}
-                              >
-                                <Trash2 className="h-3.5 w-3.5 mr-1" />
-                                Remove
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" asChild>
+                                <Link href={`/clients/${record.clientId}`}>
+                                  <ExternalLink className="h-4 w-4" />
+                                </Link>
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Remove from unsubscribe list</TooltipContent>
+                            <TooltipContent>View Client</TooltipContent>
                           </Tooltip>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -446,6 +472,7 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
       </Card>
 
       {/* Single Remove Confirmation */}
+      {isManager && (
       <ConfirmDialog
         open={!!removeTarget}
         onOpenChange={(open) => !open && setRemoveTarget(null)}
@@ -458,11 +485,13 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
           </>
         }
         confirmLabel="Remove"
-        onConfirm={() => removeTarget && handleRemove(removeTarget.unsub.id)}
+        onConfirm={() => removeTarget && handleRemove(removeTarget)}
         variant="destructive"
       />
+      )}
 
       {/* Batch Remove Confirmation */}
+      {isManager && (
       <ConfirmDialog
         open={batchRemoveOpen}
         onOpenChange={setBatchRemoveOpen}
@@ -472,6 +501,7 @@ export function UnsubscribedContent({ list: initialList }: { list: UnsubscribedR
         onConfirm={handleBatchRemove}
         variant="destructive"
       />
+      )}
       </div>
     </>
   );

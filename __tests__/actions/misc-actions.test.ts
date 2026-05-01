@@ -11,9 +11,9 @@ vi.mock("next/cache", () => ({
 import { getServerSession } from "next-auth";
 import {
   rescheduleFollowUp,
-  unbanCustomer,
+  unbanClient,
   addUnsubscribeEmail,
-  removeUnsubscribe,
+  resubscribeClient,
   banClient,
 } from "@/lib/actions";
 import { db } from "@/lib/db";
@@ -85,7 +85,7 @@ describe("Misc Actions", () => {
     });
   });
 
-  describe("unbanCustomer", () => {
+  describe("unbanClient", () => {
     it("should restore a banned client to active and delete banned record", async () => {
       vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
 
@@ -96,10 +96,9 @@ describe("Misc Actions", () => {
         .where(eq(bannedCustomers.customerId, FIRST_CLIENT_ID))
         .get();
       expect(banned).toBeDefined();
-      cleanupBannedIds.push(banned!.id);
 
-      // Now unban
-      await unbanCustomer(banned!.id);
+      // Now unban by client ID
+      await unbanClient(FIRST_CLIENT_ID);
 
       // Client should be active again
       const client = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
@@ -112,9 +111,9 @@ describe("Misc Actions", () => {
       expect(deleted).toBeUndefined();
     });
 
-    it("should do nothing for nonexistent banned customer id", async () => {
+    it("should do nothing for nonexistent or non-banned client", async () => {
       // Should not throw
-      await unbanCustomer("nonexistent-banned-id");
+      await unbanClient("nonexistent-client-id");
     });
   });
 
@@ -150,7 +149,7 @@ describe("Misc Actions", () => {
     });
   });
 
-  describe("removeUnsubscribe", () => {
+  describe("resubscribeClient", () => {
     it("should remove from unsubscribe list and restore client to active", async () => {
       const testEmail = `resub-test-${Date.now()}@example.com`;
       db.update(clients).set({ email: testEmail, status: "unsubscribed", onEmailList: false }).where(eq(clients.id, FIRST_CLIENT_ID)).run();
@@ -161,8 +160,8 @@ describe("Misc Actions", () => {
       const entry = db.select().from(unsubscribeList).where(eq(unsubscribeList.email, testEmail)).get();
       expect(entry).toBeDefined();
 
-      // Now remove
-      await removeUnsubscribe(entry!.id);
+      // Now resubscribe by client ID
+      await resubscribeClient(FIRST_CLIENT_ID);
 
       // Check unsubscribe list is empty
       const removed = db.select().from(unsubscribeList).where(eq(unsubscribeList.id, entry!.id)).get();
@@ -171,11 +170,10 @@ describe("Misc Actions", () => {
       // Check client is active again
       const client = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
       expect(client!.status).toBe("active");
-      expect(client!.onEmailList).toBe(true);
     });
 
-    it("should do nothing for nonexistent id", async () => {
-      await removeUnsubscribe("nonexistent-unsub-id");
+    it("should do nothing for nonexistent client", async () => {
+      await resubscribeClient("nonexistent-client-id");
       // Should not throw
     });
   });

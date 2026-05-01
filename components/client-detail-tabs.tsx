@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Calendar, Mail, MapPin, Gift, Briefcase, Users, MoreHorizontal, Edit, Ban, MailX, Trash2 } from "lucide-react";
+import { Calendar, Mail, MapPin, Gift, Briefcase, Users, MoreHorizontal, Edit, Ban, MailX, Trash2, ShieldOff, UserCheck } from "lucide-react";
 import { format } from "date-fns";
 import { useClient, useActiveTab } from "@/components/client-provider";
 import { ProfileTab } from "@/components/profile-tab";
@@ -20,25 +19,14 @@ import { HeatScoreBar } from "@/components/heat-score-bar";
 import { EditClientDialog } from "@/components/edit-client-dialog";
 import { OutreachLogger } from "@/components/outreach-logger";
 import { BanCustomerDialog, UnsubscribeCustomerDialog } from "@/components/client-status-actions";
-import { ConfirmDialog } from "@/components/confirm-dialog";
-import { deleteClient } from "@/lib/actions";
+import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
+import { deleteClient, toggleEmailList, resubscribeClient, unbanClient } from "@/lib/actions";
 import { toast } from "sonner";
 
 export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string }) {
   const client = useClient();
   const { activeTab, setActiveTab } = useActiveTab();
-  const [deleteTarget, setDeleteTarget] = useState(false);
   if (!client) return null;
-
-  const handleDelete = async () => {
-    try {
-      await deleteClient(client.id);
-      toast.success("Client deleted");
-      window.location.href = "/clients";
-    } catch {
-      toast.error("Failed to delete client");
-    }
-  };
 
   return (
     <div className="p-4 md:p-6">
@@ -87,6 +75,24 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                   </DropdownMenuItem>
                 }
               />
+              {client.status !== "unsubscribed" && client.status !== "deleted" && client.onEmailList && (
+                <ConfirmActionDialog
+                  title="Remove from Email List"
+                  description={<>Are you sure you want to remove <strong>{client.firstName} {client.lastName}</strong> from the email list? They will no longer receive marketing emails.</>}
+                  confirmLabel="Remove"
+                  variant="destructive"
+                  onConfirm={() => toggleEmailList(client.id).then(() => toast.success("Removed from email list")).catch(() => toast.error("Failed to update"))}
+                >
+                  <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={(e) => e.preventDefault()}>
+                    <Mail className="h-4 w-4 mr-2" /> Remove from Email List
+                  </DropdownMenuItem>
+                </ConfirmActionDialog>
+              )}
+              {client.status !== "unsubscribed" && client.status !== "deleted" && !client.onEmailList && (
+                <DropdownMenuItem onClick={() => toggleEmailList(client.id).then(() => toast.success("Added to email list")).catch(() => toast.error("Failed to update"))}>
+                  <Mail className="h-4 w-4 mr-2" /> Add to Email List
+                </DropdownMenuItem>
+              )}
               {client.status === "active" && (
                 <>
                   <DropdownMenuSeparator />
@@ -102,21 +108,50 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                   </UnsubscribeCustomerDialog>
                 </>
               )}
+              {client.status === "banned" && currentUserRole === "manager" && (
+                <>
+                  <DropdownMenuSeparator />
+                  <ConfirmActionDialog
+                    title="Unban Customer"
+                    description={<>Are you sure you want to unban <strong>{client.firstName} {client.lastName}</strong>? This will restore their status to active.</>}
+                    confirmLabel="Unban"
+                    onConfirm={() => unbanClient(client.id).then(() => toast.success("Customer unbanned")).catch(() => toast.error("Failed to unban"))}
+                  >
+                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                      <ShieldOff className="h-4 w-4 mr-2" /> Unban Customer
+                    </DropdownMenuItem>
+                  </ConfirmActionDialog>
+                </>
+              )}
+              {client.status === "unsubscribed" && currentUserRole === "manager" && (
+                <>
+                  <DropdownMenuSeparator />
+                  <ConfirmActionDialog
+                    title="Resubscribe Customer"
+                    description={<>Are you sure you want to resubscribe <strong>{client.firstName} {client.lastName}</strong>? This will allow all forms of contact again.</>}
+                    confirmLabel="Resubscribe"
+                    onConfirm={() => resubscribeClient(client.id).then(() => toast.success("Customer resubscribed")).catch(() => toast.error("Failed to resubscribe"))}
+                  >
+                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                      <UserCheck className="h-4 w-4 mr-2" /> Resubscribe
+                    </DropdownMenuItem>
+                  </ConfirmActionDialog>
+                </>
+              )}
               {currentUserRole === "manager" && client.status !== "deleted" && (
                 <>
                   <DropdownMenuSeparator />
-                  <ConfirmDialog
-                    open={!!deleteTarget}
-                    onOpenChange={(open) => !open && setDeleteTarget(false)}
+                  <ConfirmActionDialog
                     title="Delete Client"
                     description={<>Are you sure you want to delete <strong>{client.firstName} {client.lastName}</strong>? This hides the client from all views. It can be restored by a manager from Settings.</>}
                     confirmLabel="Delete"
                     variant="destructive"
-                    onConfirm={handleDelete}
-                  />
-                  <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget(true)}>
-                    <Trash2 className="h-4 w-4 mr-2" /> Delete Client
-                  </DropdownMenuItem>
+                    onConfirm={() => deleteClient(client.id).then(() => { toast.success("Client deleted"); window.location.href = "/clients"; }).catch(() => toast.error("Failed to delete client"))}
+                  >
+                    <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={(e) => e.preventDefault()}>
+                      <Trash2 className="h-4 w-4 mr-2" /> Delete Client
+                    </DropdownMenuItem>
+                  </ConfirmActionDialog>
                 </>
               )}
             </DropdownMenuContent>
