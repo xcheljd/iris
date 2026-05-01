@@ -3,7 +3,6 @@ import {
   cn,
   formatPhone,
   formatDate,
-  formatDateTime,
   daysAgo,
   initials,
   applyClientFilter,
@@ -110,38 +109,6 @@ describe("formatDate", () => {
 });
 
 // ---------------------------------------------------------------------------
-// formatDateTime
-// ---------------------------------------------------------------------------
-describe("formatDateTime", () => {
-  it("formats a Date object with time", () => {
-    const d = new Date(2025, 0, 15, 14, 30);
-    const result = formatDateTime(d);
-    expect(result).toContain("Jan");
-    expect(result).toContain("15");
-    expect(result).toContain("2025");
-    // Should contain some time representation
-    expect(result).toMatch(/\d/);
-  });
-
-  it("formats an ISO string", () => {
-    const result = formatDateTime("2025-06-01T14:30:00");
-    expect(result).toContain("Jun");
-    expect(result).toContain("1");
-  });
-
-  it("returns empty string for null", () => {
-    expect(formatDateTime(null)).toBe("");
-  });
-
-  it("returns empty string for undefined", () => {
-    expect(formatDateTime(undefined)).toBe("");
-  });
-
-  it("returns empty string for empty string", () => {
-    expect(formatDateTime("")).toBe("");
-  });
-});
-
 // ---------------------------------------------------------------------------
 // daysAgo
 // ---------------------------------------------------------------------------

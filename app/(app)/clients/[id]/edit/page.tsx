@@ -112,7 +112,7 @@ export default function EditClientPage() {
         setEmployees(data);
       }
     } catch (error) {
-      console.error("Failed to fetch employees:", error);
+      toast.error("Failed to fetch employees");
     }
   };
 
@@ -133,7 +133,7 @@ export default function EditClientPage() {
         }
       }
     } catch (error) {
-      console.error("Failed to check duplicates:", error);
+      toast.error("Failed to check for duplicates");
     } finally {
       setIsCheckingDuplicates(false);
     }

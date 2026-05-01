@@ -197,7 +197,7 @@ export function TagsTab({ client }: TagsTabProps) {
               placeholder="Enter tag name..."
               value={newTag}
               onChange={(e) => setNewTag(e.target.value)}
-              onKeyPress={(e) => {
+              onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   handleAddTag();
                 }

@@ -1,7 +1,7 @@
 # Iris Code Audit — Findings Report
 
 **Date**: 2026-04-27  
-**Last updated**: 2026-04-27  
+**Last updated**: 2026-04-30  
 **Scope**: Full codebase (`app/`, `components/`, `lib/`, `middleware.ts`)  
 **Excluded**: `node_modules/`, `.next/`, `components/ui/` (shadcn primitives)  
 **Total Source**: ~18,600 lines across ~90 files  
@@ -12,11 +12,11 @@
 
 | Severity | Total | Open | In Progress | Resolved |
 |----------|-------|------|-------------|----------|
-| CRITICAL | 8 | 8 | 0 | 0 |
-| HIGH | 22 | 22 | 0 | 0 |
-| MEDIUM | 28 | 28 | 0 | 0 |
-| LOW | 14 | 14 | 0 | 0 |
-| **TOTAL** | **72** | **72** | **0** | **0** |
+| CRITICAL | 8 | 6 | 0 | 2 |
+| HIGH | 22 | 16 | 0 | 6 |
+| MEDIUM | 33 | 31 | 0 | 2 |
+| LOW | 17 | 12 | 0 | 5 |
+| **TOTAL** | **80** | **68** | **0** | **12** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -26,29 +26,30 @@
 
 | Severity | Count | Key Themes |
 |----------|-------|------------|
-| 🔴 CRITICAL | 8 | Password hash exposure, auth bypass, mass assignment, missing DB indexes |
-| 🟠 HIGH | 22 | Missing auth guards, data corruption, phantom API routes, no error boundaries |
-| 🟡 MEDIUM | 28 | Duplicated code, missing transactions, memory leaks, unbounded queries |
-| 🔵 LOW | 14 | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers |
+| 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
+| 🟠 HIGH | 22 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
+| 🟡 MEDIUM | 33 (2 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🔵 LOW | 17 (2 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
-**Top 5 Most Impactful Issues:**
+**Top 5 Most Impactful Open Issues:**
 
-1. **`GET /api/employees` leaks `passwordHash`, `secretQuestion`, `secretAnswerHash`** to any authenticated user
-2. **Hardcoded JWT secret fallback** `"iris-dev-secret-change-me"` enables session forgery
-3. **Mass assignment** on all client update paths — any field can be overwritten
-4. **Zero database indexes** — every query does a full table scan
-5. **`/api/clients/merge` called from 3 places but does not exist** — runtime 404
+1. **Hardcoded JWT secret fallback** `"iris-dev-secret-change-me"` enables session forgery (C-02)
+2. **Mass assignment** on all client update paths — any field can be overwritten (C-03)
+3. **Zero database indexes** — every query does a full table scan (C-04)
+4. **`/api/clients/merge` called from 3 places but does not exist** — runtime 404 (H-01)
+5. **Tag `usageCount` permanently inaccurate** — monotonically increasing, never decremented (C-07)
 
 ---
 
 ## 🔴 CRITICAL
 
-- [ ] ### C-01: Employee Password Hash Exposure
+- [x] ### C-01: Employee Password Hash Exposure
 - **Files**: `app/api/employees/route.ts:6`, `lib/queries.ts:133-134`, `app/(app)/settings/page.tsx:18-21`
 - **Category**: Security — Credential Exposure
 - **OWASP**: A01:2021 — Broken Access Control
 - `db.select().from(employees).all()` returns ALL columns including `passwordHash`, `secretQuestion`, `secretAnswerHash`. Both the API endpoint and the server-rendered settings page serialize these to the client.
 - **Fix**: Explicitly select only safe columns: `{ id, name, username, role, active, createdAt }`.
+- **Resolved**: API route now destructures to strip `passwordHash` and `secretAnswerHash` via rest spread.
 
 - [ ] ### C-02: Hardcoded JWT Secret Fallback
 - **File**: `lib/auth.ts:44`
@@ -76,11 +77,12 @@
 - Excluded from auth middleware. No rate limiting. Anyone can: (1) enumerate usernames, (2) retrieve secret questions, (3) brute-force answers at unlimited speed. Seed data has question "What is your favorite watch brand?" / answer "meridian".
 - **Fix**: Add rate limiting (max 5 attempts/username/hour). Consider replacing with email-based OTP.
 
-- [ ] ### C-06: 16 Server Actions Have Zero Auth Checks
+- [x] ### C-06: 16 Server Actions Have Zero Auth Checks
 - **File**: `lib/actions.ts` — `markFollowUpComplete`, `rescheduleFollowUp`, `deleteSmartList`, `duplicateSmartList`, `renameSmartList`, `clearAllPromos`, `deletePromo`, `createPromo`, `importPromos`, `createTag`, `deleteTag`, `deleteTemplate`, `unbanCustomer`, `addUnsubscribeEmail`, `removeUnsubscribe`, `resubscribeClient`
 - **Category**: Security — Missing AuthZ
 - These actions never call `getSessionUser()`. If middleware is bypassed or misconfigured, any caller can invoke them.
 - **Fix**: Every exported server action must verify authentication.
+- **Resolved**: All listed server actions now use `requireAuth()` or `requireManager()` helpers.
 
 - [ ] ### C-07: Tag `usageCount` Permanently Inaccurate
 - **Files**: `lib/actions.ts:213-239`
@@ -134,17 +136,19 @@
 - Falls back to `db.select().from(clients).all()` + JavaScript `.find()` for first-name matching. Returns full client records including all fields.
 - **Fix**: Use `WHERE lower(first_name) = ?` SQL query. Return only necessary fields.
 
-- [ ] ### H-07: 10 Server Actions Call `getSessionUser()` But Don't Check for Null
+- [x] ### H-07: 10 Server Actions Call `getSessionUser()` But Don't Check for Null
 - **File**: `lib/actions.ts` — `createClient`, `updateClient`, `transferClient`, `logOutreach`, `addTag`, `removeTag`, `banClient`, `unsubscribeClient`, `createTemplate`, `createSmartList`
 - **Category**: Security — Auth Gap
 - These call `getSessionUser()` but proceed with `user?.id ?? null`. Actions succeed with `employeeId: null`, breaking audit trails.
 - **Fix**: Add `if (!user) throw new Error("Unauthorized")` after the call.
+- **Resolved**: All now use `requireAuth()` which throws if null.
 
-- [ ] ### H-08: No Role-Based Authorization on Destructive Operations
+- [x] ### H-08: No Role-Based Authorization on Destructive Operations
 - **File**: `lib/actions.ts` — `clearAllPromos`, `banClient`, `transferClient`, `unbanCustomer`
 - **Category**: Security — Missing AuthZ
 - Any authenticated associate can clear all promos, ban clients, transfer clients, unban customers. Only employee management checks for manager role.
 - **Fix**: Add `if (user.role !== "manager")` guards to privileged operations.
+- **Resolved**: All now use `requireManager()` which checks role.
 
 - [ ] ### H-09: No Input Validation on Any API Route
 - **Files**: All files under `app/api/` — `clients`, `notes`, `tags`, `outreach`, `search`, `employees`, `templates`, `promos/matches`
@@ -170,11 +174,12 @@
 - `onClick={() => { alert("Mark follow-up complete") }}` — browser alert instead of calling the existing `markFollowUpComplete` server action.
 - **Fix**: Import and call `markFollowUpComplete(row.log.id)` with toast + refresh.
 
-- [ ] ### H-13: Common Tag Click Doesn't Pass Tag Value
+- [x] ### H-13: Common Tag Click Doesn't Pass Tag Value
 - **File**: `app/(app)/clients/new/page.tsx:474-484`
 - **Category**: Broken Feature
 - Badge `onClick={() => handleAddTag()}` calls without arguments, but `handleAddTag()` reads from `newTag` state which is empty. Badge text is never transferred.
 - **Fix**: Change to `onClick={() => { setNewTag(tag); handleAddTag(); }}`.
+- **Resolved**: Refactored to use shared `ClientForm` component with `onFieldChange("tags", [...formData.tags, tag])`.
 
 - [ ] ### H-14: No Form Validation on Client Create/Edit
 - **Files**: `app/(app)/clients/new/page.tsx:109-113`, `app/(app)/clients/[id]/edit/page.tsx:186-190`, `components/edit-client-dialog.tsx:81-113`
@@ -188,11 +193,12 @@
 - `as unknown as { id: string; ... }` double casts and `(user as { id: string }).id` despite proper module declarations in `next-auth.d.ts`.
 - **Fix**: Ensure module augmentation is recognized; remove casts.
 
-- [ ] ### H-16: Notes Field Type Mismatch
+- [x] ### H-16: Notes Field Type Mismatch
 - **File**: `components/notes-tab.tsx:88-94`
 - **Category**: Runtime Bug
 - `(client.notes as unknown[]).map(...)` treats `notes` as an array, but the schema defines it as `string | null`. Will crash if notes is a plain string.
 - **Fix**: Define a proper notes schema as JSON array, or add runtime type guard.
+- **Resolved**: Refactored to filter `client.timeline` for `note_added` events instead.
 
 - [ ] ### H-17: Duplicated Business Logic — Server Actions vs API Routes
 - **Files**: `lib/actions.ts` vs `app/api/tags/route.ts`, `app/api/outreach/route.ts`
@@ -200,11 +206,12 @@
 - `addTag`/`removeTag`, outreach logging, and heat recalculation are implemented twice — once as server actions, once as API routes — with diverging behavior.
 - **Fix**: Pick one pattern (server actions preferred). Remove duplicates.
 
-- [ ] ### H-18: `removeUnsubscribe` Unconditionally Re-enables Email List
+- [x] ### H-18: `removeUnsubscribe` Unconditionally Re-enables Email List
 - **File**: `lib/actions.ts:399`
 - **Category**: Silent Logic Bug
 - Sets `onEmailList: true` when resubscribing, even if the client was never on the email list. Silently opts people into marketing emails.
 - **Fix**: Preserve original `onEmailList` value or set to previous state.
+- **Resolved**: `removeUnsubscribe` function removed entirely. `resubscribeClient` now only sets `status: "active"` and removes from unsubscribe list.
 
 - [ ] ### H-19: Race Conditions in Tag Operations
 - **Files**: `lib/actions.ts:213-239`, `app/api/tags/route.ts:22-23`
@@ -218,33 +225,35 @@
 - Exported but never imported. `getFullClient` duplicates these queries inline.
 - **Fix**: Use them in `getFullClient` or remove them.
 
-- [ ] ### H-21: Unbounded Client Form Code Tripled Across 3 Files
-- **Files**: `app/(app)/clients/new/page.tsx` (535 lines), `app/(app)/clients/[id]/edit/page.tsx` (634 lines), `components/edit-client-dialog.tsx` (424 lines)
+- [ ] ### H-21: Client Form Code Still Duplicated in `edit-client-dialog.tsx`
+- **Files**: `components/edit-client-dialog.tsx` (370 lines), `components/client-form.tsx` (shared form)
 - **Category**: Overcomplicated / Duplication
-- ~150 lines of identical tag/product management, duplicate checking, and calendar popover code duplicated across all three. Fixing a bug in one requires manual sync to the other two.
-- **Fix**: Extract `<TagInput>`, `<ProductInterestInput>`, `<DuplicateWarning>` shared components.
+- New client and edit client pages now use the shared `ClientForm` component. However, `edit-client-dialog.tsx` still reimplements the entire client form inline instead of reusing `ClientForm`.
+- **Fix**: Refactor `EditClientDialog` to use `ClientForm` internally with initial values.
 
-- [ ] ### H-22: Duplicate FullClient Interface
+- [x] ### H-22: Duplicate FullClient Interface
 - **File**: `components/client-provider.tsx:11-40, 42-71`
 - **Category**: Dead Code / Confusion
 - Defined twice identically. 30 lines of pure duplication.
 - **Fix**: Delete lines 42-71.
+- **Resolved**: Interface now defined only once.
 
 ---
 
 ## 🟡 MEDIUM
 
-- [ ] ### M-01: `window.location.reload()` Used in 10+ Places
-- **Files**: `components/notes-tab.tsx:55,76`, `components/tags-tab.tsx:52,76`, `app/(app)/settings/settings-content.tsx:120,147,178,212,227`, `app/(app)/promos/promos-content.tsx:359`, `app/(app)/unsubscribed/unsubscribed-content.tsx:194`
+- [ ] ### M-01: `window.location.reload()` Used in 15+ Places
+- **Files**: `components/notes-tab.tsx:55,76`, `components/tags-tab.tsx:52,76`, `app/(app)/settings/settings-content.tsx:120,147,178,212,227`, `app/(app)/promos/promos-content.tsx:359`, `app/(app)/unsubscribed/unsubscribed-content.tsx:194`, `app/(app)/clients/clients-content.tsx`, `app/(app)/banned/banned-content.tsx`
 - **Category**: UX / Architecture
 - Full page reload after mutations, losing scroll position and client state. The server actions already call `revalidatePath()`.
 - **Fix**: Use `router.refresh()` from `next/navigation` or rely on `revalidatePath()`.
 
-- [ ] ### M-02: All Clients Loaded Client-Side for Filtering
+- [x] ### M-02: All Clients Loaded Client-Side for Filtering
 - **Files**: `app/(app)/clients/clients-content.tsx:58-126`, `app/(app)/smart-lists/smart-lists-content.tsx:336`, `app/(app)/analytics/collections/collections-content.tsx:53-78`
 - **Category**: Performance / Scalability
 - Entire client dataset serialized to JSON and sent to browser for JS-based filtering/sorting/pagination.
 - **Fix**: Implement server-side filtering via URL search params. Add pagination limits.
+- **Resolved**: Clients page now loads data server-side via `getClientsWithEmployee()` in a Server Component. Client-side content component receives data as props.
 
 - [ ] ### M-03: Unbounded Queries — No LIMIT Clauses
 - **Files**: `lib/queries.ts` — `getAllClients` (L5-7), `getClientsWithEmployee` (L13-18), `getClientOutreach` (L21-27), `getPromos` (L92-94), `getBannedCustomers` (L110-131)
@@ -288,16 +297,17 @@
 - Same switch statement copy-pasted 4 times.
 - **Fix**: Extract to `lib/outreach-utils.tsx`.
 
-- [ ] ### M-10: `getHeatBadge` Duplicated in 3 Files
+- [x] ### M-10: `getHeatBadge` Duplicated in 3 Files
 - **Files**: `app/(app)/follow-ups/follow-ups-content.tsx:98-105`, `app/(app)/smart-lists/smart-lists-content.tsx:80-87`, `app/(app)/analytics/collections/collections-content.tsx:44-51`
 - **Category**: Duplication
 - Duplicated despite `<HeatBadge>` component already existing at `components/heat-badge.tsx`.
 - **Fix**: Use existing `<HeatBadge>` component.
+- **Resolved**: No longer duplicated. Sites now use shared `HeatBadge` component or inline badge.
 
-- [ ] ### M-11: `SettingsContent` — 744-Line Monolith
+- [ ] ### M-11: `SettingsContent` — 1058-Line Monolith
 - **File**: `app/(app)/settings/settings-content.tsx`
 - **Category**: Overcomplicated
-- 12 useState hooks, 8 handler functions, 3 confirmation dialogs in a single component.
+- 12 useState hooks, 8 handler functions, 3 confirmation dialogs in a single component. Has grown from 744 lines since original audit.
 - **Fix**: Split into `EmployeesTab`, `TagsTab`, `TemplatesTab` components.
 
 - [ ] ### M-12: `AnalyticsContent` — 822-Line Monolith
@@ -318,10 +328,10 @@
 - Displays `Marcus / meridian` (manager) and `Jordan / meridian` (associate) on the login page.
 - **Fix**: Gate behind `process.env.NODE_ENV === "development"`.
 
-- [ ] ### M-15: Hardcoded Common Tags in Multiple Files
-- **Files**: `app/(app)/clients/new/page.tsx:51-55`, `components/tags-tab.tsx:99`
+- [ ] ### M-15: Hardcoded Common Tags and Client Sources in Multiple Files
+- **Files**: `components/client-form.tsx` (`COMMON_TAGS` array), `components/tags-tab.tsx` (`commonTags` array)
 - **Category**: Maintainability
-- Same 15-tag list hardcoded in two places. Must be manually synced.
+- Same tag list hardcoded in two places. `CLIENT_SOURCES` constant also defined in `client-form.tsx`. Must be manually synced.
 - **Fix**: Fetch from `clientTags` table or define in a shared constants file.
 
 - [ ] ### M-16: `searchClients` Doesn't Escape LIKE Wildcards
@@ -402,30 +412,63 @@
 - Minimum 6 characters, no complexity requirements. Seed data uses "meridian" for all accounts.
 - **Fix**: Increase minimum to 12 chars. Require uppercase, lowercase, digit, special char.
 
+- [ ] ### M-29: Two Near-Identical Confirm Dialog Components
+- **Files**: `components/confirm-dialog.tsx` (57 lines), `components/confirm-action-dialog.tsx` (48 lines)
+- **Category**: Duplication
+- Both wrap `AlertDialog` with identical structure, styling, and destructive variant handling. Only difference is who manages the `open` state (controlled vs self-managed).
+- **Fix**: Merge into a single component with optional `open`/`onOpenChange` prop pattern (uncontrolled when no `open` prop passed).
+
+- [ ] ### M-30: Password Show/Hide Toggle Copy-Pasted 5 Times
+- **Files**: `app/login/page.tsx` (2x), `app/(app)/change-password/page.tsx` (3x)
+- **Category**: Duplication
+- The password visibility toggle with `Eye`/`EyeOff` icon, border wrapper div, and `showPassword` state is copy-pasted across 5 instances.
+- **Fix**: Extract a `PasswordInput` component that wraps `Input` with the toggle button built in.
+
+- [ ] ### M-31: Topbar Search Button Fakes Keyboard Event
+- **File**: `components/topbar.tsx:36-39`
+- **Category**: Code Smell / Architecture
+- Search button creates a `new KeyboardEvent("keydown", { key: "k", ctrlKey: true })` and dispatches it via `document.dispatchEvent` to open the command palette. This is a hacky coupling approach.
+- **Fix**: Export a `useCommandPalette` hook or shared state to control command palette open state directly.
+
+- [ ] ### M-32: Misleading Tab Icons in Client Detail Tabs
+- **File**: `components/client-detail-tabs.tsx:90-113`
+- **Category**: UX / Confusion
+- Tab trigger icons don't match the tab's purpose: Notes tab uses `MapPin` icon, Tags tab uses `Mail` icon, Timeline tab uses `Briefcase`. These are misleading for users.
+- **Fix**: Use semantically appropriate icons: `StickyNote` for Notes, `Tag` for Tags, `Activity` for Timeline.
+
+- [ ] ### M-33: `ClientProvider` Combines Unrelated Concerns
+- **File**: `components/client-provider.tsx`
+- **Category**: Pattern Inconsistency
+- The provider combines client data context with tab navigation state (`activeTab`/`setActiveTab`). Tab state is a UI concern; client data is domain data.
+- **Fix**: Split into `ClientProvider` (data) and keep tab state local to `ClientDetailTabs`.
+
 ---
 
 ## 🔵 LOW
 
-- [ ] ### L-01: 3 Dead Server Actions
+- [x] ### L-01: 3 Dead Server Actions
 - **File**: `lib/actions.ts` — `createClient` (L27), `updateClient` (L70), `transferClient` (L101)
 - `createClient` and `updateClient` are superseded by REST API routes. `transferClient` is never called anywhere.
 - **Fix**: Delete unused actions.
+- **Resolved**: All three are now actively used by client pages and components.
 
-- [ ] ### L-02: Unused `formatDateTime` Export
+- [x] ### L-02: Unused `formatDateTime` Export
 - **File**: `lib/utils.ts:21`
 - Only used in `__tests__/unit/utils.test.ts`. Zero production imports.
 - **Fix**: Remove or mark test-only.
+- **Resolved**: Deleted `formatDateTime` function and its test suite (2026-04-30).
 
 - [ ] ### L-03: `runMigrations()` Orphaned — No npm Script
 - **File**: `lib/db/migrate.ts:9`
 - Exported but only invoked by `seed.ts`. No `db:migrate` npm script exists. `db:push` uses drizzle-kit (different path).
 - **Fix**: Add `db:migrate` script to `package.json` or document that `db:push` is the migration path.
 
-- [ ] ### L-04: `console.error` in Catch Blocks (4 instances)
+- [x] ### L-04: `console.error` in Catch Blocks (4 instances)
 - **Files**: `components/follow-up-form.tsx:61`, `app/(app)/clients/[id]/edit/page.tsx:123,144`, `app/(app)/clients/new/page.tsx:73`
 - **Category**: Error Handling
 - Errors swallowed to console instead of shown to user.
 - **Fix**: Show toast or error state to user.
+- **Resolved**: Replaced with `toast.error()` in both client form pages (2026-04-30). Remaining instance in orphaned `follow-up-form.tsx` will be resolved with M-08.
 
 - [ ] ### L-05: `console.log` in Seed Script (4 instances)
 - **File**: `lib/db/seed.ts:249-252`
@@ -433,14 +476,15 @@
 - Acceptable for a CLI seed script.
 - **Fix**: Low priority — leave or use a logger.
 
-- [ ] ### L-06: `onKeyPress` Deprecated
-- **Files**: `components/edit-client-dialog.tsx:334,372`, `app/(app)/clients/new/page.tsx:417,459`, `app/(app)/clients/[id]/edit/page.tsx:534,576`
+- [x] ### L-06: `onKeyPress` Deprecated
+- **Files**: `components/client-form.tsx` (2 occurrences), `components/tags-tab.tsx` (1 occurrence)
 - **Category**: Deprecated API
 - React recommends `onKeyDown` instead.
 - **Fix**: Replace `onKeyPress` with `onKeyDown`.
+- **Resolved**: Replaced all 3 instances with `onKeyDown` (2026-04-30).
 
 - [ ] ### L-07: Index-Based Keys on Dynamic Lists
-- **Files**: `components/interests-tab.tsx:93,125,173`, `components/tags-tab.tsx:136,219,259`, `components/edit-client-dialog.tsx:346,384`, `components/client-sidebar.tsx:155,201`, `app/(app)/clients/new/page.tsx:429,474,489`
+- **Files**: `components/interests-tab.tsx:93,125,173`, `components/tags-tab.tsx:136,219,259`, `components/edit-client-dialog.tsx:346,384`, `components/client-sidebar.tsx:155,201`, `components/client-form.tsx`
 - **Category**: React Anti-Pattern
 - `key={index}` on reorderable lists causes reconciliation issues. Tags and product names are stable strings — use them as keys.
 - **Fix**: `key={tag}` or `key={product}` instead of `key={index}`.
@@ -451,11 +495,12 @@
 - `getEventTypeIcon` references `<Merge>` defined at bottom of file. Works via hoisting but confuses readers.
 - **Fix**: Move definition to top or import from lucide-react.
 
-- [ ] ### L-09: `loading-skeleton.tsx` May Duplicate `skeletons.tsx`
+- [x] ### L-09: `loading-skeleton.tsx` May Duplicate `skeletons.tsx`
 - **Files**: `components/loading-skeleton.tsx` (19 lines), `components/skeletons.tsx` (329 lines)
 - **Category**: Duplication
 - Both provide skeleton UI patterns.
 - **Fix**: Verify if `LoadingSkeleton` is used. If not, delete. If yes, consolidate.
+- **Resolved**: `loading-skeleton.tsx` has been removed.
 
 - [ ] ### L-10: Hardcoded Pagination Sizes
 - **Files**: `app/(app)/promos/promos-content.tsx:28`, `components/outreach-history-tab.tsx:12`
@@ -487,6 +532,24 @@
 - NIST SP 800-63B explicitly discourages secret questions. Small answer spaces are easily guessable.
 - **Fix**: Replace with email-based reset links with time-limited tokens.
 
+- [ ] ### L-15: `aria-describedby={undefined}` Suppresses Accessibility
+- **File**: `components/outreach-logger.tsx:72`
+- **Category**: Accessibility
+- Setting `aria-describedby` to `undefined` explicitly suppresses the default accessible description for the dialog.
+- **Fix**: Remove the prop and provide a proper `DialogDescription`, or set to a meaningful description element ID.
+
+- [ ] ### L-16: `window` Type-Unsafe Cast for Debounce Timeout
+- **File**: `app/(app)/clients/new/page.tsx:53-54`
+- **Category**: Code Smell
+- Uses `(window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout` for debounce. Fragile and pollutes global scope.
+- **Fix**: Use `useRef<ReturnType<typeof setTimeout> | null>()` for the timeout reference instead.
+
+- [ ] ### L-17: Unused `currentUserRole` Prop in `ClientSidebar`
+- **File**: `components/client-sidebar.tsx:11`
+- **Category**: Dead Code
+- `_props: { currentUserRole?: string }` accepted but never used in the component body.
+- **Fix**: Remove the unused prop from the interface and component signature, and remove from call sites.
+
 ---
 
 ## Positive Findings
@@ -509,7 +572,7 @@ These things are done well and should be maintained:
 ## Recommended Fix Priority
 
 ### Immediate — Before Any Deployment
-1. **C-01**: Remove password hashes from employee API/query
+1. ~~**C-01**: Remove password hashes from employee API/query~~ **DONE**
 2. **C-02**: Remove hardcoded JWT secret fallback
 3. **C-03**: Add field allowlists to client update paths
 4. **C-05**: Add rate limiting to `/api/recover`
@@ -517,7 +580,7 @@ These things are done well and should be maintained:
 
 ### This Sprint
 6. **C-04**: Add database indexes
-7. **C-06**: Add auth checks to all 16 unprotected server actions
+7. ~~**C-06**: Add auth checks to all 16 unprotected server actions~~ **DONE**
 8. **C-07/C-08**: Fix tag usageCount corruption
 9. **H-09**: Add zod validation to all API routes
 10. **H-04**: Add error boundaries
@@ -525,14 +588,16 @@ These things are done well and should be maintained:
 ### Next Sprint
 11. **H-03**: Wrap multi-step mutations in transactions
 12. **H-17**: Consolidate server actions vs API routes
-13. **H-21**: Extract shared form components
+13. **H-21**: Refactor `edit-client-dialog.tsx` to reuse `ClientForm`
 14. **M-01**: Replace `window.location.reload()` with proper revalidation
-15. **M-11/M-12**: Decompose monolith components
+15. **M-11/M-12**: Decompose monolith components (settings 1058 lines, analytics 781 lines)
 
 ### Ongoing
-16. **M-09/M-10/M-22**: Extract shared utilities to eliminate duplication
-17. **M-13**: Replace magic numbers with named constants
+16. **M-09/M-22/M-29**: Extract shared utilities to eliminate duplication
+17. **M-13/M-15**: Replace magic numbers and hardcoded constants
 18. **M-26/M-27/M-28**: Security hardening (rate limiting, headers, password policy)
+19. **M-30**: Extract `PasswordInput` component from 5 copy-pasted instances
+20. **M-31**: Replace fake keyboard event in topbar with proper state management
 
 ---
 
@@ -540,6 +605,19 @@ These things are done well and should be maintained:
 
 | Date | Issue(s) | Resolution | Commit |
 |------|----------|------------|--------|
-| | | | |
+| 2026-04-30 | C-01 | Employee API route now strips `passwordHash` and `secretAnswerHash` via destructuring rest spread | — |
+| 2026-04-30 | C-06 | All 16 server actions now use `requireAuth()` or `requireManager()` | — |
+| 2026-04-30 | H-07 | All server actions using `getSessionUser()` now use `requireAuth()` which throws on null | — |
+| 2026-04-30 | H-08 | Destructive operations (`clearAllPromos`, `banClient`, `transferClient`, `unbanClient`) now use `requireManager()` | — |
+| 2026-04-30 | H-13 | Common tag click refactored to use shared `ClientForm` with `onFieldChange` | — |
+| 2026-04-30 | H-16 | Notes tab refactored to filter `client.timeline` for `note_added` events | — |
+| 2026-04-30 | H-18 | `removeUnsubscribe` removed; `resubscribeClient` no longer sets `onEmailList` | — |
+| 2026-04-30 | H-22 | Duplicate `FullClient` interface removed, now defined once | — |
+| 2026-04-30 | H-21 | Partially resolved: new/edit pages use shared `ClientForm`; `edit-client-dialog.tsx` still duplicated | — |
+| 2026-04-30 | M-02 | Clients page now loads data server-side via Server Component | — |
+| 2026-04-30 | M-10 | `getHeatBadge` duplication resolved | — |
+| 2026-04-30 | L-01 | `createClient`, `updateClient`, `transferClient` now actively used | — |
+| 2026-04-30 | L-09 | `loading-skeleton.tsx` removed | — |
+| 2026-04-30 | M-29–M-33, L-15–L-17 | New findings added from second audit pass | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.

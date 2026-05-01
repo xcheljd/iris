@@ -337,7 +337,7 @@ export function ClientForm({
                 placeholder="Add model number or collection..."
                 value={productInterest}
                 onChange={(e) => onProductInterestChange(e.target.value)}
-                onKeyPress={(e) => {
+                onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     onAddProduct();
                   }
@@ -379,7 +379,7 @@ export function ClientForm({
                 placeholder="Add tag..."
                 value={newTag}
                 onChange={(e) => onNewTagChange(e.target.value)}
-                onKeyPress={(e) => {
+                onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     onAddTag();
                   }

@@ -51,7 +51,7 @@ export default function AddClientPage() {
         }
       }
     } catch (_error) {
-      console.error("Failed to check duplicates:", _error);
+      toast.error("Failed to check for duplicates");
     }
   };
 

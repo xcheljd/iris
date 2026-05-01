@@ -18,13 +18,6 @@ export function formatDate(d: Date | string | number | null | undefined): string
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-export function formatDateTime(d: Date | string | number | null | undefined): string {
-  if (!d) return "";
-  return new Date(d).toLocaleString("en-US", {
-    month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit",
-  });
-}
-
 export function daysAgo(d: Date | string | number | null | undefined): number | null {
   if (!d) return null;
   const ms = Date.now() - new Date(d).getTime();
