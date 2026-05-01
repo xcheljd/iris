@@ -348,8 +348,8 @@ export function ClientForm({
               </Button>
             </div>
             <div className="flex flex-wrap gap-2">
-              {productsOfInterest.map((product, index) => (
-                <Badge key={index} variant="secondary" className="cursor-pointer">
+              {productsOfInterest.map((product) => (
+                <Badge key={product} variant="secondary" className="cursor-pointer">
                   {product}
                   <Button
                     variant="ghost"
@@ -394,9 +394,9 @@ export function ClientForm({
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">Common tags:</p>
                 <div className="flex flex-wrap gap-2">
-                  {COMMON_TAGS.map((tag, index) => (
+                  {COMMON_TAGS.map((tag) => (
                     <Badge
-                      key={index}
+                      key={tag}
                       variant="outline"
                       className="cursor-pointer hover:bg-primary hover:text-primary-foreground"
                       onClick={() => {
@@ -413,8 +413,8 @@ export function ClientForm({
             )}
 
             <div className="flex flex-wrap gap-2">
-              {formData.tags.map((tag, index) => (
-                <Badge key={index} variant="outline" className="cursor-pointer">
+              {formData.tags.map((tag) => (
+                <Badge key={tag} variant="outline" className="cursor-pointer">
                   {tag}
                   <Button
                     variant="ghost"

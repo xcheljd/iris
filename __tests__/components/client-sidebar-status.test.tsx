@@ -82,24 +82,4 @@ describe("ClientSidebar", () => {
     renderWithProvider(<ClientSidebar />);
     expect(screen.getByText(/No scheduled follow-ups/)).toBeInTheDocument();
   });
-
-  it("shows Delete Client button for managers", () => {
-    renderWithProvider(<ClientSidebar currentUserRole="manager" />);
-    expect(screen.getByText("Delete Client")).toBeInTheDocument();
-  });
-
-  it("hides Delete Client button for non-managers", () => {
-    renderWithProvider(<ClientSidebar />);
-    expect(screen.queryByText("Delete Client")).not.toBeInTheDocument();
-  });
-
-  it("hides Delete Client when client is already deleted", () => {
-    const deletedClient = { ...mockClient, status: "deleted" as const };
-    render(
-      <ClientProvider client={deletedClient}>
-        <ClientSidebar currentUserRole="manager" />
-      </ClientProvider>
-    );
-    expect(screen.queryByText("Delete Client")).not.toBeInTheDocument();
-  });
 });

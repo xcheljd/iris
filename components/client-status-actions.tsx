@@ -20,9 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { banClient, unsubscribeClient } from "@/lib/actions";
+import { banClient, unsubscribeClient, createApprovalRequest, deleteClient } from "@/lib/actions";
 import { toast } from "sonner";
-import { Ban, Bell, MailX } from "lucide-react";
+import { Ban, Bell, MailX, Trash2 } from "lucide-react";
 
 /* ── Ban Customer ──────────────────────────────────────────────── */
 
@@ -93,11 +93,16 @@ export function BanCustomerDialog({
               variant="destructive"
               disabled={!reportReason.trim() || pending}
               onClick={() => {
-                toast.success(
-                  `Ban request for ${clientName} sent to your manager`
-                );
-                setReportReason("");
-                setOpen(false);
+                start(async () => {
+                  try {
+                    await createApprovalRequest("ban", clientId, reportReason, { category });
+                    toast.success(`Ban request for ${clientName} sent to your manager`);
+                    setReportReason("");
+                    setOpen(false);
+                  } catch {
+                    toast.error("Failed to submit ban request");
+                  }
+                });
               }}
             >
               Submit Request
@@ -238,11 +243,16 @@ export function UnsubscribeCustomerDialog({
               variant="destructive"
               disabled={!reportReason.trim() || pending}
               onClick={() => {
-                toast.success(
-                  `Unsubscribe request for ${clientName} sent to your manager`
-                );
-                setReportReason("");
-                setOpen(false);
+                start(async () => {
+                  try {
+                    await createApprovalRequest("unsubscribe", clientId, reportReason);
+                    toast.success(`Unsubscribe request for ${clientName} sent to your manager`);
+                    setReportReason("");
+                    setOpen(false);
+                  } catch {
+                    toast.error("Failed to submit unsubscribe request");
+                  }
+                });
               }}
             >
               Submit Request
@@ -280,6 +290,129 @@ export function UnsubscribeCustomerDialog({
             onClick={handleUnsubscribe}
           >
             {pending ? "Unsubscribing…" : "Unsubscribe"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ── Delete Customer ──────────────────────────────────────────────── */
+
+export function DeleteCustomerDialog({
+  clientId,
+  clientName,
+  children,
+}: {
+  clientId: string;
+  clientName: string;
+  children: React.ReactNode;
+}) {
+  const { data: session } = useSession();
+  const isManager = session?.user?.role === "manager";
+  const [open, setOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [pending, start] = useTransition();
+
+  // Associates see a "request approval" dialog
+  if (!isManager) {
+    return (
+      <Dialog open={open} onOpenChange={setOpen}>
+        <div onClick={() => setOpen(true)} className="contents">
+          {children}
+        </div>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5" />
+              Request Delete Approval
+            </DialogTitle>
+            <DialogDescription>
+              Only managers can delete clients. Describe the reason and your
+              manager will review this request.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="rounded-lg border p-3 text-sm">
+              <span className="font-medium">{clientName}</span>
+            </div>
+            <div className="space-y-2">
+              <Label>Reason for deletion request</Label>
+              <Textarea
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+                placeholder="Describe why this client should be deleted…"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!reportReason.trim() || pending}
+              onClick={() => {
+                start(async () => {
+                  try {
+                    await createApprovalRequest("delete", clientId, reportReason);
+                    toast.success(`Delete request for ${clientName} sent to your manager`);
+                    setReportReason("");
+                    setOpen(false);
+                  } catch {
+                    toast.error("Failed to submit delete request");
+                  }
+                });
+              }}
+            >
+              Submit Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Managers see a confirmation dialog
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <div onClick={() => setOpen(true)} className="contents">
+        {children}
+      </div>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Trash2 className="h-5 w-5" />
+            Delete Client
+          </DialogTitle>
+          <DialogDescription>
+            Are you sure you want to delete <strong>{clientName}</strong>? This
+            hides the client from all views. It can be restored by a manager from
+            Settings.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            disabled={pending}
+            onClick={() => {
+              start(async () => {
+                try {
+                  await deleteClient(clientId);
+                  toast.success("Client deleted");
+                  setOpen(false);
+                  window.location.href = "/clients";
+                } catch {
+                  toast.error("Failed to delete client");
+                }
+              });
+            }}
+          >
+            {pending ? "Deleting…" : "Delete"}
           </Button>
         </DialogFooter>
       </DialogContent>

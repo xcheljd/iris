@@ -20,8 +20,10 @@ export function ProfileTab({ client }: ProfileTabProps) {
       try {
         await navigator.clipboard.writeText(client.phone);
         toast.success("Phone copied to clipboard");
-      } catch (_err) {
-        toast.error("Failed to copy phone");
+      } catch (error) {
+        toast.error("Failed to copy phone", {
+          description: error instanceof Error ? error.message : "Unknown error",
+        });
       }
     }
   };
@@ -31,8 +33,10 @@ export function ProfileTab({ client }: ProfileTabProps) {
       try {
         await navigator.clipboard.writeText(client.email);
         toast.success("Email copied to clipboard");
-      } catch (_err) {
-        toast.error("Failed to copy email");
+      } catch (error) {
+        toast.error("Failed to copy email", {
+          description: error instanceof Error ? error.message : "Unknown error",
+        });
       }
     }
   };

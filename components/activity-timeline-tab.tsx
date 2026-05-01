@@ -13,7 +13,8 @@ import {
   ArrowRightLeft,
   Archive, 
   ShoppingCart,
-  MessageSquare
+  MessageSquare,
+  Merge
 } from "lucide-react";
 import { format } from "date-fns";
 import type { FullClient } from "@/components/client-provider";
@@ -236,13 +237,5 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-function Merge({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M12 2L8 6M12 2L16 6M12 2V22M12 12L8 16M12 12L16 16" />
-    </svg>
   );
 }

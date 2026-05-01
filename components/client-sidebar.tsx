@@ -11,7 +11,7 @@ import { format } from "date-fns";
 import { OutreachLogger } from "@/components/outreach-logger";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-export function ClientSidebar(_props: { currentUserRole?: string }) {
+export function ClientSidebar() {
   const client = useClient();
 
   if (!client) return null;
@@ -20,8 +20,10 @@ export function ClientSidebar(_props: { currentUserRole?: string }) {
     try {
       await navigator.clipboard.writeText(text);
       toast.success(`Copied ${type} to clipboard`);
-    } catch (_err) {
-      toast.error(`Failed to copy ${type}`);
+    } catch (error) {
+      toast.error(`Failed to copy ${type}`, {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   };
 
@@ -145,8 +147,8 @@ export function ClientSidebar(_props: { currentUserRole?: string }) {
         <CardContent>
           {client.tags.length > 0 ? (
             <div className="flex flex-wrap gap-1">
-              {client.tags.map((tag, index) => (
-                <Badge key={index} variant="outline" className="text-xs">
+              {client.tags.map((tag) => (
+                <Badge key={tag} variant="outline" className="text-xs">
                   {tag}
                 </Badge>
               ))}

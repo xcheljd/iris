@@ -18,9 +18,9 @@ import { TagsTab } from "@/components/tags-tab";
 import { HeatScoreBar } from "@/components/heat-score-bar";
 import { EditClientDialog } from "@/components/edit-client-dialog";
 import { OutreachLogger } from "@/components/outreach-logger";
-import { BanCustomerDialog, UnsubscribeCustomerDialog } from "@/components/client-status-actions";
+import { BanCustomerDialog, UnsubscribeCustomerDialog, DeleteCustomerDialog } from "@/components/client-status-actions";
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
-import { deleteClient, toggleEmailList, resubscribeClient, unbanClient } from "@/lib/actions";
+import { toggleEmailList, resubscribeClient, unbanClient } from "@/lib/actions";
 import { toast } from "sonner";
 
 export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string }) {
@@ -138,20 +138,14 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                   </ConfirmActionDialog>
                 </>
               )}
-              {currentUserRole === "manager" && client.status !== "deleted" && (
+              {client.status !== "deleted" && (
                 <>
                   <DropdownMenuSeparator />
-                  <ConfirmActionDialog
-                    title="Delete Client"
-                    description={<>Are you sure you want to delete <strong>{client.firstName} {client.lastName}</strong>? This hides the client from all views. It can be restored by a manager from Settings.</>}
-                    confirmLabel="Delete"
-                    variant="destructive"
-                    onConfirm={() => deleteClient(client.id).then(() => { toast.success("Client deleted"); window.location.href = "/clients"; }).catch(() => toast.error("Failed to delete client"))}
-                  >
+                  <DeleteCustomerDialog clientId={client.id} clientName={`${client.firstName} ${client.lastName ?? ""}`}>
                     <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={(e) => e.preventDefault()}>
                       <Trash2 className="h-4 w-4 mr-2" /> Delete Client
                     </DropdownMenuItem>
-                  </ConfirmActionDialog>
+                  </DeleteCustomerDialog>
                 </>
               )}
             </DropdownMenuContent>

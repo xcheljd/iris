@@ -45,13 +45,13 @@ export function ClientDetailContent({ client, currentUserRole }: { client: FullC
               id="mobile-sidebar"
               className={`overflow-hidden transition-all duration-200 ${sidebarOpen ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"}`}
             >
-               <ClientSidebar currentUserRole={currentUserRole} />
+               <ClientSidebar />
              </div>
            </div>
 
            {/* Desktop: persistent sidebar */}
            <div className="hidden md:block md:w-[280px] md:flex-shrink-0 md:border-r md:overflow-y-auto bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-             <ClientSidebar currentUserRole={currentUserRole} />
+             <ClientSidebar />
           </div>
 
           <div className="flex-1 overflow-auto">

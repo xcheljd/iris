@@ -54,8 +54,10 @@ export function TagsTab({ client }: TagsTabProps) {
       } else {
         toast.error("Failed to add tag");
       }
-    } catch (_error) {
-      toast.error("Failed to add tag");
+    } catch (error) {
+      toast.error("Failed to add tag", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   };
 
@@ -78,8 +80,10 @@ export function TagsTab({ client }: TagsTabProps) {
       } else {
         toast.error("Failed to remove tag");
       }
-    } catch (_error) {
-      toast.error("Failed to remove tag");
+    } catch (error) {
+      toast.error("Failed to remove tag", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   };
 
@@ -130,11 +134,11 @@ export function TagsTab({ client }: TagsTabProps) {
 
               {/* Tag List */}
               <div className="space-y-2">
-                {filteredTags.map((tag: string, index: number) => {
+                {filteredTags.map((tag: string) => {
                   const tagRecord = client.allTags?.find((t) => t.name === tag);
                   return (
                     <div
-                      key={index}
+                      key={tag}
                       className="flex items-center justify-between p-2 border rounded-lg hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex items-center gap-2">
@@ -209,9 +213,9 @@ export function TagsTab({ client }: TagsTabProps) {
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">Common tags:</p>
                 <div className="flex flex-wrap gap-2">
-                  {commonTags.map((tag, index) => (
+                  {commonTags.map((tag) => (
                     <Badge
-                      key={index}
+                      key={tag}
                       variant="outline"
                       className="cursor-pointer hover:bg-primary hover:text-primary-foreground"
                       onClick={() => setNewTag(tag)}
@@ -249,9 +253,9 @@ export function TagsTab({ client }: TagsTabProps) {
         <CardContent>
           <ScrollArea className="h-[200px] w-full">
             <div className="space-y-2">
-              {allTags.map((tag: string, index: number) => (
+              {allTags.map((tag: string) => (
                 <div
-                  key={index}
+                  key={tag}
                   className="flex items-center justify-between p-2 rounded hover:bg-muted/50 transition-colors"
                 >
                   <Badge variant="outline">

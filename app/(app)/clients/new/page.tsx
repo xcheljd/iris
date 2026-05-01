@@ -35,6 +35,8 @@ export default function AddClientPage() {
   const formDataRef = useRef(formData);
   formDataRef.current = formData;
 
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const checkForDuplicates = async (data: ClientFormData) => {
     if (!data.firstName && !data.phone && !data.email) return;
 
@@ -50,8 +52,10 @@ export default function AddClientPage() {
           setDuplicateClient(null);
         }
       }
-    } catch (_error) {
-      toast.error("Failed to check for duplicates");
+    } catch (error) {
+      toast.error("Failed to check for duplicates", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   };
 
@@ -59,8 +63,8 @@ export default function AddClientPage() {
     const updated = { ...formDataRef.current, [field]: value };
     setFormData(updated);
     if (field === "firstName" || field === "phone" || field === "email") {
-      clearTimeout((window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout);
-      (window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout = setTimeout(() => checkForDuplicates(updated), 500);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => checkForDuplicates(updated), 500);
     }
   };
 
@@ -112,8 +116,10 @@ export default function AddClientPage() {
       } else {
         toast.error("Failed to create client");
       }
-    } catch (_error) {
-      toast.error("Failed to create client");
+    } catch (error) {
+      toast.error("Failed to create client", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
     } finally {
       setIsLoading(false);
     }

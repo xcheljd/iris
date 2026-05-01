@@ -65,9 +65,9 @@ export function InterestsTab({ client }: InterestsTabProps) {
             <CardContent>
               {models.length > 0 ? (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {models.map((model, index) => (
+                  {models.map((model) => (
                     <Badge
-                      key={index}
+                      key={model}
                       variant="outline"
                       className="p-3 text-center justify-center cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
                       onClick={() => navigator.clipboard.writeText(model)}
@@ -94,9 +94,9 @@ export function InterestsTab({ client }: InterestsTabProps) {
             <CardContent>
               {collections.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
-                  {collections.map((collection, index) => (
+                  {collections.map((collection) => (
                     <Badge
-                      key={index}
+                      key={collection}
                       variant="secondary"
                       className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
                       onClick={() => navigator.clipboard.writeText(collection)}
@@ -140,8 +140,8 @@ export function InterestsTab({ client }: InterestsTabProps) {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {promoMatches.map((match: PromoMatchWithPromo, index: number) => (
-                      <div key={index} className="border rounded-lg p-4">
+                    {promoMatches.map((match: PromoMatchWithPromo) => (
+                      <div key={match.id} className="border rounded-lg p-4">
                         <div className="flex items-start justify-between mb-2">
                           <div>
                             <div className="font-medium">

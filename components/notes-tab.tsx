@@ -55,8 +55,10 @@ export function NotesTab({ client }: NotesTabProps) {
       } else {
         toast.error("Failed to add note");
       }
-    } catch (_error) {
-      toast.error("Failed to add note");
+    } catch (error) {
+      toast.error("Failed to add note", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   };
 
@@ -75,8 +77,10 @@ export function NotesTab({ client }: NotesTabProps) {
       } else {
         toast.error("Failed to delete note");
       }
-    } catch (_error) {
-      toast.error("Failed to delete note");
+    } catch (error) {
+      toast.error("Failed to delete note", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   };
 

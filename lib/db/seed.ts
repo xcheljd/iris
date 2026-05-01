@@ -1,14 +1,7 @@
-import { runMigrations } from "./migrate";
+// Run `npx drizzle-kit push` before this script to ensure schema is up to date.
+import { sqlite } from "./index";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
-import Database from "better-sqlite3";
-import path from "path";
-
-runMigrations();
-
-const dbPath = path.join(process.cwd(), "data", "iris.db");
-const sqlite = new Database(dbPath);
-sqlite.pragma("foreign_keys = ON");
 
 // Clean all tables
 const tables = [
@@ -23,17 +16,17 @@ const day = 86400;
 
 // Employees
 const employees = [
-  { id: randomUUID(), name: "Marcus", username: "Marcus", role: "manager", pw: "meridian" },
-  { id: randomUUID(), name: "Jordan", username: "Jordan", role: "associate", pw: "meridian" },
-  { id: randomUUID(), name: "Riley", username: "Riley", role: "associate", pw: "meridian" },
-  { id: randomUUID(), name: "Cameron", username: "Cameron", role: "associate", pw: "meridian" },
-  { id: randomUUID(), name: "Morgan", username: "Morgan", role: "associate", pw: "meridian" },
+  { id: randomUUID(), firstName: "Marcus", lastName: null, username: "Marcus", role: "manager", pw: "meridian" },
+  { id: randomUUID(), firstName: "Jordan", lastName: null, username: "Jordan", role: "associate", pw: "meridian" },
+  { id: randomUUID(), firstName: "Riley", lastName: null, username: "Riley", role: "associate", pw: "meridian" },
+  { id: randomUUID(), firstName: "Cameron", lastName: null, username: "Cameron", role: "associate", pw: "meridian" },
+  { id: randomUUID(), firstName: "Morgan", lastName: null, username: "Morgan", role: "associate", pw: "meridian" },
 ];
 const insEmp = sqlite.prepare(
-  "INSERT INTO employees (id,name,username,password_hash,role,active,created_at) VALUES (?,?,?,?,?,1,?)",
+  "INSERT INTO employees (id,first_name,last_name,username,password_hash,role,active,created_at) VALUES (?,?,?,?,?,?,1,?)",
 );
 for (const e of employees) {
-  insEmp.run(e.id, e.name, e.username, bcrypt.hashSync(e.pw, 10), e.role, now - 365 * day);
+  insEmp.run(e.id, e.firstName, e.lastName, e.username, bcrypt.hashSync(e.pw, 10), e.role, now - 365 * day);
 }
 
 // After the insEmp loop, update Marcus with a secret question
@@ -43,7 +36,7 @@ if (Marcus) {
     .run("What is your favorite watch brand?", bcrypt.hashSync("meridian", 10), Marcus.id);
 }
 
-const empId = (name: string) => employees.find((e) => e.name === name)!.id;
+const empId = (name: string) => employees.find((e) => e.firstName === name)!.id;
 
 // Tags
 const tagData = [

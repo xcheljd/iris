@@ -128,8 +128,10 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
       } else {
         toast.error("Failed to update client");
       }
-    } catch (_error) {
-      toast.error("Failed to update client");
+    } catch (error) {
+      toast.error("Failed to update client", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -314,8 +316,8 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
                 </Button>
               </div>
               <div className="flex flex-wrap gap-2">
-                {productsOfInterest.map((product, index) => (
-                  <Badge key={index} variant="secondary" className="cursor-pointer">
+                {productsOfInterest.map((product) => (
+                  <Badge key={product} variant="secondary" className="cursor-pointer">
                     {product}
                     <Button
                       variant="ghost"
@@ -352,8 +354,8 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
                 </Button>
               </div>
               <div className="flex flex-wrap gap-2">
-                {formData.tags.map((tag, index) => (
-                  <Badge key={index} variant="outline" className="cursor-pointer">
+                {formData.tags.map((tag) => (
+                  <Badge key={tag} variant="outline" className="cursor-pointer">
                     {tag}
                     <Button
                       variant="ghost"

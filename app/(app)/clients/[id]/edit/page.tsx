@@ -99,8 +99,10 @@ export default function EditClientPage() {
         });
         setProductsOfInterest(data.productsOfInterest || []);
       }
-    } catch (_error) {
-      toast.error("Failed to fetch client data");
+    } catch (error) {
+      toast.error("Failed to fetch client data", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   };
 
@@ -112,7 +114,9 @@ export default function EditClientPage() {
         setEmployees(data);
       }
     } catch (error) {
-      toast.error("Failed to fetch employees");
+      toast.error("Failed to fetch employees", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   };
 
@@ -133,7 +137,9 @@ export default function EditClientPage() {
         }
       }
     } catch (error) {
-      toast.error("Failed to check for duplicates");
+      toast.error("Failed to check for duplicates", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
     } finally {
       setIsCheckingDuplicates(false);
     }
@@ -194,8 +200,10 @@ export default function EditClientPage() {
       } else {
         toast.error("Failed to update client");
       }
-    } catch (_error) {
-      toast.error("Failed to update client");
+    } catch (error) {
+      toast.error("Failed to update client", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
     } finally {
       setIsLoading(false);
     }

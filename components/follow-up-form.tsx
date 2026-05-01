@@ -142,8 +142,10 @@ export function FollowUpForm({ clientId, onSuccess }: FollowUpFormProps) {
       } else {
         toast.error("Failed to log outreach");
       }
-    } catch (_error) {
-      toast.error("Failed to log outreach");
+    } catch (error) {
+      toast.error("Failed to log outreach", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
     } finally {
       setIsLoading(false);
     }

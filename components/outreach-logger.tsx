@@ -1,6 +1,6 @@
 "use client";
 import { useState, useTransition } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -56,9 +56,10 @@ export function OutreachLogger({ clientId, clientName, trigger, templates = [] }
       <DialogTrigger asChild>
         {trigger ?? <Button variant="gold" size="sm"><Phone className="h-3.5 w-3.5 mr-1.5" />Log Outreach</Button>}
       </DialogTrigger>
-      <DialogContent className="max-w-lg" aria-describedby={undefined}>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Log outreach — {clientName}</DialogTitle>
+          <DialogDescription>Log an outreach interaction with this client.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-2">
