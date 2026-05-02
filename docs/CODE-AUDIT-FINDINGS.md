@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 22 | 16 | 0 | 6 |
-| MEDIUM | 33 | 28 | 0 | 5 |
+| MEDIUM | 33 | 26 | 0 | 7 |
 | LOW | 17 | 2 | 0 | 15 |
-| **TOTAL** | **80** | **55** | **0** | **25** |
+| **TOTAL** | **80** | **53** | **0** | **27** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,7 +28,7 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 22 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 33 (5 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🟡 MEDIUM | 33 (7 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (2 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
@@ -270,17 +270,19 @@
 - **Fix**: Use conditional aggregation: `SUM(CASE WHEN status='active' THEN 1 END)`.
 - **Resolved**: Consolidated 9 queries → 4. Clients table queries (5 → 1) use `SUM(CASE WHEN ... THEN 1 ELSE 0 END)` for atomic snapshot (hot+warm+cold always equals active). Outreach queries (2 → 1) keep the `date >= weekAgo` predicate in WHERE (preserves indexable range scan once C-04 lands) and use `count(*)` + a single `SUM(CASE)` for the purchased subset. Banned/unsubscribed remain as 2 separate counts (different tables). Removed unused `ne` import.
 
-- [ ] ### M-05: Memory Leak — Window-Scoped Timeouts Not Cleaned Up
-- **Files**: `app/(app)/clients/new/page.tsx:246-248`, `app/(app)/clients/[id]/edit/page.tsx:153-154, 331-332`
+- [x] ### M-05: Memory Leak — Window-Scoped Timeouts Not Cleaned Up
+- **Files**: `app/(app)/clients/new/page.tsx`, `app/(app)/clients/[id]/edit/page.tsx`
 - **Category**: Memory Leak
 - Duplicate check timeouts stored on `window` object via `window as unknown as Record<string, ...>`. Not cleared on unmount. Shared across instances.
 - **Fix**: Use `useRef<ReturnType<typeof setTimeout>>()` with cleanup in `useEffect`.
+- **Resolved**: Both files now use `useRef` for the debounce timeout with `useEffect` cleanup on unmount. `new/page.tsx` was partially fixed in L-16 (ref but no cleanup); this adds the missing cleanup. `edit/page.tsx` fully migrated from `window` cast to `useRef` + cleanup.
 
-- [ ] ### M-06: Missing AbortController on Client-Side Fetches
-- **File**: `app/(app)/clients/[id]/edit/page.tsx:80-85`
-- **Category**: Memory Leak / Stale State
-- `useEffect` fetches data with no AbortController. If component unmounts before completion, `setState` fires on unmounted component.
-- **Fix**: Add AbortController, pass signal to fetch, return cleanup.
+- [x] ### M-06: Missing AbortController on Client-Side Fetches
+- **Files**: `app/(app)/clients/[id]/edit/page.tsx`, `app/(app)/clients/new/page.tsx`
+- **Category**: Memory Leak / Stale State / UX Bug
+- `useEffect` fetches data with no AbortController. If component unmounts before completion, `setState` fires on unmounted component. Also causes spurious error toasts on navigation ("Failed to fetch client data" on unrelated pages).
+- **Fix**: Add AbortController, pass signal to fetch, return cleanup. Guard catch blocks with `AbortError` check.
+- **Resolved**: edit/page.tsx mount effect now creates AbortController for fetchClient/fetchEmployees. Both files' checkForDuplicates uses abortRef (aborted on unmount alongside the debounce timeout). All catch blocks check `error.name === "AbortError"` before toasting.
 
 - [ ] ### M-07: `recalcHeat` Loads All Outreach Logs
 - **File**: `lib/actions.ts:21`
@@ -646,5 +648,7 @@ These things are done well and should be maintained:
 | 2026-04-30 | L-17 | Removed dead `currentUserRole` prop from `ClientSidebar`, cleaned up call sites and obsolete tests. Also added `DeleteCustomerDialog` with associate approval request flow (matching existing ban/unsubscribe pattern) | — |
 | 2026-05-01 | M-03 | Won't-fix on full pagination (single-store SQLite, ~15K ceiling, instant-filter UX preserved). Added `LIST_QUERY_LIMIT=10000` guardrail to 6 list queries and projected `notes`/`deletedAt`/`deletedBy`/`previousStatus` out of `getAllClients`/`getClientsWithEmployee`. New `ClientListRow` type adopted by smart-lists and collections content. | — |
 | 2026-05-02 | M-04 | Consolidated `getStats()` from 9 separate count(*) queries to 4 using `SUM(CASE WHEN ...)` conditional aggregation. Atomic per-table snapshots (hot+warm+cold = active guaranteed). Outreach query keeps `date >= weekAgo` in WHERE to preserve indexable range scan once C-04 lands. | — |
+| 2026-05-02 | M-05 | Completed L-16's partial fix. Both `new/page.tsx` and `edit/page.tsx` now use `useRef` for debounce timeout with `useEffect` cleanup on unmount. `edit/page.tsx` migrated from `window` cast to `useRef`. | — |
+| 2026-05-02 | M-06 | Added AbortController to edit/page.tsx mount effect (fetchClient + fetchEmployees) and checkForDuplicates in both edit and new page. All catch blocks guard against AbortError to prevent spurious toasts on navigation. Unmount cleanup now clears timeout + aborts fetch. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.

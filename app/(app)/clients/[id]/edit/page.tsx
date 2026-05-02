@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -69,16 +69,28 @@ export default function EditClientPage() {
   const [productInterest, setProductInterest] = useState("");
   const [productsOfInterest, setProductsOfInterest] = useState<string[]>([]);
 
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
   useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      abortRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
     if (params.id) {
-      fetchClient(params.id as string);
+      fetchClient(params.id as string, controller.signal);
     }
-    fetchEmployees();
+    fetchEmployees(controller.signal);
+    return () => controller.abort();
   }, [params.id]);
 
-  const fetchClient = async (clientId: string) => {
+  const fetchClient = async (clientId: string, signal?: AbortSignal) => {
     try {
-      const response = await fetch(`/api/clients/${clientId}`);
+      const response = await fetch(`/api/clients/${clientId}`, { signal });
       if (response.ok) {
         const data = await response.json();
         setClient(data);
@@ -100,20 +112,22 @@ export default function EditClientPage() {
         setProductsOfInterest(data.productsOfInterest || []);
       }
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
       toast.error("Failed to fetch client data", {
         description: error instanceof Error ? error.message : "Unknown error",
       });
     }
   };
 
-  const fetchEmployees = async () => {
+  const fetchEmployees = async (signal?: AbortSignal) => {
     try {
-      const response = await fetch("/api/employees");
+      const response = await fetch("/api/employees", { signal });
       if (response.ok) {
         const data = await response.json();
         setEmployees(data);
       }
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
       toast.error("Failed to fetch employees", {
         description: error instanceof Error ? error.message : "Unknown error",
       });
@@ -124,8 +138,11 @@ export default function EditClientPage() {
     if (!formData.firstName && !formData.phone && !formData.email) return;
 
     setIsCheckingDuplicates(true);
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
-      const response = await fetch(`/api/clients/check-duplicates?firstName=${formData.firstName}&phone=${formData.phone}&email=${formData.email}`);
+      const response = await fetch(`/api/clients/check-duplicates?firstName=${formData.firstName}&phone=${formData.phone}&email=${formData.email}`, { signal: controller.signal });
       if (response.ok) {
         const data = await response.json();
         if (data.duplicate && data.duplicate.id !== client?.id) {
@@ -137,19 +154,20 @@ export default function EditClientPage() {
         }
       }
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
       toast.error("Failed to check for duplicates", {
         description: error instanceof Error ? error.message : "Unknown error",
       });
     } finally {
-      setIsCheckingDuplicates(false);
+      if (!controller.signal.aborted) setIsCheckingDuplicates(false);
     }
   };
 
   const handleFieldChange = (field: string, value: string | boolean | Date | null | undefined | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (field !== "notes") {
-      clearTimeout((window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout);
-      (window as unknown as Record<string, ReturnType<typeof setTimeout>>).checkTimeout = setTimeout(checkForDuplicates, 500);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(checkForDuplicates, 500);
     }
   };
 

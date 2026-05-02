@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -36,12 +36,23 @@ export default function AddClientPage() {
   formDataRef.current = formData;
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      abortRef.current?.abort();
+    };
+  }, []);
 
   const checkForDuplicates = async (data: ClientFormData) => {
     if (!data.firstName && !data.phone && !data.email) return;
 
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
-      const response = await fetch(`/api/clients/check-duplicates?firstName=${data.firstName}&phone=${data.phone}&email=${data.email}`);
+      const response = await fetch(`/api/clients/check-duplicates?firstName=${data.firstName}&phone=${data.phone}&email=${data.email}`, { signal: controller.signal });
       if (response.ok) {
         const result = await response.json();
         if (result.duplicate) {
@@ -53,6 +64,7 @@ export default function AddClientPage() {
         }
       }
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
       toast.error("Failed to check for duplicates", {
         description: error instanceof Error ? error.message : "Unknown error",
       });
