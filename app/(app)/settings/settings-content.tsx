@@ -6,7 +6,7 @@ import { Users, Tag, FileText, Trash2, UserCircle } from "lucide-react";
 import { Topbar } from "@/components/topbar";
 import { ProfileTab } from "./profile-tab";
 import { EmployeesTab } from "./employees-tab";
-import { TagsTab } from "./tags-tab";
+import { SettingsTagsTab } from "./tags-tab";
 import { TemplatesTab } from "./templates-tab";
 import { DeletedTab } from "./deleted-tab";
 import type { Employee } from "@/lib/db/schema";
@@ -77,7 +77,7 @@ export function SettingsContent({ employees, tags, templates, deletedClients, cu
           <Separator />
 
           <TabsContent value="tags">
-            <TagsTab tags={tags} isManager={isManager} />
+            <SettingsTagsTab tags={tags} isManager={isManager} />
           </TabsContent>
 
           <Separator />

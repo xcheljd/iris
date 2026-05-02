@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 22 | 16 | 0 | 6 |
-| MEDIUM | 33 | 23 | 0 | 10 |
+| MEDIUM | 33 | 22 | 0 | 11 |
 | LOW | 17 | 3 | 0 | 14 |
-| **TOTAL** | **80** | **48** | **0** | **32** |
+| **TOTAL** | **80** | **47** | **0** | **33** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,7 +28,7 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 22 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 33 (11 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🟡 MEDIUM | 34 (12 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (14 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
@@ -315,13 +315,14 @@
 - **Fix**: Use existing `<HeatBadge>` component.
 - **Resolved**: No longer duplicated. Sites now use shared `HeatBadge` component or inline badge.
 
-- [x] ### M-11: `SettingsContent` — 1058-Line Monolith *(Resolved — split into `ProfileTab`, `EmployeesTab`, `TagsTab`, `TemplatesTab`, `DeletedTab`; shell is now 96 lines)*
-
-- [ ] ### M-12: `AnalyticsContent` — 822-Line Monolith
-- **File**: `app/(app)/analytics/analytics-content.tsx`
+- [x] ### M-11: `SettingsContent` — 1058-Line Monolith
+- **File**: `app/(app)/settings/settings-content.tsx`
 - **Category**: Overcomplicated
-- 3 tabs with substantial logic, duplicated heat distribution bar.
-- **Fix**: Split into `OverviewTab`, `OutreachTab`, `HeatTab` components.
+- 12 useState hooks, 8 handler functions, 3 confirmation dialogs in a single component. Has grown from 744 lines since original audit.
+- **Fix**: Split into `EmployeesTab`, `TagsTab`, `TemplatesTab` components.
+- **Resolved**: Split into 5 tab components co-located in `app/(app)/settings/`: `ProfileTab` (115L), `EmployeesTab` (412L), `SettingsTagsTab` (199L, renamed from `TagsTab` to avoid collision with the existing `components/tags-tab.tsx` used on client detail pages), `TemplatesTab` (209L), `DeletedTab` (147L). Shell `settings-content.tsx` is now 96 lines and contains only tab routing + manager gating.
+
+- [x] ### M-12: `AnalyticsContent` — 822-Line Monolith *(Resolved — split into `AnalyticsOverviewTab`, `AnalyticsOutreachTab`, `AnalyticsHeatTab`; shell is now 147 lines with date state + derived useMemos. Chart configs co-located in their owning tabs. outreachPage kept in shell to preserve tab-switch behavior.)*
 
 - [ ] ### M-13: Magic Numbers in Business Logic
 - **Files**: `lib/heat-score.ts:9,11-12,23-24,28`, `lib/utils.ts:53,56,58`, `lib/queries.ts:31,76`
@@ -448,6 +449,12 @@
 - **Category**: Pattern Inconsistency
 - The provider combines client data context with tab navigation state (`activeTab`/`setActiveTab`). Tab state is a UI concern; client data is domain data.
 - **Fix**: Split into `ClientProvider` (data) and keep tab state local to `ClientDetailTabs`.
+
+- [ ] ### M-34: Heat Distribution Bar Duplicated in Analytics
+- **Files**: `app/(app)/analytics/analytics-overview-tab.tsx`, `app/(app)/analytics/analytics-heat-tab.tsx`
+- **Category**: Duplication
+- Overview tab renders a Recharts `BarChart` for hot/warm/cold distribution; Heat tab renders the same data as a CSS stacked bar + progress bars. Two visual representations of the same metric in the same page.
+- **Fix**: Extract a shared `HeatDistributionChart` component and use it in both tabs, or remove one if only one visualization is desired.
 
 ---
 
@@ -656,5 +663,6 @@ These things are done well and should be maintained:
 | 2026-05-02 | M-07 | Both `recalcHeat()` in lib/actions.ts and inline recalc in app/api/outreach/route.ts now filter in SQL (`WHERE date >= ninetyDaysAgo`) and project only `{ outcome, date }`. JS `.filter()` eliminated. Related to H-17 (duplicated logic — both copies now correct but duplication remains). | — |
 | 2026-05-02 | M-08 | Ported `quickFollowUpPresets` (Tomorrow / 3 days / 1 week / 2 weeks / 1 month quick-jump buttons) into `OutreachLogger`, then deleted dead `components/follow-up-form.tsx` (zero imports, zero test references). Audit's "merge" premise was stale — OutreachLogger already had DatePicker + templates. Closes L-04's deferred caveat about `console.error` in orphaned follow-up-form.tsx. | — |
 | 2026-05-02 | M-09 | Final migration of `getMethodIcon`: `outreach-history-tab.tsx` now imports from `lib/outreach-helpers.tsx`. Two other sites had already been migrated; `follow-up-form.tsx` was deleted in M-08. Dead lucide imports (Mail, MessageCircle, User) removed. | — |
+| 2026-05-02 | M-11 | Split 1058-line `SettingsContent` monolith into 5 co-located tab components (`ProfileTab`, `EmployeesTab`, `SettingsTagsTab`, `TemplatesTab`, `DeletedTab`). Shell is now 96 lines (tab routing + manager gating only). Settings tab renamed `SettingsTagsTab` to avoid name collision with the client-detail `TagsTab` in `components/tags-tab.tsx`. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.

@@ -32,12 +32,12 @@ export const tagColors = [
   { name: "gray", class: "bg-gray-500" },
 ];
 
-interface TagsTabProps {
+interface SettingsTagsTabProps {
   tags: { id: string; name: string; color: string; usageCount: number }[];
   isManager: boolean;
 }
 
-export function TagsTab({ tags: initialTags, isManager }: TagsTabProps) {
+export function SettingsTagsTab({ tags: initialTags, isManager }: SettingsTagsTabProps) {
   const router = useRouter();
   const [tags, setTags] = useState(initialTags);
   const [showDialog, setShowDialog] = useState(false);
