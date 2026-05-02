@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { outreachLogs, activityEvents, clients } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, gte, and } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { calcHeatScore } from "@/lib/heat-score";
@@ -51,8 +51,8 @@ export async function POST(request: Request) {
     // Recalc heat
     const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
     if (c) {
-      const recent = db.select().from(outreachLogs).where(eq(outreachLogs.clientId, clientId)).all();
-      const last90 = recent.filter((r) => r.date && (Date.now() - new Date(r.date).getTime()) < 90 * 86400000);
+      const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000);
+      const last90 = db.select({ outcome: outreachLogs.outcome, date: outreachLogs.date }).from(outreachLogs).where(and(eq(outreachLogs.clientId, clientId), gte(outreachLogs.date, ninetyDaysAgo))).all();
       const { score, level } = calcHeatScore(c, last90);
       db.update(clients).set({ heatScore: score, heatLevel: level, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
     }

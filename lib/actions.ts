@@ -1,7 +1,7 @@
 "use server";
 import { db } from "@/lib/db";
 import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bannedCustomers, unsubscribeList, clientTags, outreachTemplates, employees, smartLists, approvalRequests } from "@/lib/db/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, gte, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { getServerSession } from "next-auth";
@@ -26,8 +26,8 @@ export async function recalcHeat(clientId: string) {
   await requireAuth();
   const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
   if (!c) return;
-  const recent = db.select().from(outreachLogs).where(eq(outreachLogs.clientId, clientId)).all();
-  const last90 = recent.filter((r) => r.date && (Date.now() - new Date(r.date).getTime()) < 90 * 86400000);
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000);
+  const last90 = db.select({ outcome: outreachLogs.outcome, date: outreachLogs.date }).from(outreachLogs).where(and(eq(outreachLogs.clientId, clientId), gte(outreachLogs.date, ninetyDaysAgo))).all();
   const { score, level } = calcHeatScore(c, last90);
   db.update(clients).set({ heatScore: score, heatLevel: level, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
 }

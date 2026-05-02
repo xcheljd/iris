@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 22 | 16 | 0 | 6 |
-| MEDIUM | 33 | 26 | 0 | 7 |
-| LOW | 17 | 2 | 0 | 15 |
-| **TOTAL** | **80** | **53** | **0** | **27** |
+| MEDIUM | 33 | 25 | 0 | 8 |
+| LOW | 17 | 3 | 0 | 14 |
+| **TOTAL** | **80** | **50** | **0** | **30** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,8 +28,8 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 22 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 33 (7 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
-| 🔵 LOW | 17 (2 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
+| 🟡 MEDIUM | 33 (8 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🔵 LOW | 17 (14 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
 
@@ -69,6 +69,7 @@
 - **Category**: Performance — Full Table Scans
 - 10 tables, zero explicit indexes. All queries on foreign keys, status fields, date columns, and searchable text perform full table scans. Performance will degrade severely as data grows.
 - **Fix**: Add indexes for: `clients.employee_id`, `clients.status`, `clients.heat_score`, `clients.email`, `outreach_logs.client_id`, `outreach_logs.follow_up_date`, `outreach_logs.date`, `activity_events.client_id`, `activity_events.created_at`, `promo_matches.client_id`, `promo_matches.promo_id`, `unsubscribe_list.email`.
+- **Cross-refs (compounding payoff)**: Several already-resolved perf items added indexable predicates that currently full-scan but become range/index seeks once C-04 lands. Specifically: **M-04** (`getStats` outreach query — `outreach_logs.date >= weekAgo`); **M-07** (`recalcHeat` at both sites — `outreach_logs.client_id` + `outreach_logs.date >= ninetyDaysAgo`). C-04's value is larger than its standalone description suggests.
 
 - [ ] ### C-05: Unauthenticated Password Reset — No Brute-Force Protection
 - **File**: `app/api/recover/route.ts:1-67`
@@ -82,7 +83,7 @@
 - **Category**: Security — Missing AuthZ
 - These actions never call `getSessionUser()`. If middleware is bypassed or misconfigured, any caller can invoke them.
 - **Fix**: Every exported server action must verify authentication.
-- **Resolved**: All listed server actions now use `requireAuth()` or `requireManager()` helpers.
+- **Resolved**: All listed server actions now use `requireAuth()` or `requireManager()` helpers. Note: `removeUnsubscribe` was deleted entirely as part of H-18, so the effective set is 15 actions, all auth-gated.
 
 - [ ] ### C-07: Tag `usageCount` Permanently Inaccurate
 - **Files**: `lib/actions.ts:213-239`
@@ -141,7 +142,7 @@
 - **Category**: Security — Auth Gap
 - These call `getSessionUser()` but proceed with `user?.id ?? null`. Actions succeed with `employeeId: null`, breaking audit trails.
 - **Fix**: Add `if (!user) throw new Error("Unauthorized")` after the call.
-- **Resolved**: All now use `requireAuth()` which throws if null.
+- **Resolved**: All now use `requireAuth()` or `requireManager()` (e.g., `createTemplate` uses the latter); both throw if user is null.
 
 - [x] ### H-08: No Role-Based Authorization on Destructive Operations
 - **File**: `lib/actions.ts` — `clearAllPromos`, `banClient`, `transferClient`, `unbanCustomer`
@@ -205,6 +206,7 @@
 - **Category**: Maintainability
 - `addTag`/`removeTag`, outreach logging, and heat recalculation are implemented twice — once as server actions, once as API routes — with diverging behavior.
 - **Fix**: Pick one pattern (server actions preferred). Remove duplicates.
+- **Cross-ref**: The heat-recalc duplicate (`recalcHeat` in `lib/actions.ts` vs the inline recalc in `app/api/outreach/route.ts:51-58`) was updated identically by **M-07** — both copies now use SQL `gte(outreach_logs.date, ninetyDaysAgo)` + project only `{ outcome, date }`. When consolidating, preserve that pattern; do not regress to `select().from(outreachLogs).all()` + JS `.filter()`.
 
 - [x] ### H-18: `removeUnsubscribe` Unconditionally Re-enables Email List
 - **File**: `lib/actions.ts:399`
@@ -226,10 +228,11 @@
 - **Fix**: Use them in `getFullClient` or remove them.
 
 - [ ] ### H-21: Client Form Code Still Duplicated in `edit-client-dialog.tsx`
-- **Files**: `components/edit-client-dialog.tsx` (370 lines), `components/client-form.tsx` (shared form)
+- **Files**: `components/edit-client-dialog.tsx` (~398 lines), `components/client-form.tsx` (shared form)
 - **Category**: Overcomplicated / Duplication
 - New client and edit client pages now use the shared `ClientForm` component. However, `edit-client-dialog.tsx` still reimplements the entire client form inline instead of reusing `ClientForm`.
 - **Fix**: Refactor `EditClientDialog` to use `ClientForm` internally with initial values.
+- **Status**: Partially resolved — `clients/new/page.tsx` and `clients/[id]/edit/page.tsx` adopted `ClientForm`; `edit-client-dialog.tsx` still has no `ClientForm` import. Remains open until that refactor lands.
 
 - [x] ### H-22: Duplicate FullClient Interface
 - **File**: `components/client-provider.tsx:11-40, 42-71`
@@ -284,11 +287,12 @@
 - **Fix**: Add AbortController, pass signal to fetch, return cleanup. Guard catch blocks with `AbortError` check.
 - **Resolved**: edit/page.tsx mount effect now creates AbortController for fetchClient/fetchEmployees. Both files' checkForDuplicates uses abortRef (aborted on unmount alongside the debounce timeout). All catch blocks check `error.name === "AbortError"` before toasting.
 
-- [ ] ### M-07: `recalcHeat` Loads All Outreach Logs
-- **File**: `lib/actions.ts:21`
+- [x] ### M-07: `recalcHeat` Loads All Outreach Logs
+- **Files**: `lib/actions.ts`, `app/api/outreach/route.ts`
 - **Category**: Performance
 - Fetches ALL outreach logs for a client then filters by date in JavaScript instead of SQL.
 - **Fix**: Add date WHERE clause: `gte(outreachLogs.date, ninetyDaysAgo)`.
+- **Resolved**: Both sites now filter in SQL with `WHERE date >= ninetyDaysAgo` and project only `{ outcome, date }` instead of full rows. JS `.filter()` eliminated. Per-compounds with C-04 (index on clientId + date) once landed. Related to H-17 (these two recalc paths are duplicated business logic — both copies now correct, but duplication remains).
 
 - [ ] ### M-08: `FollowUpForm` Duplicates `OutreachLogger`
 - **Files**: `components/follow-up-form.tsx` (351 lines) vs `components/outreach-logger.tsx` (135 lines)
@@ -451,11 +455,11 @@
 
 ## 🔵 LOW
 
-- [x] ### L-01: 3 Dead Server Actions
-- **File**: `lib/actions.ts` — `createClient` (L27), `updateClient` (L70), `transferClient` (L101)
+- [ ] ### L-01: 3 Dead Server Actions
+- **File**: `lib/actions.ts` — `createClient` (L48), `updateClient` (L93), `transferClient` (L113)
 - `createClient` and `updateClient` are superseded by REST API routes. `transferClient` is never called anywhere.
-- **Fix**: Delete unused actions.
-- **Resolved**: All three are now actively used by client pages and components.
+- **Fix**: Delete unused actions, or convert call sites to use the actions instead of REST.
+- **Status**: Stale resolution reverted — verification on 2026-05-02 found these functions are only referenced from `__tests__/actions/client-actions.test.ts`, never imported by production code in `app/` or `components/`. The earlier "now actively used" claim was incorrect.
 
 - [x] ### L-02: Unused `formatDateTime` Export
 - **File**: `lib/utils.ts:21`
@@ -650,5 +654,7 @@ These things are done well and should be maintained:
 | 2026-05-02 | M-04 | Consolidated `getStats()` from 9 separate count(*) queries to 4 using `SUM(CASE WHEN ...)` conditional aggregation. Atomic per-table snapshots (hot+warm+cold = active guaranteed). Outreach query keeps `date >= weekAgo` in WHERE to preserve indexable range scan once C-04 lands. | — |
 | 2026-05-02 | M-05 | Completed L-16's partial fix. Both `new/page.tsx` and `edit/page.tsx` now use `useRef` for debounce timeout with `useEffect` cleanup on unmount. `edit/page.tsx` migrated from `window` cast to `useRef`. | — |
 | 2026-05-02 | M-06 | Added AbortController to edit/page.tsx mount effect (fetchClient + fetchEmployees) and checkForDuplicates in both edit and new page. All catch blocks guard against AbortError to prevent spurious toasts on navigation. Unmount cleanup now clears timeout + aborts fetch. | — |
+| 2026-05-02 | Audit | Resolution sweep: flipped H-21 (`[x]` → `[ ]`, partial — `edit-client-dialog.tsx` still inlines the form) and L-01 (`[x]` → `[ ]`, the three actions are referenced only from tests, not from production code). Recomputed Tracking Summary totals (51 open / 29 resolved). Clarified H-07 and C-06 resolution wording. | — |
+| 2026-05-02 | M-07 | Both `recalcHeat()` in lib/actions.ts and inline recalc in app/api/outreach/route.ts now filter in SQL (`WHERE date >= ninetyDaysAgo`) and project only `{ outcome, date }`. JS `.filter()` eliminated. Related to H-17 (duplicated logic — both copies now correct but duplication remains). | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.
