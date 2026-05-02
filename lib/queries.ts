@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bannedCustomers, unsubscribeList, employees, clientTags, outreachTemplates, smartLists } from "@/lib/db/schema";
 import { eq, desc, and, or, isNotNull, lte, gte, notInArray, sql as rawSql } from "drizzle-orm";
 import { applyClientFilter } from "@/lib/utils";
+import { MS_PER_DAY } from "@/lib/constants";
 
 const LIST_QUERY_LIMIT = 10000;
 
@@ -59,7 +60,7 @@ export async function getClientActivity(clientId: string) {
 
 export async function getUpcomingFollowUps(employeeId?: string) {
   const now = Date.now();
-  const in7d = now + 7 * 86400000;
+  const in7d = now + 7 * MS_PER_DAY;
   const employeeFilter = employeeId ? eq(outreachLogs.employeeId, employeeId) : undefined;
   const rows = db.select({
     log: outreachLogs,
@@ -115,7 +116,7 @@ export async function getStats(employeeId?: string) {
   const banned = db.select({ c: rawSql<number>`count(*)` }).from(bannedCustomers).get();
   const unsubscribed = db.select({ c: rawSql<number>`count(*)` }).from(unsubscribeList).get();
 
-  const weekAgo = new Date(Date.now() - 7 * 86400000);
+  const weekAgo = new Date(Date.now() - 7 * MS_PER_DAY);
   const outreachStats = db.select({
     outreachWeek: rawSql<number>`count(*)`,
     purchasesWeek: rawSql<number>`sum(case when ${outreachLogs.outcome} = 'purchased' then 1 else 0 end)`,

@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 22 | 16 | 0 | 6 |
-| MEDIUM | 33 | 22 | 0 | 11 |
+| MEDIUM | 34 | 21 | 0 | 13 |
 | LOW | 17 | 3 | 0 | 14 |
-| **TOTAL** | **80** | **47** | **0** | **33** |
+| **TOTAL** | **81** | **46** | **0** | **35** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,7 +28,7 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 22 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 34 (12 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🟡 MEDIUM | 34 (13 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (14 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
@@ -322,13 +322,19 @@
 - **Fix**: Split into `EmployeesTab`, `TagsTab`, `TemplatesTab` components.
 - **Resolved**: Split into 5 tab components co-located in `app/(app)/settings/`: `ProfileTab` (115L), `EmployeesTab` (412L), `SettingsTagsTab` (199L, renamed from `TagsTab` to avoid collision with the existing `components/tags-tab.tsx` used on client detail pages), `TemplatesTab` (209L), `DeletedTab` (147L). Shell `settings-content.tsx` is now 96 lines and contains only tab routing + manager gating.
 
-- [x] ### M-12: `AnalyticsContent` — 822-Line Monolith *(Resolved — split into `AnalyticsOverviewTab`, `AnalyticsOutreachTab`, `AnalyticsHeatTab`; shell is now 147 lines with date state + derived useMemos. Chart configs co-located in their owning tabs. outreachPage kept in shell to preserve tab-switch behavior.)*
+- [x] ### M-12: `AnalyticsContent` — 822-Line Monolith
+- **File**: `app/(app)/analytics/analytics-content.tsx`
+- **Category**: Overcomplicated
+- 3 tabs with substantial logic, duplicated heat distribution bar.
+- **Fix**: Split into `OverviewTab`, `OutreachTab`, `HeatTab` components.
+- **Resolved**: Split into 3 namespace-prefixed tab components co-located in `app/(app)/analytics/`: `AnalyticsOverviewTab` (324L, owns `heatChartConfig`), `AnalyticsOutreachTab` (269L, owns `methodChartConfig` + `METHOD_COLORS`), `AnalyticsHeatTab` (163L, no chart config — uses CSS divs). Shell `analytics-content.tsx` is now 172 lines and contains date state, derived `useMemo`s, the date-picker header, and tab routing. `outreachPage` kept in shell to preserve persistence across tab switches. `Analytics`-prefix on tab names avoids collision risk with future client-detail or report tabs. The duplicated heat distribution bar between Overview and Heat tabs was deliberately not refactored here — tracked separately as M-34.
 
-- [ ] ### M-13: Magic Numbers in Business Logic
+- [x] ### M-13: Magic Numbers in Business Logic
 - **Files**: `lib/heat-score.ts:9,11-12,23-24,28`, `lib/utils.ts:53,56,58`, `lib/queries.ts:31,76`
 - **Category**: Maintainability
 - `86400000` (day in ms), `90`, `30`, `60`, score values `15`, `10`, `5`, `3`, `-15`, `-20`, thresholds `90`, `180`, `70`, `40` — all unnamed.
 - **Fix**: Extract to named constants: `const DAY_MS = 86_400_000`, `const HEAT_THRESHOLD_HOT = 70`, etc.
+- **Resolved**: `MS_PER_DAY = 86_400_000` extracted to new `lib/constants.ts` (only truly cross-cutting constant). 9 heat-score constants co-located at top of `lib/heat-score.ts` — `SCORE_HAS_PURCHASE`, `SCORE_RECENT_PURCHASE`, `SCORE_RESPONDED_OUTREACH`, `SCORE_ON_EMAIL_LIST`, `SCORE_HAS_INTERESTS`, `SCORE_HAS_BIRTHDAY`, `PENALTY_STALE_OUTREACH`, `PENALTY_VERY_STALE_OUTREACH`, `PENALTY_UNSUBSCRIBED`, plus `RECENT_PURCHASE_WINDOW_DAYS`, `OUTREACH_STALE_DAYS`, `OUTREACH_VERY_STALE_DAYS`, `HEAT_THRESHOLD_HOT`, `HEAT_THRESHOLD_WARM`. 3 smart-list filter thresholds (`STALE_THRESHOLD_DAYS`, `RECENT_PURCHASE_DAYS`, `NO_OUTREACH_DAYS`) co-located near `applyClientFilter` in `lib/utils.ts`. `daysAgo` in utils.ts also normalized to use `MS_PER_DAY` (was `1000 * 60 * 60 * 24`). Query/action sites kept the cardinal visible: `7 * MS_PER_DAY`, `90 * MS_PER_DAY`. Zero raw `86_400_000` literals remain. Heat-score tests still pass (22/22). Function-default literals like `getRecentActivity(limit = 30)` left inline — those are parameter defaults, not magic.
 
 - [ ] ### M-14: Hardcoded Demo Credentials in Login Page
 - **File**: `app/login/page.tsx:134-137`
@@ -664,5 +670,8 @@ These things are done well and should be maintained:
 | 2026-05-02 | M-08 | Ported `quickFollowUpPresets` (Tomorrow / 3 days / 1 week / 2 weeks / 1 month quick-jump buttons) into `OutreachLogger`, then deleted dead `components/follow-up-form.tsx` (zero imports, zero test references). Audit's "merge" premise was stale — OutreachLogger already had DatePicker + templates. Closes L-04's deferred caveat about `console.error` in orphaned follow-up-form.tsx. | — |
 | 2026-05-02 | M-09 | Final migration of `getMethodIcon`: `outreach-history-tab.tsx` now imports from `lib/outreach-helpers.tsx`. Two other sites had already been migrated; `follow-up-form.tsx` was deleted in M-08. Dead lucide imports (Mail, MessageCircle, User) removed. | — |
 | 2026-05-02 | M-11 | Split 1058-line `SettingsContent` monolith into 5 co-located tab components (`ProfileTab`, `EmployeesTab`, `SettingsTagsTab`, `TemplatesTab`, `DeletedTab`). Shell is now 96 lines (tab routing + manager gating only). Settings tab renamed `SettingsTagsTab` to avoid name collision with the client-detail `TagsTab` in `components/tags-tab.tsx`. | — |
+| 2026-05-02 | M-12 | Split 781-line `AnalyticsContent` monolith into 3 namespace-prefixed tab components co-located in `app/(app)/analytics/`: `AnalyticsOverviewTab` (324L), `AnalyticsOutreachTab` (269L), `AnalyticsHeatTab` (163L). Shell is now 172 lines (date state, derived `useMemo`s, date-picker header, tab routing). Chart configs co-located in owning tabs; `outreachPage` kept in shell to preserve tab-switch persistence. Duplicated heat distribution bar tracked separately as new finding M-34. | — |
+| 2026-05-02 | M-34 | New finding added during M-12 decomposition: hot/warm/cold heat distribution is rendered twice on the analytics page — Overview tab uses Recharts `BarChart`, Heat tab uses CSS stacked bar + progress bars. Two visualizations of the same metric. Deferred for separate fix (extract shared component or remove one). | — |
+| 2026-05-02 | M-13 | Extracted all magic numbers from heat-scoring, smart-list filters, and date-window queries. `MS_PER_DAY` lives in new `lib/constants.ts` (single shared constant); 14 heat-score policy constants co-located in `lib/heat-score.ts`; 3 filter thresholds co-located in `lib/utils.ts`. `daysAgo` helper normalized to use `MS_PER_DAY` (was `1000 * 60 * 60 * 24`). Query/action sites kept the cardinal day-count visible (`7 * MS_PER_DAY`, `90 * MS_PER_DAY`). Heat-score tests still pass 22/22. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.

@@ -8,6 +8,7 @@ vi.mock("next/cache", () => ({
 import { POST } from "@/app/api/outreach/route";
 import { GET } from "@/app/api/clients/route";
 import { db } from "@/lib/db";
+import { MS_PER_DAY } from "@/lib/constants";
 import { outreachLogs, clients } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 
@@ -82,7 +83,7 @@ describe("POST /api/outreach", () => {
     const allData = await allRes.json();
     const clientId = allData[0].id;
 
-    const followUpDate = new Date(Date.now() + 7 * 86400000).toISOString();
+    const followUpDate = new Date(Date.now() + 7 * MS_PER_DAY).toISOString();
     const req = new Request("http://localhost:3000/api/outreach", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

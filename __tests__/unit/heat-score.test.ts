@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { calcHeatScore } from "@/lib/heat-score";
+import { MS_PER_DAY } from "@/lib/constants";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -32,7 +33,7 @@ function makeClient(
 
 /** Create an outreach entry at a given offset from NOW (negative = past). */
 function outreach(outcome: string, daysOffset: number) {
-  return { outcome: outcome as any, date: new Date(NOW.getTime() + daysOffset * 86400000) };
+  return { outcome: outcome as any, date: new Date(NOW.getTime() + daysOffset * MS_PER_DAY) };
 }
 
 // ---------------------------------------------------------------------------

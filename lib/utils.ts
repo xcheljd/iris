@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { MS_PER_DAY } from "./constants";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -21,7 +22,7 @@ export function formatDate(d: Date | string | number | null | undefined): string
 export function daysAgo(d: Date | string | number | null | undefined): number | null {
   if (!d) return null;
   const ms = Date.now() - new Date(d).getTime();
-  return Math.floor(ms / (1000 * 60 * 60 * 24));
+  return Math.floor(ms / MS_PER_DAY);
 }
 
 export function initials(first: string, last?: string | null): string {
@@ -29,6 +30,12 @@ export function initials(first: string, last?: string | null): string {
   const l = (last || "").trim()[0] || "";
   return (f + l).toUpperCase() || "?";
 }
+
+// ── Smart-list filter thresholds (days) ──────────────────────────────
+const STALE_THRESHOLD_DAYS = 90;
+const RECENT_PURCHASE_DAYS = 30;
+const NO_OUTREACH_DAYS = 60;
+// ─────────────────────────────────────────────────────────────────────
 
 export function applyClientFilter<T extends { heatLevel: string; status: string; lastOutreachAt: Date | string | number | null; lastPurchaseAt: Date | string | number | null; birthday: string | null; onEmailList: boolean }>(all: T[], filter: string | null): T[] {
   if (!filter) return all;
@@ -43,12 +50,12 @@ export function applyClientFilter<T extends { heatLevel: string; status: string;
           c.lastOutreachAt ? new Date(c.lastOutreachAt).getTime() : 0,
           c.lastPurchaseAt ? new Date(c.lastPurchaseAt).getTime() : 0,
         );
-        return c.status === "active" && (now - last) > 90 * 86400000;
+        return c.status === "active" && (now - last) > STALE_THRESHOLD_DAYS * MS_PER_DAY;
       });
     case "recent_purchases":
-      return all.filter((c) => c.lastPurchaseAt && (now - new Date(c.lastPurchaseAt).getTime()) < 30 * 86400000);
+      return all.filter((c) => c.lastPurchaseAt && (now - new Date(c.lastPurchaseAt).getTime()) < RECENT_PURCHASE_DAYS * MS_PER_DAY);
     case "no_outreach_60":
-      return all.filter((c) => c.status === "active" && (!c.lastOutreachAt || (now - new Date(c.lastOutreachAt).getTime()) > 60 * 86400000));
+      return all.filter((c) => c.status === "active" && (!c.lastOutreachAt || (now - new Date(c.lastOutreachAt).getTime()) > NO_OUTREACH_DAYS * MS_PER_DAY));
     case "birthdays_month": {
       const month = new Date().getMonth() + 1;
       return all.filter((c) => {
