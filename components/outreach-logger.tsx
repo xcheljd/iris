@@ -30,6 +30,20 @@ export function OutreachLogger({ clientId, clientName, trigger, templates = [] }
   const [templateId, setTemplateId] = useState<string>("");
   const [pending, start] = useTransition();
 
+  const quickFollowUpPresets = [
+    { label: "Tomorrow", days: 1 },
+    { label: "3 days", days: 3 },
+    { label: "1 week", days: 7 },
+    { label: "2 weeks", days: 14 },
+    { label: "1 month", days: 30 },
+  ];
+
+  function quickPick(days: number) {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    setFollowUp(d);
+  }
+
   function reset() {
     setMethod("call"); setOutcome("no_answer"); setPurchasedModel(""); setNotes(""); setFollowUp(null); setTemplateId("");
   }
@@ -132,6 +146,13 @@ export function OutreachLogger({ clientId, clientName, trigger, templates = [] }
           <div className="space-y-2">
             <Label>Follow-up date (optional)</Label>
             <DatePicker date={followUp ?? undefined} onSelect={(d) => setFollowUp(d ?? null)} />
+            <div className="flex flex-wrap gap-2">
+              {quickFollowUpPresets.map((p) => (
+                <Button key={p.label} type="button" variant="outline" size="sm" onClick={() => quickPick(p.days)}>
+                  {p.label}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
         <DialogFooter>

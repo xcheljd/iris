@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 22 | 16 | 0 | 6 |
-| MEDIUM | 33 | 25 | 0 | 8 |
+| MEDIUM | 33 | 24 | 0 | 9 |
 | LOW | 17 | 3 | 0 | 14 |
-| **TOTAL** | **80** | **50** | **0** | **30** |
+| **TOTAL** | **80** | **49** | **0** | **31** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,7 +28,7 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 22 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 33 (8 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🟡 MEDIUM | 33 (9 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (14 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
@@ -294,14 +294,15 @@
 - **Fix**: Add date WHERE clause: `gte(outreachLogs.date, ninetyDaysAgo)`.
 - **Resolved**: Both sites now filter in SQL with `WHERE date >= ninetyDaysAgo` and project only `{ outcome, date }` instead of full rows. JS `.filter()` eliminated. Per-compounds with C-04 (index on clientId + date) once landed. Related to H-17 (these two recalc paths are duplicated business logic — both copies now correct, but duplication remains).
 
-- [ ] ### M-08: `FollowUpForm` Duplicates `OutreachLogger`
+- [x] ### M-08: `FollowUpForm` Duplicates `OutreachLogger`
 - **Files**: `components/follow-up-form.tsx` (351 lines) vs `components/outreach-logger.tsx` (135 lines)
 - **Category**: Duplication
 - Near-complete rewrite with the same fields but different data fetching patterns (raw API + `window.location.reload()` vs server actions). Adds date picker + templates that OutreachLogger lacks.
 - **Fix**: Merge into single enhanced component.
+- **Resolved**: Audit's "merge" premise was stale — `OutreachLogger` already had DatePicker + templates. The one feature delta (`quickFollowUpPresets` — Tomorrow / 3 days / 1 week / 2 weeks / 1 month quick-jump buttons) was ported into `OutreachLogger`. `follow-up-form.tsx` deleted as dead code (zero imports, zero test references). Also closes L-04's deferred caveat about `console.error` in orphaned `follow-up-form.tsx`.
 
 - [ ] ### M-09: `getMethodIcon` Duplicated in 4 Files
-- **Files**: `components/outreach-history-tab.tsx:19-32`, `components/follow-up-form.tsx:157-165`, `app/(app)/follow-ups/follow-ups-content.tsx:65-73`, `app/(app)/analytics/analytics-content.tsx:90-98`
+- **Files**: `components/outreach-history-tab.tsx:19-32`, `app/(app)/follow-ups/follow-ups-content.tsx:65-73`, `app/(app)/analytics/analytics-content.tsx:90-98`
 - **Category**: Duplication
 - Same switch statement copy-pasted 4 times.
 - **Fix**: Extract to `lib/outreach-utils.tsx`.
@@ -656,5 +657,6 @@ These things are done well and should be maintained:
 | 2026-05-02 | M-06 | Added AbortController to edit/page.tsx mount effect (fetchClient + fetchEmployees) and checkForDuplicates in both edit and new page. All catch blocks guard against AbortError to prevent spurious toasts on navigation. Unmount cleanup now clears timeout + aborts fetch. | — |
 | 2026-05-02 | Audit | Resolution sweep: flipped H-21 (`[x]` → `[ ]`, partial — `edit-client-dialog.tsx` still inlines the form) and L-01 (`[x]` → `[ ]`, the three actions are referenced only from tests, not from production code). Recomputed Tracking Summary totals (51 open / 29 resolved). Clarified H-07 and C-06 resolution wording. | — |
 | 2026-05-02 | M-07 | Both `recalcHeat()` in lib/actions.ts and inline recalc in app/api/outreach/route.ts now filter in SQL (`WHERE date >= ninetyDaysAgo`) and project only `{ outcome, date }`. JS `.filter()` eliminated. Related to H-17 (duplicated logic — both copies now correct but duplication remains). | — |
+| 2026-05-02 | M-08 | Ported `quickFollowUpPresets` (Tomorrow / 3 days / 1 week / 2 weeks / 1 month quick-jump buttons) into `OutreachLogger`, then deleted dead `components/follow-up-form.tsx` (zero imports, zero test references). Audit's "merge" premise was stale — OutreachLogger already had DatePicker + templates. Closes L-04's deferred caveat about `console.error` in orphaned follow-up-form.tsx. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.
