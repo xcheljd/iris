@@ -131,12 +131,16 @@ export default function LoginPage() {
               <Button type="button" variant="link" className="block mx-auto" onClick={() => setMode("forgot-username")}>
                 Forgot Password?
               </Button>
-              <Separator />
-              <div className="pt-1 text-xs text-muted-foreground text-center space-y-1">
-                <p>Demo accounts:</p>
-                <p><span className="font-mono">Marcus / meridian</span> (manager)</p>
-                <p><span className="font-mono">Jordan / meridian</span> (associate)</p>
-              </div>
+              {process.env.NODE_ENV === "development" && (
+                <>
+                  <Separator />
+                  <div className="pt-1 text-xs text-muted-foreground text-center space-y-1">
+                    <p>Demo accounts:</p>
+                    <p><span className="font-mono">Marcus / meridian</span> (manager)</p>
+                    <p><span className="font-mono">Jordan / meridian</span> (associate)</p>
+                  </div>
+                </>
+              )}
             </form>
           )}
 

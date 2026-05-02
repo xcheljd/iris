@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 22 | 16 | 0 | 6 |
-| MEDIUM | 34 | 21 | 0 | 13 |
+| MEDIUM | 34 | 20 | 0 | 14 |
 | LOW | 17 | 3 | 0 | 14 |
-| **TOTAL** | **81** | **46** | **0** | **35** |
+| **TOTAL** | **81** | **45** | **0** | **36** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,7 +28,7 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 22 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 34 (13 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🟡 MEDIUM | 34 (14 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (14 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
@@ -336,11 +336,12 @@
 - **Fix**: Extract to named constants: `const DAY_MS = 86_400_000`, `const HEAT_THRESHOLD_HOT = 70`, etc.
 - **Resolved**: `MS_PER_DAY = 86_400_000` extracted to new `lib/constants.ts` (only truly cross-cutting constant). 9 heat-score constants co-located at top of `lib/heat-score.ts` — `SCORE_HAS_PURCHASE`, `SCORE_RECENT_PURCHASE`, `SCORE_RESPONDED_OUTREACH`, `SCORE_ON_EMAIL_LIST`, `SCORE_HAS_INTERESTS`, `SCORE_HAS_BIRTHDAY`, `PENALTY_STALE_OUTREACH`, `PENALTY_VERY_STALE_OUTREACH`, `PENALTY_UNSUBSCRIBED`, plus `RECENT_PURCHASE_WINDOW_DAYS`, `OUTREACH_STALE_DAYS`, `OUTREACH_VERY_STALE_DAYS`, `HEAT_THRESHOLD_HOT`, `HEAT_THRESHOLD_WARM`. 3 smart-list filter thresholds (`STALE_THRESHOLD_DAYS`, `RECENT_PURCHASE_DAYS`, `NO_OUTREACH_DAYS`) co-located near `applyClientFilter` in `lib/utils.ts`. `daysAgo` in utils.ts also normalized to use `MS_PER_DAY` (was `1000 * 60 * 60 * 24`). Query/action sites kept the cardinal visible: `7 * MS_PER_DAY`, `90 * MS_PER_DAY`. Zero raw `86_400_000` literals remain. Heat-score tests still pass (22/22). Function-default literals like `getRecentActivity(limit = 30)` left inline — those are parameter defaults, not magic.
 
-- [ ] ### M-14: Hardcoded Demo Credentials in Login Page
+- [x] ### M-14: Hardcoded Demo Credentials in Login Page
 - **File**: `app/login/page.tsx:134-137`
 - **Category**: Security
 - Displays `Marcus / meridian` (manager) and `Jordan / meridian` (associate) on the login page.
 - **Fix**: Gate behind `process.env.NODE_ENV === "development"`.
+- **Resolved**: Demo credentials block (and its preceding `<Separator />`) wrapped in `{process.env.NODE_ENV === "development" && (...)}`. Next.js replaces `process.env.NODE_ENV` at build time with a literal, so the entire block is dead-stripped from the production bundle — not just hidden at runtime. **Scope:** This closes the production information-disclosure path only. The underlying weakness — seed accounts exist with password "meridian" — remains tracked under L-13 (plaintext seed credentials) and M-28 (weak password policy). Production deployments must not run the seed script with default passwords.
 
 - [ ] ### M-15: Hardcoded Common Tags and Client Sources in Multiple Files
 - **Files**: `components/client-form.tsx` (`COMMON_TAGS` array), `components/tags-tab.tsx` (`commonTags` array)
@@ -673,5 +674,6 @@ These things are done well and should be maintained:
 | 2026-05-02 | M-12 | Split 781-line `AnalyticsContent` monolith into 3 namespace-prefixed tab components co-located in `app/(app)/analytics/`: `AnalyticsOverviewTab` (324L), `AnalyticsOutreachTab` (269L), `AnalyticsHeatTab` (163L). Shell is now 172 lines (date state, derived `useMemo`s, date-picker header, tab routing). Chart configs co-located in owning tabs; `outreachPage` kept in shell to preserve tab-switch persistence. Duplicated heat distribution bar tracked separately as new finding M-34. | — |
 | 2026-05-02 | M-34 | New finding added during M-12 decomposition: hot/warm/cold heat distribution is rendered twice on the analytics page — Overview tab uses Recharts `BarChart`, Heat tab uses CSS stacked bar + progress bars. Two visualizations of the same metric. Deferred for separate fix (extract shared component or remove one). | — |
 | 2026-05-02 | M-13 | Extracted all magic numbers from heat-scoring, smart-list filters, and date-window queries. `MS_PER_DAY` lives in new `lib/constants.ts` (single shared constant); 14 heat-score policy constants co-located in `lib/heat-score.ts`; 3 filter thresholds co-located in `lib/utils.ts`. `daysAgo` helper normalized to use `MS_PER_DAY` (was `1000 * 60 * 60 * 24`). Query/action sites kept the cardinal day-count visible (`7 * MS_PER_DAY`, `90 * MS_PER_DAY`). Heat-score tests still pass 22/22. | — |
+| 2026-05-02 | M-14 | Demo credentials block on login page gated behind `process.env.NODE_ENV === "development"` (Separator included in the gate). Next.js build-time replacement dead-strips the block from the production bundle. Closes the production info-disclosure path only — seed credential weakness remains tracked under L-13 and M-28. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.
