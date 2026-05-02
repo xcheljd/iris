@@ -28,7 +28,7 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 22 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 33 (10 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🟡 MEDIUM | 33 (11 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (14 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
@@ -315,11 +315,7 @@
 - **Fix**: Use existing `<HeatBadge>` component.
 - **Resolved**: No longer duplicated. Sites now use shared `HeatBadge` component or inline badge.
 
-- [ ] ### M-11: `SettingsContent` — 1058-Line Monolith
-- **File**: `app/(app)/settings/settings-content.tsx`
-- **Category**: Overcomplicated
-- 12 useState hooks, 8 handler functions, 3 confirmation dialogs in a single component. Has grown from 744 lines since original audit.
-- **Fix**: Split into `EmployeesTab`, `TagsTab`, `TemplatesTab` components.
+- [x] ### M-11: `SettingsContent` — 1058-Line Monolith *(Resolved — split into `ProfileTab`, `EmployeesTab`, `TagsTab`, `TemplatesTab`, `DeletedTab`; shell is now 96 lines)*
 
 - [ ] ### M-12: `AnalyticsContent` — 822-Line Monolith
 - **File**: `app/(app)/analytics/analytics-content.tsx`
