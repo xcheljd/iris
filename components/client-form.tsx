@@ -12,18 +12,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DatePicker } from "@/components/date-picker";
 import { Plus, X, AlertCircle } from "lucide-react";
 
-const CLIENT_SOURCES = [
-  "Client Log",
-  "Customer Report",
-  "Walk-in",
-  "Referral",
-] as const;
-
-const COMMON_TAGS = [
-  "VIP", "repeat-buyer", "high-spender", "military", "birthday-this-month",
-  "talker", "no-texts", "email-only", "crimson-ace", "meridian", "solar",
-  "limited-edition", "mens", "womens", "watch", "collector",
-];
+import { CLIENT_SOURCE_VALUES } from "@/lib/db/schema";
+import { COMMON_TAGS } from "@/lib/constants";
 
 interface DuplicateClient {
   id: string;
@@ -256,7 +246,7 @@ export function ClientForm({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {CLIENT_SOURCES.map((source) => (
+                    {CLIENT_SOURCE_VALUES.map((source) => (
                       <SelectItem key={source} value={source}>
                         {source}
                       </SelectItem>
@@ -275,7 +265,7 @@ export function ClientForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {CLIENT_SOURCES.map((source) => (
+                  {CLIENT_SOURCE_VALUES.map((source) => (
                     <SelectItem key={source} value={source}>
                       {source}
                     </SelectItem>

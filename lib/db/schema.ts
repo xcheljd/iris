@@ -1,6 +1,9 @@
 import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
+export const CLIENT_SOURCE_VALUES = ["Client Log", "Customer Report", "Walk-in", "Referral"] as const;
+export type ClientSource = typeof CLIENT_SOURCE_VALUES[number];
+
 export const employees = sqliteTable("employees", {
   id: text("id").primaryKey(),
   firstName: text("first_name").notNull(),
@@ -27,7 +30,7 @@ export const clients = sqliteTable("clients", {
   notes: text("notes"),
   onEmailList: integer("on_email_list", { mode: "boolean" }).notNull().default(false),
   status: text("status", { enum: ["active", "inactive", "banned", "unsubscribed", "deleted"] }).notNull().default("active"),
-  source: text("source", { enum: ["Client Log", "Customer Report", "Walk-in", "Referral"] }).notNull().default("Walk-in"),
+  source: text("source", { enum: CLIENT_SOURCE_VALUES }).notNull().default("Walk-in"),
   birthday: text("birthday"),
   anniversary: text("anniversary"),
   tags: text("tags", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),

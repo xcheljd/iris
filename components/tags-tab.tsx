@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/empty-state";
+import { SUGGESTED_TAGS } from "@/lib/constants";
 import type { FullClient } from "@/components/client-provider";
 
 interface TagsTabProps {
@@ -103,7 +104,6 @@ export function TagsTab({ client }: TagsTabProps) {
   );
 
   // Common tag suggestions
-  const commonTags = ["VIP", "repeat-buyer", "high-spender", "military", "birthday-this-month"];
 
   return (
     <div className="space-y-4">
@@ -215,7 +215,7 @@ export function TagsTab({ client }: TagsTabProps) {
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">Common tags:</p>
                 <div className="flex flex-wrap gap-2">
-                  {commonTags.map((tag) => (
+                  {SUGGESTED_TAGS.map((tag) => (
                     <Badge
                       key={tag}
                       variant="outline"

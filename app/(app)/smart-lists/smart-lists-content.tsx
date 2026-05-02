@@ -47,6 +47,7 @@ import { deleteSmartList, duplicateSmartList, renameSmartList, createSmartList }
 import { toast } from "sonner";
 import { Topbar } from "@/components/topbar";
 import type { SmartList } from "@/lib/db/schema";
+import { CLIENT_SOURCE_VALUES } from "@/lib/db/schema";
 import type { ClientListRow } from "@/lib/queries";
 
 interface SmartListsContentProps {
@@ -289,10 +290,9 @@ function CreateListDialog({ open, onOpenChange, allClients }: { open: boolean; o
                   <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">Any</SelectItem>
-                    <SelectItem value="Walk-in">Walk-in</SelectItem>
-                    <SelectItem value="Client Log">Client Log</SelectItem>
-                    <SelectItem value="Customer Report">Customer Report</SelectItem>
-                    <SelectItem value="Referral">Referral</SelectItem>
+                    {CLIENT_SOURCE_VALUES.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

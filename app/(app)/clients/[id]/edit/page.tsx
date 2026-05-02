@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Topbar } from "@/components/topbar";
 import { ClientForm } from "@/components/client-form";
 import type { ClientFormData } from "@/components/client-form";
+import type { ClientSource } from "@/lib/db/schema";
 import { ClientDetailSkeleton } from "@/components/skeletons";
 
 interface ClientData {
@@ -21,7 +22,7 @@ interface ClientData {
   notes?: string;
   onEmailList: boolean;
   status: "active" | "inactive" | "banned" | "unsubscribed";
-  source: "Client Log" | "Customer Report" | "Walk-in" | "Referral";
+  source: ClientSource;
   birthday?: string;
   anniversary?: string;
   tags: string[];

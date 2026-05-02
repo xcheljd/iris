@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 22 | 16 | 0 | 6 |
-| MEDIUM | 34 | 20 | 0 | 14 |
+| MEDIUM | 34 | 19 | 0 | 15 |
 | LOW | 17 | 3 | 0 | 14 |
-| **TOTAL** | **81** | **45** | **0** | **36** |
+| **TOTAL** | **81** | **44** | **0** | **37** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,7 +28,7 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 22 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 34 (14 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🟡 MEDIUM | 34 (15 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (14 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
@@ -343,11 +343,13 @@
 - **Fix**: Gate behind `process.env.NODE_ENV === "development"`.
 - **Resolved**: Demo credentials block (and its preceding `<Separator />`) wrapped in `{process.env.NODE_ENV === "development" && (...)}`. Next.js replaces `process.env.NODE_ENV` at build time with a literal, so the entire block is dead-stripped from the production bundle — not just hidden at runtime. **Scope:** This closes the production information-disclosure path only. The underlying weakness — seed accounts exist with password "meridian" — remains tracked under L-13 (plaintext seed credentials) and M-28 (weak password policy). Production deployments must not run the seed script with default passwords.
 
-- [ ] ### M-15: Hardcoded Common Tags and Client Sources in Multiple Files
+- [x] ### M-15: Hardcoded Common Tags and Client Sources in Multiple Files
 - **Files**: `components/client-form.tsx` (`COMMON_TAGS` array), `components/tags-tab.tsx` (`commonTags` array)
 - **Category**: Maintainability
 - Same tag list hardcoded in two places. `CLIENT_SOURCES` constant also defined in `client-form.tsx`. Must be manually synced.
 - **Fix**: Fetch from `clientTags` table or define in a shared constants file.
+- **Resolved**: Two separate fixes per architectural concern. (1) `CLIENT_SOURCES` was duplicated across 6 sites including the Drizzle enum at `lib/db/schema.ts:30` (the actual load-bearing definition). Extracted as `CLIENT_SOURCE_VALUES` (readonly tuple) and `ClientSource` (union type) from `schema.ts`; the schema enum now references the same array; downstream call sites in `client-form.tsx` (2 dropdowns), `smart-lists-content.tsx` (4 hardcoded `SelectItem`s → loop), `[id]/edit/page.tsx` and `client-provider.tsx` (TS unions) all import from schema. Single source of truth — DB enum and UI cannot drift. (2) `COMMON_TAGS` (16-item full catalog) and `SUGGESTED_TAGS` (5-item curated quick-suggestion subset) extracted to `lib/constants.ts` as **separate** named exports — they serve different UX purposes (catalog vs chips, latter free of model-name jargon) so they intentionally remain distinct, not derived from each other. Test fixtures and scalar default fallbacks (`"Walk-in"`) left as inline literals — narrowed to `ClientSource` by TS automatically.
+- **UX note**: Source dropdown order in `smart-lists-content.tsx` changed from (Walk-in, Client Log, Customer Report, Referral) to schema declaration order (Client Log, Customer Report, Walk-in, Referral). Trivial visual shift; flag if user-facing impact is unwanted.
 
 - [ ] ### M-16: `searchClients` Doesn't Escape LIKE Wildcards
 - **File**: `lib/queries.ts:157-167`
@@ -675,5 +677,6 @@ These things are done well and should be maintained:
 | 2026-05-02 | M-34 | New finding added during M-12 decomposition: hot/warm/cold heat distribution is rendered twice on the analytics page — Overview tab uses Recharts `BarChart`, Heat tab uses CSS stacked bar + progress bars. Two visualizations of the same metric. Deferred for separate fix (extract shared component or remove one). | — |
 | 2026-05-02 | M-13 | Extracted all magic numbers from heat-scoring, smart-list filters, and date-window queries. `MS_PER_DAY` lives in new `lib/constants.ts` (single shared constant); 14 heat-score policy constants co-located in `lib/heat-score.ts`; 3 filter thresholds co-located in `lib/utils.ts`. `daysAgo` helper normalized to use `MS_PER_DAY` (was `1000 * 60 * 60 * 24`). Query/action sites kept the cardinal day-count visible (`7 * MS_PER_DAY`, `90 * MS_PER_DAY`). Heat-score tests still pass 22/22. | — |
 | 2026-05-02 | M-14 | Demo credentials block on login page gated behind `process.env.NODE_ENV === "development"` (Separator included in the gate). Next.js build-time replacement dead-strips the block from the production bundle. Closes the production info-disclosure path only — seed credential weakness remains tracked under L-13 and M-28. | — |
+| 2026-05-02 | M-15 | Eliminated `CLIENT_SOURCES` duplication across 6 sites (Drizzle schema enum + 5 downstream consumers) by exporting `CLIENT_SOURCE_VALUES` and `ClientSource` type from `lib/db/schema.ts` — schema is now the single source of truth. Tag duplication resolved by extracting `COMMON_TAGS` (full 16-item catalog) and `SUGGESTED_TAGS` (curated 5-item subset for chips) to `lib/constants.ts` as intentionally separate exports. UX note: smart-list source dropdown order changed from alphabetical to schema declaration order. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.
