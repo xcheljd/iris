@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 22 | 16 | 0 | 6 |
-| MEDIUM | 34 | 19 | 0 | 15 |
+| MEDIUM | 34 | 18 | 0 | 16 |
 | LOW | 17 | 3 | 0 | 14 |
-| **TOTAL** | **81** | **44** | **0** | **37** |
+| **TOTAL** | **81** | **43** | **0** | **38** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,7 +28,7 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 22 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 34 (15 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🟡 MEDIUM | 34 (16 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (14 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
@@ -351,11 +351,12 @@
 - **Resolved**: Two separate fixes per architectural concern. (1) `CLIENT_SOURCES` was duplicated across 6 sites including the Drizzle enum at `lib/db/schema.ts:30` (the actual load-bearing definition). Extracted as `CLIENT_SOURCE_VALUES` (readonly tuple) and `ClientSource` (union type) from `schema.ts`; the schema enum now references the same array; downstream call sites in `client-form.tsx` (2 dropdowns), `smart-lists-content.tsx` (4 hardcoded `SelectItem`s → loop), `[id]/edit/page.tsx` and `client-provider.tsx` (TS unions) all import from schema. Single source of truth — DB enum and UI cannot drift. (2) `COMMON_TAGS` (16-item full catalog) and `SUGGESTED_TAGS` (5-item curated quick-suggestion subset) extracted to `lib/constants.ts` as **separate** named exports — they serve different UX purposes (catalog vs chips, latter free of model-name jargon) so they intentionally remain distinct, not derived from each other. Test fixtures and scalar default fallbacks (`"Walk-in"`) left as inline literals — narrowed to `ClientSource` by TS automatically.
 - **UX note**: Source dropdown order in `smart-lists-content.tsx` changed from (Walk-in, Client Log, Customer Report, Referral) to schema declaration order (Client Log, Customer Report, Walk-in, Referral). Trivial visual shift; flag if user-facing impact is unwanted.
 
-- [ ] ### M-16: `searchClients` Doesn't Escape LIKE Wildcards
-- **File**: `lib/queries.ts:157-167`
+- [x] ### M-16: `searchClients` Doesn't Escape LIKE Wildcards
+- **File**: `lib/queries.ts:206-217`
 - **Category**: Security / Information Disclosure
 - Constructs `%${query.toLowerCase()}%` without escaping `%` and `_`. Searching for `%` matches all records.
 - **Fix**: Escape LIKE wildcards before constructing the pattern.
+- **Resolved**: Strip `%` and `_` from query before wrapping, early return `[]` when cleaned query is empty (closes `%%` → match-everything path). Strip-not-escape approach avoids needing `ESCAPE '\'` clauses on all 4 LIKE expressions. CRM data doesn't contain literal `%` or `_` in names/emails/phones. Exposed via authenticated API route only.
 
 - [ ] ### M-17: Outreach POST Doesn't Validate Enum Values
 - **File**: `app/api/outreach/route.ts:11-12`
@@ -672,6 +673,12 @@ These things are done well and should be maintained:
 | 2026-05-02 | M-07 | Both `recalcHeat()` in lib/actions.ts and inline recalc in app/api/outreach/route.ts now filter in SQL (`WHERE date >= ninetyDaysAgo`) and project only `{ outcome, date }`. JS `.filter()` eliminated. Related to H-17 (duplicated logic — both copies now correct but duplication remains). | — |
 | 2026-05-02 | M-08 | Ported `quickFollowUpPresets` (Tomorrow / 3 days / 1 week / 2 weeks / 1 month quick-jump buttons) into `OutreachLogger`, then deleted dead `components/follow-up-form.tsx` (zero imports, zero test references). Audit's "merge" premise was stale — OutreachLogger already had DatePicker + templates. Closes L-04's deferred caveat about `console.error` in orphaned follow-up-form.tsx. | — |
 | 2026-05-02 | M-09 | Final migration of `getMethodIcon`: `outreach-history-tab.tsx` now imports from `lib/outreach-helpers.tsx`. Two other sites had already been migrated; `follow-up-form.tsx` was deleted in M-08. Dead lucide imports (Mail, MessageCircle, User) removed. | — |
+| 2026-05-02 | M-11 | Decomposed 1062-line `SettingsContent` monolith into 5 tab components: `ProfileTab`, `EmployeesTab`, `SettingsTagsTab`, `TemplatesTab`, `DeletedTab`. Shell is now 96 lines. | `1cad8f2` |
+| 2026-05-02 | M-12 | Decomposed 781-line `AnalyticsContent` monolith into 3 namespace-prefixed tabs: `AnalyticsOverviewTab`, `AnalyticsOutreachTab`, `AnalyticsHeatTab`. Shell is 147 lines. Chart configs co-located. outreachPage kept in shell. Includes external `TagsTab`→`SettingsTagsTab` rename. Added M-34 finding for duplicated heat bar. | `32df57a` |
+| 2026-05-02 | M-13 | Extracted all magic numbers to named constants. `MS_PER_DAY` in `lib/constants.ts`; 9 heat-score constants co-located in `lib/heat-score.ts`; 3 filter thresholds co-located in `lib/utils.ts`. All 10 call sites + 2 test files updated. Zero raw `86400000` remaining. | `4ebc5de` |
+| 2026-05-02 | M-14 | Demo credentials block + separator gated behind `process.env.NODE_ENV === "development"`. Dead-stripped from production bundle at build time. Underlying seed-account weakness tracked under L-13 and M-28. | `a25fb3e` |
+| 2026-05-02 | M-15 | `CLIENT_SOURCE_VALUES` + `ClientSource` type derived from `lib/db/schema.ts` (schema enum references same array). `COMMON_TAGS` (16-item catalog) + `SUGGESTED_TAGS` (5-item curated subset) extracted to `lib/constants.ts`. 4 downstream sites updated. UX note: smart-list source dropdown order changed to schema declaration order. | `ed601e3` |
+| 2026-05-02 | M-16 | Strip `%` and `_` from search query before LIKE wrapping; early return `[]` on empty cleaned query (closes `%%` → match-everything path). Strip-not-escape avoids needing `ESCAPE` clauses on 4 LIKE expressions. | — |
 | 2026-05-02 | M-11 | Split 1058-line `SettingsContent` monolith into 5 co-located tab components (`ProfileTab`, `EmployeesTab`, `SettingsTagsTab`, `TemplatesTab`, `DeletedTab`). Shell is now 96 lines (tab routing + manager gating only). Settings tab renamed `SettingsTagsTab` to avoid name collision with the client-detail `TagsTab` in `components/tags-tab.tsx`. | — |
 | 2026-05-02 | M-12 | Split 781-line `AnalyticsContent` monolith into 3 namespace-prefixed tab components co-located in `app/(app)/analytics/`: `AnalyticsOverviewTab` (324L), `AnalyticsOutreachTab` (269L), `AnalyticsHeatTab` (163L). Shell is now 172 lines (date state, derived `useMemo`s, date-picker header, tab routing). Chart configs co-located in owning tabs; `outreachPage` kept in shell to preserve tab-switch persistence. Duplicated heat distribution bar tracked separately as new finding M-34. | — |
 | 2026-05-02 | M-34 | New finding added during M-12 decomposition: hot/warm/cold heat distribution is rendered twice on the analytics page — Overview tab uses Recharts `BarChart`, Heat tab uses CSS stacked bar + progress bars. Two visualizations of the same metric. Deferred for separate fix (extract shared component or remove one). | — |

@@ -204,7 +204,9 @@ export async function getRecentOutreach(limit = 20, employeeId?: string) {
 }
 
 export async function searchClients(query: string, employeeId?: string) {
-  const q = `%${query.toLowerCase()}%`;
+  const cleaned = query.toLowerCase().replace(/[%_]/g, "");
+  if (!cleaned) return [];
+  const q = `%${cleaned}%`;
   const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
   return db.select().from(clients).where(and(
     notInArray(clients.status, ["banned", "deleted"]),
