@@ -3,7 +3,8 @@ import { sql } from "drizzle-orm";
 
 export const employees = sqliteTable("employees", {
   id: text("id").primaryKey(),
-  name: text("name").notNull(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name"),
   username: text("username").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   role: text("role", { enum: ["manager", "associate"] }).notNull(),
@@ -132,11 +133,24 @@ export const activityEvents = sqliteTable("activity_events", {
   id: text("id").primaryKey(),
   clientId: text("client_id").notNull().references(() => clients.id),
   eventType: text("event_type", {
-    enum: ["created", "edited", "outreach_logged", "purchase", "tag_added", "tag_removed", "transferred", "promoted", "note_added", "status_changed", "merged"],
+    enum: ["created", "edited", "outreach_logged", "purchase", "tag_added", "tag_removed", "transferred", "promoted", "note_added", "status_changed", "merged", "ban_requested", "ban_approved", "ban_rejected", "unsub_requested", "unsub_approved", "unsub_rejected", "delete_requested", "delete_approved", "delete_rejected"],
   }).notNull(),
   description: text("description").notNull(),
   metadata: text("metadata", { mode: "json" }).$type<Record<string, unknown>>(),
   employeeId: text("employee_id").references(() => employees.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+});
+
+export const approvalRequests = sqliteTable("approval_requests", {
+  id: text("id").primaryKey(),
+  type: text("type", { enum: ["ban", "unsubscribe", "delete"] }).notNull(),
+  clientId: text("client_id").notNull().references(() => clients.id),
+  requestorId: text("requestor_id").notNull().references(() => employees.id),
+  reason: text("reason").notNull(),
+  status: text("status", { enum: ["pending", "approved", "rejected"] }).notNull().default("pending"),
+  reviewedById: text("reviewed_by_id").references(() => employees.id),
+  reviewedAt: integer("reviewed_at", { mode: "timestamp" }),
+  metadata: text("metadata", { mode: "json" }).$type<Record<string, unknown>>(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
@@ -151,3 +165,4 @@ export type ActivityEvent = typeof activityEvents.$inferSelect;
 export type ClientTag = typeof clientTags.$inferSelect;
 export type OutreachTemplate = typeof outreachTemplates.$inferSelect;
 export type SmartList = typeof smartLists.$inferSelect;
+export type ApprovalRequest = typeof approvalRequests.$inferSelect;

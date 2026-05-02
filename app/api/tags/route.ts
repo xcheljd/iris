@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { clients, clientTags, activityEvents } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -6,6 +8,10 @@ import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 
 export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  if (session.user.role !== "manager") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   try {
     const body = await request.json();
     const { clientId, tag } = body;
@@ -42,6 +48,10 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  if (session.user.role !== "manager") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   try {
     const body = await request.json();
     const { clientId, tag } = body;

@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { clients, outreachLogs, activityEvents, promoMatches, promoWatches, clientTags, employees } from "@/lib/db/schema";
-import { eq, desc, and, isNull } from "drizzle-orm";
+import { eq, desc, and, isNull, sql } from "drizzle-orm";
 import { ClientDetailContent } from "./client-detail-content";
 import { ClientDetailSkeleton } from "@/components/skeletons";
 import { getServerSession } from "next-auth";
@@ -12,7 +12,7 @@ async function getFullClient(clientId: string) {
   const row = db
     .select({
       client: clients,
-      employeeName: employees.name,
+      employeeName: sql`COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, '')`,
     })
     .from(clients)
     .leftJoin(employees, eq(clients.employeeId, employees.id))
@@ -34,7 +34,7 @@ async function getFullClient(clientId: string) {
   const timeline = db
     .select({
       event: activityEvents,
-      eventEmployeeName: employees.name,
+      eventEmployeeName: sql`COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, '')`,
     })
     .from(activityEvents)
     .leftJoin(employees, eq(activityEvents.employeeId, employees.id))
@@ -99,6 +99,10 @@ async function ClientDetailFetcher({ params }: { params: Promise<{ id: string }>
   const session = await getServerSession(authOptions);
   const client = await getFullClient(id);
   if (!client) {
+    notFound();
+  }
+  const isManager = session?.user?.role === "manager";
+  if (!isManager && client.employeeId !== session?.user?.id) {
     notFound();
   }
   return <ClientDetailContent client={JSON.parse(JSON.stringify(client))} currentUserRole={session?.user?.role ?? "associate"} />;

@@ -9,7 +9,7 @@ vi.mock("next/cache", () => ({
 }));
 
 import { getServerSession } from "next-auth";
-import { createPromo, togglePromo, deletePromo } from "@/lib/actions";
+import { createPromo, deletePromo } from "@/lib/actions";
 import { db } from "@/lib/db";
 import { promoWatches, promoMatches } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -48,7 +48,6 @@ describe("Promo Actions", () => {
         .get();
       expect(promo).toBeDefined();
       expect(promo!.collection).toBe(collection);
-      expect(promo!.active).toBe(true);
 
       createdPromoIds.push(promo!.id);
     });
@@ -97,43 +96,6 @@ describe("Promo Actions", () => {
       const promo = db.select().from(promoWatches)
         .where(eq(promoWatches.modelNumber, `REVALIDATE-TEST-${Date.now()}`))
         .get();
-    });
-  });
-
-  describe("togglePromo", () => {
-    it("should toggle promo active status to false", async () => {
-      // Create a promo first
-      const model = `TOGGLE-TEST-${Date.now()}`;
-      await createPromo(model, "TOGGLECOL");
-
-      const promo = db.select().from(promoWatches)
-        .where(eq(promoWatches.modelNumber, model))
-        .get();
-      expect(promo).toBeDefined();
-      createdPromoIds.push(promo!.id);
-
-      // Toggle off
-      await togglePromo(promo!.id, false);
-
-      const updated = db.select().from(promoWatches).where(eq(promoWatches.id, promo!.id)).get();
-      expect(updated!.active).toBe(false);
-    });
-
-    it("should toggle promo active status to true", async () => {
-      const model = `TOGGLE-ON-${Date.now()}`;
-      await createPromo(model, "TOGGLECOL");
-
-      const promo = db.select().from(promoWatches)
-        .where(eq(promoWatches.modelNumber, model))
-        .get();
-      createdPromoIds.push(promo!.id);
-
-      // Toggle off then on
-      await togglePromo(promo!.id, false);
-      await togglePromo(promo!.id, true);
-
-      const updated = db.select().from(promoWatches).where(eq(promoWatches.id, promo!.id)).get();
-      expect(updated!.active).toBe(true);
     });
   });
 

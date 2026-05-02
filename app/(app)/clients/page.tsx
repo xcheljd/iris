@@ -15,6 +15,8 @@ export default function ClientListPage({ searchParams: _searchParams }: { search
 
 async function ClientListFetcher() {
   const session = await getServerSession(authOptions);
-  const rows = await getClientsWithEmployee();
+  const isManager = session?.user?.role === "manager";
+  const employeeId = !isManager ? (session?.user?.id ?? undefined) : undefined;
+  const rows = await getClientsWithEmployee(employeeId);
   return <ClientListContent rows={JSON.parse(JSON.stringify(rows))} totalClients={rows.length} currentUserRole={session?.user?.role ?? "associate"} />;
 }

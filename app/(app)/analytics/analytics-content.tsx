@@ -73,7 +73,8 @@ interface OutreachRow {
     lastName: string | null;
   } | null;
   employee: {
-    name: string;
+    firstName: string;
+    lastName: string | null;
   } | null;
 }
 
@@ -616,7 +617,7 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
                         </p>
                         {row.employee && (
                           <Badge variant="secondary" className="text-[10px]">
-                            {row.employee.name}
+                            {row.employee ? [row.employee.firstName, row.employee.lastName].filter(Boolean).join(" ") : ""}
                           </Badge>
                         )}
                       </div>

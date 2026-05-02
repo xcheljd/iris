@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { clients, activityEvents } from "@/lib/db/schema";
 import { eq, desc, or, sql as rawSql } from "drizzle-orm";
@@ -7,6 +9,9 @@ import { revalidatePath } from "next/cache";
 
 // GET /api/clients — list all clients
 export async function GET(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
 
@@ -24,6 +29,9 @@ export async function GET(request: Request) {
 
 // POST /api/clients — create a new client
 export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
   try {
     const body = await request.json();
     const id = randomUUID();
@@ -71,6 +79,9 @@ export async function POST(request: Request) {
 
 // PUT /api/clients — update a client
 export async function PUT(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
   try {
     const body = await request.json();
     const { id, ...data } = body;

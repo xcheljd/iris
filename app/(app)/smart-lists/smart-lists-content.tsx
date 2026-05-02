@@ -46,12 +46,12 @@ import { applyClientFilter } from "@/lib/utils";
 import { deleteSmartList, duplicateSmartList, renameSmartList, createSmartList } from "@/lib/actions";
 import { toast } from "sonner";
 import { Topbar } from "@/components/topbar";
-import type { Client } from "@/lib/db/schema";
 import type { SmartList } from "@/lib/db/schema";
+import type { ClientListRow } from "@/lib/queries";
 
 interface SmartListsContentProps {
   lists: SmartList[];
-  allClients: Client[];
+  allClients: ClientListRow[];
 }
 
 function getFilterIcon(filter: string) {
@@ -78,7 +78,7 @@ function getFilterLabel(filter: string) {
   }
 }
 
-function ClientRow({ client }: { client: Client }) {
+function ClientRow({ client }: { client: ClientListRow }) {
   return (
     <Link
       href={`/clients/${client.id}`}
@@ -111,7 +111,7 @@ interface ResolvedList {
   isShared: boolean;
   isBuiltIn: boolean;
   _count: number;
-  _clients: Client[];
+  _clients: ClientListRow[];
 }
 
 function SmartListItem({
@@ -222,7 +222,7 @@ function SmartListItem({
   );
 }
 
-function CreateListDialog({ open, onOpenChange, allClients }: { open: boolean; onOpenChange: (open: boolean) => void; allClients: Client[] }) {
+function CreateListDialog({ open, onOpenChange, allClients }: { open: boolean; onOpenChange: (open: boolean) => void; allClients: ClientListRow[] }) {
   const [name, setName] = useState("");
   const [heatLevel, setHeatLevel] = useState<string>("__none__");
   const [source, setSource] = useState<string>("__none__");
@@ -353,7 +353,7 @@ export function SmartListsContent({ lists, allClients }: SmartListsContentProps)
   const customLists = useMemo(() => {
     return lists.map((list) => {
       const filters = list.filters as Record<string, FilterValue>;
-      let filtered: Client[] = allClients;
+      let filtered: ClientListRow[] = allClients;
 
       if (filters.heatLevel) {
         filtered = filtered.filter((c) => c.heatLevel === String(filters.heatLevel));

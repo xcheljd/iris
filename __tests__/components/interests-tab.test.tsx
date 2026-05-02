@@ -2,13 +2,39 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { InterestsTab } from "@/components/interests-tab";
+import type { FullClient } from "@/components/client-provider";
 
 // Mock outreach-logger since it has complex dialog dependencies
 vi.mock("@/components/outreach-logger", () => ({
   OutreachLogger: ({ trigger }: { trigger: React.ReactNode }) => <>{trigger}</>,
 }));
 
-const clientWithInterests = {
+function makeClient(overrides: Partial<FullClient> = {}): FullClient {
+  return {
+    id: "client-1",
+    firstName: "John",
+    lastName: "Doe",
+    dateAdded: "2025-01-01",
+    productsOfInterest: [],
+    onEmailList: false,
+    status: "active",
+    source: "Walk-in",
+    notes: null,
+    tags: [],
+    heatScore: 0,
+    heatLevel: "cold",
+    createdAt: "2025-01-01",
+    updatedAt: "2025-01-01",
+    outreach: [],
+    timeline: [],
+    matches: [],
+    allTags: [],
+    followUps: [],
+    ...overrides,
+  };
+}
+
+const clientWithInterests = makeClient({
   id: "client-1",
   firstName: "John",
   lastName: "Doe",
@@ -19,31 +45,31 @@ const clientWithInterests = {
   ],
   matches: [
     {
-      promo: { modelNumber: "KX1023-01X", collection: "Eco" },
-      matchType: "model",
+      match: { id: "m1", clientId: "client-1", promoId: "p1", matchType: "model", createdAt: new Date() },
+      promo: { id: "p1", modelNumber: "KX1023-01X", collection: "Eco", msrp: null, discountPercent: null, discountPrice: null, promoStart: null, promoEnd: null, dateAdded: new Date() },
     },
     {
-      promo: { modelNumber: "NR-710", collection: "Sentinel" },
-      matchType: "collection",
+      match: { id: "m2", clientId: "client-1", promoId: "p2", matchType: "collection", createdAt: new Date() },
+      promo: { id: "p2", modelNumber: "NR-710", collection: "Sentinel", msrp: null, discountPercent: null, discountPrice: null, promoStart: null, promoEnd: null, dateAdded: new Date() },
     },
   ],
-};
+});
 
-const clientWithNoInterests = {
+const clientWithNoInterests = makeClient({
   id: "client-2",
   firstName: "Jane",
   lastName: "Smith",
   productsOfInterest: [],
   matches: [],
-};
+});
 
-const clientWithTextOnlyInterests = {
+const clientWithTextOnlyInterests = makeClient({
   id: "client-3",
   firstName: "Bob",
   lastName: "Jones",
   productsOfInterest: ["Something without alphanumeric model numbers"],
   matches: [],
-};
+});
 
 describe("InterestsTab", () => {
   it("renders all three sub-tab buttons", () => {

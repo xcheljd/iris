@@ -161,7 +161,7 @@ describe("Client Actions", () => {
       expect(editEvent!.description).toContain("Marcus");
 
       // Restore
-      await updateClient(FIRST_CLIENT_ID, { notes: null });
+      await updateClient(FIRST_CLIENT_ID, { notes: undefined });
     });
   });
 

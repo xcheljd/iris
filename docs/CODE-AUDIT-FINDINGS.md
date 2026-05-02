@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 22 | 16 | 0 | 6 |
-| MEDIUM | 33 | 30 | 0 | 3 |
+| MEDIUM | 33 | 29 | 0 | 4 |
 | LOW | 17 | 2 | 0 | 15 |
-| **TOTAL** | **80** | **57** | **0** | **23** |
+| **TOTAL** | **80** | **56** | **0** | **24** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,7 +28,7 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 22 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 33 (3 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🟡 MEDIUM | 33 (4 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (2 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
@@ -256,11 +256,12 @@
 - **Fix**: Implement server-side filtering via URL search params. Add pagination limits.
 - **Resolved**: Clients page now loads data server-side via `getClientsWithEmployee()` in a Server Component. Client-side content component receives data as props.
 
-- [ ] ### M-03: Unbounded Queries — No LIMIT Clauses
+- [x] ### M-03: Unbounded Queries — No LIMIT Clauses
 - **Files**: `lib/queries.ts` — `getAllClients` (L5-7), `getClientsWithEmployee` (L13-18), `getClientOutreach` (L21-27), `getPromos` (L92-94), `getBannedCustomers` (L110-131)
 - **Category**: Performance
 - Multiple queries return entire tables with no LIMIT.
 - **Fix**: Add `.limit()` with pagination support.
+- **Resolved**: Single-store SQLite CRM with realistic ceiling of ~15K clients — full server-side pagination would degrade UX (instant filter/sort/search on the clients page) for no measurable performance benefit. Applied two targeted fixes instead: (1) `LIST_QUERY_LIMIT = 10000` guardrail on the six unbounded list queries (`getAllClients`, `getClientsWithEmployee`, `getPromos`, `getBannedCustomers`, `getUnsubscribeList`, `getDeletedClients`); (2) explicit column projection on `getAllClients` and `getClientsWithEmployee` dropping `notes`, `deletedAt`, `deletedBy`, `previousStatus` — these are detail-page-only fields that were inflating the RSC payload. Detail-page query `getClient(id)` keeps the full row. New `ClientListRow` type exported and adopted by `smart-lists-content.tsx` and `collections-content.tsx`. **Assumption**: smart-list custom filters cannot reference dropped fields — UI doesn't expose them; revisit if filter builder gains a notes/deleted-state predicate.
 
 - [ ] ### M-04: `getStats()` Fires 9 Separate Queries
 - **File**: `lib/queries.ts:68-90`
@@ -642,5 +643,6 @@ These things are done well and should be maintained:
 | 2026-04-30 | L-15 | Removed `aria-describedby={undefined}`, added `DialogDescription` in outreach-logger | — |
 | 2026-04-30 | L-16 | Replaced type-unsafe `window` cast with `useRef` for debounce timeout | — |
 | 2026-04-30 | L-17 | Removed dead `currentUserRole` prop from `ClientSidebar`, cleaned up call sites and obsolete tests. Also added `DeleteCustomerDialog` with associate approval request flow (matching existing ban/unsubscribe pattern) | — |
+| 2026-05-01 | M-03 | Won't-fix on full pagination (single-store SQLite, ~15K ceiling, instant-filter UX preserved). Added `LIST_QUERY_LIMIT=10000` guardrail to 6 list queries and projected `notes`/`deletedAt`/`deletedBy`/`previousStatus` out of `getAllClients`/`getClientsWithEmployee`. New `ClientListRow` type adopted by smart-lists and collections content. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.

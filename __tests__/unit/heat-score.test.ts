@@ -14,16 +14,16 @@ function makeClient(
     onEmailList: boolean;
     productsOfInterest: string[];
     birthday: string | null;
-    status: string;
-    lastOutreachAt: Date | string | null;
-    lastPurchaseAt: Date | string | null;
+    status: "active" | "inactive" | "banned" | "unsubscribed" | "deleted";
+    lastOutreachAt: Date | null;
+    lastPurchaseAt: Date | null;
   }> = {},
 ) {
   return {
     onEmailList: false,
     productsOfInterest: [] as string[],
     birthday: null as string | null,
-    status: "active",
+    status: "active" as const,
     lastOutreachAt: null as Date | null,
     lastPurchaseAt: null as Date | null,
     ...overrides,

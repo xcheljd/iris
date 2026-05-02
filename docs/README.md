@@ -6,6 +6,7 @@
 |----------|-------------|--------|
 | [CODE-AUDIT-FINDINGS.md](CODE-AUDIT-FINDINGS.md) | Full codebase audit: 72 issues across 4 severity levels with tracking checkboxes | Tracking — 0/72 resolved |
 | [FEATURE-PROPOSALS.md](FEATURE-PROPOSALS.md) | Feature backlog inspired by industry CRM research (BSPK, Endear, Tulip, etc.) | Tracking — 12/17 shipped |
+
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System architecture, data model, auth flow, and key design decisions | Reference |
 
 ## Archive
@@ -19,6 +20,7 @@ Historical documents from completed work. Kept for reference.
 | [Archive/visual-improvements.md](Archive/visual-improvements.md) | 10-phase UI polish changelog (skeletons, mobile, accessibility, component upgrades) | April 2026 |
 | [Archive/visual-testing-report.md](Archive/visual-testing-report.md) | Visual and interaction testing report across 14 pages (all issues resolved) | April 2026 |
 | [Archive/DESIGN-SYSTEM-GAP-ANALYSIS.md](Archive/DESIGN-SYSTEM-GAP-ANALYSIS.md) | Design system audit: 9 gaps identified, 7 components extracted, 1 evaluated and skipped, all resolved | April 2026 |
+| [Archive/PERMISSIONS-PLAN.md](Archive/PERMISSIONS-PLAN.md) | 6-phase permissions overhaul: action gating, approval queue, client scoping, read-only pages, activity feed, navigation | April 2026 |
 
 ## Contributing
 

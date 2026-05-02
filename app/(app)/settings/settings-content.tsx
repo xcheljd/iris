@@ -355,10 +355,12 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
             <UserCircle className="h-4 w-4" />
             Profile
           </TabsTrigger>
-          <TabsTrigger value="employees" className="gap-1">
-            <Users className="h-4 w-4" />
-            Employees
-          </TabsTrigger>
+          {isManager && (
+            <TabsTrigger value="employees" className="gap-1">
+              <Users className="h-4 w-4" />
+              Employees
+            </TabsTrigger>
+          )}
           <TabsTrigger value="tags" className="gap-1">
             <Tag className="h-4 w-4" />
             Tags
@@ -367,12 +369,10 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
             <FileText className="h-4 w-4" />
             Templates
           </TabsTrigger>
-          {isManager && (
-            <TabsTrigger value="deleted" className="gap-1">
-              <Trash2 className="h-4 w-4" />
-              Deleted
-            </TabsTrigger>
-          )}
+          <TabsTrigger value="deleted" className="gap-1">
+            <Trash2 className="h-4 w-4" />
+            Deleted
+          </TabsTrigger>
         </TabsList>
 
         {/* Profile Tab */}
@@ -440,6 +440,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
         </TabsContent>
 
         {/* Employees Tab */}
+        {isManager && (
         <TabsContent value="employees">
           <Card>
             <CardHeader>
@@ -699,6 +700,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
             </DialogContent>
           </Dialog>
         </TabsContent>
+        )}
 
         <Separator />
 
@@ -937,13 +939,12 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
           </Card>
         </TabsContent>
 
-        {isManager && (
           <TabsContent value="deleted">
             <Card>
               <CardHeader>
                 <CardTitle>Deleted Clients</CardTitle>
                 <CardDescription>
-                  {deletedClients.length} deleted client{deletedClients.length !== 1 ? "s" : ""}. Restore or permanently remove them.
+                  {deletedClients.length} deleted client{deletedClients.length !== 1 ? "s" : ""}{isManager ? ". Restore or permanently remove them." : "."}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -975,6 +976,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                           <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
                             {dc.deletedAt ? format(new Date(dc.deletedAt), "MMM d, yyyy") : "—"}
                           </TableCell>
+                          {isManager && (
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1">
                               <Button variant="outline" size="sm" onClick={() => setRestoreTarget(dc)}>
@@ -987,6 +989,7 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
                               </Button>
                             </div>
                           </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
@@ -1005,7 +1008,6 @@ export function SettingsContent({ employees, tags: initialTags, templates: initi
               </CardContent>
             </Card>
           </TabsContent>
-        )}
       </Tabs>
 
       {/* Delete Tag Confirmation */}

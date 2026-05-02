@@ -51,9 +51,11 @@ describe("Employee Actions", () => {
     it("should create a new employee when user is manager", async () => {
       vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
 
+      const username = "testemployee_" + Date.now();
       const result = await createEmployee({
-        name: "Test Employee",
-        username: "testemployee_" + Date.now(),
+        firstName: "Test",
+        lastName: "Employee",
+        username,
         password: "password123",
         role: "associate",
       });
@@ -62,9 +64,11 @@ describe("Employee Actions", () => {
 
       // Find and track for cleanup
       const emp = db.select().from(employees)
-        .where(eq(employees.name, "Test Employee"))
+        .where(eq(employees.username, username))
         .get();
       expect(emp).toBeDefined();
+      expect(emp!.firstName).toBe("Test");
+      expect(emp!.lastName).toBe("Employee");
       expect(emp!.username).toMatch(/^testemployee_/);
       expect(emp!.role).toBe("associate");
       expect(emp!.active).toBe(true);
@@ -80,7 +84,8 @@ describe("Employee Actions", () => {
       vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
 
       const result = await createEmployee({
-        name: "Should Not Create",
+        firstName: "Should Not",
+        lastName: "Create",
         username: "shouldnotcreate",
         password: "password123",
         role: "associate",
@@ -93,7 +98,8 @@ describe("Employee Actions", () => {
       vi.mocked(getServerSession).mockResolvedValue(null as any);
 
       const result = await createEmployee({
-        name: "No Session",
+        firstName: "No",
+        lastName: "Session",
         username: "nosession",
         password: "password123",
         role: "associate",
@@ -106,26 +112,28 @@ describe("Employee Actions", () => {
       vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
 
       const result = await createEmployee({
-        name: "Short PW",
+        firstName: "Short",
+        lastName: "PW",
         username: "shortpw",
         password: "12345",
         role: "associate",
       });
 
-      expect(result).toEqual({ error: "Name, username, and password (min 6 chars) are required" });
+      expect(result).toEqual({ error: "First name, username, and password (min 6 chars) are required" });
     });
 
     it("should return error for missing fields", async () => {
       vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
 
       const result = await createEmployee({
-        name: "",
+        firstName: "",
+        lastName: "",
         username: "",
         password: "",
         role: "associate",
       });
 
-      expect(result).toEqual({ error: "Name, username, and password (min 6 chars) are required" });
+      expect(result).toEqual({ error: "First name, username, and password (min 6 chars) are required" });
     });
 
     it("should return error for duplicate username", async () => {
@@ -134,7 +142,8 @@ describe("Employee Actions", () => {
       // First create one
       const ts = Date.now();
       const result1 = await createEmployee({
-        name: "Dup Test",
+        firstName: "Dup",
+        lastName: "Test",
         username: `dupuser_${ts}`,
         password: "password123",
         role: "associate",
@@ -147,7 +156,8 @@ describe("Employee Actions", () => {
 
       // Try duplicate username
       const result2 = await createEmployee({
-        name: "Dup Test 2",
+        firstName: "Dup",
+        lastName: "Test 2",
         username: `dupuser_${ts}`,
         password: "password123",
         role: "associate",

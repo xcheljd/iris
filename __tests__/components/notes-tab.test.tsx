@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NotesTab } from "@/components/notes-tab";
+import type { FullClient } from "@/components/client-provider";
 
 // Mock date-fns
 vi.mock("date-fns", () => ({
@@ -13,34 +14,59 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
+function makeClient(overrides: Partial<FullClient> = {}): FullClient {
+  return {
+    id: "client-1",
+    firstName: "John",
+    lastName: "Doe",
+    dateAdded: "2025-01-01",
+    productsOfInterest: [],
+    onEmailList: false,
+    status: "active",
+    source: "Walk-in",
+    notes: null,
+    tags: [],
+    heatScore: 0,
+    heatLevel: "cold",
+    createdAt: "2025-01-01",
+    updatedAt: "2025-01-01",
+    outreach: [],
+    timeline: [],
+    matches: [],
+    allTags: [],
+    followUps: [],
+    ...overrides,
+  };
+}
+
 const mockNotes = [
   { content: "First note content", createdAt: "2026-01-01T10:00:00Z", author: "Marcus" },
   { content: "Second note content", createdAt: "2026-01-02T14:00:00Z", author: "Alice" },
 ];
 
-const clientWithNotes = {
+const clientWithNotes = makeClient({
   id: "client-1",
   firstName: "John",
   lastName: "Doe",
-  notes: mockNotes,
+  notes: JSON.stringify(mockNotes),
   updatedAt: "2026-01-02T14:00:00Z",
-};
+});
 
-const clientWithNoNotes = {
+const clientWithNoNotes = makeClient({
   id: "client-2",
   firstName: "Jane",
   lastName: "Smith",
   notes: null,
   updatedAt: "2026-01-01T00:00:00Z",
-};
+});
 
-const clientWithStringNotes = {
+const clientWithStringNotes = makeClient({
   id: "client-3",
   firstName: "Bob",
   lastName: "Jones",
   notes: "just a string note",
   updatedAt: "2026-01-01T00:00:00Z",
-};
+});
 
 describe("NotesTab", () => {
   beforeEach(() => {
@@ -91,10 +117,10 @@ describe("NotesTab", () => {
   });
 
   it("shows singular note count for a single note", () => {
-    const clientWithOneNote = {
+    const clientWithOneNote = makeClient({
       ...clientWithNotes,
-      notes: [mockNotes[0]],
-    };
+      notes: JSON.stringify([mockNotes[0]]),
+    });
     render(<NotesTab client={clientWithOneNote} />);
     expect(screen.getByText("1 note total")).toBeInTheDocument();
   });

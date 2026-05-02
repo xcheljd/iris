@@ -14,12 +14,12 @@ import {
 import { Topbar } from "@/components/topbar";
 import Link from "next/link";
 import { PaginationFooter } from "@/components/pagination-footer";
-import type { Client } from "@/lib/db/schema";
+import type { ClientListRow } from "@/lib/queries";
 
 const PAGE_SIZE = 20;
 
 interface CollectionsContentProps {
-  clients: Client[];
+  clients: ClientListRow[];
 }
 
 const MERIDIAN_COLLECTIONS = [

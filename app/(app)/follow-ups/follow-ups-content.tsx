@@ -53,7 +53,8 @@ interface FollowUpRow {
     heatLevel: string;
   } | null;
   employee: {
-    name: string;
+    firstName: string;
+    lastName: string | null;
   } | null;
 }
 
@@ -173,7 +174,7 @@ function FollowUpCard({ row, isOverdue, onDetail }: { row: FollowUpRow; isOverdu
                   </span>
                 )}
                 {row.employee && (
-                  <span>via {row.employee.name}</span>
+                  <span>via {row.employee ? [row.employee.firstName, row.employee.lastName].filter(Boolean).join(" ") : ""}</span>
                 )}
               </div>
             </div>
@@ -306,7 +307,7 @@ function FollowUpDetailSheet({ row, open, onOpenChange }: { row: FollowUpRow | n
             {row.employee && (
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Assigned To</p>
-                <p className="text-sm">{row.employee.name}</p>
+                <p className="text-sm">{row.employee ? [row.employee.firstName, row.employee.lastName].filter(Boolean).join(" ") : ""}</p>
               </div>
             )}
             <div>

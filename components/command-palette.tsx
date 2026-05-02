@@ -2,12 +2,15 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
-import { Home, Users, Phone, ListFilter, Tag, BarChart3, Ban, MailX, Settings, Plus, Search as SearchIcon } from "lucide-react";
+import { Home, Users, Phone, ListFilter, Tag, BarChart3, Ban, MailX, Settings, Plus, Search as SearchIcon, ShieldCheck } from "lucide-react";
+import { useSession } from "next-auth/react";
 
 type ClientHit = { id: string; firstName: string; lastName: string | null; phone: string | null };
 
 export function CommandPalette() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const isManager = session?.user?.role === "manager";
   const [open, setOpen] = React.useState(false);
   const [q, setQ] = React.useState("");
   const [hits, setHits] = React.useState<ClientHit[]>([]);
@@ -45,6 +48,7 @@ export function CommandPalette() {
     { icon: <BarChart3 className="h-4 w-4" />, label: "Analytics", href: "/analytics" },
     { icon: <Ban className="h-4 w-4" />, label: "Banned", href: "/banned" },
     { icon: <MailX className="h-4 w-4" />, label: "Unsubscribed", href: "/unsubscribed" },
+    ...(isManager ? [{ icon: <ShieldCheck className="h-4 w-4" />, label: "Approvals", href: "/approvals" }] : []),
     { icon: <Settings className="h-4 w-4" />, label: "Settings", href: "/settings" },
   ];
 

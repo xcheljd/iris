@@ -305,6 +305,44 @@ export function UnsubscribedSkeleton() {
   );
 }
 
+export function ApprovalsSkeleton() {
+  return (
+    <div className="flex-1 p-4 md:p-6 space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <StatCardSkeleton />
+        <StatCardSkeleton />
+        <StatCardSkeleton />
+      </div>
+      <Card>
+        <CardHeader><Skeleton className="h-5 w-36" /></CardHeader>
+        <CardContent className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="border rounded-lg p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                    <Skeleton className="h-4 w-28" />
+                  </div>
+                  <Skeleton className="h-3 w-64" />
+                  <div className="flex gap-3">
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Skeleton className="h-8 w-20" />
+                  <Skeleton className="h-8 w-20" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export function SettingsSkeleton() {
   return (
     <div className="flex-1 p-4 md:p-6 space-y-4">

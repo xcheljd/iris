@@ -8,7 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { HeatBadge } from "@/components/heat-badge";
-import { getStats, getOverdueFollowUps, getUpcomingFollowUps, getRecentOutreach, getAllClients } from "@/lib/queries";
+import { getStats, getOverdueFollowUps, getUpcomingFollowUps, getRecentActivity, getAllClients } from "@/lib/queries";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import Link from "next/link";
 import { Flame, Phone, ShoppingBag, Users, AlertCircle, Calendar, ArrowRight, TrendingUp, Target, Clock, CheckCircle2 } from "lucide-react";
 import { formatDate, daysAgo } from "@/lib/utils";
@@ -23,11 +25,14 @@ export default function DashboardPage() {
 }
 
 async function DashboardContent() {
-  const stats = await getStats();
-  const overdue = await getOverdueFollowUps();
-  const upcoming = await getUpcomingFollowUps();
-  const recent = await getRecentOutreach(20);
-  const clients = await getAllClients();
+  const session = await getServerSession(authOptions);
+  const isManager = session?.user?.role === "manager";
+  const employeeId = !isManager ? (session?.user?.id ?? undefined) : undefined;
+  const stats = await getStats(employeeId);
+  const overdue = await getOverdueFollowUps(employeeId);
+  const upcoming = await getUpcomingFollowUps(employeeId);
+  const activity = await getRecentActivity(20, employeeId);
+  const clients = await getAllClients(employeeId);
   const hot = clients.filter((c) => c.heatLevel === "hot" && c.status === "active").slice(0, 6);
   const birthdays = clients.filter((c) => {
     if (!c.birthday) return false;
@@ -185,46 +190,54 @@ async function DashboardContent() {
                 <CardTitle className="text-base flex items-center gap-2">
                   <Clock className="h-4 w-4" /> Recent Activity
                 </CardTitle>
-                <CardDescription>Latest outreach across the floor</CardDescription>
+                <CardDescription>Latest events across the floor</CardDescription>
               </CardHeader>
               <CardContent>
-                {recent.length === 0 ? (
+                {activity.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-6">No recent activity</p>
                 ) : (
                 <div className="overflow-x-auto -mx-6 px-6">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Method</TableHead>
+                        <TableHead>Event</TableHead>
                         <TableHead>Client</TableHead>
-                        <TableHead>Outcome</TableHead>
                         <TableHead className="hidden sm:table-cell">Employee</TableHead>
+                        <TableHead className="hidden md:table-cell">Details</TableHead>
                         <TableHead className="text-right">When</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {recent.map((r) => (
-                        <TableRow key={r.log.id}>
-                          <TableCell>
-                            <Badge variant="outline" className="capitalize">{r.log.method}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Link href={`/clients/${r.client?.id}`} className="font-medium hover:underline">
-                              {r.client?.firstName} {r.client?.lastName ?? ""}
-                            </Link>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground capitalize">
-                            {r.log.outcome.replace(/_/g, " ")}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {r.employee?.name ?? "—"}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="text-xs text-muted-foreground">{formatDate(r.log.date)}</div>
-                            <div className="text-xs text-muted-foreground">{daysAgo(r.log.date)}</div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {activity.map((a) => {
+                        const ev = a.event;
+                        const type = ev.eventType;
+                        return (
+                          <TableRow key={ev.id}>
+                            <TableCell>
+                              <EventBadge type={type} />
+                            </TableCell>
+                            <TableCell>
+                              {a.clientId ? (
+                                <Link href={`/clients/${a.clientId}`} className="font-medium hover:underline text-sm">
+                                  {a.clientName || "Unknown"}
+                                </Link>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">&mdash;</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
+                              {a.employeeName || "—"}
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell text-sm text-muted-foreground max-w-[200px] truncate">
+                              {ev.description}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="text-xs text-muted-foreground">{formatDate(ev.createdAt)}</div>
+                              <div className="text-xs text-muted-foreground">{daysAgo(ev.createdAt)}</div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
@@ -362,6 +375,31 @@ async function DashboardContent() {
       </div>
     </>
   );
+}
+
+function EventBadge({ type }: { type: string }) {
+  const config: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+    created: { label: "Created", variant: "default" },
+    edited: { label: "Edited", variant: "outline" },
+    outreach_logged: { label: "Outreach", variant: "secondary" },
+    purchase: { label: "Purchase", variant: "default" },
+    tag_added: { label: "Tag +", variant: "outline" },
+    tag_removed: { label: "Tag \u2212", variant: "outline" },
+    transferred: { label: "Transferred", variant: "outline" },
+    note_added: { label: "Note", variant: "outline" },
+    status_changed: { label: "Status", variant: "secondary" },
+    ban_requested: { label: "Ban Req", variant: "outline" },
+    ban_approved: { label: "Ban \u2713", variant: "destructive" },
+    ban_rejected: { label: "Ban \u2717", variant: "outline" },
+    unsub_requested: { label: "Unsub Req", variant: "outline" },
+    unsub_approved: { label: "Unsub \u2713", variant: "secondary" },
+    unsub_rejected: { label: "Unsub \u2717", variant: "outline" },
+    delete_requested: { label: "Del Req", variant: "outline" },
+    delete_approved: { label: "Deleted", variant: "destructive" },
+    delete_rejected: { label: "Del \u2717", variant: "outline" },
+  };
+  const c = config[type] || { label: type, variant: "outline" as const };
+  return <Badge variant={c.variant} className="text-xs whitespace-nowrap">{c.label}</Badge>;
 }
 
 function StatCard({ icon: Icon, label, value, sublabel, accent, color }: {

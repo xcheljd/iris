@@ -2,19 +2,50 @@ import { db } from "@/lib/db";
 import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bannedCustomers, unsubscribeList, employees, clientTags, outreachTemplates, smartLists } from "@/lib/db/schema";
 import { eq, desc, and, or, isNotNull, lte, gte, ne, notInArray, sql as rawSql } from "drizzle-orm";
 import { applyClientFilter } from "@/lib/utils";
-export async function getAllClients() {
-  return db.select().from(clients).where(notInArray(clients.status, ["banned", "deleted"])).orderBy(desc(clients.heatScore)).all();
+
+const LIST_QUERY_LIMIT = 10000;
+
+const clientListProjection = {
+  id: clients.id,
+  customerId: clients.customerId,
+  firstName: clients.firstName,
+  lastName: clients.lastName,
+  phone: clients.phone,
+  email: clients.email,
+  employeeId: clients.employeeId,
+  dateAdded: clients.dateAdded,
+  productsOfInterest: clients.productsOfInterest,
+  onEmailList: clients.onEmailList,
+  status: clients.status,
+  source: clients.source,
+  birthday: clients.birthday,
+  anniversary: clients.anniversary,
+  tags: clients.tags,
+  heatScore: clients.heatScore,
+  heatLevel: clients.heatLevel,
+  lastOutreachAt: clients.lastOutreachAt,
+  lastPurchaseAt: clients.lastPurchaseAt,
+  createdAt: clients.createdAt,
+  updatedAt: clients.updatedAt,
+};
+
+export async function getAllClients(employeeId?: string) {
+  const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
+  return db.select(clientListProjection).from(clients).where(and(notInArray(clients.status, ["banned", "deleted"]), employeeFilter)).orderBy(desc(clients.heatScore)).limit(LIST_QUERY_LIMIT).all();
 }
+
+export type ClientListRow = Awaited<ReturnType<typeof getAllClients>>[number];
 
 export async function getClient(id: string) {
   return db.select().from(clients).where(eq(clients.id, id)).get();
 }
 
-export async function getClientsWithEmployee() {
+export async function getClientsWithEmployee(employeeId?: string) {
+  const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
   const rows = db.select({
-    client: clients,
-    employeeName: employees.name,
-  }).from(clients).leftJoin(employees, eq(clients.employeeId, employees.id)).where(notInArray(clients.status, ["banned", "deleted"])).orderBy(desc(clients.heatScore)).all();
+    client: clientListProjection,
+    employeeName: rawSql`COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, '')`,
+  }).from(clients).leftJoin(employees, eq(clients.employeeId, employees.id)).where(and(notInArray(clients.status, ["banned", "deleted"]), employeeFilter)).orderBy(desc(clients.heatScore)).limit(LIST_QUERY_LIMIT).all();
   return rows;
 }
 
@@ -26,9 +57,10 @@ export async function getClientActivity(clientId: string) {
   return db.select().from(activityEvents).where(eq(activityEvents.clientId, clientId)).orderBy(desc(activityEvents.createdAt)).all();
 }
 
-export async function getUpcomingFollowUps() {
+export async function getUpcomingFollowUps(employeeId?: string) {
   const now = Date.now();
   const in7d = now + 7 * 86400000;
+  const employeeFilter = employeeId ? eq(outreachLogs.employeeId, employeeId) : undefined;
   const rows = db.select({
     log: outreachLogs,
     client: clients,
@@ -40,14 +72,16 @@ export async function getUpcomingFollowUps() {
       isNotNull(outreachLogs.followUpDate),
       eq(outreachLogs.completed, false),
       lte(outreachLogs.followUpDate, new Date(in7d)),
+      employeeFilter,
     ))
     .orderBy(outreachLogs.followUpDate)
     .all();
   return rows;
 }
 
-export async function getOverdueFollowUps() {
+export async function getOverdueFollowUps(employeeId?: string) {
   const now = new Date();
+  const employeeFilter = employeeId ? eq(outreachLogs.employeeId, employeeId) : undefined;
   const rows = db.select({
     log: outreachLogs,
     client: clients,
@@ -59,23 +93,26 @@ export async function getOverdueFollowUps() {
       isNotNull(outreachLogs.followUpDate),
       eq(outreachLogs.completed, false),
       lte(outreachLogs.followUpDate, now),
+      employeeFilter,
     ))
     .orderBy(outreachLogs.followUpDate)
     .all();
   return rows;
 }
 
-export async function getStats() {
-  const total = db.select({ c: rawSql<number>`count(*)` }).from(clients).where(ne(clients.status, "deleted")).get();
-  const active = db.select({ c: rawSql<number>`count(*)` }).from(clients).where(eq(clients.status, "active")).get();
-  const hot = db.select({ c: rawSql<number>`count(*)` }).from(clients).where(and(eq(clients.heatLevel, "hot"), eq(clients.status, "active"))).get();
-  const warm = db.select({ c: rawSql<number>`count(*)` }).from(clients).where(and(eq(clients.heatLevel, "warm"), eq(clients.status, "active"))).get();
-  const cold = db.select({ c: rawSql<number>`count(*)` }).from(clients).where(and(eq(clients.heatLevel, "cold"), eq(clients.status, "active"))).get();
+export async function getStats(employeeId?: string) {
+  const clientFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
+  const outreachFilter = employeeId ? eq(outreachLogs.employeeId, employeeId) : undefined;
+  const total = db.select({ c: rawSql<number>`count(*)` }).from(clients).where(and(ne(clients.status, "deleted"), clientFilter)).get();
+  const active = db.select({ c: rawSql<number>`count(*)` }).from(clients).where(and(eq(clients.status, "active"), clientFilter)).get();
+  const hot = db.select({ c: rawSql<number>`count(*)` }).from(clients).where(and(eq(clients.heatLevel, "hot"), eq(clients.status, "active"), clientFilter)).get();
+  const warm = db.select({ c: rawSql<number>`count(*)` }).from(clients).where(and(eq(clients.heatLevel, "warm"), eq(clients.status, "active"), clientFilter)).get();
+  const cold = db.select({ c: rawSql<number>`count(*)` }).from(clients).where(and(eq(clients.heatLevel, "cold"), eq(clients.status, "active"), clientFilter)).get();
   const banned = db.select({ c: rawSql<number>`count(*)` }).from(bannedCustomers).get();
   const unsubscribed = db.select({ c: rawSql<number>`count(*)` }).from(unsubscribeList).get();
   const weekAgo = new Date(Date.now() - 7 * 86400000);
-  const outreachWeek = db.select({ c: rawSql<number>`count(*)` }).from(outreachLogs).where(gte(outreachLogs.date, weekAgo)).get();
-  const purchasesWeek = db.select({ c: rawSql<number>`count(*)` }).from(outreachLogs).where(and(eq(outreachLogs.outcome, "purchased"), gte(outreachLogs.date, weekAgo))).get();
+  const outreachWeek = db.select({ c: rawSql<number>`count(*)` }).from(outreachLogs).where(and(gte(outreachLogs.date, weekAgo), outreachFilter)).get();
+  const purchasesWeek = db.select({ c: rawSql<number>`count(*)` }).from(outreachLogs).where(and(eq(outreachLogs.outcome, "purchased"), gte(outreachLogs.date, weekAgo), outreachFilter)).get();
   return {
     total: total?.c ?? 0,
     active: active?.c ?? 0,
@@ -90,7 +127,7 @@ export async function getStats() {
 }
 
 export async function getPromos() {
-  return db.select().from(promoWatches).orderBy(desc(promoWatches.dateAdded)).all();
+  return db.select().from(promoWatches).orderBy(desc(promoWatches.dateAdded)).limit(LIST_QUERY_LIMIT).all();
 }
 
 export async function getPromoMatchesForPromo(promoId: string) {
@@ -113,7 +150,7 @@ export async function getBannedCustomers() {
     clientId: clients.id,
   }).from(bannedCustomers)
     .leftJoin(clients, eq(bannedCustomers.customerId, clients.id))
-    .orderBy(desc(bannedCustomers.banDate)).all();
+    .orderBy(desc(bannedCustomers.banDate)).limit(LIST_QUERY_LIMIT).all();
   return rows;
 }
 
@@ -126,12 +163,12 @@ export async function getUnsubscribeList() {
     customerId: clients.customerId,
   }).from(unsubscribeList)
     .leftJoin(clients, eq(unsubscribeList.email, clients.email))
-    .orderBy(desc(unsubscribeList.unsubscribedAt)).all();
+    .orderBy(desc(unsubscribeList.unsubscribedAt)).limit(LIST_QUERY_LIMIT).all();
   return rows;
 }
 
 export async function getEmployees() {
-  return db.select().from(employees).orderBy(employees.name).all();
+  return db.select().from(employees).orderBy(employees.firstName).all();
 }
 
 export async function getTags() {
@@ -142,20 +179,24 @@ export async function getTemplates() {
   return db.select().from(outreachTemplates).orderBy(outreachTemplates.name).all();
 }
 
-export async function getSmartLists() {
-  return db.select().from(smartLists).orderBy(smartLists.name).all();
+export async function getSmartLists(employeeId?: string) {
+  const filter = employeeId ? or(eq(smartLists.ownerId, employeeId), eq(smartLists.isShared, true)) : undefined;
+  return db.select().from(smartLists).where(filter).orderBy(smartLists.name).all();
 }
 
-export async function getRecentOutreach(limit = 20) {
+export async function getRecentOutreach(limit = 20, employeeId?: string) {
+  const employeeFilter = employeeId ? eq(outreachLogs.employeeId, employeeId) : undefined;
   const rows = db.select({ log: outreachLogs, client: clients, employee: employees }).from(outreachLogs)
     .leftJoin(clients, eq(outreachLogs.clientId, clients.id))
     .leftJoin(employees, eq(outreachLogs.employeeId, employees.id))
+    .where(employeeFilter)
     .orderBy(desc(outreachLogs.date)).limit(limit).all();
   return rows;
 }
 
-export async function searchClients(query: string) {
+export async function searchClients(query: string, employeeId?: string) {
   const q = `%${query.toLowerCase()}%`;
+  const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
   return db.select().from(clients).where(and(
     notInArray(clients.status, ["banned", "deleted"]),
     or(
@@ -163,12 +204,31 @@ export async function searchClients(query: string) {
       rawSql`lower(${clients.lastName}) like ${q}`,
       rawSql`lower(${clients.email}) like ${q}`,
       rawSql`${clients.phone} like ${q}`,
-    )
+    ),
+    employeeFilter
   )).limit(10).all();
 }
 
-export async function getDeletedClients() {
-  return db.select().from(clients).where(eq(clients.status, "deleted")).orderBy(desc(clients.deletedAt)).all();
+export async function getDeletedClients(employeeId?: string) {
+  const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
+  return db.select().from(clients).where(and(eq(clients.status, "deleted"), employeeFilter)).orderBy(desc(clients.deletedAt)).limit(LIST_QUERY_LIMIT).all();
+}
+
+export async function getRecentActivity(limit = 30, employeeId?: string) {
+  const employeeFilter = employeeId ? eq(activityEvents.employeeId, employeeId) : undefined;
+  const rows = db.select({
+    event: activityEvents,
+    employeeName: rawSql<string>`COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, '')`,
+    clientName: rawSql<string>`COALESCE(${clients.firstName}, '') || ' ' || COALESCE(${clients.lastName}, '')`,
+    clientId: clients.id,
+  }).from(activityEvents)
+    .leftJoin(employees, eq(activityEvents.employeeId, employees.id))
+    .leftJoin(clients, eq(activityEvents.clientId, clients.id))
+    .where(employeeFilter)
+    .orderBy(desc(activityEvents.createdAt))
+    .limit(limit)
+    .all();
+  return rows;
 }
 
 export { applyClientFilter };

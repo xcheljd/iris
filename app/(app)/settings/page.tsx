@@ -19,5 +19,5 @@ async function SettingsFetcher() {
   const tags = await getTags();
   const templates = await getTemplates();
   const deletedClients = await getDeletedClients();
-  return <SettingsContent employees={employees} tags={tags} templates={templates} deletedClients={JSON.parse(JSON.stringify(deletedClients))} currentUserRole={session?.user?.role ?? "associate"} />;
+  return <SettingsContent employees={employees} tags={tags} templates={templates} deletedClients={JSON.parse(JSON.stringify(deletedClients))} currentUserId={(session?.user as { id?: string })?.id ?? ""} currentUserRole={session?.user?.role ?? "associate"} />;
 }

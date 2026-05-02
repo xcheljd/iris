@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { clients, activityEvents } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -9,6 +11,9 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
   const { id } = await params;
 
   const client = db.select().from(clients).where(eq(clients.id, id)).get();
@@ -23,6 +28,9 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
   try {
     const { id } = await params;
     const body = await request.json();

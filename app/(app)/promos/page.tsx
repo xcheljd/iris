@@ -1,5 +1,7 @@
 import { Suspense } from "react";
+import { getServerSession } from "next-auth";
 import { getPromos } from "@/lib/queries";
+import { authOptions } from "@/lib/auth";
 import { PromosContent } from "./promos-content";
 import { PromosSkeleton } from "@/components/skeletons";
 
@@ -13,5 +15,7 @@ export default function PromosPage() {
 
 async function PromosFetcher() {
   const promos = await getPromos();
-  return <PromosContent promos={promos} />;
+  const session = await getServerSession(authOptions);
+  const isManager = session?.user?.role === "manager";
+  return <PromosContent promos={promos} isManager={isManager} />;
 }

@@ -5,8 +5,7 @@ import { GET as GETPromoMatches } from "@/app/api/promos/matches/route";
 
 describe("GET /api/employees", () => {
   it("should return all employees as an array", async () => {
-    const req = new Request("http://localhost:3000/api/employees");
-    const res = await GETEmployees(req);
+    const res = await GETEmployees();
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(Array.isArray(data)).toBe(true);
@@ -18,8 +17,7 @@ describe("GET /api/employees", () => {
   });
 
   it("should return employees sorted by name", async () => {
-    const req = new Request("http://localhost:3000/api/employees");
-    const res = await GETEmployees(req);
+    const res = await GETEmployees();
     const data = await res.json();
     for (let i = 1; i < data.length; i++) {
       expect(data[i].name.localeCompare(data[i - 1].name)).toBeGreaterThanOrEqual(0);
@@ -27,8 +25,7 @@ describe("GET /api/employees", () => {
   });
 
   it("should return employees with expected properties", async () => {
-    const req = new Request("http://localhost:3000/api/employees");
-    const res = await GETEmployees(req);
+    const res = await GETEmployees();
     const data = await res.json();
     for (const emp of data) {
       expect(emp).toHaveProperty("id");
@@ -42,8 +39,7 @@ describe("GET /api/employees", () => {
 
 describe("GET /api/templates", () => {
   it("should return all templates as an array", async () => {
-    const req = new Request("http://localhost:3000/api/templates");
-    const res = await GETTemplates(req);
+    const res = await GETTemplates();
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(Array.isArray(data)).toBe(true);
@@ -55,8 +51,7 @@ describe("GET /api/templates", () => {
   });
 
   it("should return templates sorted by name", async () => {
-    const req = new Request("http://localhost:3000/api/templates");
-    const res = await GETTemplates(req);
+    const res = await GETTemplates();
     const data = await res.json();
     for (let i = 1; i < data.length; i++) {
       expect(data[i].name.localeCompare(data[i - 1].name)).toBeGreaterThanOrEqual(0);

@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { outreachLogs, activityEvents, clients } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -7,6 +9,9 @@ import { revalidatePath } from "next/cache";
 import { calcHeatScore } from "@/lib/heat-score";
 
 export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
   try {
     const body = await request.json();
     const { clientId, method, outcome, purchasedModel, notes, followUpDate, templateId } = body;

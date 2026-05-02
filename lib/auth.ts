@@ -19,7 +19,7 @@ export const authOptions: NextAuthOptions = {
         if (!user || !user.active) return null;
         const ok = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!ok) return null;
-        return { id: user.id, name: user.name, email: user.username, role: user.role } as unknown as { id: string; name: string; email: string; role: "manager" | "associate" };
+        return { id: user.id, name: [user.firstName, user.lastName].filter(Boolean).join(" "), email: user.username, role: user.role, firstName: user.firstName, lastName: user.lastName };
       },
     }),
   ],
@@ -28,15 +28,19 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = (user as { id: string }).id;
-        token.role = (user as { role: "manager" | "associate" }).role;
+        token.id = user.id;
+        token.role = user.role;
+        token.firstName = user.firstName;
+        token.lastName = user.lastName;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as { id?: string }).id = token.id as string;
-        (session.user as { role?: string }).role = token.role as string;
+        session.user.id = token.id;
+        session.user.role = token.role;
+        session.user.firstName = token.firstName;
+        session.user.lastName = token.lastName;
       }
       return session;
     },
