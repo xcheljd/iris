@@ -4,11 +4,12 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Phone, Mail, MessageCircle, User, Calendar, Clock, CheckCircle, ChevronDown } from "lucide-react";
+import { Phone, Calendar, Clock, CheckCircle, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { EmptyState } from "@/components/empty-state";
 import type { FullClient } from "@/components/client-provider";
 import type { OutreachLog } from "@/lib/db/schema";
+import { getMethodIcon } from "@/lib/outreach-helpers";
 
 const PAGE_SIZE = 10;
 
@@ -17,21 +18,6 @@ interface OutreachHistoryTabProps {
 }
 
 export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
-  const getMethodIcon = (method: string) => {
-    switch (method) {
-      case "call":
-        return <Phone className="h-4 w-4" />;
-      case "text":
-        return <MessageCircle className="h-4 w-4" />;
-      case "email":
-        return <Mail className="h-4 w-4" />;
-      case "in-person":
-        return <User className="h-4 w-4" />;
-      default:
-        return <MessageCircle className="h-4 w-4" />;
-    }
-  };
-
   const getOutcomeBadge = (outcome: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       "responded": "default",

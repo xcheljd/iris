@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 22 | 16 | 0 | 6 |
-| MEDIUM | 33 | 24 | 0 | 9 |
+| MEDIUM | 33 | 23 | 0 | 10 |
 | LOW | 17 | 3 | 0 | 14 |
-| **TOTAL** | **80** | **49** | **0** | **31** |
+| **TOTAL** | **80** | **48** | **0** | **32** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,7 +28,7 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 22 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 33 (9 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🟡 MEDIUM | 33 (10 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (14 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
@@ -301,11 +301,12 @@
 - **Fix**: Merge into single enhanced component.
 - **Resolved**: Audit's "merge" premise was stale — `OutreachLogger` already had DatePicker + templates. The one feature delta (`quickFollowUpPresets` — Tomorrow / 3 days / 1 week / 2 weeks / 1 month quick-jump buttons) was ported into `OutreachLogger`. `follow-up-form.tsx` deleted as dead code (zero imports, zero test references). Also closes L-04's deferred caveat about `console.error` in orphaned `follow-up-form.tsx`.
 
-- [ ] ### M-09: `getMethodIcon` Duplicated in 4 Files
-- **Files**: `components/outreach-history-tab.tsx:19-32`, `app/(app)/follow-ups/follow-ups-content.tsx:65-73`, `app/(app)/analytics/analytics-content.tsx:90-98`
+- [x] ### M-09: `getMethodIcon` Duplicated in 4 Files
+- **Files**: `components/outreach-history-tab.tsx`, `app/(app)/follow-ups/follow-ups-content.tsx`, `app/(app)/analytics/analytics-content.tsx`
 - **Category**: Duplication
 - Same switch statement copy-pasted 4 times.
-- **Fix**: Extract to `lib/outreach-utils.tsx`.
+- **Fix**: Extract to `lib/outreach-helpers.tsx`.
+- **Resolved**: Two sites (follow-ups-content, analytics-content) had already been migrated to import from `lib/outreach-helpers.tsx`. `follow-up-form.tsx` was deleted in M-08. Final site `outreach-history-tab.tsx` now imports from shared module; local copy and dead lucide imports (Mail, MessageCircle, User) removed.
 
 - [x] ### M-10: `getHeatBadge` Duplicated in 3 Files
 - **Files**: `app/(app)/follow-ups/follow-ups-content.tsx:98-105`, `app/(app)/smart-lists/smart-lists-content.tsx:80-87`, `app/(app)/analytics/collections/collections-content.tsx:44-51`
@@ -658,5 +659,6 @@ These things are done well and should be maintained:
 | 2026-05-02 | Audit | Resolution sweep: flipped H-21 (`[x]` → `[ ]`, partial — `edit-client-dialog.tsx` still inlines the form) and L-01 (`[x]` → `[ ]`, the three actions are referenced only from tests, not from production code). Recomputed Tracking Summary totals (51 open / 29 resolved). Clarified H-07 and C-06 resolution wording. | — |
 | 2026-05-02 | M-07 | Both `recalcHeat()` in lib/actions.ts and inline recalc in app/api/outreach/route.ts now filter in SQL (`WHERE date >= ninetyDaysAgo`) and project only `{ outcome, date }`. JS `.filter()` eliminated. Related to H-17 (duplicated logic — both copies now correct but duplication remains). | — |
 | 2026-05-02 | M-08 | Ported `quickFollowUpPresets` (Tomorrow / 3 days / 1 week / 2 weeks / 1 month quick-jump buttons) into `OutreachLogger`, then deleted dead `components/follow-up-form.tsx` (zero imports, zero test references). Audit's "merge" premise was stale — OutreachLogger already had DatePicker + templates. Closes L-04's deferred caveat about `console.error` in orphaned follow-up-form.tsx. | — |
+| 2026-05-02 | M-09 | Final migration of `getMethodIcon`: `outreach-history-tab.tsx` now imports from `lib/outreach-helpers.tsx`. Two other sites had already been migrated; `follow-up-form.tsx` was deleted in M-08. Dead lucide imports (Mail, MessageCircle, User) removed. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.
