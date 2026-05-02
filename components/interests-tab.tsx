@@ -141,7 +141,7 @@ export function InterestsTab({ client }: InterestsTabProps) {
                 <CardContent>
                   <div className="space-y-4">
                     {promoMatches.map((match: PromoMatchWithPromo) => (
-                      <div key={match.id} className="border rounded-lg p-4">
+                      <div key={match.match.id} className="border rounded-lg p-4">
                         <div className="flex items-start justify-between mb-2">
                           <div>
                             <div className="font-medium">

@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 22 | 16 | 0 | 6 |
-| MEDIUM | 33 | 29 | 0 | 4 |
+| MEDIUM | 33 | 28 | 0 | 5 |
 | LOW | 17 | 2 | 0 | 15 |
-| **TOTAL** | **80** | **56** | **0** | **24** |
+| **TOTAL** | **80** | **55** | **0** | **25** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,7 +28,7 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 22 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 33 (4 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🟡 MEDIUM | 33 (5 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (2 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
@@ -263,11 +263,12 @@
 - **Fix**: Add `.limit()` with pagination support.
 - **Resolved**: Single-store SQLite CRM with realistic ceiling of ~15K clients — full server-side pagination would degrade UX (instant filter/sort/search on the clients page) for no measurable performance benefit. Applied two targeted fixes instead: (1) `LIST_QUERY_LIMIT = 10000` guardrail on the six unbounded list queries (`getAllClients`, `getClientsWithEmployee`, `getPromos`, `getBannedCustomers`, `getUnsubscribeList`, `getDeletedClients`); (2) explicit column projection on `getAllClients` and `getClientsWithEmployee` dropping `notes`, `deletedAt`, `deletedBy`, `previousStatus` — these are detail-page-only fields that were inflating the RSC payload. Detail-page query `getClient(id)` keeps the full row. New `ClientListRow` type exported and adopted by `smart-lists-content.tsx` and `collections-content.tsx`. **Assumption**: smart-list custom filters cannot reference dropped fields — UI doesn't expose them; revisit if filter builder gains a notes/deleted-state predicate.
 
-- [ ] ### M-04: `getStats()` Fires 9 Separate Queries
-- **File**: `lib/queries.ts:68-90`
-- **Category**: Performance
+- [x] ### M-04: `getStats()` Fires 9 Separate Queries
+- **File**: `lib/queries.ts`
+- **Category**: Performance / Correctness
 - 9 individual `SELECT count(*)` queries. Should be 2-3 aggregated queries.
 - **Fix**: Use conditional aggregation: `SUM(CASE WHEN status='active' THEN 1 END)`.
+- **Resolved**: Consolidated 9 queries → 4. Clients table queries (5 → 1) use `SUM(CASE WHEN ... THEN 1 ELSE 0 END)` for atomic snapshot (hot+warm+cold always equals active). Outreach queries (2 → 1) keep the `date >= weekAgo` predicate in WHERE (preserves indexable range scan once C-04 lands) and use `count(*)` + a single `SUM(CASE)` for the purchased subset. Banned/unsubscribed remain as 2 separate counts (different tables). Removed unused `ne` import.
 
 - [ ] ### M-05: Memory Leak — Window-Scoped Timeouts Not Cleaned Up
 - **Files**: `app/(app)/clients/new/page.tsx:246-248`, `app/(app)/clients/[id]/edit/page.tsx:153-154, 331-332`
@@ -644,5 +645,6 @@ These things are done well and should be maintained:
 | 2026-04-30 | L-16 | Replaced type-unsafe `window` cast with `useRef` for debounce timeout | — |
 | 2026-04-30 | L-17 | Removed dead `currentUserRole` prop from `ClientSidebar`, cleaned up call sites and obsolete tests. Also added `DeleteCustomerDialog` with associate approval request flow (matching existing ban/unsubscribe pattern) | — |
 | 2026-05-01 | M-03 | Won't-fix on full pagination (single-store SQLite, ~15K ceiling, instant-filter UX preserved). Added `LIST_QUERY_LIMIT=10000` guardrail to 6 list queries and projected `notes`/`deletedAt`/`deletedBy`/`previousStatus` out of `getAllClients`/`getClientsWithEmployee`. New `ClientListRow` type adopted by smart-lists and collections content. | — |
+| 2026-05-02 | M-04 | Consolidated `getStats()` from 9 separate count(*) queries to 4 using `SUM(CASE WHEN ...)` conditional aggregation. Atomic per-table snapshots (hot+warm+cold = active guaranteed). Outreach query keeps `date >= weekAgo` in WHERE to preserve indexable range scan once C-04 lands. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.

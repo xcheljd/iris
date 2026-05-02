@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bannedCustomers, unsubscribeList, employees, clientTags, outreachTemplates, smartLists } from "@/lib/db/schema";
-import { eq, desc, and, or, isNotNull, lte, gte, ne, notInArray, sql as rawSql } from "drizzle-orm";
+import { eq, desc, and, or, isNotNull, lte, gte, notInArray, sql as rawSql } from "drizzle-orm";
 import { applyClientFilter } from "@/lib/utils";
 
 const LIST_QUERY_LIMIT = 10000;
@@ -103,26 +103,34 @@ export async function getOverdueFollowUps(employeeId?: string) {
 export async function getStats(employeeId?: string) {
   const clientFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
   const outreachFilter = employeeId ? eq(outreachLogs.employeeId, employeeId) : undefined;
-  const total = db.select({ c: rawSql<number>`count(*)` }).from(clients).where(and(ne(clients.status, "deleted"), clientFilter)).get();
-  const active = db.select({ c: rawSql<number>`count(*)` }).from(clients).where(and(eq(clients.status, "active"), clientFilter)).get();
-  const hot = db.select({ c: rawSql<number>`count(*)` }).from(clients).where(and(eq(clients.heatLevel, "hot"), eq(clients.status, "active"), clientFilter)).get();
-  const warm = db.select({ c: rawSql<number>`count(*)` }).from(clients).where(and(eq(clients.heatLevel, "warm"), eq(clients.status, "active"), clientFilter)).get();
-  const cold = db.select({ c: rawSql<number>`count(*)` }).from(clients).where(and(eq(clients.heatLevel, "cold"), eq(clients.status, "active"), clientFilter)).get();
+
+  const clientStats = db.select({
+    total: rawSql<number>`sum(case when ${clients.status} != 'deleted' then 1 else 0 end)`,
+    active: rawSql<number>`sum(case when ${clients.status} = 'active' then 1 else 0 end)`,
+    hot: rawSql<number>`sum(case when ${clients.heatLevel} = 'hot' and ${clients.status} = 'active' then 1 else 0 end)`,
+    warm: rawSql<number>`sum(case when ${clients.heatLevel} = 'warm' and ${clients.status} = 'active' then 1 else 0 end)`,
+    cold: rawSql<number>`sum(case when ${clients.heatLevel} = 'cold' and ${clients.status} = 'active' then 1 else 0 end)`,
+  }).from(clients).where(clientFilter).get();
+
   const banned = db.select({ c: rawSql<number>`count(*)` }).from(bannedCustomers).get();
   const unsubscribed = db.select({ c: rawSql<number>`count(*)` }).from(unsubscribeList).get();
+
   const weekAgo = new Date(Date.now() - 7 * 86400000);
-  const outreachWeek = db.select({ c: rawSql<number>`count(*)` }).from(outreachLogs).where(and(gte(outreachLogs.date, weekAgo), outreachFilter)).get();
-  const purchasesWeek = db.select({ c: rawSql<number>`count(*)` }).from(outreachLogs).where(and(eq(outreachLogs.outcome, "purchased"), gte(outreachLogs.date, weekAgo), outreachFilter)).get();
+  const outreachStats = db.select({
+    outreachWeek: rawSql<number>`count(*)`,
+    purchasesWeek: rawSql<number>`sum(case when ${outreachLogs.outcome} = 'purchased' then 1 else 0 end)`,
+  }).from(outreachLogs).where(and(gte(outreachLogs.date, weekAgo), outreachFilter)).get();
+
   return {
-    total: total?.c ?? 0,
-    active: active?.c ?? 0,
-    hot: hot?.c ?? 0,
-    warm: warm?.c ?? 0,
-    cold: cold?.c ?? 0,
+    total: clientStats?.total ?? 0,
+    active: clientStats?.active ?? 0,
+    hot: clientStats?.hot ?? 0,
+    warm: clientStats?.warm ?? 0,
+    cold: clientStats?.cold ?? 0,
     banned: banned?.c ?? 0,
     unsubscribed: unsubscribed?.c ?? 0,
-    outreachWeek: outreachWeek?.c ?? 0,
-    purchasesWeek: purchasesWeek?.c ?? 0,
+    outreachWeek: outreachStats?.outreachWeek ?? 0,
+    purchasesWeek: outreachStats?.purchasesWeek ?? 0,
   };
 }
 
