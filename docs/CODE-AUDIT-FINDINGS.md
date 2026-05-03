@@ -41,6 +41,43 @@
 
 ---
 
+## Item Dependencies
+
+Items that interact with each other. Use as a check before resolving anything: if you're about to fix an item listed here, read the linked items first. Resolving items in the wrong order can create rework or silent regressions.
+
+### Cluster: client update path
+- **C-03 ↔ H-23** — same files (`app/api/clients/[id]/route.ts`, `app/api/clients/route.ts` PUT handlers). C-03 needs a field allowlist; H-23 needs an ownership check. Should be done together; doing one alone leaves the file half-fixed and the second fix rebases awkwardly.
+- **C-03 ↔ H-09** — H-09's zod schemas would be the natural home for the C-03 allowlist. Doing C-03 first creates manual code that H-09 will rewrite. Prefer doing H-09's outreach pattern first (already in `lib/validation/outreach.ts` from M-17), then applying it to client update routes for C-03 + H-23 in the same pass.
+
+### Cluster: tag system
+- **C-07 + C-08 + H-19** — all in `addTag`/`removeTag` (`lib/actions.ts:213-239`, `app/api/tags/route.ts`). C-07 (usageCount drift), C-08 (missing else branch for new tags), H-19 (race conditions) are best resolved together as a single atomic-tag-ops sweep.
+
+### Cluster: indexable predicates
+- **C-04 ← M-04, M-07** — M-04 and M-07 added indexable WHERE predicates that currently full-scan but become range/index seeks once C-04 lands. C-04's payoff is larger than its standalone description suggests. Cross-references are recorded in C-04's "Cross-refs (compounding payoff)" note.
+
+### Cluster: schema-derived enum pattern
+- **M-15 → M-17 → M-18** — M-15 established the `*_VALUES` constant + type export from `lib/db/schema.ts`. M-17 reused it for outreach method/outcome. M-18 reused it for activity event types. Future enum-related work (e.g., source filtering UI, event type filtering) should reuse the same pattern rather than re-creating local copies.
+
+### Cluster: heat-recalc duplication
+- **H-17 → recalcHeat dedup ← M-07** — M-07 fixed both copies of recalcHeat (server action and inline in `app/api/outreach/route.ts`) identically with SQL filter + projection. When H-17's consolidation lands, the dedup must preserve M-07's pattern (`gte(date, ninetyDaysAgo)` in WHERE, `{ outcome, date }` projection) — not regress to `select().from(outreachLogs).all()` + JS filter.
+
+### Cluster: activity timeline metadata
+- **M-18 ← M-35** — M-18 typed the metadata reads, but M-35 (write/read mismatch — 6 of 8 metadata fields the formatter reads are never written by any writer) is the actual UI bug. Fixing M-35 requires deciding per event-type whether to update the writer or revise the reader's expectation.
+
+### Cluster: monolith decomposition
+- **M-12 ← M-34** — M-12's analytics decomposition deliberately preserved the duplicated heat distribution bar (Recharts vs CSS) rather than refactoring it. M-34 tracks that duplication as separate work. Resolving M-34 should consider extracting a shared `<HeatDistributionChart>` component used by both `AnalyticsOverviewTab` and `AnalyticsHeatTab`.
+
+### Cluster: orphaned form / console.error
+- **M-08 → L-04** (auto-resolved) — M-08's deletion of `follow-up-form.tsx` closed L-04's caveat about the orphaned `console.error` in that file. Pattern to watch: deferred items that explicitly link to a future item should be re-checked when that future item resolves.
+
+### Cluster: password recovery overhaul
+- **C-05 ↔ L-13 ↔ L-14** — C-05 (no brute-force protection on password reset), L-13 (plaintext seed credentials), L-14 (secret questions as recovery mechanism). All three are deferred pending a holistic recovery overhaul. Resolving any one in isolation is incomplete.
+
+### Pattern: resolution-log review trigger
+After every 5 resolutions, run a verification sweep on resolved items in the same files/areas as recent work. The 2026-05-02 sweep caught H-21 (marked `[x]` but partial) and L-01 (marked `[x]` with a wrong "now actively used" claim). Drift like this is invisible without periodic re-checks.
+
+---
+
 ## 🔴 CRITICAL
 
 - [x] ### C-01: Employee Password Hash Exposure
