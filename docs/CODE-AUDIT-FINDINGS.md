@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 23 | 17 | 0 | 6 |
-| MEDIUM | 35 | 17 | 0 | 18 |
+| MEDIUM | 35 | 16 | 0 | 19 |
 | LOW | 17 | 2 | 0 | 15 |
-| **TOTAL** | **83** | **42** | **0** | **41** |
+| **TOTAL** | **83** | **41** | **0** | **42** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,7 +28,7 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 23 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 35 (18 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🟡 MEDIUM | 35 (19 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (15 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
@@ -389,11 +389,12 @@
 - **Fix**: Define a discriminated union type for metadata based on `eventType`.
 - **Resolved**: `ACTIVITY_EVENT_TYPE_VALUES` and `ActivityEventType` exported from `lib/db/schema.ts` (schema column enum references same array). `ActivityEventMetadataMap` in new `lib/activity-event-metadata.ts` declares per-event-type metadata shapes as a `Record<ActivityEventType, ...>` — adding new event types forces declaring their metadata shape. Typed `getMetadata(eventType, metadata)` helper replaces all 8 `as string` casts. No runtime behavior change — same fallback strings preserved. Cross-ref **M-35**: 6 of 8 metadata reads are for fields no writer produces (write/read mismatch).
 
-- [ ] ### M-19: `check-duplicates` Missing First-Name-And-Phone Check
+- [x] ### M-19: `check-duplicates` Missing First-Name-And-Phone Check
 - **File**: `app/api/clients/check-duplicates/route.ts:21-23`
 - **Category**: Logic Bug
 - The `firstName && phone` block is empty (just a comment). Intended combo check was never implemented. Falls through to firstName-only check, producing false positives.
 - **Fix**: Implement the combo check or remove the empty block.
+- **Resolved**: Implemented as a **first-name + last-name** combo (deliberately chose this over the original comment's "first-name + phone" — phone exact match is already covered by the phone condition, while first+last catches "same person" cases when contact info differs). Added `lastName` to both callers (`new/page.tsx`, `[id]/edit/page.tsx`) with `encodeURIComponent` on all four params (defensive against apostrophes/spaces/special chars in form input). API route now extracts and trims all four params, builds a single `conditions[]` list combining exact phone match, exact email match, and case-insensitive firstName+lastName combo (`lower()` matching, same pattern as `searchClients`). Removed the firstName-only in-memory fallback that previously did `select().from(clients).all()` + JS filter — that path was both an unbounded scan (latent M-03 gap at this endpoint, now closed) and a false-positive vector (any client sharing a first name triggered a warning). Self-match filter remains client-side at the edit page's response handler (`data.duplicate.id !== client?.id`) — unchanged.
 
 - [ ] ### M-20: Edit Client Page Fetches Data Client-Side
 - **File**: `app/(app)/clients/[id]/edit/page.tsx:80-85`
@@ -717,5 +718,6 @@ These things are done well and should be maintained:
 | 2026-05-02 | M-35 | New finding: 6 of 8 `formatEventDescription` metadata reads are for fields no writer produces (`purchasedModel`, `tagName`, `newEmployeeName`, `notePreview`, `sourceClientId`, `fieldChanges`). UI silently falls back to placeholder defaults. Discovered during M-18 verification. | — |
 | 2026-05-03 | L-01 | Deleted dead server actions `createClient`, `updateClient`, `transferClient` from `lib/actions.ts` and corresponding test describe blocks. Live action tests (banClient/unsubscribeClient/resubscribeClient) preserved. Chose deletion over wire-up; H-17 consolidation deferred. Surfaced new finding H-23 (missing ownership check on REST update path that the deleted action used to provide). | — |
 | 2026-05-03 | H-23 | New finding added during L-01 investigation: PUT `/api/clients/[id]` and PUT `/api/clients` have no ownership check — any authenticated associate can modify any client. The deleted `updateClient` server action contained the correct pattern; preserved in the Fix description so the future fixer has it. | — |
+| 2026-05-03 | M-19 | Implemented first-name + last-name combo duplicate check (deliberately chose over the original "first-name + phone" comment — phone exact match was already covered). Both callers now send `lastName` with `encodeURIComponent` on all params. API route trims and uses `lower()` for case-insensitive name matching, all conditions OR'd in a single SQL query. Removed firstName-only in-memory fallback that did unbounded `.all()` scan + JS filter (latent M-03 gap closed at this endpoint, false-positive "any matching first name" warning eliminated). | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.

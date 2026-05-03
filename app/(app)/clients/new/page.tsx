@@ -52,7 +52,7 @@ export default function AddClientPage() {
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      const response = await fetch(`/api/clients/check-duplicates?firstName=${data.firstName}&phone=${data.phone}&email=${data.email}`, { signal: controller.signal });
+      const response = await fetch(`/api/clients/check-duplicates?firstName=${encodeURIComponent(data.firstName)}&lastName=${encodeURIComponent(data.lastName ?? "")}&phone=${encodeURIComponent(data.phone ?? "")}&email=${encodeURIComponent(data.email ?? "")}`, { signal: controller.signal });
       if (response.ok) {
         const result = await response.json();
         if (result.duplicate) {

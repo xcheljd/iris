@@ -143,7 +143,7 @@ export default function EditClientPage() {
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      const response = await fetch(`/api/clients/check-duplicates?firstName=${formData.firstName}&phone=${formData.phone}&email=${formData.email}`, { signal: controller.signal });
+      const response = await fetch(`/api/clients/check-duplicates?firstName=${encodeURIComponent(formData.firstName)}&lastName=${encodeURIComponent(formData.lastName ?? "")}&phone=${encodeURIComponent(formData.phone ?? "")}&email=${encodeURIComponent(formData.email ?? "")}`, { signal: controller.signal });
       if (response.ok) {
         const data = await response.json();
         if (data.duplicate && data.duplicate.id !== client?.id) {
