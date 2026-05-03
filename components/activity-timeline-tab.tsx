@@ -19,6 +19,7 @@ import {
 import { format } from "date-fns";
 import type { FullClient } from "@/components/client-provider";
 import type { ActivityEvent } from "@/lib/db/schema";
+import { getMetadata } from "@/lib/activity-event-metadata";
 
 type ActivityEventWithName = ActivityEvent & { employeeName?: string | null };
 
@@ -60,15 +61,16 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
   };
 
   const formatEventDescription = (event: ActivityEventWithName) => {
-    const { eventType, description, metadata } = event;
+    const { eventType, description } = event;
 
     switch (eventType) {
       case "created":
         return `Client added by ${event.employeeName || "system"}`;
       
-      case "edited":
-        if (metadata?.fieldChanges) {
-          const changes = Object.entries(metadata.fieldChanges as Record<string, unknown>)
+      case "edited": {
+        const m = getMetadata("edited", event.metadata);
+        if (m.fieldChanges) {
+          const changes = Object.entries(m.fieldChanges)
             .map(([field]) => {
               const fieldLabels: Record<string, string> = {
                 firstName: "First name",
@@ -87,30 +89,47 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
           return `Profile updated: ${changes}`;
         }
         return description;
+      }
       
-      case "outreach_logged":
-        return `${(metadata?.method as string) || "outreach"} — ${String(metadata?.outcome || "logged").replace(/_/g, " ")}`;
+      case "outreach_logged": {
+        const m = getMetadata("outreach_logged", event.metadata);
+        return `${m.method ?? "outreach"} — ${(m.outcome ?? "logged").replace(/_/g, " ")}`;
+      }
       
-      case "purchase":
-        return `Purchase: ${(metadata?.purchasedModel as string) || "Product"}`;
+      case "purchase": {
+        const m = getMetadata("purchase", event.metadata);
+        return `Purchase: ${m.purchasedModel ?? "Product"}`;
+      }
       
-      case "tag_added":
-        return `Tag added: ${(metadata?.tagName as string) || "Tag"}`;
+      case "tag_added": {
+        const m = getMetadata("tag_added", event.metadata);
+        return `Tag added: ${m.tagName ?? "Tag"}`;
+      }
       
-      case "tag_removed":
-        return `Tag removed: ${(metadata?.tagName as string) || "Tag"}`;
+      case "tag_removed": {
+        const m = getMetadata("tag_removed", event.metadata);
+        return `Tag removed: ${m.tagName ?? "Tag"}`;
+      }
       
-      case "transferred":
-        return `Transferred to ${(metadata?.newEmployeeName as string) || "another associate"}`;
+      case "transferred": {
+        const m = getMetadata("transferred", event.metadata);
+        return `Transferred to ${m.newEmployeeName ?? "another associate"}`;
+      }
       
-      case "status_changed":
-        return `Status changed to: ${(metadata?.newStatus as string) || event.description.split(": ")[1]}`;
+      case "status_changed": {
+        const m = getMetadata("status_changed", event.metadata);
+        return `Status changed to: ${m.newStatus ?? event.description.split(": ")[1]}`;
+      }
       
-      case "note_added":
-        return `Note added: ${(metadata?.notePreview as string) || "New note"}`;
+      case "note_added": {
+        const m = getMetadata("note_added", event.metadata);
+        return `Note added: ${m.notePreview ?? "New note"}`;
+      }
       
-      case "merged":
-        return `Merged from ${(metadata?.sourceClientId as string) || "another record"}`;
+      case "merged": {
+        const m = getMetadata("merged", event.metadata);
+        return `Merged from ${m.sourceClientId ?? "another record"}`;
+      }
       
       default:
         return description;

@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 22 | 16 | 0 | 6 |
-| MEDIUM | 34 | 17 | 0 | 17 |
+| MEDIUM | 35 | 17 | 0 | 18 |
 | LOW | 17 | 3 | 0 | 14 |
-| **TOTAL** | **81** | **42** | **0** | **39** |
+| **TOTAL** | **82** | **42** | **0** | **40** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,7 +28,7 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 22 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 34 (17 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🟡 MEDIUM | 35 (18 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (14 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
@@ -365,11 +365,12 @@
 - **Fix**: Validate against allowed values with zod.
 - **Resolved**: `OUTREACH_METHOD_VALUES` and `OUTREACH_OUTCOME_VALUES` exported from `lib/db/schema.ts` (schema column enums reference same arrays — single source of truth, mirrors M-15 pattern). Shared zod schema at `lib/validation/outreach.ts` validates `clientId` (UUID), `method`/`outcome` (enums), `notes` (max 2000), `purchasedModel` (max 100), `followUpDate` (ISO date), `templateId` (UUID). Both entry points validate: API route returns 400 with ZodError details; server action parses and throws. `OutreachInput` type replaces inline TS union literals. Cross-ref H-09: establishes schema-derived-enum + shared-zod pattern for broader validation sweep.
 
-- [ ] ### M-18: Activity Timeline — Unsafe Metadata Type Assertions
+- [x] ### M-18: Activity Timeline — Unsafe Metadata Type Assertions
 - **File**: `components/activity-timeline-tab.tsx:70,91-112,119`
 - **Category**: Type Safety
 - `(metadata?.method as string)`, `(metadata?.purchasedModel as string)` — metadata is `Record<string, unknown>`, every access is an unsafe cast.
 - **Fix**: Define a discriminated union type for metadata based on `eventType`.
+- **Resolved**: `ACTIVITY_EVENT_TYPE_VALUES` and `ActivityEventType` exported from `lib/db/schema.ts` (schema column enum references same array). `ActivityEventMetadataMap` in new `lib/activity-event-metadata.ts` declares per-event-type metadata shapes as a `Record<ActivityEventType, ...>` — adding new event types forces declaring their metadata shape. Typed `getMetadata(eventType, metadata)` helper replaces all 8 `as string` casts. No runtime behavior change — same fallback strings preserved. Cross-ref **M-35**: 6 of 8 metadata reads are for fields no writer produces (write/read mismatch).
 
 - [ ] ### M-19: `check-duplicates` Missing First-Name-And-Phone Check
 - **File**: `app/api/clients/check-duplicates/route.ts:21-23`
@@ -466,6 +467,12 @@
 - **Category**: Duplication
 - Overview tab renders a Recharts `BarChart` for hot/warm/cold distribution; Heat tab renders the same data as a CSS stacked bar + progress bars. Two visual representations of the same metric in the same page.
 - **Fix**: Extract a shared `HeatDistributionChart` component and use it in both tabs, or remove one if only one visualization is desired.
+
+- [ ] ### M-35: Activity Timeline Reads Metadata Fields That Are Never Written
+- **Files**: `components/activity-timeline-tab.tsx:62-118` (reader), `lib/actions.ts` (writers)
+- **Category**: Silent UI Bug
+- 6 of 8 `formatEventDescription` switch cases read metadata fields that no writer in the codebase actually produces (`purchasedModel`, `tagName`, `newEmployeeName`, `notePreview`, `sourceClientId`, `fieldChanges`). UI silently falls back to default placeholder strings ("Product", "Tag", "another associate", etc.) for these event types. Discovered during M-18 verification.
+- **Fix**: Audit each writer/reader pair. Either (a) populate the missing metadata keys at write time (e.g., `purchase` event should record `purchasedModel`; `transferred` should record new employee name), or (b) revise the formatter to read what's actually written.
 
 ---
 
@@ -688,5 +695,7 @@ These things are done well and should be maintained:
 | 2026-05-02 | M-15 | Eliminated `CLIENT_SOURCES` duplication across 6 sites (Drizzle schema enum + 5 downstream consumers) by exporting `CLIENT_SOURCE_VALUES` and `ClientSource` type from `lib/db/schema.ts` — schema is now the single source of truth. Tag duplication resolved by extracting `COMMON_TAGS` (full 16-item catalog) and `SUGGESTED_TAGS` (curated 5-item subset for chips) to `lib/constants.ts` as intentionally separate exports. UX note: smart-list source dropdown order changed from alphabetical to schema declaration order. | — |
 | 2026-05-02 | M-16 | Strip `%` and `_` from `searchClients` query before LIKE wrapping; early return `[]` on empty cleaned query (closes `%%` → match-everything path). Strip-not-escape avoids needing `ESCAPE` clauses on 4 LIKE expressions. Authenticated route only. | — |
 | 2026-05-02 | M-17 | Schema-derived enum arrays for outreach `method`/`outcome` (mirrors M-15's `CLIENT_SOURCE_VALUES` pattern). Shared zod schema in `lib/validation/outreach.ts` validates both `app/api/outreach/route.ts` POST and `lib/actions.ts:logOutreach`. Adds UUID/length/date format checks. Establishes validation pattern for H-09's broader sweep. | — |
+| 2026-05-02 | M-18 | `ACTIVITY_EVENT_TYPE_VALUES` exported from schema (column enum references same array). `ActivityEventMetadataMap` in `lib/activity-event-metadata.ts` declares per-event-type metadata shapes. Typed `getMetadata()` helper replaces 8 `as string` casts. No runtime behavior change — same fallback strings. Discovered M-35 (write/read mismatch) during verification. | — |
+| 2026-05-02 | M-35 | New finding: 6 of 8 `formatEventDescription` metadata reads are for fields no writer produces (`purchasedModel`, `tagName`, `newEmployeeName`, `notePreview`, `sourceClientId`, `fieldChanges`). UI silently falls back to placeholder defaults. Discovered during M-18 verification. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.

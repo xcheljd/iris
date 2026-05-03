@@ -13,6 +13,15 @@ export const OUTREACH_OUTCOME_VALUES = [
 ] as const;
 export type OutreachOutcome = typeof OUTREACH_OUTCOME_VALUES[number];
 
+export const ACTIVITY_EVENT_TYPE_VALUES = [
+  "created", "edited", "outreach_logged", "purchase", "tag_added", "tag_removed",
+  "transferred", "promoted", "note_added", "status_changed", "merged",
+  "ban_requested", "ban_approved", "ban_rejected",
+  "unsub_requested", "unsub_approved", "unsub_rejected",
+  "delete_requested", "delete_approved", "delete_rejected",
+] as const;
+export type ActivityEventType = typeof ACTIVITY_EVENT_TYPE_VALUES[number];
+
 export const employees = sqliteTable("employees", {
   id: text("id").primaryKey(),
   firstName: text("first_name").notNull(),
@@ -145,7 +154,7 @@ export const activityEvents = sqliteTable("activity_events", {
   id: text("id").primaryKey(),
   clientId: text("client_id").notNull().references(() => clients.id),
   eventType: text("event_type", {
-    enum: ["created", "edited", "outreach_logged", "purchase", "tag_added", "tag_removed", "transferred", "promoted", "note_added", "status_changed", "merged", "ban_requested", "ban_approved", "ban_rejected", "unsub_requested", "unsub_approved", "unsub_rejected", "delete_requested", "delete_approved", "delete_rejected"],
+    enum: ACTIVITY_EVENT_TYPE_VALUES,
   }).notNull(),
   description: text("description").notNull(),
   metadata: text("metadata", { mode: "json" }).$type<Record<string, unknown>>(),
