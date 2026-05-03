@@ -9,13 +9,13 @@ import { EmployeesTab } from "./employees-tab";
 import { SettingsTagsTab } from "./tags-tab";
 import { TemplatesTab } from "./templates-tab";
 import { DeletedTab } from "./deleted-tab";
-import type { Employee } from "@/lib/db/schema";
+import type { SafeEmployeeRow } from "@/lib/queries";
 import type { ClientTag } from "@/lib/db/schema";
 import type { OutreachTemplate } from "@/lib/db/schema";
 import type { Client } from "@/lib/db/schema";
 
 interface SettingsContentProps {
-  employees: Employee[];
+  employees: SafeEmployeeRow[];
   tags: ClientTag[];
   templates: OutreachTemplate[];
   deletedClients: Client[];

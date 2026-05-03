@@ -81,12 +81,12 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 ## 🔴 CRITICAL
 
 - [x] ### C-01: Employee Password Hash Exposure
-- **Files**: `app/api/employees/route.ts:6`, `lib/queries.ts:133-134`, `app/(app)/settings/page.tsx:18-21`
+- **Files**: `app/api/employees/route.ts:6`, `lib/queries.ts:179-190`, `app/(app)/settings/page.tsx:18-21`
 - **Category**: Security — Credential Exposure
 - **OWASP**: A01:2021 — Broken Access Control
 - `db.select().from(employees).all()` returns ALL columns including `passwordHash`, `secretQuestion`, `secretAnswerHash`. Both the API endpoint and the server-rendered settings page serialize these to the client.
 - **Fix**: Explicitly select only safe columns: `{ id, name, username, role, active, createdAt }`.
-- **Resolved**: API route now destructures to strip `passwordHash` and `secretAnswerHash` via rest spread.
+- **Resolved**: API route now destructures to strip `passwordHash` and `secretAnswerHash` via rest spread. `getEmployees()` in `lib/queries.ts` now uses explicit column projection omitting `passwordHash`, `secretQuestion`, `secretAnswerHash`. `SafeEmployeeRow` type exported for consumers. Settings page (`app/(app)/settings/page.tsx`) no longer leaks credentials via RSC payload. All three original sites now covered.
 
 - [ ] ### C-02: Hardcoded JWT Secret Fallback
 - **File**: `lib/auth.ts:44`
@@ -706,6 +706,7 @@ These things are done well and should be maintained:
 | Date | Issue(s) | Resolution | Commit |
 |------|----------|------------|--------|
 | 2026-04-30 | C-01 | Employee API route now strips `passwordHash` and `secretAnswerHash` via destructuring rest spread | — |
+| 2026-05-03 | C-01 | **Full fix**: `getEmployees()` in `lib/queries.ts` now uses explicit column projection omitting `passwordHash`, `secretQuestion`, `secretAnswerHash`. `SafeEmployeeRow` type exported. Settings page RSC payload leak closed. All 3 original sites now covered. | — |
 | 2026-04-30 | C-06 | All 16 server actions now use `requireAuth()` or `requireManager()` | — |
 | 2026-04-30 | H-07 | All server actions using `getSessionUser()` now use `requireAuth()` which throws on null | — |
 | 2026-04-30 | H-08 | Destructive operations (`clearAllPromos`, `banClient`, `transferClient`, `unbanClient`) now use `requireManager()` | — |

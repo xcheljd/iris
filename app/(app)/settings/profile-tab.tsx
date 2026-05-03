@@ -13,10 +13,10 @@ import { Pencil } from "lucide-react";
 import { updateEmployee } from "@/lib/actions";
 import { toast } from "sonner";
 import { initials } from "@/lib/utils";
-import type { Employee } from "@/lib/db/schema";
+import type { SafeEmployeeRow } from "@/lib/queries";
 
 interface ProfileTabProps {
-  currentUser: Employee | undefined;
+  currentUser: SafeEmployeeRow | undefined;
   currentUserId: string;
 }
 

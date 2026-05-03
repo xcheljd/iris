@@ -177,8 +177,18 @@ export async function getUnsubscribeList() {
 }
 
 export async function getEmployees() {
-  return db.select().from(employees).orderBy(employees.firstName).all();
+  return db.select({
+    id: employees.id,
+    firstName: employees.firstName,
+    lastName: employees.lastName,
+    username: employees.username,
+    role: employees.role,
+    active: employees.active,
+    createdAt: employees.createdAt,
+  }).from(employees).orderBy(employees.firstName).all();
 }
+
+export type SafeEmployeeRow = Awaited<ReturnType<typeof getEmployees>>[number];
 
 export async function getTags() {
   return db.select().from(clientTags).orderBy(desc(clientTags.usageCount)).all();
