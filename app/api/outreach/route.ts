@@ -8,6 +8,8 @@ import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { calcHeatScore } from "@/lib/heat-score";
 import { MS_PER_DAY } from "@/lib/constants";
+import { outreachInputSchema } from "@/lib/validation/outreach";
+import { z } from "zod";
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -15,11 +17,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { clientId, method, outcome, purchasedModel, notes, followUpDate, templateId } = body;
-
-    if (!clientId || !method || !outcome) {
-      return NextResponse.json({ error: "clientId, method, and outcome are required" }, { status: 400 });
-    }
+    const { clientId, method, outcome, purchasedModel, notes, followUpDate, templateId } = outreachInputSchema.parse(body);
 
     const id = randomUUID();
     const date = new Date();
@@ -63,7 +61,10 @@ export async function POST(request: Request) {
     revalidatePath("/");
 
     return NextResponse.json({ success: true, id });
-  } catch (_error) {
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: "Invalid input", details: error.errors }, { status: 400 });
+    }
     return NextResponse.json({ error: "Failed to log outreach" }, { status: 500 });
   }
 }

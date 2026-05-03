@@ -4,6 +4,15 @@ import { sql } from "drizzle-orm";
 export const CLIENT_SOURCE_VALUES = ["Client Log", "Customer Report", "Walk-in", "Referral"] as const;
 export type ClientSource = typeof CLIENT_SOURCE_VALUES[number];
 
+export const OUTREACH_METHOD_VALUES = ["call", "text", "email", "in-person"] as const;
+export type OutreachMethod = typeof OUTREACH_METHOD_VALUES[number];
+
+export const OUTREACH_OUTCOME_VALUES = [
+  "no_answer", "voicemail", "voicemail_full",
+  "responded", "not_interested", "wants_to_come_in", "purchased",
+] as const;
+export type OutreachOutcome = typeof OUTREACH_OUTCOME_VALUES[number];
+
 export const employees = sqliteTable("employees", {
   id: text("id").primaryKey(),
   firstName: text("first_name").notNull(),
@@ -48,9 +57,9 @@ export const clients = sqliteTable("clients", {
 export const outreachLogs = sqliteTable("outreach_logs", {
   id: text("id").primaryKey(),
   clientId: text("client_id").notNull().references(() => clients.id),
-  method: text("method", { enum: ["call", "text", "email", "in-person"] }).notNull(),
+  method: text("method", { enum: OUTREACH_METHOD_VALUES }).notNull(),
   date: integer("date", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  outcome: text("outcome", { enum: ["no_answer", "voicemail", "voicemail_full", "responded", "not_interested", "wants_to_come_in", "purchased"] }).notNull(),
+  outcome: text("outcome", { enum: OUTREACH_OUTCOME_VALUES }).notNull(),
   purchasedModel: text("purchased_model"),
   notes: text("notes"),
   employeeId: text("employee_id").references(() => employees.id),

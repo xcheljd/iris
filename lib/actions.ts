@@ -8,6 +8,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { calcHeatScore } from "@/lib/heat-score";
 import { MS_PER_DAY } from "@/lib/constants";
+import { outreachInputSchema, type OutreachInput } from "@/lib/validation/outreach";
 import { redirect } from "next/navigation";
 import { format } from "date-fns";
 import bcrypt from "bcryptjs";
@@ -123,47 +124,40 @@ export async function transferClient(id: string, toEmployeeId: string) {
   revalidatePath(`/clients/${id}`);
 }
 
-export async function logOutreach(data: {
-  clientId: string;
-  method: "call" | "text" | "email" | "in-person";
-  outcome: "no_answer" | "voicemail" | "voicemail_full" | "responded" | "not_interested" | "wants_to_come_in" | "purchased";
-  purchasedModel?: string;
-  notes?: string;
-  followUpDate?: string | null;
-  templateId?: string;
-}) {
+export async function logOutreach(data: OutreachInput) {
+  const parsed = outreachInputSchema.parse(data);
   const user = await requireAuth();
   const id = randomUUID();
   const date = new Date();
   db.insert(outreachLogs).values({
     id,
-    clientId: data.clientId,
-    method: data.method,
+    clientId: parsed.clientId,
+    method: parsed.method,
     date,
-    outcome: data.outcome,
-    purchasedModel: data.outcome === "purchased" ? data.purchasedModel || null : null,
-    notes: data.notes || null,
+    outcome: parsed.outcome,
+    purchasedModel: parsed.outcome === "purchased" ? parsed.purchasedModel || null : null,
+    notes: parsed.notes || null,
     employeeId: user.id,
-    followUpDate: data.followUpDate ? new Date(data.followUpDate) : null,
-    templateId: data.templateId || null,
+    followUpDate: parsed.followUpDate ? new Date(parsed.followUpDate) : null,
+    templateId: parsed.templateId || null,
     completed: false,
   }).run();
   const patch: Record<string, unknown> = { lastOutreachAt: date, updatedAt: date };
-  if (data.outcome === "purchased") patch.lastPurchaseAt = date;
-  db.update(clients).set(patch).where(eq(clients.id, data.clientId)).run();
+  if (parsed.outcome === "purchased") patch.lastPurchaseAt = date;
+  db.update(clients).set(patch).where(eq(clients.id, parsed.clientId)).run();
   db.insert(activityEvents).values({
     id: randomUUID(),
-    clientId: data.clientId,
-    eventType: data.outcome === "purchased" ? "purchase" : "outreach_logged",
-    description: `${data.method} — ${data.outcome.replace(/_/g, " ")}${data.purchasedModel ? ` (${data.purchasedModel})` : ""}`,
+    clientId: parsed.clientId,
+    eventType: parsed.outcome === "purchased" ? "purchase" : "outreach_logged",
+    description: `${parsed.method} — ${parsed.outcome.replace(/_/g, " ")}${parsed.purchasedModel ? ` (${parsed.purchasedModel})` : ""}`,
     employeeId: user.id,
-    metadata: { method: data.method, outcome: data.outcome },
+    metadata: { method: parsed.method, outcome: parsed.outcome },
   }).run();
-  await recalcHeat(data.clientId);
-  if (data.outcome === "purchased" && data.purchasedModel) {
-    await createPromoMatchIfApplies(data.clientId, data.purchasedModel);
+  await recalcHeat(parsed.clientId);
+  if (parsed.outcome === "purchased" && parsed.purchasedModel) {
+    await createPromoMatchIfApplies(parsed.clientId, parsed.purchasedModel);
   }
-  revalidatePath(`/clients/${data.clientId}`);
+  revalidatePath(`/clients/${parsed.clientId}`);
   revalidatePath("/follow-ups");
   revalidatePath("/");
 }

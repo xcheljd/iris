@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 22 | 16 | 0 | 6 |
-| MEDIUM | 34 | 18 | 0 | 16 |
+| MEDIUM | 34 | 17 | 0 | 17 |
 | LOW | 17 | 3 | 0 | 14 |
-| **TOTAL** | **81** | **43** | **0** | **38** |
+| **TOTAL** | **81** | **42** | **0** | **39** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,7 +28,7 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 22 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 34 (16 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🟡 MEDIUM | 34 (17 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (14 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
@@ -358,11 +358,12 @@
 - **Fix**: Escape LIKE wildcards before constructing the pattern.
 - **Resolved**: Strip `%` and `_` from query before wrapping, early return `[]` when cleaned query is empty (closes `%%` → match-everything path). Strip-not-escape approach avoids needing `ESCAPE '\'` clauses on all 4 LIKE expressions. CRM data doesn't contain literal `%` or `_` in names/emails/phones. Exposed via authenticated API route only.
 
-- [ ] ### M-17: Outreach POST Doesn't Validate Enum Values
-- **File**: `app/api/outreach/route.ts:11-12`
+- [x] ### M-17: Outreach POST Doesn't Validate Enum Values
+- **File**: `app/api/outreach/route.ts:11-12`, `lib/actions.ts:126`
 - **Category**: Data Integrity
 - Accepts arbitrary strings for `method` and `outcome`. SQLite doesn't enforce enum constraints.
 - **Fix**: Validate against allowed values with zod.
+- **Resolved**: `OUTREACH_METHOD_VALUES` and `OUTREACH_OUTCOME_VALUES` exported from `lib/db/schema.ts` (schema column enums reference same arrays — single source of truth, mirrors M-15 pattern). Shared zod schema at `lib/validation/outreach.ts` validates `clientId` (UUID), `method`/`outcome` (enums), `notes` (max 2000), `purchasedModel` (max 100), `followUpDate` (ISO date), `templateId` (UUID). Both entry points validate: API route returns 400 with ZodError details; server action parses and throws. `OutreachInput` type replaces inline TS union literals. Cross-ref H-09: establishes schema-derived-enum + shared-zod pattern for broader validation sweep.
 
 - [ ] ### M-18: Activity Timeline — Unsafe Metadata Type Assertions
 - **File**: `components/activity-timeline-tab.tsx:70,91-112,119`
@@ -685,5 +686,7 @@ These things are done well and should be maintained:
 | 2026-05-02 | M-13 | Extracted all magic numbers from heat-scoring, smart-list filters, and date-window queries. `MS_PER_DAY` lives in new `lib/constants.ts` (single shared constant); 14 heat-score policy constants co-located in `lib/heat-score.ts`; 3 filter thresholds co-located in `lib/utils.ts`. `daysAgo` helper normalized to use `MS_PER_DAY` (was `1000 * 60 * 60 * 24`). Query/action sites kept the cardinal day-count visible (`7 * MS_PER_DAY`, `90 * MS_PER_DAY`). Heat-score tests still pass 22/22. | — |
 | 2026-05-02 | M-14 | Demo credentials block on login page gated behind `process.env.NODE_ENV === "development"` (Separator included in the gate). Next.js build-time replacement dead-strips the block from the production bundle. Closes the production info-disclosure path only — seed credential weakness remains tracked under L-13 and M-28. | — |
 | 2026-05-02 | M-15 | Eliminated `CLIENT_SOURCES` duplication across 6 sites (Drizzle schema enum + 5 downstream consumers) by exporting `CLIENT_SOURCE_VALUES` and `ClientSource` type from `lib/db/schema.ts` — schema is now the single source of truth. Tag duplication resolved by extracting `COMMON_TAGS` (full 16-item catalog) and `SUGGESTED_TAGS` (curated 5-item subset for chips) to `lib/constants.ts` as intentionally separate exports. UX note: smart-list source dropdown order changed from alphabetical to schema declaration order. | — |
+| 2026-05-02 | M-16 | Strip `%` and `_` from `searchClients` query before LIKE wrapping; early return `[]` on empty cleaned query (closes `%%` → match-everything path). Strip-not-escape avoids needing `ESCAPE` clauses on 4 LIKE expressions. Authenticated route only. | — |
+| 2026-05-02 | M-17 | Schema-derived enum arrays for outreach `method`/`outcome` (mirrors M-15's `CLIENT_SOURCE_VALUES` pattern). Shared zod schema in `lib/validation/outreach.ts` validates both `app/api/outreach/route.ts` POST and `lib/actions.ts:logOutreach`. Adds UUID/length/date format checks. Establishes validation pattern for H-09's broader sweep. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.
