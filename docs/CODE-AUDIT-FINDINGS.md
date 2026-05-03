@@ -13,10 +13,10 @@
 | Severity | Total | Open | In Progress | Resolved |
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
-| HIGH | 22 | 16 | 0 | 6 |
+| HIGH | 23 | 17 | 0 | 6 |
 | MEDIUM | 35 | 17 | 0 | 18 |
-| LOW | 17 | 3 | 0 | 14 |
-| **TOTAL** | **82** | **42** | **0** | **40** |
+| LOW | 17 | 2 | 0 | 15 |
+| **TOTAL** | **83** | **42** | **0** | **41** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -27,9 +27,9 @@
 | Severity | Count | Key Themes |
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
-| 🟠 HIGH | 22 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
+| 🟠 HIGH | 23 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
 | 🟡 MEDIUM | 35 (18 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
-| 🔵 LOW | 17 (14 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
+| 🔵 LOW | 17 (15 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
 
@@ -240,6 +240,23 @@
 - Defined twice identically. 30 lines of pure duplication.
 - **Fix**: Delete lines 42-71.
 - **Resolved**: Interface now defined only once.
+
+- [ ] ### H-23: Missing Ownership Check on Client Update REST Route
+- **Files**: `app/api/clients/[id]/route.ts` (PUT handler), `app/api/clients/route.ts` (PUT handler)
+- **Category**: Security — Broken Access Control
+- **OWASP**: A01:2021
+- The PUT handlers update any client by ID with no check that the requesting user owns the client (or is a manager). Any authenticated associate can modify any other associate's client records. Discovered during L-01 investigation: the deleted `updateClient` server action (formerly in `lib/actions.ts`) contained the correct ownership-check pattern that the REST routes never adopted.
+- **Fix**: Add ownership guard at the top of both PUT handlers. Pattern (preserved here from the deleted server action so the fix is straightforward):
+  ```ts
+  const user = await requireAuth();
+  const client = db.select().from(clients).where(eq(clients.id, id)).get();
+  if (!client) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (user.role !== "manager" && client.employeeId !== user.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  ```
+  Also consider porting the action's `recalcHeat(id)` call and user-attributed activity event description (`"Profile updated by ${user.name}"`) — both are behavioral improvements the REST route currently lacks.
+- **Cross-ref**: Discovered while resolving L-01 (deletion of dead `updateClient` action). The action's richer behavior was not reachable from any UI, so its existence didn't compensate for the gap.
 
 ---
 
@@ -478,11 +495,12 @@
 
 ## 🔵 LOW
 
-- [ ] ### L-01: 3 Dead Server Actions
-- **File**: `lib/actions.ts` — `createClient` (L48), `updateClient` (L93), `transferClient` (L113)
+- [x] ### L-01: 3 Dead Server Actions
+- **File**: `lib/actions.ts` — `createClient` (deleted), `updateClient` (deleted), `transferClient` (deleted)
+- **Category**: Dead Code
 - `createClient` and `updateClient` are superseded by REST API routes. `transferClient` is never called anywhere.
 - **Fix**: Delete unused actions, or convert call sites to use the actions instead of REST.
-- **Status**: Stale resolution reverted — verification on 2026-05-02 found these functions are only referenced from `__tests__/actions/client-actions.test.ts`, never imported by production code in `app/` or `components/`. The earlier "now actively used" claim was incorrect.
+- **Resolved**: All three actions deleted from `lib/actions.ts`; corresponding `describe` blocks and import references removed from `__tests__/actions/client-actions.test.ts`. Test coverage for the live actions (`banClient`, `unsubscribeClient`, `resubscribeClient`) preserved. Chose deletion over wire-up because all three production UI call sites already use the REST endpoints with their own duplicate-check flows; converting them to server actions would be high-effort with no user-visible improvement, and H-17 (the broader server-action-vs-REST consolidation) is better addressed holistically in a separate pass. **Important:** the deleted `updateClient` action contained an ownership-check pattern that the equivalent REST route lacks — filed as new finding **H-23** so the security gap remains tracked.
 
 - [x] ### L-02: Unused `formatDateTime` Export
 - **File**: `lib/utils.ts:21`
@@ -697,5 +715,7 @@ These things are done well and should be maintained:
 | 2026-05-02 | M-17 | Schema-derived enum arrays for outreach `method`/`outcome` (mirrors M-15's `CLIENT_SOURCE_VALUES` pattern). Shared zod schema in `lib/validation/outreach.ts` validates both `app/api/outreach/route.ts` POST and `lib/actions.ts:logOutreach`. Adds UUID/length/date format checks. Establishes validation pattern for H-09's broader sweep. | — |
 | 2026-05-02 | M-18 | `ACTIVITY_EVENT_TYPE_VALUES` exported from schema (column enum references same array). `ActivityEventMetadataMap` in `lib/activity-event-metadata.ts` declares per-event-type metadata shapes. Typed `getMetadata()` helper replaces 8 `as string` casts. No runtime behavior change — same fallback strings. Discovered M-35 (write/read mismatch) during verification. | — |
 | 2026-05-02 | M-35 | New finding: 6 of 8 `formatEventDescription` metadata reads are for fields no writer produces (`purchasedModel`, `tagName`, `newEmployeeName`, `notePreview`, `sourceClientId`, `fieldChanges`). UI silently falls back to placeholder defaults. Discovered during M-18 verification. | — |
+| 2026-05-03 | L-01 | Deleted dead server actions `createClient`, `updateClient`, `transferClient` from `lib/actions.ts` and corresponding test describe blocks. Live action tests (banClient/unsubscribeClient/resubscribeClient) preserved. Chose deletion over wire-up; H-17 consolidation deferred. Surfaced new finding H-23 (missing ownership check on REST update path that the deleted action used to provide). | — |
+| 2026-05-03 | H-23 | New finding added during L-01 investigation: PUT `/api/clients/[id]` and PUT `/api/clients` have no ownership check — any authenticated associate can modify any client. The deleted `updateClient` server action contained the correct pattern; preserved in the Fix description so the future fixer has it. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.

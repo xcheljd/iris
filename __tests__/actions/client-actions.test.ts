@@ -5,20 +5,14 @@ vi.mock("next-auth", () => ({
   getServerSession: vi.fn(),
 }));
 
-vi.mock("next/navigation", () => ({
-  redirect: vi.fn(),
-}));
+vi.mock("next/navigation", () => ({}));
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
 import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
 import {
-  createClient,
-  updateClient,
-  transferClient,
   banClient,
   unsubscribeClient,
   resubscribeClient,
@@ -55,136 +49,6 @@ describe("Client Actions", () => {
       }
     }
     createdClientIds.length = 0;
-  });
-
-  describe("createClient", () => {
-    it("should create a client with authenticated user and redirect", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
-
-      const result = await createClient({
-        firstName: "TestClient",
-        lastName: "TestLast",
-        phone: "(555) 123-4567",
-        email: "test@example.com",
-        productsOfInterest: ["KX1011-01X"],
-        notes: "Test notes",
-        onEmailList: true,
-        source: "Walk-in",
-        tags: ["VIP"],
-      });
-
-      // createClient calls redirect, so we check that redirect was called
-      expect(redirect).toHaveBeenCalled();
-      const redirectPath = vi.mocked(redirect).mock.calls[0][0];
-      expect(redirectPath).toMatch(/^\/clients\/[0-9a-f-]+$/);
-
-      // Extract client ID from redirect path and track for cleanup
-      const clientId = redirectPath.replace("/clients/", "");
-      createdClientIds.push(clientId);
-
-      // Verify client was created in database
-      const client = db.select().from(clients).where(eq(clients.id, clientId)).get();
-      expect(client).toBeDefined();
-      expect(client!.firstName).toBe("TestClient");
-      expect(client!.lastName).toBe("TestLast");
-      expect(client!.email).toBe("test@example.com");
-      expect(client!.employeeId).toBe(MANAGER_ID);
-      expect(client!.onEmailList).toBe(true);
-      expect(client!.tags).toEqual(["VIP"]);
-
-      // Verify activity event was created
-      const activity = db.select().from(activityEvents).where(eq(activityEvents.clientId, clientId)).get();
-      expect(activity).toBeDefined();
-      expect(activity!.eventType).toBe("created");
-      expect(activity!.description).toContain("Marcus");
-    });
-
-    it("should create a client without session (system user)", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(null as any);
-
-      // Clear redirect mock
-      vi.mocked(redirect).mockImplementation(() => {
-        // redirect throws NEXT_REDIRECT, so we simulate that
-        throw new Error("NEXT_REDIRECT");
-      });
-
-      try {
-        await createClient({
-          firstName: "NoSession",
-          lastName: "Client",
-        });
-      } catch (e: any) {
-        expect(e.message).toBe("NEXT_REDIRECT");
-      }
-
-      // Find the client we just created
-      const client = db.select().from(clients).where(eq(clients.firstName, "NoSession")).get();
-      expect(client).toBeDefined();
-      expect(client!.employeeId).toBeNull();
-      createdClientIds.push(client!.id);
-    });
-  });
-
-  describe("updateClient", () => {
-    it("should update a client's fields", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
-
-      await updateClient(FIRST_CLIENT_ID, {
-        firstName: "UpdatedMichael",
-        phone: "(999) 999-9999",
-        notes: "Updated notes",
-      });
-
-      const client = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
-      expect(client!.firstName).toBe("UpdatedMichael");
-      expect(client!.phone).toBe("(999) 999-9999");
-      expect(client!.notes).toBe("Updated notes");
-
-      // Restore original data
-      await updateClient(FIRST_CLIENT_ID, {
-        firstName: "Michael",
-        phone: undefined,
-        notes: undefined,
-      });
-    });
-
-    it("should create an activity event on update", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
-
-      await updateClient(FIRST_CLIENT_ID, { notes: "Activity test note" });
-
-      const activities = db.select().from(activityEvents)
-        .where(eq(activityEvents.clientId, FIRST_CLIENT_ID))
-        .all();
-      const editEvent = activities.find((a) => a.eventType === "edited");
-      expect(editEvent).toBeDefined();
-      expect(editEvent!.description).toContain("Marcus");
-
-      // Restore
-      await updateClient(FIRST_CLIENT_ID, { notes: undefined });
-    });
-  });
-
-  describe("transferClient", () => {
-    it("should transfer a client to another employee", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
-
-      await transferClient(FIRST_CLIENT_ID, ASSOCIATE_ID);
-
-      const client = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
-      expect(client!.employeeId).toBe(ASSOCIATE_ID);
-
-      // Verify activity event
-      const activities = db.select().from(activityEvents)
-        .where(eq(activityEvents.clientId, FIRST_CLIENT_ID))
-        .all();
-      const transferEvent = activities.find((a) => a.eventType === "transferred");
-      expect(transferEvent).toBeDefined();
-      expect(transferEvent!.description).toContain("Transferred");
-
-      // Restore
-      await transferClient(FIRST_CLIENT_ID, MANAGER_ID);
-    });
   });
 
   describe("banClient", () => {

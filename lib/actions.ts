@@ -9,7 +9,6 @@ import { authOptions } from "@/lib/auth";
 import { calcHeatScore } from "@/lib/heat-score";
 import { MS_PER_DAY } from "@/lib/constants";
 import { outreachInputSchema, type OutreachInput } from "@/lib/validation/outreach";
-import { redirect } from "next/navigation";
 import { format } from "date-fns";
 import bcrypt from "bcryptjs";
 
@@ -32,96 +31,6 @@ export async function recalcHeat(clientId: string) {
   const last90 = db.select({ outcome: outreachLogs.outcome, date: outreachLogs.date }).from(outreachLogs).where(and(eq(outreachLogs.clientId, clientId), gte(outreachLogs.date, ninetyDaysAgo))).all();
   const { score, level } = calcHeatScore(c, last90);
   db.update(clients).set({ heatScore: score, heatLevel: level, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
-}
-
-export async function createClient(data: {
-  firstName: string;
-  lastName?: string;
-  phone?: string;
-  email?: string;
-  productsOfInterest?: string[];
-  notes?: string;
-  onEmailList?: boolean;
-  source?: string;
-  birthday?: string;
-  anniversary?: string;
-  tags?: string[];
-}) {
-  const user = await requireAuth();
-  const id = randomUUID();
-  db.insert(clients).values({
-    id,
-    firstName: data.firstName,
-    lastName: data.lastName || null,
-    phone: data.phone || null,
-    email: data.email || null,
-    employeeId: user.id,
-    productsOfInterest: data.productsOfInterest || [],
-    notes: data.notes || null,
-    onEmailList: data.onEmailList ?? false,
-    source: (data.source as "Client Log" | "Customer Report" | "Walk-in" | "Referral") || "Walk-in",
-    birthday: data.birthday || null,
-    anniversary: data.anniversary || null,
-    tags: data.tags || [],
-  }).run();
-  db.insert(activityEvents).values({
-    id: randomUUID(),
-    clientId: id,
-    eventType: "created",
-    description: `Client added by ${user.name}`,
-    employeeId: user.id,
-  }).run();
-  await recalcHeat(id);
-  revalidatePath("/clients");
-  revalidatePath("/");
-  redirect(`/clients/${id}`);
-}
-
-export async function updateClient(id: string, data: Partial<{
-  firstName: string;
-  lastName: string;
-  phone: string;
-  email: string;
-  productsOfInterest: string[];
-  notes: string;
-  onEmailList: boolean;
-  source: string;
-  birthday: string;
-  anniversary: string;
-  tags: string[];
-  status: string;
-  employeeId: string | null;
-}>) {
-  const user = await requireAuth();
-  const client = db.select().from(clients).where(eq(clients.id, id)).get();
-  if (!client) throw new Error("Client not found");
-  if (user.role !== "manager" && client.employeeId !== user.id) throw new Error("Not authorized to edit this client");
-  const patch: Record<string, unknown> = { updatedAt: new Date() };
-  for (const [k, v] of Object.entries(data)) if (v !== undefined) patch[k] = v;
-  db.update(clients).set(patch).where(eq(clients.id, id)).run();
-  db.insert(activityEvents).values({
-    id: randomUUID(),
-    clientId: id,
-    eventType: "edited",
-    description: `Profile updated by ${user.name}`,
-    employeeId: user.id,
-  }).run();
-  await recalcHeat(id);
-  revalidatePath(`/clients/${id}`);
-  revalidatePath("/clients");
-}
-
-export async function transferClient(id: string, toEmployeeId: string) {
-  const user = await requireManager();
-  db.update(clients).set({ employeeId: toEmployeeId, updatedAt: new Date() }).where(eq(clients.id, id)).run();
-  db.insert(activityEvents).values({
-    id: randomUUID(),
-    clientId: id,
-    eventType: "transferred",
-    description: `Transferred by ${user.name}`,
-    employeeId: user.id,
-  }).run();
-  revalidatePath(`/clients/${id}`);
 }
 
 export async function logOutreach(data: OutreachInput) {
