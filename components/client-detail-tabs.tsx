@@ -19,7 +19,7 @@ import { HeatScoreBar } from "@/components/heat-score-bar";
 import { EditClientDialog } from "@/components/edit-client-dialog";
 import { OutreachLogger } from "@/components/outreach-logger";
 import { BanCustomerDialog, UnsubscribeCustomerDialog, DeleteCustomerDialog } from "@/components/client-status-actions";
-import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { toggleEmailList, resubscribeClient, unbanClient } from "@/lib/actions";
 import { toast } from "sonner";
 
@@ -76,7 +76,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                 }
               />
               {client.status !== "unsubscribed" && client.status !== "deleted" && client.onEmailList && (
-                <ConfirmActionDialog
+                <ConfirmDialog
                   title="Remove from Email List"
                   description={<>Are you sure you want to remove <strong>{client.firstName} {client.lastName}</strong> from the email list? They will no longer receive marketing emails.</>}
                   confirmLabel="Remove"
@@ -86,7 +86,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                   <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={(e) => e.preventDefault()}>
                     <Mail className="h-4 w-4 mr-2" /> Remove from Email List
                   </DropdownMenuItem>
-                </ConfirmActionDialog>
+                </ConfirmDialog>
               )}
               {client.status !== "unsubscribed" && client.status !== "deleted" && !client.onEmailList && (
                 <DropdownMenuItem onClick={() => toggleEmailList(client.id).then(() => { toast.success("Added to email list"); }).catch(() => { toast.error("Failed to update"); })}>
@@ -111,7 +111,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
               {client.status === "banned" && currentUserRole === "manager" && (
                 <>
                   <DropdownMenuSeparator />
-                  <ConfirmActionDialog
+                  <ConfirmDialog
                     title="Unban Customer"
                     description={<>Are you sure you want to unban <strong>{client.firstName} {client.lastName}</strong>? This will restore their status to active.</>}
                     confirmLabel="Unban"
@@ -120,13 +120,13 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                     <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                       <ShieldOff className="h-4 w-4 mr-2" /> Unban Customer
                     </DropdownMenuItem>
-                  </ConfirmActionDialog>
+                  </ConfirmDialog>
                 </>
               )}
               {client.status === "unsubscribed" && currentUserRole === "manager" && (
                 <>
                   <DropdownMenuSeparator />
-                  <ConfirmActionDialog
+                  <ConfirmDialog
                     title="Resubscribe Customer"
                     description={<>Are you sure you want to resubscribe <strong>{client.firstName} {client.lastName}</strong>? This will allow all forms of contact again.</>}
                     confirmLabel="Resubscribe"
@@ -135,7 +135,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                     <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                       <UserCheck className="h-4 w-4 mr-2" /> Resubscribe
                     </DropdownMenuItem>
-                  </ConfirmActionDialog>
+                  </ConfirmDialog>
                 </>
               )}
               {client.status !== "deleted" && (

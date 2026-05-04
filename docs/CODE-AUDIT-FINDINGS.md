@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 23 | 17 | 0 | 6 |
-| MEDIUM | 36 | 10 | 0 | 26 |
+| MEDIUM | 36 | 8 | 0 | 28 |
 | LOW | 17 | 2 | 0 | 15 |
-| **TOTAL** | **84** | **35** | **0** | **49** |
+| **TOTAL** | **84** | **33** | **0** | **51** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,7 +28,7 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 23 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 36 (26 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🟡 MEDIUM | 36 (28 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (15 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
@@ -492,17 +492,19 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - Minimum 6 characters, no complexity requirements. Seed data uses "meridian" for all accounts.
 - **Fix**: Increase minimum to 12 chars. Require uppercase, lowercase, digit, special char.
 
-- [ ] ### M-29: Two Near-Identical Confirm Dialog Components
-- **Files**: `components/confirm-dialog.tsx` (57 lines), `components/confirm-action-dialog.tsx` (48 lines)
+- [x] ### M-29: Two Near-Identical Confirm Dialog Components
+- **Files**: `components/confirm-dialog.tsx` (57 lines), `components/confirm-action-dialog.tsx` (48 lines, deleted)
 - **Category**: Duplication
 - Both wrap `AlertDialog` with identical structure, styling, and destructive variant handling. Only difference is who manages the `open` state (controlled vs self-managed).
 - **Fix**: Merge into a single component with optional `open`/`onOpenChange` prop pattern (uncontrolled when no `open` prop passed).
+- **Resolved**: Extended `ConfirmDialog` with a discriminated-union prop type — controlled (`{open, onOpenChange}`) or uncontrolled (`{children}` trigger, internal `useState`). When `children` is present the component manages open state and auto-closes after `onConfirm`. `ConfirmActionDialog` deleted; the 3 callsites in `components/client-detail-tabs.tsx` swapped to `<ConfirmDialog>` (same JSX shape — children passed as trigger). `onConfirm: () => void` retained from the original ConfirmDialog signature so existing callers passing `() => Promise<void>` or `cond ? doThing() : null` keep type-checking. All 24 existing `ConfirmDialog` tests still pass.
 
-- [ ] ### M-30: Password Show/Hide Toggle Copy-Pasted 5 Times
-- **Files**: `app/login/page.tsx` (2x), `app/(app)/change-password/page.tsx` (3x)
+- [x] ### M-30: Password Show/Hide Toggle Copy-Pasted 5 Times
+- **Files**: `app/login/page.tsx` (2 → uses `<PasswordInput>`), `app/(app)/change-password/page.tsx` (3 → uses `<PasswordInput>`)
 - **Category**: Duplication
 - The password visibility toggle with `Eye`/`EyeOff` icon, border wrapper div, and `showPassword` state is copy-pasted across 5 instances.
 - **Fix**: Extract a `PasswordInput` component that wraps `Input` with the toggle button built in.
+- **Resolved**: Created `components/password-input.tsx` — extends `Input` props (omits `type`), owns its own `show` state, renders the wrapper div + `Input` + Eye/EyeOff toggle button. Optional `wrapperClassName` for callers that need conditional border colors (used by the confirm-password field in change-password to indicate match/mismatch via `border-destructive`/`border-green-500`; `tailwind-merge` via `cn` ensures the override beats the default `border-input`). All 5 callsites swapped; `Eye`/`EyeOff` imports and `showPassword`/`showCurrentPw`/`showNewPw`/`showConfirmPw`/`showNewPassword` state removed from the host pages.
 
 - [ ] ### M-31: Topbar Search Button Fakes Keyboard Event
 - **File**: `components/topbar.tsx:36-39`
@@ -780,5 +782,7 @@ These things are done well and should be maintained:
 | 2026-05-03 | M-22 | Extracted private `matchPromoToClients(promoId, modelNumber, collection, allClients)` helper in `lib/actions.ts`; `createPromo` and `importPromos` now share it. Else-if model/collection precedence preserved; `importPromos`'s pre-fetched clients list passed in to keep its perf characteristic. | — |
 | 2026-05-03 | M-24 | Added composite `unique().on(clientId, promoId)` to `promoMatches` in `lib/db/schema.ts`. Defense-in-depth against double-insert of same client/promo pair. Does not de-dup `promoWatches` rows themselves — separate concern, not in scope. Apply via `npm run db:push`. | — |
 | 2026-05-03 | M-23 | Replaced 5 production `bcrypt.hashSync` calls with `await bcrypt.hash` in `lib/actions.ts` (4: `createEmployee`, `resetEmployeePassword`, `changeOwnPassword`, `setSecretQuestion`) and `app/api/recover/route.ts` (1: `POST` handler). Test fixtures and seed script left as sync (setup paths). | — |
+| 2026-05-03 | M-29 | Merged `ConfirmActionDialog` into `ConfirmDialog` via discriminated-union props (controlled `{open, onOpenChange}` vs uncontrolled `{children}` trigger). Deleted `components/confirm-action-dialog.tsx`; 3 callsites in `components/client-detail-tabs.tsx` updated. Existing 24 ConfirmDialog tests still pass. | — |
+| 2026-05-03 | M-30 | Extracted `<PasswordInput>` (`components/password-input.tsx`) wrapping `Input` + Eye/EyeOff toggle with internal `show` state. Replaces 5 copy-pasted instances in `app/login/page.tsx` (2) and `app/(app)/change-password/page.tsx` (3). Optional `wrapperClassName` supports conditional border styling (used for match/mismatch on confirm-password field). | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.

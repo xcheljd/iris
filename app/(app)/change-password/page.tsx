@@ -9,10 +9,11 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
-import { Eye, EyeOff, Loader2, Check, X } from "lucide-react";
+import { Loader2, Check, X } from "lucide-react";
 import { changeOwnPassword, setSecretQuestion } from "@/lib/actions";
 import { toast } from "sonner";
 import { Topbar } from "@/components/topbar";
+import { PasswordInput } from "@/components/password-input";
 
 const SECRET_QUESTIONS = [
   "What is your favorite watch brand?",
@@ -68,10 +69,6 @@ export default function ChangePasswordPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const [showCurrentPw, setShowCurrentPw] = useState(false);
-  const [showNewPw, setShowNewPw] = useState(false);
-  const [showConfirmPw, setShowConfirmPw] = useState(false);
 
   const passwordsMatch = newPassword && confirmPassword && newPassword === confirmPassword;
   const passwordsMismatch = confirmPassword && newPassword && newPassword !== confirmPassword;
@@ -162,52 +159,32 @@ export default function ChangePasswordPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="currentPassword">Current Password</Label>
-              <div className="relative flex items-center rounded-md border border-input bg-transparent shadow-sm focus-within:ring-1 focus-within:ring-ring has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring">
-                <Input
-                  id="currentPassword"
-                  type={showCurrentPw ? "text" : "password"}
-                  required
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="border-0 shadow-none focus-visible:ring-0 focus-visible:outline-none pr-9"
-                />
-                <button type="button" className="absolute right-0 flex h-9 w-9 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground" onClick={() => setShowCurrentPw(!showCurrentPw)} aria-label={showCurrentPw ? "Hide password" : "Show password"}>
-                  {showCurrentPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
+              <PasswordInput
+                id="currentPassword"
+                required
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="newPassword">New Password</Label>
-              <div className="relative flex items-center rounded-md border border-input bg-transparent shadow-sm focus-within:ring-1 focus-within:ring-ring has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring">
-                <Input
-                  id="newPassword"
-                  type={showNewPw ? "text" : "password"}
-                  required
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="border-0 shadow-none focus-visible:ring-0 focus-visible:outline-none pr-9"
-                />
-                <button type="button" className="absolute right-0 flex h-9 w-9 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground" onClick={() => setShowNewPw(!showNewPw)} aria-label={showNewPw ? "Hide password" : "Show password"}>
-                  {showNewPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
+              <PasswordInput
+                id="newPassword"
+                required
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
               <PasswordStrength password={newPassword} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm New Password</Label>
-              <div className={`relative flex items-center rounded-md border bg-transparent shadow-sm focus-within:ring-1 focus-within:ring-ring has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring ${passwordsMismatch ? "border-destructive" : passwordsMatch ? "border-green-500" : "border-input"}`}>
-                <Input
-                  id="confirmPassword"
-                  type={showConfirmPw ? "text" : "password"}
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="border-0 shadow-none focus-visible:ring-0 focus-visible:outline-none pr-9"
-                />
-                <button type="button" className="absolute right-0 flex h-9 w-9 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground" onClick={() => setShowConfirmPw(!showConfirmPw)} aria-label={showConfirmPw ? "Hide password" : "Show password"}>
-                  {showConfirmPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
+              <PasswordInput
+                id="confirmPassword"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                wrapperClassName={passwordsMismatch ? "border-destructive" : passwordsMatch ? "border-green-500" : undefined}
+              />
               {passwordsMismatch && <p className="text-xs text-destructive">Passwords do not match</p>}
               {passwordsMatch && <p className="text-xs text-green-500">Passwords match</p>}
             </div>
