@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Incorrect answer" }, { status: 401 });
       }
 
-      const passwordHash = bcrypt.hashSync(newPassword, 10);
+      const passwordHash = await bcrypt.hash(newPassword, 10);
       sqlite.prepare("UPDATE employees SET password_hash = ? WHERE id = ?").run(passwordHash, employee.id);
 
       return NextResponse.json({ success: true });

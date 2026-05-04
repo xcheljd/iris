@@ -383,7 +383,7 @@ export async function createEmployee(data: {
   }
   const existing = db.select().from(employees).where(eq(employees.username, data.username)).get();
   if (existing) return { error: "Username already taken" };
-  const passwordHash = bcrypt.hashSync(data.password, 10);
+  const passwordHash = await bcrypt.hash(data.password, 10);
   db.insert(employees).values({
     id: randomUUID(),
     firstName: data.firstName.trim(),
@@ -431,7 +431,7 @@ export async function resetEmployeePassword(employeeId: string, newPassword: str
   const user = await getSessionUser();
   if (user?.role !== "manager") return { error: "Unauthorized" };
   if (!newPassword || newPassword.length < 6) return { error: "Password must be at least 6 characters" };
-  const passwordHash = bcrypt.hashSync(newPassword, 10);
+  const passwordHash = await bcrypt.hash(newPassword, 10);
   db.update(employees).set({ passwordHash }).where(eq(employees.id, employeeId)).run();
   return { success: true as const };
 }
@@ -461,7 +461,7 @@ export async function changeOwnPassword(currentPassword: string, newPassword: st
   const valid = await bcrypt.compare(currentPassword, userRecord.passwordHash);
   if (!valid) return { error: "Current password is incorrect" };
   if (!newPassword || newPassword.length < 6) return { error: "New password must be at least 6 characters" };
-  const passwordHash = bcrypt.hashSync(newPassword, 10);
+  const passwordHash = await bcrypt.hash(newPassword, 10);
   db.update(employees).set({ passwordHash }).where(eq(employees.id, user.id)).run();
   return { success: true as const };
 }
@@ -650,7 +650,7 @@ export async function setSecretQuestion(question: string, answer: string) {
   if (!question || !question.trim()) return { error: "Question is required" };
   if (!answer || answer.trim().length < 2) return { error: "Answer must be at least 2 characters" };
   const normalizedAnswer = answer.trim().toLowerCase();
-  const hash = bcrypt.hashSync(normalizedAnswer, 10);
+  const hash = await bcrypt.hash(normalizedAnswer, 10);
   db.update(employees)
     .set({ secretQuestion: question.trim(), secretAnswerHash: hash })
     .where(eq(employees.id, user.id))
