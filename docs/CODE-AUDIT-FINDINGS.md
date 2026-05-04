@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 23 | 17 | 0 | 6 |
-| MEDIUM | 36 | 8 | 0 | 28 |
-| LOW | 17 | 2 | 0 | 15 |
-| **TOTAL** | **84** | **33** | **0** | **51** |
+| MEDIUM | 36 | 7 | 0 | 29 |
+| LOW | 17 | 1 | 0 | 16 |
+| **TOTAL** | **84** | **31** | **0** | **53** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,8 +28,8 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 23 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 36 (28 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
-| 🔵 LOW | 17 (15 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
+| 🟡 MEDIUM | 36 (29 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🔵 LOW | 17 (16 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
 
@@ -486,11 +486,12 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - No `Content-Security-Policy`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, or `Permissions-Policy` headers configured.
 - **Fix**: Add security headers in `next.config.mjs` headers function.
 
-- [ ] ### M-28: Weak Password Policy
-- **Files**: `lib/actions.ts:430,481`, `app/api/recover/route.ts:37`
+- [x] ### M-28: Weak Password Policy
+- **Files**: `lib/actions.ts` (`createEmployee`, `resetEmployeePassword`, `changeOwnPassword`), `app/api/recover/route.ts`
 - **Category**: Security
 - Minimum 6 characters, no complexity requirements. Seed data uses "meridian" for all accounts.
 - **Fix**: Increase minimum to 12 chars. Require uppercase, lowercase, digit, special char.
+- **Resolved (wontfix)**: Closed as not applicable to deployment threat model. The CRM runs as a single-device kiosk used by one user at a time; the password is a local lock, not exposed to remote brute-force, credential-stuffing, or password-spraying attacks. Strengthening the policy adds friction (typing on a shared device, password reset support burden) without reducing meaningful risk. Min-6 retained as-is. If the deployment model ever changes (multi-tenant, public network exposure, multiple concurrent users), reopen this finding.
 
 - [x] ### M-29: Two Near-Identical Confirm Dialog Components
 - **Files**: `components/confirm-dialog.tsx` (57 lines), `components/confirm-action-dialog.tsx` (48 lines, deleted)
@@ -631,12 +632,13 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - **Fix**: Remove and fix lint errors.
 - **Resolved**: Removed `ignoreDuringBuilds` flag from `next.config.mjs`. Fixed 2 remaining lint errors (unused `error` vars in catch blocks prefixed with `_`) (2026-04-30).
 
-- [ ] ### L-13: Plaintext Credentials in Seed Script
-- **File**: `lib/db/seed.ts:26-30, 42-43`
+- [x] ### L-13: Plaintext Credentials in Seed Script
+- **File**: `lib/db/seed.ts`
 - **Category**: Security
 - Password "meridian" hardcoded for all employee accounts. Risky if repo goes public.
 - **Fix**: Use environment variables for seed passwords.
 - **Note**: Deferred — seed script is dev-only infrastructure. May revisit if repo goes public.
+- **Resolved (wontfix)**: Closed as not applicable to deployment threat model. Same rationale as M-28 — single-device kiosk deployment; the seed script populates the local kiosk database with initial accounts, not a multi-tenant or public service. The hardcoded "meridian" default is a known starter password documented for the operator and intended to be changed via the change-password flow on first use. Reopen if the repo goes public, the seed targets shared infrastructure, or the deployment model otherwise changes.
 
 - [ ] ### L-14: Secret Questions as Recovery Mechanism
 - **Files**: `lib/actions.ts:487-499`, `app/api/recover/route.ts`
@@ -784,5 +786,7 @@ These things are done well and should be maintained:
 | 2026-05-03 | M-23 | Replaced 5 production `bcrypt.hashSync` calls with `await bcrypt.hash` in `lib/actions.ts` (4: `createEmployee`, `resetEmployeePassword`, `changeOwnPassword`, `setSecretQuestion`) and `app/api/recover/route.ts` (1: `POST` handler). Test fixtures and seed script left as sync (setup paths). | — |
 | 2026-05-03 | M-29 | Merged `ConfirmActionDialog` into `ConfirmDialog` via discriminated-union props (controlled `{open, onOpenChange}` vs uncontrolled `{children}` trigger). Deleted `components/confirm-action-dialog.tsx`; 3 callsites in `components/client-detail-tabs.tsx` updated. Existing 24 ConfirmDialog tests still pass. | — |
 | 2026-05-03 | M-30 | Extracted `<PasswordInput>` (`components/password-input.tsx`) wrapping `Input` + Eye/EyeOff toggle with internal `show` state. Replaces 5 copy-pasted instances in `app/login/page.tsx` (2) and `app/(app)/change-password/page.tsx` (3). Optional `wrapperClassName` supports conditional border styling (used for match/mismatch on confirm-password field). | — |
+| 2026-05-03 | M-28 | Closed as wontfix — not applicable to single-device, single-user-at-a-time kiosk deployment. Password is a local lock, not exposed to remote brute-force/credential-stuffing. Min-6 retained. Reopen if deployment model changes. | — |
+| 2026-05-03 | L-13 | Closed as wontfix — same rationale as M-28. Seed script is a dev-only setup tool for the local kiosk database; "meridian" default documented as a starter password to be changed on first use. Reopen if repo goes public or deployment model changes. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.
