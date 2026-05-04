@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 23 | 17 | 0 | 6 |
-| MEDIUM | 35 | 16 | 0 | 19 |
+| MEDIUM | 36 | 16 | 0 | 20 |
 | LOW | 17 | 2 | 0 | 15 |
-| **TOTAL** | **83** | **41** | **0** | **42** |
+| **TOTAL** | **84** | **41** | **0** | **43** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,7 +28,7 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 23 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 35 (19 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🟡 MEDIUM | 36 (20 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (15 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
@@ -529,6 +529,14 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - 6 of 8 `formatEventDescription` switch cases read metadata fields that no writer in the codebase actually produces (`purchasedModel`, `tagName`, `newEmployeeName`, `notePreview`, `sourceClientId`, `fieldChanges`). UI silently falls back to default placeholder strings ("Product", "Tag", "another associate", etc.) for these event types. Discovered during M-18 verification.
 - **Fix**: Audit each writer/reader pair. Either (a) populate the missing metadata keys at write time (e.g., `purchase` event should record `purchasedModel`; `transferred` should record new employee name), or (b) revise the formatter to read what's actually written.
 
+- [x] ### M-36: Settings Page Over-Fetches Employees for Associates
+- **Files**: `app/(app)/settings/page.tsx:18`, `lib/queries.ts` (added `getEmployee(id)` helper)
+- **Category**: Security — Information Disclosure
+- **OWASP**: A01:2021 — Broken Access Control
+- Settings page server component calls `await getEmployees()` unconditionally and passes the full list to `<SettingsContent>` as a prop. For associate users, every other employee's name/username/role/active-flag ships to the browser via the RSC payload, even though the `EmployeesTab` is gated to managers only. Not a credential leak (C-01 closed that), but unnecessary cross-employee data exposure. Discovered as cross-impact during M-20 planning, after C-01's full resolution.
+- **Fix**: Branch the server fetch on user role — managers get the full list, associates get only their own record.
+- **Resolved**: Added `getEmployee(id)` helper in `lib/queries.ts` using the same `SafeEmployeeRow` projection as `getEmployees()`. Settings page now checks `session.user.role`: managers fetch via `getEmployees()` (unchanged); associates fetch only their own record via `[await getEmployee(userId)]`. `<SettingsContent>` prop signature unchanged. `<ProfileTab>`'s `find(e => e.id === currentUserId)` works for both array shapes. `<EmployeesTab>` remains gated to managers, so the truncated array is never rendered for associates. Closes the cross-employee info-disclosure path that survived C-01's credential-exposure fix.
+
 ---
 
 ## 🔵 LOW
@@ -757,5 +765,6 @@ These things are done well and should be maintained:
 | 2026-05-03 | L-01 | Deleted dead server actions `createClient`, `updateClient`, `transferClient` from `lib/actions.ts` and corresponding test describe blocks. Live action tests (banClient/unsubscribeClient/resubscribeClient) preserved. Chose deletion over wire-up; H-17 consolidation deferred. Surfaced new finding H-23 (missing ownership check on REST update path that the deleted action used to provide). | — |
 | 2026-05-03 | H-23 | New finding added during L-01 investigation: PUT `/api/clients/[id]` and PUT `/api/clients` have no ownership check — any authenticated associate can modify any client. The deleted `updateClient` server action contained the correct pattern; preserved in the Fix description so the future fixer has it. | — |
 | 2026-05-03 | M-19 | Implemented first-name + last-name combo duplicate check (deliberately chose over the original "first-name + phone" comment — phone exact match was already covered). Both callers now send `lastName` with `encodeURIComponent` on all params. API route trims and uses `lower()` for case-insensitive name matching, all conditions OR'd in a single SQL query. Removed firstName-only in-memory fallback that did unbounded `.all()` scan + JS filter (latent M-03 gap closed at this endpoint, false-positive "any matching first name" warning eliminated). | — |
+| 2026-05-03 | M-36 | New finding filed and resolved in same commit. Settings page now branches `getEmployees()` (managers) vs new `getEmployee(userId)` helper (associates) on `session.user.role`. Closes cross-employee info-disclosure that survived C-01's credential-exposure fix. Discovered as cross-impact during M-20 planning. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.

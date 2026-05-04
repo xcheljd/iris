@@ -188,6 +188,18 @@ export async function getEmployees() {
   }).from(employees).orderBy(employees.firstName).all();
 }
 
+export async function getEmployee(id: string) {
+  return db.select({
+    id: employees.id,
+    firstName: employees.firstName,
+    lastName: employees.lastName,
+    username: employees.username,
+    role: employees.role,
+    active: employees.active,
+    createdAt: employees.createdAt,
+  }).from(employees).where(eq(employees.id, id)).get();
+}
+
 export type SafeEmployeeRow = Awaited<ReturnType<typeof getEmployees>>[number];
 
 export async function getTags() {
