@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 23 | 17 | 0 | 6 |
-| MEDIUM | 36 | 13 | 0 | 23 |
+| MEDIUM | 36 | 11 | 0 | 25 |
 | LOW | 17 | 2 | 0 | 15 |
-| **TOTAL** | **84** | **38** | **0** | **46** |
+| **TOTAL** | **84** | **36** | **0** | **48** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,7 +28,7 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 23 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 36 (23 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🟡 MEDIUM | 36 (25 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (15 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
@@ -447,11 +447,12 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - **Fix**: Delete duplicate.
 - **Resolved**: Verified during Batch 1 of remaining-MEDIUM cleanup — `grep "interface NotesTabProps" components/notes-tab.tsx` returns exactly one definition (line ~25). The duplicate cited in the original finding was eliminated by prior unrelated work; audit entry was stale. No code change required in this commit; entry flipped to closed for accuracy.
 
-- [ ] ### M-22: `createPromo` and `importPromos` Share Matching Logic
-- **File**: `lib/actions.ts:279-292, 294-322`
+- [x] ### M-22: `createPromo` and `importPromos` Share Matching Logic
+- **File**: `lib/actions.ts` (helper added; current locations: `createPromo` ~219, `importPromos` ~245)
 - **Category**: Duplication
 - Nested loop checking `productsOfInterest` against model/collection is duplicated verbatim.
 - **Fix**: Extract `matchPromoToClients(promoId, modelNumber, collection)` helper.
+- **Resolved**: Extracted private helper `matchPromoToClients(promoId, modelNumber, collection, allClients)` in `lib/actions.ts` just above `createPromo`. Both `createPromo` and `importPromos` now call it, eliminating the duplicated nested loop. Helper accepts the pre-fetched clients list to preserve `importPromos`'s O(promos) outer client-fetch (one fetch covers all rows). Model-over-collection precedence (the `else if`) preserved exactly. No behavior change.
 
 - [ ] ### M-23: `bcrypt.hashSync` Blocks Event Loop
 - **File**: `lib/actions.ts:435, 452, 482, 493`
@@ -459,11 +460,12 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - Synchronous bcrypt hashing (CPU-intensive, ~100ms) blocks the Node.js event loop during password operations.
 - **Fix**: Use async `bcrypt.hash()`.
 
-- [ ] ### M-24: `promoMatches` Missing Unique Constraint
-- **File**: `lib/db/schema.ts:96-102`
+- [x] ### M-24: `promoMatches` Missing Unique Constraint
+- **File**: `lib/db/schema.ts` (current location ~121)
 - **Category**: Data Integrity
 - No unique constraint on `(clientId, promoId)`. Calling `createPromo` twice with same params creates duplicate matches.
 - **Fix**: Add `.unique()` composite constraint or check before insert.
+- **Resolved**: Added composite unique constraint `uniqClientPromo` on `(clientId, promoId)` to the `promoMatches` table in `lib/db/schema.ts` via drizzle's third-arg extras callback (`(table) => ({ uniqClientPromo: unique().on(table.clientId, table.promoId) })`). `unique` added to the `drizzle-orm/sqlite-core` import. Schema is source of truth; `npm run db:push` will apply it on next deploy. **Scope note**: this catches double-insert of the same `(clientId, promoId)` within one `promoWatches` row — defense-in-depth against the matcher mis-running. It does **not** prevent duplicate `promoWatches` rows when `createPromo`/`importPromos` is called twice with the same model/collection (those produce different `promoId`s by design); de-duping `promoWatches` itself is a separate concern, not in scope.
 
 - [ ] ### M-25: No CSRF Protection on API Routes
 - **Files**: All `app/api/` routes
@@ -774,5 +776,7 @@ These things are done well and should be maintained:
 
 | 2026-05-03 | M-21 | Verified stale during Batch 1 review — `components/notes-tab.tsx` has exactly one `NotesTabProps` definition; duplicate from original finding was already removed by prior work. Doc-only close. | — |
 | 2026-05-03 | M-32 | Swapped misleading tab icons in `components/client-detail-tabs.tsx`: Timeline `Briefcase`→`Activity`, Notes `MapPin`→`StickyNote`, Tags `Mail`→`Tag`. Cleaned up lucide-react imports. | — |
+| 2026-05-03 | M-22 | Extracted private `matchPromoToClients(promoId, modelNumber, collection, allClients)` helper in `lib/actions.ts`; `createPromo` and `importPromos` now share it. Else-if model/collection precedence preserved; `importPromos`'s pre-fetched clients list passed in to keep its perf characteristic. | — |
+| 2026-05-03 | M-24 | Added composite `unique().on(clientId, promoId)` to `promoMatches` in `lib/db/schema.ts`. Defense-in-depth against double-insert of same client/promo pair. Does not de-dup `promoWatches` rows themselves — separate concern, not in scope. Apply via `npm run db:push`. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.

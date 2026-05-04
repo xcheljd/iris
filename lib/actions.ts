@@ -216,19 +216,30 @@ export async function unsubscribeClient(clientId: string) {
   revalidatePath("/unsubscribed");
 }
 
+function matchPromoToClients(
+  promoId: string,
+  modelNumber: string,
+  collection: string,
+  allClients: Array<{ id: string; productsOfInterest: string[] | null }>,
+) {
+  const modelLower = modelNumber.toLowerCase();
+  const collectionLower = collection.toLowerCase();
+  for (const c of allClients) {
+    const poi = c.productsOfInterest || [];
+    if (poi.some((p) => p.toLowerCase() === modelLower)) {
+      db.insert(promoMatches).values({ id: randomUUID(), clientId: c.id, promoId, matchType: "model" }).run();
+    } else if (poi.some((p) => p.toLowerCase().includes(collectionLower))) {
+      db.insert(promoMatches).values({ id: randomUUID(), clientId: c.id, promoId, matchType: "collection" }).run();
+    }
+  }
+}
+
 export async function createPromo(modelNumber: string, collection: string, msrp?: number | null, discountPercent?: number | null, discountPrice?: number | null) {
   await requireManager();
   const id = randomUUID();
   db.insert(promoWatches).values({ id, modelNumber, collection, msrp: msrp ?? null, discountPercent: discountPercent ?? null, discountPrice: discountPrice ?? null }).run();
   const all = db.select().from(clients).all();
-  for (const c of all) {
-    const poi = c.productsOfInterest || [];
-    if (poi.some((p) => p.toLowerCase() === modelNumber.toLowerCase())) {
-      db.insert(promoMatches).values({ id: randomUUID(), clientId: c.id, promoId: id, matchType: "model" }).run();
-    } else if (poi.some((p) => p.toLowerCase().includes(collection.toLowerCase()))) {
-      db.insert(promoMatches).values({ id: randomUUID(), clientId: c.id, promoId: id, matchType: "collection" }).run();
-    }
-  }
+  matchPromoToClients(id, modelNumber, collection, all);
   revalidatePath("/promos");
 }
 
@@ -239,24 +250,19 @@ export async function importPromos(rows: { modelNumber: string; collection: stri
   for (const row of rows) {
     if (!row.modelNumber?.trim() || !row.collection?.trim()) continue;
     const id = randomUUID();
+    const modelNumber = row.modelNumber.trim();
+    const collection = row.collection.trim();
     db.insert(promoWatches).values({
       id,
-      modelNumber: row.modelNumber.trim(),
-      collection: row.collection.trim(),
+      modelNumber,
+      collection,
       msrp: row.msrp ?? null,
       discountPercent: row.discountPercent ?? null,
       discountPrice: row.discountPrice ?? null,
       promoStart: promoStart ?? null,
       promoEnd: promoEnd ?? null,
     }).run();
-    for (const c of all) {
-      const poi = c.productsOfInterest || [];
-      if (poi.some((p) => p.toLowerCase() === row.modelNumber.trim().toLowerCase())) {
-        db.insert(promoMatches).values({ id: randomUUID(), clientId: c.id, promoId: id, matchType: "model" }).run();
-      } else if (poi.some((p) => p.toLowerCase().includes(row.collection.trim().toLowerCase()))) {
-        db.insert(promoMatches).values({ id: randomUUID(), clientId: c.id, promoId: id, matchType: "collection" }).run();
-      }
-    }
+    matchPromoToClients(id, modelNumber, collection, all);
     imported++;
   }
   revalidatePath("/promos");

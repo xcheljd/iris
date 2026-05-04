@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, unique } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const CLIENT_SOURCE_VALUES = ["Client Log", "Customer Report", "Walk-in", "Referral"] as const;
@@ -124,7 +124,9 @@ export const promoMatches = sqliteTable("promo_matches", {
   promoId: text("promo_id").notNull().references(() => promoWatches.id),
   matchType: text("match_type", { enum: ["model", "collection"] }).notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-});
+}, (table) => ({
+  uniqClientPromo: unique().on(table.clientId, table.promoId),
+}));
 
 export const bannedCustomers = sqliteTable("banned_customers", {
   id: text("id").primaryKey(),
