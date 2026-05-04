@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 23 | 17 | 0 | 6 |
-| MEDIUM | 36 | 7 | 0 | 29 |
+| MEDIUM | 36 | 4 | 0 | 32 |
 | LOW | 17 | 1 | 0 | 16 |
-| **TOTAL** | **84** | **31** | **0** | **53** |
+| **TOTAL** | **84** | **28** | **0** | **56** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,7 +28,7 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 23 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 36 (29 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🟡 MEDIUM | 36 (32 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (16 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
@@ -468,23 +468,26 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - **Fix**: Add `.unique()` composite constraint or check before insert.
 - **Resolved**: Added composite unique constraint `uniqClientPromo` on `(clientId, promoId)` to the `promoMatches` table in `lib/db/schema.ts` via drizzle's third-arg extras callback (`(table) => ({ uniqClientPromo: unique().on(table.clientId, table.promoId) })`). `unique` added to the `drizzle-orm/sqlite-core` import. Schema is source of truth; `npm run db:push` will apply it on next deploy. **Scope note**: this catches double-insert of the same `(clientId, promoId)` within one `promoWatches` row — defense-in-depth against the matcher mis-running. It does **not** prevent duplicate `promoWatches` rows when `createPromo`/`importPromos` is called twice with the same model/collection (those produce different `promoId`s by design); de-duping `promoWatches` itself is a separate concern, not in scope.
 
-- [ ] ### M-25: No CSRF Protection on API Routes
+- [x] ### M-25: No CSRF Protection on API Routes
 - **Files**: All `app/api/` routes
 - **Category**: Security
 - POST/PUT/DELETE routes accept requests without CSRF token validation.
 - **Fix**: Require `Content-Type: application/json` + validate `Origin` header, or use NextAuth CSRF tokens.
+- **Resolved (wontfix)**: Closed as not applicable to deployment threat model. CSRF requires an attacker to trick an authenticated user into visiting a malicious site that submits cross-origin requests to the application. The CRM runs as a single-device kiosk used by one user at a time and is not exposed to general web browsing in another tab targeting localhost. With no realistic CSRF vector, the cost of token plumbing across every API route exceeds the risk reduction. Reopen if the deployment model changes (multi-tenant, public network exposure, browser tabs visiting external sites alongside the CRM).
 
-- [ ] ### M-26: No Rate Limiting on Any Endpoint
+- [x] ### M-26: No Rate Limiting on Any Endpoint
 - **Files**: Application-wide
 - **Category**: Security
 - Zero rate limiting on login, recovery, API routes, or server actions.
 - **Fix**: Implement rate limiting with `rate-limiter-flexible` or similar.
+- **Resolved (wontfix)**: Closed as not applicable to deployment threat model. Rate limiting protects against remote brute-force, credential-stuffing, and resource-exhaustion attacks. The CRM runs as a single-device kiosk; there is no remote attacker, no credential-stuffing surface, and no concurrent-user contention to throttle. Reopen if the deployment ever serves remote clients or runs on a public network.
 
-- [ ] ### M-27: Missing Security Headers
+- [x] ### M-27: Missing Security Headers
 - **File**: `next.config.mjs`
 - **Category**: Security
 - No `Content-Security-Policy`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, or `Permissions-Policy` headers configured.
 - **Fix**: Add security headers in `next.config.mjs` headers function.
+- **Resolved**: Added a `headers()` function in `next.config.mjs` returning four headers on all routes (`/:path*`): `X-Frame-Options: DENY` (prevents clickjacking via iframe embedding), `X-Content-Type-Options: nosniff` (blocks MIME sniffing), `Referrer-Policy: strict-origin-when-cross-origin` (limits referrer leakage), and `Permissions-Policy: camera=(), microphone=(), geolocation=()` (disables unused browser APIs). CSP intentionally omitted — Next.js dev/HMR requires permissive script-src directives that would dilute the policy's value, and the kiosk threat model does not load third-party scripts; can be added later as a separate finding if needed.
 
 - [x] ### M-28: Weak Password Policy
 - **Files**: `lib/actions.ts` (`createEmployee`, `resetEmployeePassword`, `changeOwnPassword`), `app/api/recover/route.ts`
@@ -788,5 +791,8 @@ These things are done well and should be maintained:
 | 2026-05-03 | M-30 | Extracted `<PasswordInput>` (`components/password-input.tsx`) wrapping `Input` + Eye/EyeOff toggle with internal `show` state. Replaces 5 copy-pasted instances in `app/login/page.tsx` (2) and `app/(app)/change-password/page.tsx` (3). Optional `wrapperClassName` supports conditional border styling (used for match/mismatch on confirm-password field). | — |
 | 2026-05-03 | M-28 | Closed as wontfix — not applicable to single-device, single-user-at-a-time kiosk deployment. Password is a local lock, not exposed to remote brute-force/credential-stuffing. Min-6 retained. Reopen if deployment model changes. | — |
 | 2026-05-03 | L-13 | Closed as wontfix — same rationale as M-28. Seed script is a dev-only setup tool for the local kiosk database; "meridian" default documented as a starter password to be changed on first use. Reopen if repo goes public or deployment model changes. | — |
+| 2026-05-03 | M-27 | Added security headers in `next.config.mjs`: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`. CSP omitted (kiosk threat model + Next.js dev HMR friction). | — |
+| 2026-05-03 | M-25 | Closed as wontfix — single-device kiosk has no realistic CSRF vector. Reopen if deployment model changes. | — |
+| 2026-05-03 | M-26 | Closed as wontfix — single-device kiosk, no remote attackers, no concurrent-user contention to throttle. Reopen if deployment ever serves remote clients. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.
