@@ -9,13 +9,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart";
-import { Bar, BarChart, XAxis, YAxis, CartesianGrid } from "recharts";
+import { HeatDistributionChart } from "@/components/heat-distribution-chart";
 import {
   Users,
   Flame,
@@ -27,12 +21,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
-
-const heatChartConfig = {
-  hot: { label: "Hot", color: "#f97316" },
-  warm: { label: "Warm", color: "#eab308" },
-  cold: { label: "Cold", color: "#3b82f6" },
-} satisfies ChartConfig;
 
 interface Stats {
   total: number;
@@ -208,29 +196,7 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {stats.active > 0 ? (
-            <ChartContainer config={heatChartConfig} className="h-[200px] w-full">
-              <BarChart
-                data={[
-                  { level: "Hot", count: stats.hot, fill: "var(--color-hot)" },
-                  { level: "Warm", count: stats.warm, fill: "var(--color-warm)" },
-                  { level: "Cold", count: stats.cold, fill: "var(--color-cold)" },
-                ]}
-                layout="vertical"
-                margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
-              >
-                <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-                <XAxis type="number" hide />
-                <YAxis type="category" dataKey="level" width={50} tickLine={false} axisLine={false} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="count" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ChartContainer>
-          ) : (
-            <p className="text-sm text-muted-foreground py-8 text-center">
-              No active clients to display
-            </p>
-          )}
+          <HeatDistributionChart hot={stats.hot} warm={stats.warm} cold={stats.cold} active={stats.active} />
         </CardContent>
       </Card>
 

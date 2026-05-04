@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Calendar, Mail, Gift, Users, MoreHorizontal, Edit, Ban, MailX, Trash2, ShieldOff, UserCheck, StickyNote, Tag, Activity } from "lucide-react";
 import { format } from "date-fns";
-import { useClient, useActiveTab } from "@/components/client-provider";
+import { useState } from "react";
+import { useClient } from "@/components/client-provider";
 import { ProfileTab } from "@/components/profile-tab";
 import { InterestsTab } from "@/components/interests-tab";
 import { OutreachHistoryTab } from "@/components/outreach-history-tab";
@@ -25,7 +26,7 @@ import { toast } from "sonner";
 
 export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string }) {
   const client = useClient();
-  const { activeTab, setActiveTab } = useActiveTab();
+  const [activeTab, setActiveTab] = useState("profile");
   if (!client) return null;
 
   return (

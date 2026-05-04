@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 23 | 17 | 0 | 6 |
-| MEDIUM | 36 | 4 | 0 | 32 |
+| MEDIUM | 36 | 1 | 0 | 35 |
 | LOW | 17 | 1 | 0 | 16 |
-| **TOTAL** | **84** | **28** | **0** | **56** |
+| **TOTAL** | **84** | **25** | **0** | **59** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,7 +28,7 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 23 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 36 (32 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🟡 MEDIUM | 36 (35 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (16 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
@@ -510,11 +510,12 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - **Fix**: Extract a `PasswordInput` component that wraps `Input` with the toggle button built in.
 - **Resolved**: Created `components/password-input.tsx` — extends `Input` props (omits `type`), owns its own `show` state, renders the wrapper div + `Input` + Eye/EyeOff toggle button. Optional `wrapperClassName` for callers that need conditional border colors (used by the confirm-password field in change-password to indicate match/mismatch via `border-destructive`/`border-green-500`; `tailwind-merge` via `cn` ensures the override beats the default `border-input`). All 5 callsites swapped; `Eye`/`EyeOff` imports and `showPassword`/`showCurrentPw`/`showNewPw`/`showConfirmPw`/`showNewPassword` state removed from the host pages.
 
-- [ ] ### M-31: Topbar Search Button Fakes Keyboard Event
-- **File**: `components/topbar.tsx:36-39`
+- [x] ### M-31: Topbar Search Button Fakes Keyboard Event
+- **Files**: `components/topbar.tsx`, `components/command-palette.tsx`, `app/(app)/layout.tsx`
 - **Category**: Code Smell / Architecture
 - Search button creates a `new KeyboardEvent("keydown", { key: "k", ctrlKey: true })` and dispatches it via `document.dispatchEvent` to open the command palette. This is a hacky coupling approach.
 - **Fix**: Export a `useCommandPalette` hook or shared state to control command palette open state directly.
+- **Resolved**: Added `CommandPaletteProvider` + `useCommandPalette()` hook in `components/command-palette.tsx`. Layout (`app/(app)/layout.tsx`) wraps the app with the provider; `<CommandPalette>` reads `open`/`setOpen` from context (with a local-state fallback so standalone test renders still work). `Topbar`'s search button now calls `setOpen(true)` directly — no more synthetic keyboard-event dispatch. The Cmd/Ctrl+K keybinding still works (listener inside `<CommandPalette>` toggles via the same context).
 
 - [x] ### M-32: Misleading Tab Icons in Client Detail Tabs
 - **File**: `components/client-detail-tabs.tsx:90-113`
@@ -523,17 +524,19 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - **Fix**: Use semantically appropriate icons: `StickyNote` for Notes, `Tag` for Tags, `Activity` for Timeline.
 - **Resolved**: `components/client-detail-tabs.tsx` now uses semantically appropriate icons: `Activity` for Timeline, `StickyNote` for Notes, `Tag` for Tags. `MapPin` and `Briefcase` were unused after the swap and removed from the lucide-react import. `Mail` retained for the email-list dropdown items.
 
-- [ ] ### M-33: `ClientProvider` Combines Unrelated Concerns
-- **File**: `components/client-provider.tsx`
+- [x] ### M-33: `ClientProvider` Combines Unrelated Concerns
+- **File**: `components/client-provider.tsx`, `components/client-detail-tabs.tsx`
 - **Category**: Pattern Inconsistency
 - The provider combines client data context with tab navigation state (`activeTab`/`setActiveTab`). Tab state is a UI concern; client data is domain data.
 - **Fix**: Split into `ClientProvider` (data) and keep tab state local to `ClientDetailTabs`.
+- **Resolved**: `client-provider.tsx` is now a pure data provider — `ActiveTabContext`, `useActiveTab`, and the internal `useState("profile")` are all removed. Tab state moved to a local `useState("profile")` inside `ClientDetailTabs`. The `useActiveTab`-related tests in `__tests__/components/client-provider.test.tsx` were removed (the hook no longer exists); the 4 remaining client-data tests pass.
 
-- [ ] ### M-34: Heat Distribution Bar Duplicated in Analytics
-- **Files**: `app/(app)/analytics/analytics-overview-tab.tsx`, `app/(app)/analytics/analytics-heat-tab.tsx`
+- [x] ### M-34: Heat Distribution Bar Duplicated in Analytics
+- **Files**: `app/(app)/analytics/analytics-overview-tab.tsx`, `app/(app)/analytics/analytics-heat-tab.tsx`, new `components/heat-distribution-chart.tsx`
 - **Category**: Duplication
 - Overview tab renders a Recharts `BarChart` for hot/warm/cold distribution; Heat tab renders the same data as a CSS stacked bar + progress bars. Two visual representations of the same metric in the same page.
 - **Fix**: Extract a shared `HeatDistributionChart` component and use it in both tabs, or remove one if only one visualization is desired.
+- **Resolved**: Extracted `<HeatDistributionChart hot warm cold active />` to `components/heat-distribution-chart.tsx` — wraps the Overview tab's Recharts horizontal `BarChart` (the user-preferred visualization). Both tabs now render this single component: the Overview tab's inline chart was replaced; the Heat tab's stacked CSS bar was replaced. The Heat tab's per-category Progress bars and legend (a different breakdown view) are kept untouched. Recharts/chartConfig imports removed from the Overview tab.
 
 - [ ] ### M-35: Activity Timeline Reads Metadata Fields That Are Never Written
 - **Files**: `components/activity-timeline-tab.tsx:62-118` (reader), `lib/actions.ts` (writers)
@@ -794,5 +797,8 @@ These things are done well and should be maintained:
 | 2026-05-03 | M-27 | Added security headers in `next.config.mjs`: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`. CSP omitted (kiosk threat model + Next.js dev HMR friction). | — |
 | 2026-05-03 | M-25 | Closed as wontfix — single-device kiosk has no realistic CSRF vector. Reopen if deployment model changes. | — |
 | 2026-05-03 | M-26 | Closed as wontfix — single-device kiosk, no remote attackers, no concurrent-user contention to throttle. Reopen if deployment ever serves remote clients. | — |
+| 2026-05-03 | M-31 | Replaced fake `KeyboardEvent` dispatch in `Topbar` with `CommandPaletteProvider` + `useCommandPalette()` hook. Layout wraps the app; topbar button calls `setOpen(true)`. Cmd/Ctrl+K still works (listener inside palette toggles via context). | — |
+| 2026-05-03 | M-33 | Split `ClientProvider`: removed `ActiveTabContext`/`useActiveTab` and the internal `useState`. Tab state now local to `<ClientDetailTabs>`. Tests updated (4 of 7 remaining; the 3 activeTab tests removed since the hook is gone). | — |
+| 2026-05-03 | M-34 | Extracted `<HeatDistributionChart>` (Recharts horizontal BarChart) to `components/heat-distribution-chart.tsx`. Used in both Overview tab (replaces inline chart) and Heat tab (replaces CSS stacked bar). Heat tab's per-category progress bars + legend kept (different breakdown view). | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.

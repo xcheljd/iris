@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Flame, Snowflake, Sun } from "lucide-react";
+import { HeatDistributionChart } from "@/components/heat-distribution-chart";
 
 interface Stats {
   total: number;
@@ -32,35 +33,7 @@ export function AnalyticsHeatTab({ stats }: AnalyticsHeatTabProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Visual Stacked Bar */}
-          <div className="flex rounded-lg overflow-hidden h-10">
-            {stats.active > 0 ? (
-              <>
-                <div
-                  className="bg-orange-500 flex items-center justify-center text-white text-xs font-medium transition-all"
-                  style={{ width: `${(stats.hot / stats.active) * 100}%` }}
-                >
-                  {stats.hot > 0 ? `${stats.hot} Hot` : ""}
-                </div>
-                <div
-                  className="bg-yellow-500 flex items-center justify-center text-white text-xs font-medium transition-all"
-                  style={{ width: `${(stats.warm / stats.active) * 100}%` }}
-                >
-                  {stats.warm > 0 ? `${stats.warm} Warm` : ""}
-                </div>
-                <div
-                  className="bg-blue-500 flex items-center justify-center text-white text-xs font-medium transition-all"
-                  style={{ width: `${(stats.cold / stats.active) * 100}%` }}
-                >
-                  {stats.cold > 0 ? `${stats.cold} Cold` : ""}
-                </div>
-              </>
-            ) : (
-              <div className="bg-muted flex-1 flex items-center justify-center text-muted-foreground text-sm">
-                No data
-              </div>
-            )}
-          </div>
+          <HeatDistributionChart hot={stats.hot} warm={stats.warm} cold={stats.cold} active={stats.active} />
 
           <Separator />
 

@@ -7,11 +7,37 @@ import { useSession } from "next-auth/react";
 
 type ClientHit = { id: string; firstName: string; lastName: string | null; phone: string | null };
 
+interface CommandPaletteContextValue {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}
+
+const CommandPaletteContext = React.createContext<CommandPaletteContextValue | null>(null);
+
+export function CommandPaletteProvider({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <CommandPaletteContext.Provider value={{ open, setOpen }}>
+      {children}
+    </CommandPaletteContext.Provider>
+  );
+}
+
+export function useCommandPalette() {
+  const ctx = React.useContext(CommandPaletteContext);
+  if (!ctx) throw new Error("useCommandPalette must be used within CommandPaletteProvider");
+  return ctx;
+}
+
 export function CommandPalette() {
   const router = useRouter();
   const { data: session } = useSession();
   const isManager = session?.user?.role === "manager";
-  const [open, setOpen] = React.useState(false);
+  const ctx = React.useContext(CommandPaletteContext);
+  // Allow standalone usage (e.g. tests render <CommandPalette /> without a Provider).
+  const [localOpen, setLocalOpen] = React.useState(false);
+  const open = ctx?.open ?? localOpen;
+  const setOpen = ctx?.setOpen ?? setLocalOpen;
   const [q, setQ] = React.useState("");
   const [hits, setHits] = React.useState<ClientHit[]>([]);
 
@@ -19,12 +45,12 @@ export function CommandPalette() {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setOpen((o) => !o);
+        setOpen(!open);
       }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, []);
+  }, [open, setOpen]);
 
   React.useEffect(() => {
     const t = setTimeout(async () => {

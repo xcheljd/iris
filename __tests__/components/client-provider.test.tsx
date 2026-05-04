@@ -1,7 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { ClientProvider, useClient, useActiveTab, type FullClient } from "@/components/client-provider";
+import { ClientProvider, useClient, type FullClient } from "@/components/client-provider";
 
 const mockClient: FullClient = {
   id: "client-1",
@@ -34,14 +33,10 @@ const mockClient: FullClient = {
 
 function ConsumerDisplay() {
   const client = useClient();
-  const { activeTab, setActiveTab } = useActiveTab();
   return (
     <div>
       <span data-testid="client-name">{client?.firstName} {client?.lastName}</span>
       <span data-testid="client-id">{client?.id}</span>
-      <span data-testid="active-tab">{activeTab}</span>
-      <button onClick={() => setActiveTab("notes")}>Switch to Notes</button>
-      <button onClick={() => setActiveTab("profile")}>Switch to Profile</button>
     </div>
   );
 }
@@ -55,43 +50,6 @@ describe("ClientProvider", () => {
     );
     expect(screen.getByTestId("client-name")).toHaveTextContent("John Doe");
     expect(screen.getByTestId("client-id")).toHaveTextContent("client-1");
-  });
-
-  it("default activeTab is 'profile'", () => {
-    render(
-      <ClientProvider client={mockClient}>
-        <ConsumerDisplay />
-      </ClientProvider>
-    );
-    expect(screen.getByTestId("active-tab")).toHaveTextContent("profile");
-  });
-
-  it("setActiveTab updates the active tab", async () => {
-    const user = userEvent.setup();
-    render(
-      <ClientProvider client={mockClient}>
-        <ConsumerDisplay />
-      </ClientProvider>
-    );
-    expect(screen.getByTestId("active-tab")).toHaveTextContent("profile");
-
-    await user.click(screen.getByText("Switch to Notes"));
-    expect(screen.getByTestId("active-tab")).toHaveTextContent("notes");
-  });
-
-  it("can switch tabs back and forth", async () => {
-    const user = userEvent.setup();
-    render(
-      <ClientProvider client={mockClient}>
-        <ConsumerDisplay />
-      </ClientProvider>
-    );
-
-    await user.click(screen.getByText("Switch to Notes"));
-    expect(screen.getByTestId("active-tab")).toHaveTextContent("notes");
-
-    await user.click(screen.getByText("Switch to Profile"));
-    expect(screen.getByTestId("active-tab")).toHaveTextContent("profile");
   });
 
   it("useClient returns null when used outside of ClientProvider", () => {

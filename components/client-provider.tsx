@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, ReactNode, useState } from "react";
+import { createContext, useContext, ReactNode } from "react";
 import type { OutreachLog, ActivityEvent, PromoMatch, PromoWatch, ClientTag, ClientSource } from "@/lib/db/schema";
 
 export interface PromoMatchWithPromo {
@@ -40,23 +40,11 @@ export interface FullClient {
 }
 
 const ClientContext = createContext<FullClient | null>(null);
-const ActiveTabContext = createContext<{ activeTab: string; setActiveTab: (tab: string) => void }>({ activeTab: "profile", setActiveTab: () => {} });
 
 export function ClientProvider({ client, children }: { client: FullClient; children: ReactNode }) {
-  const [activeTab, setActiveTab] = useState("profile");
-  return (
-    <ClientContext.Provider value={client}>
-      <ActiveTabContext.Provider value={{ activeTab, setActiveTab }}>
-        {children}
-      </ActiveTabContext.Provider>
-    </ClientContext.Provider>
-  );
+  return <ClientContext.Provider value={client}>{children}</ClientContext.Provider>;
 }
 
 export function useClient() {
   return useContext(ClientContext);
-}
-
-export function useActiveTab() {
-  return useContext(ActiveTabContext);
 }
