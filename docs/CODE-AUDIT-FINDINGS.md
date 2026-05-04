@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 23 | 17 | 0 | 6 |
-| MEDIUM | 36 | 16 | 0 | 20 |
+| MEDIUM | 36 | 15 | 0 | 21 |
 | LOW | 17 | 2 | 0 | 15 |
-| **TOTAL** | **84** | **41** | **0** | **43** |
+| **TOTAL** | **84** | **40** | **0** | **44** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,7 +28,7 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 23 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 36 (20 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🟡 MEDIUM | 36 (21 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (15 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
@@ -433,11 +433,12 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - **Fix**: Implement the combo check or remove the empty block.
 - **Resolved**: Implemented as a **first-name + last-name** combo (deliberately chose this over the original comment's "first-name + phone" — phone exact match is already covered by the phone condition, while first+last catches "same person" cases when contact info differs). Added `lastName` to both callers (`new/page.tsx`, `[id]/edit/page.tsx`) with `encodeURIComponent` on all four params (defensive against apostrophes/spaces/special chars in form input). API route now extracts and trims all four params, builds a single `conditions[]` list combining exact phone match, exact email match, and case-insensitive firstName+lastName combo (`lower()` matching, same pattern as `searchClients`). Removed the firstName-only in-memory fallback that previously did `select().from(clients).all()` + JS filter — that path was both an unbounded scan (latent M-03 gap at this endpoint, now closed) and a false-positive vector (any client sharing a first name triggered a warning). Self-match filter remains client-side at the edit page's response handler (`data.duplicate.id !== client?.id`) — unchanged.
 
-- [ ] ### M-20: Edit Client Page Fetches Data Client-Side
+- [x] ### M-20: Edit Client Page Fetches Data Client-Side
 - **File**: `app/(app)/clients/[id]/edit/page.tsx:80-85`
 - **Category**: Architecture
 - `"use client"` page fetches client + employees via `fetch()` in `useEffect`. Causes loading flash and no SSR.
 - **Fix**: Convert to server component, pass data to client form component.
+- **Resolved**: Edit page (`app/(app)/clients/[id]/edit/page.tsx`) is now a server component that fetches client + employees server-side and passes them as props to a new `<EditClientForm>` client component (`edit-client-form.tsx`) which owns all interactivity (form state, duplicate-check, debounce/abort refs, submit). Eliminates the mount-fetch loading flash. REST submit (`PUT /api/clients/[id]`) preserved — no L-01 reversal. Associates do not receive employee data: `getEmployees()` runs only when `session.user.role === "manager"`; otherwise `employees` is `undefined` and `<ClientForm>` hides the dropdown (consistent with M-36's role-aware data scoping). Added `loading.tsx` (Suspense fallback with `<ClientDetailSkeleton>`) and `error.tsx` at the edit segment — partially addresses H-04 for this route only; H-04 remains open for the rest of the app. M-05 (debounce ref + cleanup) and M-06's duplicate-check abort ref are preserved in the new client child; M-06's mount-fetch AbortController is no longer needed (no mount fetch). H-23 (PUT route ownership check) and H-21 (`edit-client-dialog.tsx` inline form) are independent and remain open.
 
 - [ ] ### M-21: Duplicate `NotesTabProps` Interface
 - **File**: `components/notes-tab.tsx:21-23, 25-27`
@@ -766,5 +767,7 @@ These things are done well and should be maintained:
 | 2026-05-03 | H-23 | New finding added during L-01 investigation: PUT `/api/clients/[id]` and PUT `/api/clients` have no ownership check — any authenticated associate can modify any client. The deleted `updateClient` server action contained the correct pattern; preserved in the Fix description so the future fixer has it. | — |
 | 2026-05-03 | M-19 | Implemented first-name + last-name combo duplicate check (deliberately chose over the original "first-name + phone" comment — phone exact match was already covered). Both callers now send `lastName` with `encodeURIComponent` on all params. API route trims and uses `lower()` for case-insensitive name matching, all conditions OR'd in a single SQL query. Removed firstName-only in-memory fallback that did unbounded `.all()` scan + JS filter (latent M-03 gap closed at this endpoint, false-positive "any matching first name" warning eliminated). | — |
 | 2026-05-03 | M-36 | New finding filed and resolved in same commit. Settings page now branches `getEmployees()` (managers) vs new `getEmployee(userId)` helper (associates) on `session.user.role`. Closes cross-employee info-disclosure that survived C-01's credential-exposure fix. Discovered as cross-impact during M-20 planning. | — |
+
+| 2026-05-03 | M-20 | Edit page converted to server component; client/employees fetched server-side and passed as props to new `<EditClientForm>` child. Eliminates mount-fetch loading flash. Associates: employees prop is `undefined`, dropdown auto-hides (consistent with M-36). REST `PUT` submit preserved (no L-01 reversal). Added `loading.tsx` + `error.tsx` at edit segment (partial H-04 close). M-05 debounce cleanup and M-06 duplicate-check abort preserved. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.
