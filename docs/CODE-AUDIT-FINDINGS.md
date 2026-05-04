@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 23 | 17 | 0 | 6 |
-| MEDIUM | 36 | 15 | 0 | 21 |
+| MEDIUM | 36 | 13 | 0 | 23 |
 | LOW | 17 | 2 | 0 | 15 |
-| **TOTAL** | **84** | **40** | **0** | **44** |
+| **TOTAL** | **84** | **38** | **0** | **46** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,7 +28,7 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 23 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 36 (21 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🟡 MEDIUM | 36 (23 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (15 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
@@ -440,11 +440,12 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - **Fix**: Convert to server component, pass data to client form component.
 - **Resolved**: Edit page (`app/(app)/clients/[id]/edit/page.tsx`) is now a server component that fetches client + employees server-side and passes them as props to a new `<EditClientForm>` client component (`edit-client-form.tsx`) which owns all interactivity (form state, duplicate-check, debounce/abort refs, submit). Eliminates the mount-fetch loading flash. REST submit (`PUT /api/clients/[id]`) preserved — no L-01 reversal. Associates do not receive employee data: `getEmployees()` runs only when `session.user.role === "manager"`; otherwise `employees` is `undefined` and `<ClientForm>` hides the dropdown (consistent with M-36's role-aware data scoping). Added `loading.tsx` (Suspense fallback with `<ClientDetailSkeleton>`) and `error.tsx` at the edit segment — partially addresses H-04 for this route only; H-04 remains open for the rest of the app. M-05 (debounce ref + cleanup) and M-06's duplicate-check abort ref are preserved in the new client child; M-06's mount-fetch AbortController is no longer needed (no mount fetch). H-23 (PUT route ownership check) and H-21 (`edit-client-dialog.tsx` inline form) are independent and remain open.
 
-- [ ] ### M-21: Duplicate `NotesTabProps` Interface
+- [x] ### M-21: Duplicate `NotesTabProps` Interface
 - **File**: `components/notes-tab.tsx:21-23, 25-27`
 - **Category**: Dead Code
 - Defined twice identically.
 - **Fix**: Delete duplicate.
+- **Resolved**: Verified during Batch 1 of remaining-MEDIUM cleanup — `grep "interface NotesTabProps" components/notes-tab.tsx` returns exactly one definition (line ~25). The duplicate cited in the original finding was eliminated by prior unrelated work; audit entry was stale. No code change required in this commit; entry flipped to closed for accuracy.
 
 - [ ] ### M-22: `createPromo` and `importPromos` Share Matching Logic
 - **File**: `lib/actions.ts:279-292, 294-322`
@@ -506,11 +507,12 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - Search button creates a `new KeyboardEvent("keydown", { key: "k", ctrlKey: true })` and dispatches it via `document.dispatchEvent` to open the command palette. This is a hacky coupling approach.
 - **Fix**: Export a `useCommandPalette` hook or shared state to control command palette open state directly.
 
-- [ ] ### M-32: Misleading Tab Icons in Client Detail Tabs
+- [x] ### M-32: Misleading Tab Icons in Client Detail Tabs
 - **File**: `components/client-detail-tabs.tsx:90-113`
 - **Category**: UX / Confusion
 - Tab trigger icons don't match the tab's purpose: Notes tab uses `MapPin` icon, Tags tab uses `Mail` icon, Timeline tab uses `Briefcase`. These are misleading for users.
 - **Fix**: Use semantically appropriate icons: `StickyNote` for Notes, `Tag` for Tags, `Activity` for Timeline.
+- **Resolved**: `components/client-detail-tabs.tsx` now uses semantically appropriate icons: `Activity` for Timeline, `StickyNote` for Notes, `Tag` for Tags. `MapPin` and `Briefcase` were unused after the swap and removed from the lucide-react import. `Mail` retained for the email-list dropdown items.
 
 - [ ] ### M-33: `ClientProvider` Combines Unrelated Concerns
 - **File**: `components/client-provider.tsx`
@@ -769,5 +771,8 @@ These things are done well and should be maintained:
 | 2026-05-03 | M-36 | New finding filed and resolved in same commit. Settings page now branches `getEmployees()` (managers) vs new `getEmployee(userId)` helper (associates) on `session.user.role`. Closes cross-employee info-disclosure that survived C-01's credential-exposure fix. Discovered as cross-impact during M-20 planning. | — |
 
 | 2026-05-03 | M-20 | Edit page converted to server component; client/employees fetched server-side and passed as props to new `<EditClientForm>` child. Eliminates mount-fetch loading flash. Associates: employees prop is `undefined`, dropdown auto-hides (consistent with M-36). REST `PUT` submit preserved (no L-01 reversal). Added `loading.tsx` + `error.tsx` at edit segment (partial H-04 close). M-05 debounce cleanup and M-06 duplicate-check abort preserved. | — |
+
+| 2026-05-03 | M-21 | Verified stale during Batch 1 review — `components/notes-tab.tsx` has exactly one `NotesTabProps` definition; duplicate from original finding was already removed by prior work. Doc-only close. | — |
+| 2026-05-03 | M-32 | Swapped misleading tab icons in `components/client-detail-tabs.tsx`: Timeline `Briefcase`→`Activity`, Notes `MapPin`→`StickyNote`, Tags `Mail`→`Tag`. Cleaned up lucide-react imports. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.

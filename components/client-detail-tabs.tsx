@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Calendar, Mail, MapPin, Gift, Briefcase, Users, MoreHorizontal, Edit, Ban, MailX, Trash2, ShieldOff, UserCheck } from "lucide-react";
+import { Calendar, Mail, Gift, Users, MoreHorizontal, Edit, Ban, MailX, Trash2, ShieldOff, UserCheck, StickyNote, Tag, Activity } from "lucide-react";
 import { format } from "date-fns";
 import { useClient, useActiveTab } from "@/components/client-provider";
 import { ProfileTab } from "@/components/profile-tab";
@@ -169,15 +169,15 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
             Outreach
           </TabsTrigger>
           <TabsTrigger value="timeline" className="flex items-center gap-2 shrink-0">
-            <Briefcase className="h-4 w-4" />
+            <Activity className="h-4 w-4" />
             Timeline
           </TabsTrigger>
           <TabsTrigger value="notes" className="flex items-center gap-2 shrink-0">
-            <MapPin className="h-4 w-4" />
+            <StickyNote className="h-4 w-4" />
             Notes
           </TabsTrigger>
           <TabsTrigger value="tags" className="flex items-center gap-2 shrink-0">
-            <Mail className="h-4 w-4" />
+            <Tag className="h-4 w-4" />
             Tags
           </TabsTrigger>
         </TabsList>
