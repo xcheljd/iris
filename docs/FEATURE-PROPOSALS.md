@@ -126,7 +126,7 @@ Import past customer reports from RVX to build a cold-outreach prospect pool sep
 
 **RVX report format (confirmed from "Sales By Customer" export):**
 - Columns: `STORE #, CUST #, FIRST NAME, LAST NAME, ADDRESS, ADDRESS 2, CITY, STATE, ZIP, TELEPHONE, EMAIL ADDRESS, TOTAL SALES`
-- File structure: 3 header rows (report title, date range `FROM MM/DD/YY TO MM/DD/YY`, blank) → column header row → data rows → large block of trailing empty rows (all commas, must be skipped)
+- File structure: 3 header rows (report title, date range `FROM MM/DD/YY TO MM/DD/YY`, blank) → column header row → data rows; parser should skip blank/empty rows defensively but trailing empty rows are not a native RVX format trait
 - `STORE #` is a multi-store identifier (e.g., 125003, 125004, 125005 for different locations) — stored as `rvxStoreId` on the prospect record
 - `TELEPHONE` format is inconsistent within the file (dashes vs raw digits) — normalize to digits-only on import
 - `TOTAL SALES` is a decimal (`947.25`) — maps to `rvxSpend`
