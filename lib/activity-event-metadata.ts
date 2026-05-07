@@ -11,7 +11,7 @@ export type ActivityEventMetadataMap = {
   promoted: Record<string, never>;
   note_added: { notePreview?: string };
   status_changed: { newStatus?: string };
-  merged: { sourceClientId?: string };
+  merged: { sourceClientId?: string; sourceClientName?: string };
   ban_requested: Record<string, never>;
   ban_approved: Record<string, never>;
   ban_rejected: Record<string, never>;

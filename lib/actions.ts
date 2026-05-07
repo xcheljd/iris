@@ -1,7 +1,7 @@
 "use server";
 import { db } from "@/lib/db";
 import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bannedCustomers, unsubscribeList, clientTags, outreachTemplates, employees, smartLists, approvalRequests } from "@/lib/db/schema";
-import { eq, desc, sql, gte, and } from "drizzle-orm";
+import { eq, desc, sql, gte, and, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { getServerSession } from "next-auth";
@@ -672,6 +672,138 @@ export async function purgeClient(clientId: string) {
 
   revalidatePath("/clients");
   revalidatePath("/settings");
+}
+
+export async function mergeClients(
+  clientAId: string,
+  clientBId: string,
+  fieldChoices: Record<string, "a" | "b">,
+  finalNotes: string | null,
+): Promise<{ winnerId: string }> {
+  const user = await requireManager();
+
+  const clientA = db.select().from(clients).where(eq(clients.id, clientAId)).get();
+  const clientB = db.select().from(clients).where(eq(clients.id, clientBId)).get();
+  if (!clientA || !clientB) throw new Error("Client not found");
+
+  // Older dateAdded survives
+  const aIsOlder = new Date(clientA.dateAdded).getTime() <= new Date(clientB.dateAdded).getTime();
+  const winner = aIsOlder ? clientA : clientB;
+  const loser = aIsOlder ? clientB : clientA;
+
+  const pick = (key: string): unknown =>
+    fieldChoices[key] === "b"
+      ? (clientB as Record<string, unknown>)[key]
+      : (clientA as Record<string, unknown>)[key];
+
+  const latestOf = (a: Date | null | undefined, b: Date | null | undefined) => {
+    if (!a && !b) return null;
+    if (!a) return b;
+    if (!b) return a;
+    return a.getTime() >= b.getTime() ? a : b;
+  };
+
+  db.update(clients).set({
+    firstName: pick("firstName") as string || winner.firstName,
+    lastName: pick("lastName") as string | null,
+    phone: pick("phone") as string | null,
+    email: pick("email") as string | null,
+    birthday: pick("birthday") as string | null,
+    anniversary: pick("anniversary") as string | null,
+    customerId: pick("customerId") as string | null,
+    source: pick("source") as typeof clients.$inferSelect.source,
+    onEmailList: (clientA.onEmailList || clientB.onEmailList),
+    notes: finalNotes ?? null,
+    productsOfInterest: Array.from(new Set([...(clientA.productsOfInterest || []), ...(clientB.productsOfInterest || [])])),
+    tags: Array.from(new Set([...(clientA.tags || []), ...(clientB.tags || [])])),
+    lastOutreachAt: latestOf(clientA.lastOutreachAt, clientB.lastOutreachAt),
+    lastPurchaseAt: latestOf(clientA.lastPurchaseAt, clientB.lastPurchaseAt),
+    updatedAt: new Date(),
+  }).where(eq(clients.id, winner.id)).run();
+
+  // Migrate FK references from loser to winner
+  db.update(outreachLogs).set({ clientId: winner.id }).where(eq(outreachLogs.clientId, loser.id)).run();
+  db.update(activityEvents).set({ clientId: winner.id }).where(eq(activityEvents.clientId, loser.id)).run();
+  db.update(approvalRequests).set({ clientId: winner.id }).where(eq(approvalRequests.clientId, loser.id)).run();
+
+  // promoMatches: delete loser's entries that conflict with winner's, then migrate the rest
+  const winnerPromoIds = db.select({ promoId: promoMatches.promoId })
+    .from(promoMatches).where(eq(promoMatches.clientId, winner.id)).all()
+    .map((r) => r.promoId);
+  if (winnerPromoIds.length > 0) {
+    db.delete(promoMatches)
+      .where(and(eq(promoMatches.clientId, loser.id), inArray(promoMatches.promoId, winnerPromoIds)))
+      .run();
+  }
+  db.update(promoMatches).set({ clientId: winner.id }).where(eq(promoMatches.clientId, loser.id)).run();
+
+  const loserName = `${loser.firstName} ${loser.lastName ?? ""}`.trim();
+  db.insert(activityEvents).values({
+    id: randomUUID(),
+    clientId: winner.id,
+    eventType: "merged",
+    description: `Merged from ${loserName}`,
+    employeeId: user.id,
+    metadata: { sourceClientId: loser.id, sourceClientName: loserName },
+  }).run();
+
+  db.delete(clients).where(eq(clients.id, loser.id)).run();
+
+  await recalcHeat(winner.id);
+  revalidatePath(`/clients/${winner.id}`);
+  revalidatePath("/clients");
+
+  return { winnerId: winner.id };
+}
+
+export async function patchClientFromFormMerge(
+  existingId: string,
+  patch: {
+    firstName: string;
+    lastName?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    birthday?: string | null;
+    anniversary?: string | null;
+    customerId?: string | null;
+    source?: string;
+    onEmailList?: boolean;
+    notes?: string | null;
+    productsOfInterest?: string[];
+    tags?: string[];
+  },
+): Promise<void> {
+  const user = await requireManager();
+  const existing = db.select().from(clients).where(eq(clients.id, existingId)).get();
+  if (!existing) throw new Error("Client not found");
+
+  db.update(clients).set({
+    firstName: patch.firstName,
+    lastName: patch.lastName ?? null,
+    phone: patch.phone ?? null,
+    email: patch.email ?? null,
+    birthday: patch.birthday ?? null,
+    anniversary: patch.anniversary ?? null,
+    customerId: patch.customerId ?? null,
+    source: (patch.source as typeof clients.$inferSelect.source) ?? existing.source,
+    onEmailList: patch.onEmailList ?? existing.onEmailList,
+    notes: patch.notes ?? null,
+    productsOfInterest: patch.productsOfInterest ?? existing.productsOfInterest,
+    tags: patch.tags ?? existing.tags,
+    updatedAt: new Date(),
+  }).where(eq(clients.id, existingId)).run();
+
+  db.insert(activityEvents).values({
+    id: randomUUID(),
+    clientId: existingId,
+    eventType: "merged",
+    description: "Merged from new client form entry",
+    employeeId: user.id,
+    metadata: { sourceClientName: "new form entry" },
+  }).run();
+
+  await recalcHeat(existingId);
+  revalidatePath(`/clients/${existingId}`);
 }
 
 export async function setSecretQuestion(question: string, answer: string) {

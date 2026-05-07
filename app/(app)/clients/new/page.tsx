@@ -7,12 +7,14 @@ import { toast } from "sonner";
 import { Topbar } from "@/components/topbar";
 import { ClientForm } from "@/components/client-form";
 import type { ClientFormData } from "@/components/client-form";
+import { MergeFromFormDialog } from "@/components/merge-client-dialog";
 
 export default function AddClientPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [duplicateClient, setDuplicateClient] = useState<{ id: string; firstName: string; lastName?: string | null; phone?: string | null; email?: string | null } | null>(null);
+  const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
 
   const [formData, setFormData] = useState<ClientFormData>({
     firstName: "",
@@ -142,6 +144,10 @@ export default function AddClientPage() {
     router.push(`/clients/${duplicateClient.id}`);
   };
 
+  const handleMergeWithDuplicate = () => {
+    setMergeDialogOpen(true);
+  };
+
   return (
     <>
       <Topbar title="Add New Client" />
@@ -175,12 +181,23 @@ export default function AddClientPage() {
             duplicateClient={duplicateClient}
             onDismissDuplicate={() => setShowDuplicateWarning(false)}
             onEditExisting={handleEditExisting}
+            onMergeWithDuplicate={duplicateClient ? handleMergeWithDuplicate : undefined}
             showCommonTags
             isLoading={isLoading}
             submitLabel="Create Client"
             onSubmit={handleSubmit}
             onCancel={() => router.back()}
           />
+          {duplicateClient && (
+            <MergeFromFormDialog
+              existingClientId={duplicateClient.id}
+              formData={formData}
+              productsOfInterest={productsOfInterest}
+              open={mergeDialogOpen}
+              onOpenChange={setMergeDialogOpen}
+              onMerged={(winnerId) => router.push(`/clients/${winnerId}`)}
+            />
+          )}
         </div>
       </div>
     </>

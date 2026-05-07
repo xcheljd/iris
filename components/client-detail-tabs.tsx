@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Calendar, Mail, Gift, Users, MoreHorizontal, Edit, Ban, MailX, Trash2, ShieldOff, UserCheck, StickyNote, Tag, Activity, ArrowRightLeft } from "lucide-react";
+import { Calendar, Mail, Gift, Users, MoreHorizontal, Edit, Ban, MailX, Trash2, ShieldOff, UserCheck, StickyNote, Tag, Activity, ArrowRightLeft, Merge } from "lucide-react";
 import { format } from "date-fns";
 import { useState } from "react";
 import { useClient } from "@/components/client-provider";
@@ -21,6 +21,7 @@ import { EditClientDialog } from "@/components/edit-client-dialog";
 import { OutreachLogger } from "@/components/outreach-logger";
 import { BanCustomerDialog, UnsubscribeCustomerDialog, DeleteCustomerDialog } from "@/components/client-status-actions";
 import { TransferClientDialog } from "@/components/transfer-client-dialog";
+import { MergeClientDialog } from "@/components/merge-client-dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { toggleEmailList, resubscribeClient, unbanClient } from "@/lib/actions";
 import { toast } from "sonner";
@@ -87,6 +88,13 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                     <ArrowRightLeft className="h-4 w-4 mr-2" /> Transfer Client
                   </DropdownMenuItem>
                 </TransferClientDialog>
+              )}
+              {currentUserRole === "manager" && (
+                <MergeClientDialog>
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                    <Merge className="h-4 w-4 mr-2" /> Merge with…
+                  </DropdownMenuItem>
+                </MergeClientDialog>
               )}
               {client.status !== "unsubscribed" && client.status !== "deleted" && client.onEmailList && (
                 <ConfirmDialog

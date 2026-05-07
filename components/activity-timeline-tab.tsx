@@ -132,7 +132,7 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
       
       case "merged": {
         const m = getMetadata("merged", event.metadata);
-        return `Merged from ${m.sourceClientId ?? "another record"}`;
+        return `Merged from ${m.sourceClientName ?? m.sourceClientId ?? "another record"}`;
       }
       
       default:

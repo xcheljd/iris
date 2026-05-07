@@ -56,6 +56,7 @@ interface ClientFormProps {
   duplicateClient: DuplicateClient | null;
   onDismissDuplicate: () => void;
   onEditExisting: () => void;
+  onMergeWithDuplicate?: () => void;
   // Edit-only
   employees?: { id: string; name: string; role: string }[];
   showCommonTags?: boolean;
@@ -82,6 +83,7 @@ export function ClientForm({
   duplicateClient,
   onDismissDuplicate,
   onEditExisting,
+  onMergeWithDuplicate,
   employees,
   showCommonTags = false,
   isLoading,
@@ -109,10 +111,15 @@ export function ClientForm({
                 <div className="text-sm text-muted-foreground">Email: {duplicateClient.email}</div>
               )}
             </div>
-            <div className="flex gap-2 mt-3">
+            <div className="flex gap-2 mt-3 flex-wrap">
               <Button onClick={onEditExisting} variant="default" size="sm">
                 Edit Existing
               </Button>
+              {onMergeWithDuplicate && (
+                <Button onClick={onMergeWithDuplicate} variant="outline" size="sm">
+                  Merge Records
+                </Button>
+              )}
               <Button onClick={onDismissDuplicate} variant="outline" size="sm">
                 Create New Record
               </Button>
