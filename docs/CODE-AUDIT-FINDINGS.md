@@ -13,10 +13,10 @@
 | Severity | Total | Open | In Progress | Resolved |
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
-| HIGH | 23 | 14 | 0 | 9 |
+| HIGH | 23 | 10 | 0 | 13 |
 | MEDIUM | 36 | 0 | 0 | 36 |
 | LOW | 17 | 1 | 0 | 16 |
-| **TOTAL** | **84** | **21** | **0** | **63** |
+| **TOTAL** | **84** | **17** | **0** | **67** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -144,11 +144,11 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - Three files call `fetch("/api/clients/merge", ...)` but no `app/api/clients/merge/route.ts` exists. All merge/duplicate operations will 404 at runtime.
 - **Fix**: Implemented merge via server actions instead of a REST route. `mergeClients()` (manager-gated) handles all FK migrations (outreachLogs, activityEvents, approvalRequests, promoMatches with unique-constraint conflict pre-deletion) then hard-deletes the loser. `patchClientFromFormMerge()` handles the new-client-form duplicate path. Original fetch call sites removed; `MergeClientDialog` and `MergeFromFormDialog` components call the server actions directly. Resolved `3ced678`.
 
-- [ ] ### H-02: Notes DELETE Can Delete Any Activity Event
+- [x] ### H-02: Notes DELETE Can Delete Any Activity Event
 - **File**: `app/api/notes/route.ts:44`
 - **Category**: Data Integrity
 - Deletes `activityEvents` by ID without verifying `eventType === "note_added"`. Any activity event (purchase, status change, ban) can be deleted, destroying audit trail.
-- **Fix**: Add WHERE clause: `and(eq(activityEvents.eventType, "note_added"))`.
+- **Fix**: Added `and` to drizzle-orm imports and tightened the DELETE WHERE to `and(eq(activityEvents.id, noteId), eq(activityEvents.eventType, "note_added"))`. Non-note events are now untouchable via this endpoint.
 
 - [ ] ### H-03: Multi-Step Mutations Not in Transactions
 - **File**: `lib/actions.ts` — `banClient` (L241-261), `unsubscribeClient` (L263-277), `unbanCustomer` (L357-374), `clearAllPromos` (L324-328), `deletePromo` (L330-334), `createPromo` (L279-292), `importPromos` (L294-322)
@@ -194,17 +194,17 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - Zero request body validation. `method`/`outcome` enums accept arbitrary strings. `zod` is a dependency but unused. Phone, email, dates are unvalidated.
 - **Fix**: Add zod schemas for every endpoint. Validate before processing.
 
-- [ ] ### H-10: API Routes Return Redirect Instead of 401
+- [x] ### H-10: API Routes Return Redirect Instead of 401
 - **File**: `middleware.ts:1-4`
 - **Category**: API Design
 - `next-auth/middleware` returns 302 redirect to `/login` for unauthenticated API requests. API consumers get HTML login page instead of JSON 401 response.
-- **Fix**: Add custom middleware logic that returns 401 JSON for `/api/*` routes.
+- **Fix**: Replaced re-export with a custom `middleware()` using `getToken`. Unauthenticated `/api/*` requests now return `{ error: "Not authenticated" }` with status 401. All other unauthenticated routes still redirect to `/login`. Existing matcher exclusions (`api/auth`, `api/recover`, static assets) unchanged.
 
-- [ ] ### H-11: Direct SQLite Access Bypassing ORM
+- [x] ### H-11: Direct SQLite Access Bypassing ORM
 - **File**: `app/api/recover/route.ts:2-3`
 - **Category**: Architecture / Data Integrity
 - `import Database from "better-sqlite3"` creates a separate DB connection, bypassing Drizzle ORM, WAL mode, and foreign key settings.
-- **Fix**: Use the shared `db` from `lib/db/index.ts`.
+- **Fix**: Removed `better-sqlite3` import and two manual `sqlite.close()` try/finally blocks. Rewrote both branches using shared `db` from `@/lib/db` with Drizzle `select`/`update` and ORM column references (`employees.secretQuestion`, `employees.secretAnswerHash`, `employees.passwordHash`). Also replaced `bcrypt.compareSync` with `await bcrypt.compare` for consistency.
 
 - [x] ### H-12: Outreach History "Complete" Button Is a Stub
 - **File**: `components/outreach-history-tab.tsx:188-190`
@@ -258,11 +258,11 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - Read-modify-write pattern on tags array with no locking. Two concurrent add/remove operations can cause lost updates. `usageCount` increment is also non-atomic.
 - **Fix**: Use SQL atomic operations (`json_array_append`, `usage_count + 1`).
 
-- [ ] ### H-20: `getClientOutreach`/`getClientActivity` — Dead Code
-- **File**: `lib/queries.ts:21-27`
+- [x] ### H-20: `getClientOutreach`/`getClientActivity` — Dead Code
+- **File**: `lib/queries.ts:53-59`
 - **Category**: Dead Code
 - Exported but never imported. `getFullClient` duplicates these queries inline.
-- **Fix**: Use them in `getFullClient` or remove them.
+- **Fix**: Confirmed zero imports via grep, then deleted both functions. No callers existed outside `lib/queries.ts` itself.
 
 - [ ] ### H-21: Client Form Code Still Duplicated in `edit-client-dialog.tsx`
 - **Files**: `components/edit-client-dialog.tsx` (~398 lines), `components/client-form.tsx` (shared form)
@@ -558,11 +558,11 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 ## 🔵 LOW
 
 - [x] ### L-01: 3 Dead Server Actions
-- **File**: `lib/actions.ts` — `createClient` (deleted), `updateClient` (deleted), `transferClient` (deleted)
+- **File**: `lib/actions.ts` — `createClient` (deleted), `updateClient` (deleted), `transferClient` (deleted then re-implemented)
 - **Category**: Dead Code
 - `createClient` and `updateClient` are superseded by REST API routes. `transferClient` is never called anywhere.
 - **Fix**: Delete unused actions, or convert call sites to use the actions instead of REST.
-- **Resolved**: All three actions deleted from `lib/actions.ts`; corresponding `describe` blocks and import references removed from `__tests__/actions/client-actions.test.ts`. Test coverage for the live actions (`banClient`, `unsubscribeClient`, `resubscribeClient`) preserved. Chose deletion over wire-up because all three production UI call sites already use the REST endpoints with their own duplicate-check flows; converting them to server actions would be high-effort with no user-visible improvement, and H-17 (the broader server-action-vs-REST consolidation) is better addressed holistically in a separate pass. **Important:** the deleted `updateClient` action contained an ownership-check pattern that the equivalent REST route lacks — filed as new finding **H-23** so the security gap remains tracked.
+- **Resolved**: All three actions deleted from `lib/actions.ts`; corresponding `describe` blocks and import references removed from `__tests__/actions/client-actions.test.ts`. Test coverage for the live actions (`banClient`, `unsubscribeClient`, `resubscribeClient`) preserved. Chose deletion over wire-up because all three production UI call sites already use the REST endpoints with their own duplicate-check flows; converting them to server actions would be high-effort with no user-visible improvement, and H-17 (the broader server-action-vs-REST consolidation) is better addressed holistically in a separate pass. **Important:** the deleted `updateClient` action contained an ownership-check pattern that the equivalent REST route lacks — filed as new finding **H-23** so the security gap remains tracked. **Cross-ref:** `transferClient` was subsequently re-implemented from scratch as part of M-35 Phase B (`be127c1`) with full `requireManager()` auth, proper metadata writes, and a `TransferClientDialog` UI — it now exists again in `lib/actions.ts` but is no longer dead code.
 
 - [x] ### L-02: Unused `formatDateTime` Export
 - **File**: `lib/utils.ts:21`
@@ -779,7 +779,7 @@ These things are done well and should be maintained:
 | 2026-05-02 | M-17 | Schema-derived enum arrays for outreach `method`/`outcome` (mirrors M-15's `CLIENT_SOURCE_VALUES` pattern). Shared zod schema in `lib/validation/outreach.ts` validates both `app/api/outreach/route.ts` POST and `lib/actions.ts:logOutreach`. Adds UUID/length/date format checks. Establishes validation pattern for H-09's broader sweep. | — |
 | 2026-05-02 | M-18 | `ACTIVITY_EVENT_TYPE_VALUES` exported from schema (column enum references same array). `ActivityEventMetadataMap` in `lib/activity-event-metadata.ts` declares per-event-type metadata shapes. Typed `getMetadata()` helper replaces 8 `as string` casts. No runtime behavior change — same fallback strings. Discovered M-35 (write/read mismatch) during verification. | — |
 | 2026-05-02 | M-35 | New finding: 6 of 8 `formatEventDescription` metadata reads are for fields no writer produces (`purchasedModel`, `tagName`, `newEmployeeName`, `notePreview`, `sourceClientId`, `fieldChanges`). UI silently falls back to placeholder defaults. Discovered during M-18 verification. | — |
-| 2026-05-03 | L-01 | Deleted dead server actions `createClient`, `updateClient`, `transferClient` from `lib/actions.ts` and corresponding test describe blocks. Live action tests (banClient/unsubscribeClient/resubscribeClient) preserved. Chose deletion over wire-up; H-17 consolidation deferred. Surfaced new finding H-23 (missing ownership check on REST update path that the deleted action used to provide). | — |
+| 2026-05-03 | L-01 | Deleted dead server actions `createClient`, `updateClient`, `transferClient` from `lib/actions.ts` and corresponding test describe blocks. Live action tests (banClient/unsubscribeClient/resubscribeClient) preserved. Chose deletion over wire-up; H-17 consolidation deferred. Surfaced new finding H-23 (missing ownership check on REST update path that the deleted action used to provide). **Note:** `transferClient` was re-implemented in M-35 Phase B (`be127c1`) — it now exists and is actively used; its deletion is no longer the current state. | — |
 | 2026-05-03 | H-23 | New finding added during L-01 investigation: PUT `/api/clients/[id]` and PUT `/api/clients` have no ownership check — any authenticated associate can modify any client. The deleted `updateClient` server action contained the correct pattern; preserved in the Fix description so the future fixer has it. | — |
 | 2026-05-03 | M-19 | Implemented first-name + last-name combo duplicate check (deliberately chose over the original "first-name + phone" comment — phone exact match was already covered). Both callers now send `lastName` with `encodeURIComponent` on all params. API route trims and uses `lower()` for case-insensitive name matching, all conditions OR'd in a single SQL query. Removed firstName-only in-memory fallback that did unbounded `.all()` scan + JS filter (latent M-03 gap closed at this endpoint, false-positive "any matching first name" warning eliminated). | — |
 | 2026-05-03 | M-36 | New finding filed and resolved in same commit. Settings page now branches `getEmployees()` (managers) vs new `getEmployee(userId)` helper (associates) on `session.user.role`. Closes cross-employee info-disclosure that survived C-01's credential-exposure fix. Discovered as cross-impact during M-20 planning. | — |
@@ -805,5 +805,9 @@ These things are done well and should be maintained:
 | 2026-05-06 | M-35 Phase B | Implemented client transfer feature. `transferClient()` server action (manager-gated): looks up previous/new employee names, updates `clients.employeeId`, emits `transferred` event with `previousEmployeeName` and `newEmployeeName` in metadata. `ActivityEventMetadataMap.transferred` extended. Timeline reader updated to show "Transferred from X to Y" when both names present. New `TransferClientDialog` component: fetches active employees on open, disables current employee in select, calls server action on confirm. Wired into client detail actions dropdown (manager-only). | `be127c1` |
 | 2026-05-06 | H-04, H-12 | H-04: Added `error.tsx` at `app/`, `app/(app)/`, `app/(app)/clients/`, `app/(app)/clients/[id]/`. All are `"use client"` per Next.js requirement, log to `console.error`, and render an `AlertCircle` + Try again button. Client-detail boundary adds a "Back to clients" escape hatch. H-12: Replaced `alert("Mark follow-up complete")` stub with real `markFollowUpComplete(log.id)` call. Added `useTransition` for pending state (button shows "Saving…" / disabled during call) and `sonner` toasts for success/failure. | — |
 | 2026-05-06 | M-35 Phase C, H-01 | Implemented field-by-field client merge, closing H-01. `mergeClients()` server action (manager-gated): older record's ID wins; all FK references (outreachLogs, activityEvents, approvalRequests, promoMatches) migrated before hard-deleting loser; promoMatches handles unique-constraint conflicts by pre-deleting conflicting loser rows. onEmailList/productsOfInterest/tags always unioned. Emits `merged` event on winner. `patchClientFromFormMerge()` handles duplicate-detection path from new client form. `MergeClientDialog` (actions menu): two-step flow — debounced search → field-by-field resolution panel → confirm. `MergeFromFormDialog` (new client form): constructs form snapshot, resolves fields against existing record. Both dialogs share internal `ResolutionPanel` grid component. Notes: editable final textarea with "Use this" shortcuts from each side. Wired in `client-detail-tabs.tsx` (manager-only) and `client-form.tsx` / `clients/new/page.tsx` (duplicate warning). | `3ced678` |
+| 2026-05-06 | H-02 | Tightened Notes DELETE WHERE in `app/api/notes/route.ts` to `and(eq(activityEvents.id, noteId), eq(activityEvents.eventType, "note_added"))`. Non-note activity events (purchases, status changes, bans) can no longer be deleted via this endpoint. Added `and` to drizzle-orm imports. | — |
+| 2026-05-06 | H-11 | Rewrote `app/api/recover/route.ts` to use shared `db` from `@/lib/db` with Drizzle ORM. Removed `better-sqlite3` dependency, two manual connection open/close try/finally blocks, and raw prepared-statement strings. Both branches (lookup, verify) now use `db.select()` / `db.update()` with typed column references. Replaced `bcrypt.compareSync` with `await bcrypt.compare`. | — |
+| 2026-05-06 | H-20 | Deleted `getClientOutreach` and `getClientActivity` from `lib/queries.ts` (confirmed zero external imports). Both functions were dead exports — their queries are duplicated inline wherever needed. | — |
+| 2026-05-06 | H-10 | Replaced `export { default } from "next-auth/middleware"` with a custom `middleware()` using `getToken`. Unauthenticated `/api/*` requests now return 401 JSON (`{ error: "Not authenticated" }`); all other protected routes still redirect to `/login`. Existing matcher exclusions unchanged. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.

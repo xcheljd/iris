@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { activityEvents, clients } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export async function POST(request: Request) {
@@ -49,7 +49,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "noteId is required" }, { status: 400 });
     }
 
-    db.delete(activityEvents).where(eq(activityEvents.id, noteId)).run();
+    db.delete(activityEvents).where(and(eq(activityEvents.id, noteId), eq(activityEvents.eventType, "note_added"))).run();
 
     return NextResponse.json({ success: true });
   } catch (_error) {

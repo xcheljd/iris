@@ -50,14 +50,6 @@ export async function getClientsWithEmployee(employeeId?: string) {
   return rows;
 }
 
-export async function getClientOutreach(clientId: string) {
-  return db.select().from(outreachLogs).where(eq(outreachLogs.clientId, clientId)).orderBy(desc(outreachLogs.date)).all();
-}
-
-export async function getClientActivity(clientId: string) {
-  return db.select().from(activityEvents).where(eq(activityEvents.clientId, clientId)).orderBy(desc(activityEvents.createdAt)).all();
-}
-
 export async function getUpcomingFollowUps(employeeId?: string) {
   const now = Date.now();
   const in7d = now + 7 * MS_PER_DAY;
