@@ -26,7 +26,6 @@ async function requireAuth() {
 }
 
 export async function recalcHeat(clientId: string) {
-  await requireAuth();
   const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
   if (!c) return;
   const ninetyDaysAgo = new Date(Date.now() - 90 * MS_PER_DAY);
@@ -37,7 +36,7 @@ export async function recalcHeat(clientId: string) {
 
 export async function logOutreach(data: OutreachInput) {
   const parsed = outreachInputSchema.parse(data);
-  const user = await requireAuth();
+  const user = await getSessionUser();
   const id = randomUUID();
   const date = new Date();
   db.insert(outreachLogs).values({
@@ -48,7 +47,7 @@ export async function logOutreach(data: OutreachInput) {
     outcome: parsed.outcome,
     purchasedModel: parsed.outcome === "purchased" ? parsed.purchasedModel || null : null,
     notes: parsed.notes || null,
-    employeeId: user.id,
+    employeeId: user?.id ?? null,
     followUpDate: parsed.followUpDate ? new Date(parsed.followUpDate) : null,
     templateId: parsed.templateId || null,
     completed: false,
@@ -61,7 +60,7 @@ export async function logOutreach(data: OutreachInput) {
     clientId: parsed.clientId,
     eventType: parsed.outcome === "purchased" ? "purchase" : "outreach_logged",
     description: `${parsed.method} — ${parsed.outcome.replace(/_/g, " ")}${parsed.purchasedModel ? ` (${parsed.purchasedModel})` : ""}`,
-    employeeId: user.id,
+    employeeId: user?.id ?? null,
     metadata: { method: parsed.method, outcome: parsed.outcome, ...(parsed.purchasedModel ? { purchasedModel: parsed.purchasedModel } : {}) },
   }).run();
   await recalcHeat(parsed.clientId);
@@ -377,7 +376,7 @@ export async function resubscribeClient(clientId: string) {
   await requireManager();
   const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
   if (!c) return;
-  db.update(clients).set({ status: "active", updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+  db.update(clients).set({ status: "active", onEmailList: true, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
   if (c.email) {
     db.delete(unsubscribeList).where(eq(unsubscribeList.email, c.email)).run();
   }
@@ -417,10 +416,13 @@ export async function createEmployee(data: {
   const existing = db.select().from(employees).where(eq(employees.username, data.username)).get();
   if (existing) return { error: "Username already taken" };
   const passwordHash = await bcrypt.hash(data.password, 10);
+  const firstName = data.firstName.trim();
+  const lastName = data.lastName?.trim() || null;
   db.insert(employees).values({
     id: randomUUID(),
-    firstName: data.firstName.trim(),
-    lastName: data.lastName.trim() || null,
+    name: lastName ? `${firstName} ${lastName}` : firstName,
+    firstName,
+    lastName,
     username: data.username,
     passwordHash,
     role: data.role,

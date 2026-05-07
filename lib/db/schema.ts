@@ -24,6 +24,7 @@ export type ActivityEventType = typeof ACTIVITY_EVENT_TYPE_VALUES[number];
 
 export const employees = sqliteTable("employees", {
   id: text("id").primaryKey(),
+  name: text("name").notNull(),
   firstName: text("first_name").notNull(),
   lastName: text("last_name"),
   username: text("username").notNull().unique(),
