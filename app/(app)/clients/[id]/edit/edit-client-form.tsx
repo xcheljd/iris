@@ -8,6 +8,7 @@ import { Topbar } from "@/components/topbar";
 import { ClientForm } from "@/components/client-form";
 import type { ClientFormData } from "@/components/client-form";
 import type { ClientSource } from "@/lib/db/schema";
+import { validateClientForm } from "@/lib/validation/client";
 
 interface ClientData {
   id: string;
@@ -139,8 +140,9 @@ export function EditClientForm({ initialClient, clientId, employees }: EditClien
   };
 
   const handleSubmit = async () => {
-    if (!formData.firstName.trim()) {
-      toast.error("First name is required");
+    const validationError = validateClientForm(formData);
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 

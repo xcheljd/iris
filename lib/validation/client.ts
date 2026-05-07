@@ -1,0 +1,56 @@
+import { z } from "zod";
+import { CLIENT_SOURCE_VALUES } from "@/lib/db/schema";
+
+// Coerces empty string to null; passes null/string through unchanged.
+const nullableStr = (max: number) =>
+  z.preprocess((v) => (v === "" ? null : v), z.string().max(max).nullable());
+
+// Allowed fields for client create. Enforces enum on source, format on email.
+export const clientCreateSchema = z.object({
+  firstName: z.string().min(1, "First name is required").max(100),
+  lastName: nullableStr(100).optional(),
+  phone: nullableStr(20).optional(),
+  email: z
+    .preprocess((v) => (v === "" ? null : v), z.string().email("Invalid email").max(200).nullable())
+    .optional(),
+  customerId: nullableStr(50).optional(),
+  source: z.enum(CLIENT_SOURCE_VALUES).default("Walk-in"),
+  birthday: nullableStr(100).optional(),
+  anniversary: nullableStr(100).optional(),
+  onEmailList: z.boolean().default(false),
+  notes: nullableStr(5000).optional(),
+  tags: z.array(z.string().max(50)).default([]),
+  productsOfInterest: z.array(z.string().max(100)).default([]),
+});
+
+// Allowed fields for client patch — all optional, no defaults.
+// Building the DB patch from this schema's parsed result implements the C-03 field allowlist:
+// unknown fields (heatScore, status, employeeId, dateAdded, etc.) are stripped automatically.
+export const clientPatchSchema = z
+  .object({
+    firstName: z.string().min(1).max(100),
+    lastName: nullableStr(100),
+    phone: nullableStr(20),
+    email: z.preprocess(
+      (v) => (v === "" ? null : v),
+      z.string().email("Invalid email").max(200).nullable(),
+    ),
+    customerId: nullableStr(50),
+    source: z.enum(CLIENT_SOURCE_VALUES),
+    birthday: nullableStr(100),
+    anniversary: nullableStr(100),
+    onEmailList: z.boolean(),
+    notes: nullableStr(5000),
+    tags: z.array(z.string().max(50)),
+    productsOfInterest: z.array(z.string().max(100)),
+  })
+  .partial();
+
+// Lightweight form-side validation before submitting (H-14).
+// Date fields are excluded — the date picker guarantees format correctness.
+export function validateClientForm(data: { firstName: string; email?: string | null }): string | null {
+  if (!data.firstName.trim()) return "First name is required";
+  const email = data.email?.trim();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Invalid email format";
+  return null;
+}

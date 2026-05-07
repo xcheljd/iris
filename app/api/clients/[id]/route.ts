@@ -6,6 +6,7 @@ import { clients, activityEvents } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
+import { clientPatchSchema } from "@/lib/validation/client";
 
 export async function GET(
   request: Request,
@@ -41,9 +42,17 @@ export async function PUT(
 
     const body = await request.json();
 
+    const parsed = clientPatchSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid request", details: parsed.error.flatten().fieldErrors },
+        { status: 400 },
+      );
+    }
+
     const patch: Record<string, unknown> = { updatedAt: new Date() };
-    for (const [k, v] of Object.entries(body)) {
-      if (v !== undefined && k !== "id") patch[k] = v;
+    for (const [k, v] of Object.entries(parsed.data)) {
+      if (v !== undefined) patch[k] = v;
     }
 
     db.update(clients).set(patch).where(eq(clients.id, id)).run();

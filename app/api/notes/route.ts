@@ -5,6 +5,13 @@ import { db } from "@/lib/db";
 import { activityEvents, clients } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import { z } from "zod";
+
+const notePostSchema = z.object({
+  clientId: z.string().uuid(),
+  text: z.string().min(1).max(2000),
+});
+const noteDeleteSchema = z.object({ noteId: z.string().uuid() });
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -12,11 +19,14 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { clientId, text } = body;
-
-    if (!clientId || !text) {
-      return NextResponse.json({ error: "clientId and text are required" }, { status: 400 });
+    const parsed = notePostSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid request", details: parsed.error.flatten().fieldErrors },
+        { status: 400 },
+      );
     }
+    const { clientId, text } = parsed.data;
 
     const client = db.select().from(clients).where(eq(clients.id, clientId)).get();
     if (!client) {
@@ -43,11 +53,14 @@ export async function DELETE(request: Request) {
 
   try {
     const body = await request.json();
-    const { noteId } = body;
-
-    if (!noteId) {
-      return NextResponse.json({ error: "noteId is required" }, { status: 400 });
+    const parsed = noteDeleteSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid request", details: parsed.error.flatten().fieldErrors },
+        { status: 400 },
+      );
     }
+    const { noteId } = parsed.data;
 
     db.delete(activityEvents).where(and(eq(activityEvents.id, noteId), eq(activityEvents.eventType, "note_added"))).run();
 

@@ -6,6 +6,12 @@ import { clients, clientTags, activityEvents } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
+
+const tagBodySchema = z.object({
+  clientId: z.string().uuid(),
+  tag: z.string().min(1).max(50),
+});
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -14,11 +20,14 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { clientId, tag } = body;
-
-    if (!clientId || !tag) {
-      return NextResponse.json({ error: "clientId and tag are required" }, { status: 400 });
+    const parsed = tagBodySchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid request", details: parsed.error.flatten().fieldErrors },
+        { status: 400 },
+      );
     }
+    const { clientId, tag } = parsed.data;
 
     const client = db.select().from(clients).where(eq(clients.id, clientId)).get();
     if (!client) {
@@ -57,11 +66,14 @@ export async function DELETE(request: Request) {
 
   try {
     const body = await request.json();
-    const { clientId, tag } = body;
-
-    if (!clientId || !tag) {
-      return NextResponse.json({ error: "clientId and tag are required" }, { status: 400 });
+    const parsed = tagBodySchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid request", details: parsed.error.flatten().fieldErrors },
+        { status: 400 },
+      );
     }
+    const { clientId, tag } = parsed.data;
 
     const client = db.select().from(clients).where(eq(clients.id, clientId)).get();
     if (!client) {

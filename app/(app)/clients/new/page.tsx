@@ -8,6 +8,7 @@ import { Topbar } from "@/components/topbar";
 import { ClientForm } from "@/components/client-form";
 import type { ClientFormData } from "@/components/client-form";
 import { MergeFromFormDialog } from "@/components/merge-client-dialog";
+import { validateClientForm } from "@/lib/validation/client";
 
 export default function AddClientPage() {
   const router = useRouter();
@@ -105,8 +106,9 @@ export default function AddClientPage() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.firstName.trim()) {
-      toast.error("First name is required");
+    const validationError = validateClientForm(formData);
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 

@@ -8,6 +8,7 @@ import { Edit3 } from "lucide-react";
 import { toast } from "sonner";
 import type { FullClient } from "@/components/client-provider";
 import { ClientForm, type ClientFormData } from "@/components/client-form";
+import { validateClientForm } from "@/lib/validation/client";
 
 interface EditClientDialogProps {
   client: FullClient;
@@ -84,6 +85,11 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
   };
 
   const handleSubmit = async () => {
+    const validationError = validateClientForm(formData);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
     setIsLoading(true);
     try {
       const response = await fetch("/api/clients", {

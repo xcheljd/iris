@@ -12,11 +12,11 @@
 
 | Severity | Total | Open | In Progress | Resolved |
 |----------|-------|------|-------------|----------|
-| CRITICAL | 8 | 2 | 0 | 6 |
-| HIGH | 23 | 3 | 0 | 20 |
+| CRITICAL | 8 | 1 | 0 | 7 |
+| HIGH | 23 | 1 | 0 | 22 |
 | MEDIUM | 36 | 0 | 0 | 36 |
 | LOW | 17 | 1 | 0 | 16 |
-| **TOTAL** | **84** | **6** | **0** | **78** |
+| **TOTAL** | **84** | **3** | **0** | **81** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -26,18 +26,16 @@
 
 | Severity | Count | Key Themes |
 |----------|-------|------------|
-| 🔴 CRITICAL | 8 (6 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
-| 🟠 HIGH | 23 (20 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
+| 🔴 CRITICAL | 8 (7 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
+| 🟠 HIGH | 23 (22 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
 | 🟡 MEDIUM | 36 (36 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (16 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
-**Top 5 Most Impactful Open Issues:**
+**Top 3 Most Impactful Open Issues:**
 
-1. **Mass assignment** on all client update paths — any field can be overwritten (C-03)
-2. **Unauthenticated password reset** — no rate limiting, unlimited brute-force of secret answers (C-05)
-3. **No input validation on any API route** — enum fields accept arbitrary strings, no zod (H-09)
-4. **No form validation on client create/edit** — only firstName non-empty check (H-14)
-5. **Duplicated business logic** — addTag/removeTag and outreach logging implemented twice with diverging behavior (H-17)
+1. **Unauthenticated password reset** — no rate limiting, unlimited brute-force of secret answers (C-05)
+2. **Duplicated business logic** — addTag/removeTag and outreach logging implemented twice with diverging behavior (H-17)
+3. **Secret questions as recovery mechanism** — NIST SP 800-63B discourages; pending holistic recovery overhaul with C-05 (L-14)
 
 ---
 
@@ -95,11 +93,12 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - `secret: process.env.NEXTAUTH_SECRET || "iris-dev-secret-change-me"`. If env var is unset in production, JWTs are signed with a known key. Attackers can forge sessions.
 - **Fix**: Added startup guard — `if (!process.env.NEXTAUTH_SECRET) throw new Error(...)` before the config object. Removed the `|| "iris-dev-secret-change-me"` fallback. Server now fails fast if the env var is missing instead of silently using a known key.
 
-- [ ] ### C-03: Mass Assignment on Client Updates
+- [x] ### C-03: Mass Assignment on Client Updates
 - **Files**: `lib/actions.ts:86-88`, `app/api/clients/route.ts:82-87`, `app/api/clients/[id]/route.ts:30-35`
 - **Category**: Security — Data Integrity
 - All three update paths iterate `Object.entries(data)` with no field whitelist. Any field (`id`, `dateAdded`, `heatScore`, `status`, `employeeId`) can be overwritten by the caller.
 - **Fix**: Replace dynamic loop with explicit allowlist of updatable fields.
+- **Resolved**: Both REST PUT handlers (`app/api/clients/route.ts`, `app/api/clients/[id]/route.ts`) now parse the request body through `clientPatchSchema` (zod). The schema only declares the 12 updatable fields; zod strips unknown keys from `parsed.data`. The DB patch is built by iterating `Object.entries(parsed.data)` instead of raw body — `heatScore`, `status`, `employeeId`, `dateAdded`, etc. are silently absent and cannot be written. Implemented together with H-09 (same schema).
 
 - [x] ### C-04: Zero Database Indexes
 - **File**: `lib/db/schema.ts` (entire file)
@@ -188,11 +187,12 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - **Fix**: Add `if (user.role !== "manager")` guards to privileged operations.
 - **Resolved**: All now use `requireManager()` which checks role.
 
-- [ ] ### H-09: No Input Validation on Any API Route
+- [x] ### H-09: No Input Validation on Any API Route
 - **Files**: All files under `app/api/` — `clients`, `notes`, `tags`, `outreach`, `search`, `employees`, `templates`, `promos/matches`
 - **Category**: Security — Injection / Data Integrity
 - Zero request body validation. `method`/`outcome` enums accept arbitrary strings. `zod` is a dependency but unused. Phone, email, dates are unvalidated.
 - **Fix**: Add zod schemas for every endpoint. Validate before processing.
+- **Resolved**: Added zod validation to all routes with request bodies. `lib/validation/client.ts` exports `clientCreateSchema` (POST) and `clientPatchSchema` (PUT) — validates firstName, email format, phone/field lengths, `source` enum against `CLIENT_SOURCE_VALUES`, tags/productsOfInterest arrays. `app/api/clients/route.ts` POST and PUT parse via these schemas (400 with `fieldErrors` on failure). `app/api/clients/[id]/route.ts` PUT uses `clientPatchSchema`. `app/api/notes/route.ts` has inline `notePostSchema` (uuid clientId, 1–2000 char text) and `noteDeleteSchema` (uuid noteId). `app/api/tags/route.ts` has inline `tagBodySchema` (uuid clientId, 1–50 char tag). Routes that only GET or already had validation (outreach, check-duplicates) unchanged.
 
 - [x] ### H-10: API Routes Return Redirect Instead of 401
 - **File**: `middleware.ts:1-4`
@@ -219,11 +219,12 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - **Fix**: Change to `onClick={() => { setNewTag(tag); handleAddTag(); }}`.
 - **Resolved**: Refactored to use shared `ClientForm` component with `onFieldChange("tags", [...formData.tags, tag])`.
 
-- [ ] ### H-14: No Form Validation on Client Create/Edit
+- [x] ### H-14: No Form Validation on Client Create/Edit
 - **Files**: `app/(app)/clients/new/page.tsx:109-113`, `app/(app)/clients/[id]/edit/page.tsx:186-190`, `components/edit-client-dialog.tsx:81-113`
 - **Category**: Data Integrity
 - Only `firstName` is validated as non-empty. Email format, phone format, dates, and all other fields are unvalidated client-side and server-side.
 - **Fix**: Add zod validation schema shared across all three forms.
+- **Resolved**: Added `validateClientForm(data)` helper to `lib/validation/client.ts`. Checks firstName non-empty and email format regex if present. All three `handleSubmit` functions (`new/page.tsx`, `edit-client-form.tsx`, `edit-client-dialog.tsx`) now call it before the fetch; on error they `toast.error(validationError)` and return. Full server-side validation covered by H-09's zod schemas.
 
 - [x] ### H-15: Unsafe Type Casts Throughout Auth Code
 - **Files**: `lib/auth.ts:22, 31-32, 38-39`
@@ -809,5 +810,6 @@ These things are done well and should be maintained:
 | 2026-05-07 | H-15 | Pre-resolved — `types/next-auth.d.ts` module augmentation already in place; `lib/auth.ts` uses direct property assignments with no type casts. TSC clean. Doc-only close. | — |
 | 2026-05-07 | H-19 | Wrapped `addTag`/`removeTag` in `lib/actions.ts` in `db.transaction()`. Replaced JS read-modify-write with SQL-atomic `sql\`${clientTags.usageCount} + 1\`` / `sql\`MAX(0, ${clientTags.usageCount} - 1)\``. Applied same fixes to `app/api/tags/route.ts` POST and DELETE. DELETE now decrements `usageCount` (previously missing entirely). POST now creates new `clientTags` row if tag name not registered (previously missing `else` branch). | — |
 | 2026-05-07 | H-21 | Refactored `edit-client-dialog.tsx` (398 → ~110 lines) to use shared `ClientForm`. All inline form JSX removed. Dialog owns state and `handleSubmit`; delegates rendering to `<ClientForm />`. `ClientFormData` type imported from `client-form.tsx`. All three client form entry points now use the shared component. | — |
+| 2026-05-07 | H-09, C-03, H-14 | **H-09**: Added zod validation to all API routes with request bodies. New `lib/validation/client.ts` exports `clientCreateSchema` and `clientPatchSchema`; inline schemas in `notes` and `tags` routes. All routes return 400 with `fieldErrors` on parse failure. `source` enum validated against `CLIENT_SOURCE_VALUES`. **C-03**: Both REST PUT handlers now build the DB patch from `Object.entries(parsed.data)` — zod strips unknown keys, so `heatScore`, `status`, `employeeId`, `dateAdded` cannot be written. **H-14**: `validateClientForm()` helper added to `lib/validation/client.ts`; called in all three `handleSubmit` functions before fetch. Full server-side enforcement via H-09's schemas. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.

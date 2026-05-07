@@ -6,6 +6,7 @@ import { clients, activityEvents } from "@/lib/db/schema";
 import { eq, desc, or, sql as rawSql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
+import { clientCreateSchema, clientPatchSchema } from "@/lib/validation/client";
 
 // GET /api/clients — list all clients
 export async function GET(request: Request) {
@@ -34,12 +35,20 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
+    const parsed = clientCreateSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid request", details: parsed.error.flatten().fieldErrors },
+        { status: 400 },
+      );
+    }
+    const data = parsed.data;
     const id = randomUUID();
 
     const existing = db.select().from(clients).where(
       or(
-        body.email ? eq(clients.email, body.email) : rawSql`0`,
-        body.phone ? eq(clients.phone, body.phone) : rawSql`0`,
+        data.email ? eq(clients.email, data.email) : rawSql`0`,
+        data.phone ? eq(clients.phone, data.phone) : rawSql`0`,
       )
     ).get();
 
@@ -49,18 +58,18 @@ export async function POST(request: Request) {
 
     db.insert(clients).values({
       id,
-      firstName: body.firstName,
-      lastName: body.lastName || null,
-      phone: body.phone || null,
-      email: body.email || null,
-      customerId: body.customerId || null,
-      productsOfInterest: body.productsOfInterest || [],
-      notes: body.notes || null,
-      onEmailList: body.onEmailList ?? false,
-      source: body.source || "Walk-in",
-      birthday: body.birthday || null,
-      anniversary: body.anniversary || null,
-      tags: body.tags || [],
+      firstName: data.firstName,
+      lastName: data.lastName ?? null,
+      phone: data.phone ?? null,
+      email: data.email ?? null,
+      customerId: data.customerId ?? null,
+      productsOfInterest: data.productsOfInterest,
+      notes: data.notes ?? null,
+      onEmailList: data.onEmailList,
+      source: data.source,
+      birthday: data.birthday ?? null,
+      anniversary: data.anniversary ?? null,
+      tags: data.tags,
     }).run();
 
     db.insert(activityEvents).values({
@@ -84,9 +93,9 @@ export async function PUT(request: Request) {
 
   try {
     const body = await request.json();
-    const { id, ...data } = body;
+    const { id, ...rest } = body;
 
-    if (!id) {
+    if (!id || typeof id !== "string") {
       return NextResponse.json({ error: "Client ID is required" }, { status: 400 });
     }
 
@@ -96,9 +105,17 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const parsed = clientPatchSchema.safeParse(rest);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid request", details: parsed.error.flatten().fieldErrors },
+        { status: 400 },
+      );
+    }
+
     const patch: Record<string, unknown> = { updatedAt: new Date() };
-    for (const [k, v] of Object.entries(data)) {
-      if (v !== undefined && k !== "id") patch[k] = v;
+    for (const [k, v] of Object.entries(parsed.data)) {
+      if (v !== undefined) patch[k] = v;
     }
 
     db.update(clients).set(patch).where(eq(clients.id, id)).run();
@@ -108,7 +125,7 @@ export async function PUT(request: Request) {
       clientId: id,
       eventType: "edited",
       description: `Profile updated`,
-      metadata: { fieldChanges: data },
+      metadata: { fieldChanges: parsed.data },
     }).run();
 
     revalidatePath(`/clients/${id}`);
