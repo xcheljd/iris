@@ -1,16 +1,29 @@
-import { describe, it, expect, afterAll, vi } from "vitest";
+import { describe, it, expect, afterAll, vi, beforeEach } from "vitest";
+
+vi.mock("next-auth", () => ({
+  getServerSession: vi.fn(),
+}));
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
   revalidateTag: vi.fn(),
 }));
 
+import { getServerSession } from "next-auth";
 import { GET, POST, PUT } from "@/app/api/clients/route";
 import { GET as GETById } from "@/app/api/clients/[id]/route";
 import { GET as GETDuplicates } from "@/app/api/clients/check-duplicates/route";
 import { db } from "@/lib/db";
 import { clients } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+
+const managerSession = {
+  user: { id: "e09564a0-2ef8-4470-a149-fc8fcf695636", name: "Marcus", role: "manager" },
+};
+
+beforeEach(() => {
+  vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+});
 
 // Track created test client IDs for cleanup
 const createdIds: string[] = [];
@@ -309,14 +322,14 @@ describe("GET /api/clients/check-duplicates", () => {
   });
 
   it("should find duplicate by first name", async () => {
-    // Use an existing seed client's first name
+    // Use an existing seed client's first and last name (route requires both)
     const allReq = new Request("http://localhost:3000/api/clients");
     const allRes = await GET(allReq);
     const allData = await allRes.json();
-    const firstName = allData[0].firstName;
+    const { firstName, lastName } = allData[0];
 
     const checkReq = new Request(
-      `http://localhost:3000/api/clients/check-duplicates?firstName=${encodeURIComponent(firstName)}`
+      `http://localhost:3000/api/clients/check-duplicates?firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName ?? "")}`
     );
     const checkRes = await GETDuplicates(checkReq);
     expect(checkRes.status).toBe(200);

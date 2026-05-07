@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { ClientSidebar } from "@/components/client-sidebar";
 import { ClientProvider } from "@/components/client-provider";
 import type { FullClient } from "@/components/client-provider";
@@ -50,7 +50,11 @@ const mockClient: FullClient = {
 };
 
 function renderWithProvider(ui: React.ReactNode) {
-  return render(<ClientProvider client={mockClient}>{ui}</ClientProvider>);
+  return render(
+    <TooltipProvider>
+      <ClientProvider client={mockClient}>{ui}</ClientProvider>
+    </TooltipProvider>
+  );
 }
 
 describe("ClientSidebar", () => {

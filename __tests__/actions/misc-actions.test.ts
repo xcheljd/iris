@@ -63,6 +63,7 @@ describe("Misc Actions", () => {
 
   describe("rescheduleFollowUp", () => {
     it("should update followUpDate on an outreach log", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
       const { revalidatePath } = await import("next/cache");
 
       // Find an existing outreach log

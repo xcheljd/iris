@@ -1,9 +1,28 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("next-auth", () => ({
+  getServerSession: vi.fn(),
+}));
+
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+  revalidateTag: vi.fn(),
+}));
+
+import { getServerSession } from "next-auth";
 import { POST, DELETE } from "@/app/api/notes/route";
 import { GET } from "@/app/api/clients/route";
 import { db } from "@/lib/db";
-import { activityEvents, clients } from "@/lib/db/schema";
+import { activityEvents } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
+
+const managerSession = {
+  user: { id: "e09564a0-2ef8-4470-a149-fc8fcf695636", name: "Marcus", role: "manager" },
+};
+
+beforeEach(() => {
+  vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+});
 
 describe("POST /api/notes", () => {
   it("should add a note to an existing client", async () => {
@@ -46,19 +65,19 @@ describe("POST /api/notes", () => {
     const res = await POST(req);
     expect(res.status).toBe(400);
     const data = await res.json();
-    expect(data.error).toBe("clientId and text are required");
+    expect(data.error).toBe("Invalid request");
   });
 
   it("should return 400 when text is missing", async () => {
     const req = new Request("http://localhost:3000/api/notes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clientId: "some-id" }),
+      body: JSON.stringify({ clientId: "00000000-0000-0000-0000-000000000001" }),
     });
     const res = await POST(req);
     expect(res.status).toBe(400);
     const data = await res.json();
-    expect(data.error).toBe("clientId and text are required");
+    expect(data.error).toBe("Invalid request");
   });
 
   it("should return 400 when both clientId and text are missing", async () => {
@@ -70,7 +89,7 @@ describe("POST /api/notes", () => {
     const res = await POST(req);
     expect(res.status).toBe(400);
     const data = await res.json();
-    expect(data.error).toBe("clientId and text are required");
+    expect(data.error).toBe("Invalid request");
   });
 
   it("should return 404 when client does not exist", async () => {
@@ -78,7 +97,7 @@ describe("POST /api/notes", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        clientId: "nonexistent-client-id",
+        clientId: "00000000-0000-0000-0000-000000000000",
         text: "Note for nobody",
       }),
     });
@@ -145,14 +164,14 @@ describe("DELETE /api/notes", () => {
     const res = await DELETE(req);
     expect(res.status).toBe(400);
     const data = await res.json();
-    expect(data.error).toBe("noteId is required");
+    expect(data.error).toBe("Invalid request");
   });
 
   it("should succeed even for non-existent noteId (idempotent delete)", async () => {
     const req = new Request("http://localhost:3000/api/notes", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ noteId: "nonexistent-note-id" }),
+      body: JSON.stringify({ noteId: "00000000-0000-0000-0000-000000000000" }),
     });
     const res = await DELETE(req);
     expect(res.status).toBe(200);

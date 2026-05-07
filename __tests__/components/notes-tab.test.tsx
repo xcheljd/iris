@@ -4,6 +4,11 @@ import userEvent from "@testing-library/user-event";
 import { NotesTab } from "@/components/notes-tab";
 import type { FullClient } from "@/components/client-provider";
 
+// Mock next/navigation
+vi.mock("next/navigation", () => ({
+  useRouter: vi.fn(() => ({ push: vi.fn(), refresh: vi.fn() })),
+}));
+
 // Mock date-fns
 vi.mock("date-fns", () => ({
   format: vi.fn((d) => "Jan 1, 2026 • 12:00 AM"),
@@ -39,16 +44,34 @@ function makeClient(overrides: Partial<FullClient> = {}): FullClient {
   };
 }
 
-const mockNotes = [
-  { content: "First note content", createdAt: "2026-01-01T10:00:00Z", author: "Marcus" },
-  { content: "Second note content", createdAt: "2026-01-02T14:00:00Z", author: "Alice" },
+const mockTimeline = [
+  {
+    id: "note-1",
+    clientId: "client-1",
+    eventType: "note_added" as const,
+    description: "First note content",
+    metadata: null,
+    employeeId: "emp-1",
+    employeeName: "Marcus",
+    createdAt: new Date("2026-01-01T10:00:00Z"),
+  },
+  {
+    id: "note-2",
+    clientId: "client-1",
+    eventType: "note_added" as const,
+    description: "Second note content",
+    metadata: null,
+    employeeId: "emp-2",
+    employeeName: "Alice",
+    createdAt: new Date("2026-01-02T14:00:00Z"),
+  },
 ];
 
 const clientWithNotes = makeClient({
   id: "client-1",
   firstName: "John",
   lastName: "Doe",
-  notes: JSON.stringify(mockNotes),
+  timeline: mockTimeline as any,
   updatedAt: "2026-01-02T14:00:00Z",
 });
 
@@ -119,7 +142,7 @@ describe("NotesTab", () => {
   it("shows singular note count for a single note", () => {
     const clientWithOneNote = makeClient({
       ...clientWithNotes,
-      notes: JSON.stringify([mockNotes[0]]),
+      timeline: [mockTimeline[0]] as any,
     });
     render(<NotesTab client={clientWithOneNote} />);
     expect(screen.getByText("1 note total")).toBeInTheDocument();

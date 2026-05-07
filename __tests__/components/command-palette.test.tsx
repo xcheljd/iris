@@ -4,6 +4,13 @@ import userEvent from "@testing-library/user-event";
 import { CommandPalette } from "@/components/command-palette";
 
 const mockPush = vi.fn();
+
+vi.mock("next-auth/react", () => ({
+  useSession: vi.fn(() => ({
+    data: { user: { id: "mgr", name: "Test Manager", role: "manager" } },
+  })),
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(() => ({ push: mockPush, refresh: vi.fn() })),
   usePathname: vi.fn(() => "/"),
@@ -62,7 +69,7 @@ describe("CommandPalette", () => {
   });
 
   it("renders the command palette component (initially closed)", () => {
-    const { container } = render(<CommandPalette />);
+    render(<CommandPalette />);
     // The dialog should not be visible initially
     expect(screen.queryByTestId("command-dialog")).not.toBeInTheDocument();
   });

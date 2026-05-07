@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, afterEach } from "vitest";
+import { vi, describe, it, expect, afterEach, beforeEach } from "vitest";
 
 vi.mock("next-auth", () => ({
   getServerSession: vi.fn(),
@@ -8,13 +8,21 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
+import { getServerSession } from "next-auth";
 import { importPromos, clearAllPromos, createPromo } from "@/lib/actions";
+
+const MANAGER_ID = "e09564a0-2ef8-4470-a149-fc8fcf695636";
+const managerSession = { user: { id: MANAGER_ID, name: "Marcus", role: "manager" } };
 import { db } from "@/lib/db";
 import { promoWatches, promoMatches } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
 describe("Promo Import Actions", () => {
   const createdPromoIds: string[] = [];
+
+  beforeEach(() => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+  });
 
   afterEach(() => {
     for (const id of createdPromoIds) {

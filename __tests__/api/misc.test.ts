@@ -1,7 +1,26 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("next-auth", () => ({
+  getServerSession: vi.fn(),
+}));
+
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+  revalidateTag: vi.fn(),
+}));
+
+import { getServerSession } from "next-auth";
 import { GET as GETEmployees } from "@/app/api/employees/route";
 import { GET as GETTemplates } from "@/app/api/templates/route";
 import { GET as GETPromoMatches } from "@/app/api/promos/matches/route";
+
+const managerSession = {
+  user: { id: "e09564a0-2ef8-4470-a149-fc8fcf695636", name: "Marcus", role: "manager" },
+};
+
+beforeEach(() => {
+  vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+});
 
 describe("GET /api/employees", () => {
   it("should return all employees as an array", async () => {

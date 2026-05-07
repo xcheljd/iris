@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { ProfileTab } from "@/components/profile-tab";
 import { TagsTab } from "@/components/tags-tab";
 import { OutreachHistoryTab } from "@/components/outreach-history-tab";
@@ -63,30 +64,30 @@ const baseClient: FullClient = {
 
 describe("ProfileTab", () => {
   it('renders "Contact Information" card title', () => {
-    render(<ProfileTab client={baseClient} />);
+    render(<TooltipProvider><ProfileTab client={baseClient} /></TooltipProvider>);
     expect(screen.getByText("Contact Information")).toBeInTheDocument();
   });
 
   it("shows phone and email", () => {
-    render(<ProfileTab client={baseClient} />);
+    render(<TooltipProvider><ProfileTab client={baseClient} /></TooltipProvider>);
     expect(screen.getByText("(555) 123-4567")).toBeInTheDocument();
     expect(screen.getByText("john@test.com")).toBeInTheDocument();
   });
 
   it("shows birthday when present", () => {
-    render(<ProfileTab client={baseClient} />);
+    render(<TooltipProvider><ProfileTab client={baseClient} /></TooltipProvider>);
     expect(screen.getByText("Birthday:")).toBeInTheDocument();
     expect(screen.getAllByText("Jan 1, 2026").length).toBeGreaterThanOrEqual(1);
   });
 
   it("shows status badge", () => {
-    render(<ProfileTab client={baseClient} />);
+    render(<TooltipProvider><ProfileTab client={baseClient} /></TooltipProvider>);
     expect(screen.getByText("active")).toBeInTheDocument();
   });
 
   it('shows "Not provided" when phone is null', () => {
     const noPhone = { ...baseClient, phone: null };
-    render(<ProfileTab client={noPhone} />);
+    render(<TooltipProvider><ProfileTab client={noPhone} /></TooltipProvider>);
     expect(screen.getByText("Not provided")).toBeInTheDocument();
   });
 });

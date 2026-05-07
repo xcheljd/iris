@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, afterEach } from "vitest";
+import { vi, describe, it, expect, afterEach, beforeEach } from "vitest";
 
 vi.mock("next-auth", () => ({
   getServerSession: vi.fn(),
@@ -22,6 +22,10 @@ const managerSession = {
 
 describe("Promo Actions", () => {
   const createdPromoIds: string[] = [];
+
+  beforeEach(() => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+  });
 
   afterEach(() => {
     // Clean up promo matches and watches created during tests
