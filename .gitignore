@@ -30,6 +30,7 @@ screenshots/
 # AI / Dev tools
 .factory/
 .playwright-mcp/
+.claude/*.lock
 
 # Misc
 *.log
