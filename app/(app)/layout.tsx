@@ -2,8 +2,14 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { CommandPalette, CommandPaletteProvider } from "@/components/command-palette";
 import { MobileNav } from "@/components/mobile-nav";
+import { BackupReminderDialog } from "@/components/backup-reminder-dialog";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const session = await getServerSession(authOptions);
+  const isManager = session?.user?.role === "manager";
+
   return (
     <SidebarProvider>
       <CommandPaletteProvider>
@@ -15,6 +21,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </SidebarInset>
         <CommandPalette />
         <MobileNav />
+        {isManager && <BackupReminderDialog />}
       </CommandPaletteProvider>
     </SidebarProvider>
   );

@@ -2,13 +2,14 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Users, Tag, FileText, Trash2, UserCircle } from "lucide-react";
+import { Users, Tag, FileText, Trash2, UserCircle, DatabaseBackup } from "lucide-react";
 import { Topbar } from "@/components/topbar";
 import { ProfileTab } from "./profile-tab";
 import { EmployeesTab } from "./employees-tab";
 import { SettingsTagsTab } from "./tags-tab";
 import { TemplatesTab } from "./templates-tab";
 import { DeletedTab } from "./deleted-tab";
+import { BackupTab } from "./backup-tab";
 import type { SafeEmployeeRow } from "@/lib/queries";
 import type { ClientTag } from "@/lib/db/schema";
 import type { OutreachTemplate } from "@/lib/db/schema";
@@ -50,6 +51,12 @@ export function SettingsContent({ employees, tags, templates, deletedClients, cu
                 Employees
               </TabsTrigger>
             )}
+            {isManager && (
+              <TabsTrigger value="backup" className="gap-1">
+                <DatabaseBackup className="h-4 w-4" />
+                Backup
+              </TabsTrigger>
+            )}
             <TabsTrigger value="tags" className="gap-1">
               <Tag className="h-4 w-4" />
               Tags
@@ -71,6 +78,12 @@ export function SettingsContent({ employees, tags, templates, deletedClients, cu
           {isManager && (
           <TabsContent value="employees">
             <EmployeesTab employees={employees} />
+          </TabsContent>
+          )}
+
+          {isManager && (
+          <TabsContent value="backup">
+            <BackupTab />
           </TabsContent>
           )}
 
