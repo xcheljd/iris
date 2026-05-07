@@ -3,7 +3,7 @@
 
 **Date:** April 23, 2026  
 **Last updated:** May 7, 2026  
-**Status:** Implementation tracking — 13 of 17 features shipped (all Tier 1 + Tier 2 complete)
+**Status:** Implementation tracking — 13 of 20 features shipped (all Tier 1 + Tier 2 complete; 3 new proposals added)
 
 ---
 
@@ -87,6 +87,50 @@ After researching the top retail clienteling platforms (BSPK, Endear, Tulip, Pro
 
 ---
 
+## ⚡ Tier 2 — Planned (V1.5)
+
+### 18. RVX Import + Prospect List
+**Source:** Kliger-Weiss Infosystems (RVX) retail management / POS system
+
+Import past customer reports from RVX to build a cold-outreach prospect pool separate from the active client list. Prospects are people with a known purchase history who haven't yet engaged with clienteling outreach.
+
+**Import flow (manager only):**
+- Upload RVX CSV report (fields: customer ID, first name, last name, phone, email, spend amount, date range)
+- Pre-import analysis runs comparisons against all existing lists and returns analytics badges:
+  - **New** — not found anywhere in the system
+  - **Already a client** — matched by customerId, email, or phone → skipped, surfaced as a count
+  - **Banned** — on the banned list → excluded
+  - **Unsubscribed** — on the unsubscribe list → excluded
+  - **Deleted** — soft-deleted from CRM → excluded
+  - **RVX duplicates** — duplicate rows within the import itself
+- **Export RVX duplicates button** — download a CSV (same columns as the original import) of within-import duplicate rows so manager can merge them in RVX before re-importing
+- For within-import dupes that aren't exported: stage the most complete record (most fields populated, or highest spend as tiebreaker)
+- **Import to Prospects button** — stages only the "new" rows; all other categories are excluded
+
+**Prospect list (`/prospects`):**
+- Separate table and page, fully isolated from client list, smart lists, heat scoring, and follow-up queues
+- Carries RVX-specific fields: `rvxCustomerId`, `rvxSpend` (historical total from the report period), `importBatchId`
+- Status: `active` → `graduated` / `unsubscribed` / `rejected`
+- Manager only can import; associates and managers can view and act on prospects
+
+**Graduation flow:**
+- Associate or manager triggers "Graduate to Client" from the prospect list row or prospect detail page
+- Dialog to enrich before graduating: add models of interest, notes, email/phone, birthday, anniversary
+- At confirm: re-runs duplicate check against live client list
+  - Clean → creates new client, carries over RVX fields
+  - Match found → offers field-by-field merge dialog (reuses existing merge UI)
+
+**Unsubscribe / reject:**
+- Marking a prospect unsubscribed adds them to the global unsubscribe list (same path as regular clients)
+- Reject removes them from active prospect view without affecting other lists
+
+**Notes:**
+- RVX format example to be provided before implementation begins — column mapping TBD
+- Address field available in RVX but omitted from initial import (adds schema weight without clear workflow benefit; revisit if mailing campaigns are added)
+- Existing-client enrichment from RVX data (e.g., updating `customerId` or spend on match) deferred to a future pass — see item 20
+
+---
+
 ## 🚀 Tier 3 — Future / V2
 
 ### 13. SMS Integration (Twilio)
@@ -137,6 +181,26 @@ Create curated product lookbooks with watch images + details that associates can
 
 ---
 
+### 18. Spend Tracking — Purchase History & Subtotals
+
+Two parts that should be built together:
+
+**Part A — Subtotal on outreach log:** When logging an outreach with `outcome = "purchase"`, add an optional `purchaseAmount` field. Small addition to the log outreach dialog; surfaces per-transaction spend on the client's activity timeline.
+
+**Part B — Historical spend import from RVX:** RVX reports include total spend over a date range. The RVX prospect import (item 18) already captures `rvxSpend` at the prospect level and carries it to the client record on graduation. Full transaction-level history (individual purchase dates + amounts) would require either a dedicated RVX report import or a separate `purchases` table. This is the larger scope item.
+
+**Why wait:** Part A is small but only useful once Part B gives it historical context. Part B needs a RVX transaction report format (separate from the customer report used in item 18) and schema design for a `purchases` table. Coordinate with item 18 implementation.
+
+---
+
+### 19. RVX Import — Enrich Existing Clients on Match
+
+Currently, when a RVX import row matches an existing client (by customerId, email, or phone), the row is skipped and surfaced as a count. A future pass could offer to enrich the matched client record with RVX data: update `customerId` if missing, merge `rvxSpend` into their spend history, fill in blank contact fields.
+
+**Why wait:** Skip + surface is the correct MVP behavior — enrichment requires per-field merge decisions and spend tracking infrastructure (item 19) to be meaningful. Revisit after item 18 is live and spend tracking is scoped.
+
+---
+
 ## Feature Priority Matrix
 
 | # | Feature | Status | Notes |
@@ -158,6 +222,9 @@ Create curated product lookbooks with watch images + details that associates can
 | 15 | Email Campaigns | 🔲 Not started | V2 |
 | 16 | AI Suggestions | 🔲 Not started | V2 |
 | 17 | Shoppable Lookbooks | 🔲 Not started | V2 |
+| 18 | RVX Import + Prospect List | 🔲 Not started | V1.5 — actively being planned; RVX report format TBD |
+| 19 | Spend Tracking | 🔲 Not started | V2 — coordinate with item 18 |
+| 20 | RVX Enrich Existing Clients | 🔲 Not started | V2 — depends on items 18 + 19 |
 
 ---
 
@@ -172,4 +239,4 @@ Create curated product lookbooks with watch images + details that associates can
 
 ---
 
-*Last reviewed May 7, 2026. 13 of 17 features fully shipped, 0 partially shipped, 4 deferred to V2.*
+*Last reviewed May 7, 2026. 13 of 20 features fully shipped, 0 partially shipped, 4 deferred to V2, 3 newly proposed (items 18–20).*
