@@ -1,7 +1,7 @@
 # Iris Code Audit — Findings Report
 
 **Date**: 2026-04-27  
-**Last updated**: 2026-05-07 (session 2)  
+**Last updated**: 2026-05-07 (session 3)  
 **Scope**: Full codebase (`app/`, `components/`, `lib/`, `middleware.ts`)  
 **Excluded**: `node_modules/`, `.next/`, `components/ui/` (shadcn primitives)  
 **Total Source**: ~18,600 lines across ~90 files  
@@ -13,10 +13,10 @@
 | Severity | Total | Open | In Progress | Resolved |
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 1 | 0 | 7 |
-| HIGH | 23 | 1 | 0 | 22 |
+| HIGH | 23 | 0 | 0 | 23 |
 | MEDIUM | 36 | 0 | 0 | 36 |
 | LOW | 17 | 1 | 0 | 16 |
-| **TOTAL** | **84** | **3** | **0** | **81** |
+| **TOTAL** | **84** | **2** | **0** | **82** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -27,15 +27,14 @@
 | Severity | Count | Key Themes |
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (7 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
-| 🟠 HIGH | 23 (22 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
+| 🟠 HIGH | 23 (23 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
 | 🟡 MEDIUM | 36 (36 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (16 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
-**Top 3 Most Impactful Open Issues:**
+**Top 2 Most Impactful Open Issues:**
 
 1. **Unauthenticated password reset** — no rate limiting, unlimited brute-force of secret answers (C-05)
-2. **Duplicated business logic** — addTag/removeTag and outreach logging implemented twice with diverging behavior (H-17)
-3. **Secret questions as recovery mechanism** — NIST SP 800-63B discourages; pending holistic recovery overhaul with C-05 (L-14)
+2. **Secret questions as recovery mechanism** — NIST SP 800-63B discourages; pending holistic recovery overhaul with C-05 (L-14)
 
 ---
 
@@ -239,12 +238,11 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - **Fix**: Define a proper notes schema as JSON array, or add runtime type guard.
 - **Resolved**: Refactored to filter `client.timeline` for `note_added` events instead.
 
-- [ ] ### H-17: Duplicated Business Logic — Server Actions vs API Routes
+- [x] ### H-17: Duplicated Business Logic — Server Actions vs API Routes
 - **Files**: `lib/actions.ts` vs `app/api/tags/route.ts`, `app/api/outreach/route.ts`
 - **Category**: Maintainability
 - `addTag`/`removeTag`, outreach logging, and heat recalculation are implemented twice — once as server actions, once as API routes — with diverging behavior.
-- **Fix**: Pick one pattern (server actions preferred). Remove duplicates.
-- **Cross-ref**: The heat-recalc duplicate (`recalcHeat` in `lib/actions.ts` vs the inline recalc in `app/api/outreach/route.ts:51-58`) was updated identically by **M-07** — both copies now use SQL `gte(outreach_logs.date, ninetyDaysAgo)` + project only `{ outcome, date }`. When consolidating, preserve that pattern; do not regress to `select().from(outreachLogs).all()` + JS `.filter()`.
+- **Fix**: Deleted `app/api/tags/route.ts` and `app/api/outreach/route.ts` entirely. Refactored `components/tags-tab.tsx` from fetch-based calls to direct `addTag`/`removeTag` server action invocations via `useTransition`. Deleted stale `__tests__/api/tags.test.ts` and `__tests__/api/outreach.test.ts` (both already failing due to post-H-09 zod error format change). Server actions are now the sole implementation path for tag mutations and outreach logging. The auth discrepancy (tags API was manager-only; server action is any-authenticated-user) was resolved in favor of the server action's policy — associates can now tag their own clients as intended. M-07's SQL recalcHeat pattern is preserved in the canonical `recalcHeat` server action.
 
 - [x] ### H-18: `removeUnsubscribe` Unconditionally Re-enables Email List
 - **File**: `lib/actions.ts:399`
@@ -811,5 +809,6 @@ These things are done well and should be maintained:
 | 2026-05-07 | H-19 | Wrapped `addTag`/`removeTag` in `lib/actions.ts` in `db.transaction()`. Replaced JS read-modify-write with SQL-atomic `sql\`${clientTags.usageCount} + 1\`` / `sql\`MAX(0, ${clientTags.usageCount} - 1)\``. Applied same fixes to `app/api/tags/route.ts` POST and DELETE. DELETE now decrements `usageCount` (previously missing entirely). POST now creates new `clientTags` row if tag name not registered (previously missing `else` branch). | — |
 | 2026-05-07 | H-21 | Refactored `edit-client-dialog.tsx` (398 → ~110 lines) to use shared `ClientForm`. All inline form JSX removed. Dialog owns state and `handleSubmit`; delegates rendering to `<ClientForm />`. `ClientFormData` type imported from `client-form.tsx`. All three client form entry points now use the shared component. | — |
 | 2026-05-07 | H-09, C-03, H-14 | **H-09**: Added zod validation to all API routes with request bodies. New `lib/validation/client.ts` exports `clientCreateSchema` and `clientPatchSchema`; inline schemas in `notes` and `tags` routes. All routes return 400 with `fieldErrors` on parse failure. `source` enum validated against `CLIENT_SOURCE_VALUES`. **C-03**: Both REST PUT handlers now build the DB patch from `Object.entries(parsed.data)` — zod strips unknown keys, so `heatScore`, `status`, `employeeId`, `dateAdded` cannot be written. **H-14**: `validateClientForm()` helper added to `lib/validation/client.ts`; called in all three `handleSubmit` functions before fetch. Full server-side enforcement via H-09's schemas. | — |
+| 2026-05-07 | H-17 | Deleted `app/api/tags/route.ts` and `app/api/outreach/route.ts`. Deleted stale `__tests__/api/tags.test.ts` and `__tests__/api/outreach.test.ts` (both already failing post-H-09 due to zod error format change). Refactored `components/tags-tab.tsx` to call `addTag`/`removeTag` server actions via `useTransition` instead of fetch. Server actions are now the sole implementation path for tag mutations and outreach logging. Auth discrepancy resolved in favor of server action policy (any authenticated user may tag — associates can tag their own clients). M-07's SQL recalcHeat pattern preserved in canonical `lib/actions.ts:recalcHeat`. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.

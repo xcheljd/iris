@@ -1,22 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  Plus, 
-  X, 
-  Tag, 
-  Hash, 
+import {
+  Plus,
+  X,
+  Tag,
+  Hash,
   Search,
   Palette,
   Users
 } from "lucide-react";
 import { toast } from "sonner";
+import { addTag, removeTag } from "@/lib/actions";
 import { EmptyState } from "@/components/empty-state";
 import { SUGGESTED_TAGS } from "@/lib/constants";
 import type { FullClient } from "@/components/client-provider";
@@ -26,68 +26,37 @@ interface TagsTabProps {
 }
 
 export function TagsTab({ client }: TagsTabProps) {
-  const router = useRouter();
   const [newTag, setNewTag] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [pending, startTransition] = useTransition();
 
-  const handleAddTag = async () => {
+  const handleAddTag = () => {
     if (!newTag.trim()) {
       toast.error("Tag cannot be empty");
       return;
     }
-
-    try {
-      const response = await fetch("/api/tags", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          clientId: client.id,
-          tag: newTag.trim(),
-        }),
-      });
-
-      if (response.ok) {
+    startTransition(async () => {
+      try {
+        await addTag(client.id, newTag.trim());
         setNewTag("");
         setIsAdding(false);
         toast.success("Tag added");
-        router.refresh();
-      } else {
+      } catch (_error) {
         toast.error("Failed to add tag");
       }
-    } catch (error) {
-      toast.error("Failed to add tag", {
-        description: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
+    });
   };
 
-  const handleRemoveTag = async (tag: string) => {
-    try {
-      const response = await fetch("/api/tags", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          clientId: client.id,
-          tag,
-        }),
-      });
-
-      if (response.ok) {
+  const handleRemoveTag = (tag: string) => {
+    startTransition(async () => {
+      try {
+        await removeTag(client.id, tag);
         toast.success("Tag removed");
-        router.refresh();
-      } else {
+      } catch (_error) {
         toast.error("Failed to remove tag");
       }
-    } catch (error) {
-      toast.error("Failed to remove tag", {
-        description: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
+    });
   };
 
   const availableTags = client.allTags?.map((tag) => tag.name) || [
@@ -159,6 +128,7 @@ export function TagsTab({ client }: TagsTabProps) {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleRemoveTag(tag)}
+                        disabled={pending}
                         className="h-8 w-8 text-destructive hover:text-destructive"
                         aria-label={`Remove tag ${tag}`}
                       >
@@ -233,7 +203,7 @@ export function TagsTab({ client }: TagsTabProps) {
               <Button variant="outline" onClick={() => setIsAdding(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleAddTag}>
+              <Button onClick={handleAddTag} disabled={pending}>
                 Add Tag
               </Button>
             </div>
@@ -267,7 +237,7 @@ export function TagsTab({ client }: TagsTabProps) {
                     variant="ghost"
                     size="sm"
                     onClick={() => setNewTag(tag)}
-                    disabled={clientTags.includes(tag)}
+                    disabled={pending || clientTags.includes(tag)}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
