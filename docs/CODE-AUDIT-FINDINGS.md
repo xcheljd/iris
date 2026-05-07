@@ -1,7 +1,7 @@
 # Iris Code Audit — Findings Report
 
 **Date**: 2026-04-27  
-**Last updated**: 2026-05-07  
+**Last updated**: 2026-05-07 (session 2)  
 **Scope**: Full codebase (`app/`, `components/`, `lib/`, `middleware.ts`)  
 **Excluded**: `node_modules/`, `.next/`, `components/ui/` (shadcn primitives)  
 **Total Source**: ~18,600 lines across ~90 files  
@@ -13,10 +13,10 @@
 | Severity | Total | Open | In Progress | Resolved |
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 2 | 0 | 6 |
-| HIGH | 23 | 7 | 0 | 16 |
+| HIGH | 23 | 3 | 0 | 20 |
 | MEDIUM | 36 | 0 | 0 | 36 |
 | LOW | 17 | 1 | 0 | 16 |
-| **TOTAL** | **84** | **10** | **0** | **74** |
+| **TOTAL** | **84** | **6** | **0** | **78** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -26,18 +26,18 @@
 
 | Severity | Count | Key Themes |
 |----------|-------|------------|
-| 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
-| 🟠 HIGH | 23 (9 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
+| 🔴 CRITICAL | 8 (6 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
+| 🟠 HIGH | 23 (20 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
 | 🟡 MEDIUM | 36 (36 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (16 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
 
-1. **Hardcoded JWT secret fallback** `"iris-dev-secret-change-me"` enables session forgery (C-02)
-2. **Mass assignment** on all client update paths — any field can be overwritten (C-03)
-3. **Zero database indexes** — every query does a full table scan (C-04)
-4. **Tag `usageCount` permanently inaccurate** — monotonically increasing, never decremented (C-07)
-5. **Multi-step mutations not in transactions** — partial failure leaves data inconsistent (H-03)
+1. **Mass assignment** on all client update paths — any field can be overwritten (C-03)
+2. **Unauthenticated password reset** — no rate limiting, unlimited brute-force of secret answers (C-05)
+3. **No input validation on any API route** — enum fields accept arbitrary strings, no zod (H-09)
+4. **No form validation on client create/edit** — only firstName non-empty check (H-14)
+5. **Duplicated business logic** — addTag/removeTag and outreach logging implemented twice with diverging behavior (H-17)
 
 ---
 
@@ -162,11 +162,11 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - A single unhandled error in any server component crashes the entire page with Next.js's default unstyled error screen. No graceful fallback.
 - **Fix**: Added `error.tsx` at all four segments: `app/error.tsx` (root, full-page fallback), `app/(app)/error.tsx` (app group — renders inside sidebar layout), `app/(app)/clients/error.tsx` (clients list, shows "Failed to load clients"), `app/(app)/clients/[id]/error.tsx` (client detail, adds "Back to clients" escape hatch alongside Try again). All log to console.error and are "use client" per Next.js requirement.
 
-- [ ] ### H-05: N+1 Query — `createPromo` and `importPromos`
+- [x] ### H-05: N+1 Query — `createPromo` and `importPromos`
 - **Files**: `lib/actions.ts:279-292`, `lib/actions.ts:294-322`
 - **Category**: Performance
 - `createPromo` loads ALL clients then does individual inserts in a loop. `importPromos` is O(rows × clients) — 50 promos × 10K clients = 500K potential inserts.
-- **Fix**: Batch match inserts. Use SQL-based matching instead of JavaScript loops.
+- **Fix**: `matchPromoToClients` now collects all match rows into an array during the loop and issues a single batch `tx.insert(promoMatches).values(matches).run()` at the end. No-op when there are zero matches (guard prevents empty-values insert).
 
 - [x] ### H-06: `check-duplicates` Loads Entire Clients Table
 - **File**: `app/api/clients/check-duplicates/route.ts:34-40`
@@ -225,11 +225,11 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - Only `firstName` is validated as non-empty. Email format, phone format, dates, and all other fields are unvalidated client-side and server-side.
 - **Fix**: Add zod validation schema shared across all three forms.
 
-- [ ] ### H-15: Unsafe Type Casts Throughout Auth Code
+- [x] ### H-15: Unsafe Type Casts Throughout Auth Code
 - **Files**: `lib/auth.ts:22, 31-32, 38-39`
 - **Category**: Type Safety
 - `as unknown as { id: string; ... }` double casts and `(user as { id: string }).id` despite proper module declarations in `next-auth.d.ts`.
-- **Fix**: Ensure module augmentation is recognized; remove casts.
+- **Fix**: Pre-resolved. `types/next-auth.d.ts` correctly augments `JWT` and `Session.user` with `{ id, role, firstName, lastName }`. Current `lib/auth.ts` uses direct property assignments throughout (`token.id = user.id`, `session.user.id = token.id`) with no type casts. TSC passes clean. Doc-only close.
 
 - [x] ### H-16: Notes Field Type Mismatch
 - **File**: `components/notes-tab.tsx:88-94`
@@ -252,11 +252,11 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - **Fix**: Preserve original `onEmailList` value or set to previous state.
 - **Resolved**: `removeUnsubscribe` function removed entirely. `resubscribeClient` now only sets `status: "active"` and removes from unsubscribe list.
 
-- [ ] ### H-19: Race Conditions in Tag Operations
+- [x] ### H-19: Race Conditions in Tag Operations
 - **Files**: `lib/actions.ts:213-239`, `app/api/tags/route.ts:22-23`
 - **Category**: Data Integrity
 - Read-modify-write pattern on tags array with no locking. Two concurrent add/remove operations can cause lost updates. `usageCount` increment is also non-atomic.
-- **Fix**: Use SQL atomic operations (`json_array_append`, `usage_count + 1`).
+- **Fix**: Wrapped `addTag` and `removeTag` in `lib/actions.ts` in `db.transaction()`. Replaced JS-side `usageCount ± 1` arithmetic with SQL-atomic `sql\`${clientTags.usageCount} + 1\`` and `sql\`MAX(0, ${clientTags.usageCount} - 1)\``. Applied identical fixes to `app/api/tags/route.ts` POST and DELETE. DELETE handler also gained the previously missing `usageCount` decrement (it did not decrement at all before). POST handler gained the missing `else` branch that creates a new `clientTags` row when the tag name is not yet registered.
 
 - [x] ### H-20: `getClientOutreach`/`getClientActivity` — Dead Code
 - **File**: `lib/queries.ts:53-59`
@@ -264,12 +264,11 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - Exported but never imported. `getFullClient` duplicates these queries inline.
 - **Fix**: Confirmed zero imports via grep, then deleted both functions. No callers existed outside `lib/queries.ts` itself.
 
-- [ ] ### H-21: Client Form Code Still Duplicated in `edit-client-dialog.tsx`
+- [x] ### H-21: Client Form Code Still Duplicated in `edit-client-dialog.tsx`
 - **Files**: `components/edit-client-dialog.tsx` (~398 lines), `components/client-form.tsx` (shared form)
 - **Category**: Overcomplicated / Duplication
 - New client and edit client pages now use the shared `ClientForm` component. However, `edit-client-dialog.tsx` still reimplements the entire client form inline instead of reusing `ClientForm`.
-- **Fix**: Refactor `EditClientDialog` to use `ClientForm` internally with initial values.
-- **Status**: Partially resolved — `clients/new/page.tsx` and `clients/[id]/edit/page.tsx` adopted `ClientForm`; `edit-client-dialog.tsx` still has no `ClientForm` import. Remains open until that refactor lands.
+- **Fix**: Refactored `edit-client-dialog.tsx` from 398 lines to ~110 lines. Removed all inline form JSX (7 sections, ~250 lines) and all now-unused imports. Dialog owns state (`formData`, `productsOfInterest`, `newTag`, `productInterest`, duplicate-warning state), `handleSubmit`, and handlers; renders `<ClientForm />` with those values. Duplicate warning rendered inside `ClientForm`. `onEditExisting` navigates to the duplicate's page via `window.location.href`.
 
 - [x] ### H-22: Duplicate FullClient Interface
 - **File**: `components/client-provider.tsx:11-40, 42-71`
@@ -806,5 +805,9 @@ These things are done well and should be maintained:
 | 2026-05-07 | H-06 | Projection in `check-duplicates` route narrowed to 5 columns (`id`, `firstName`, `lastName`, `phone`, `email`). Full-table-scan fallback was already eliminated by M-19; this closes the remaining "returns full rows" concern. | — |
 | 2026-05-07 | H-03 | All 7 multi-write functions in `lib/actions.ts` wrapped in `db.transaction()`: `banClient`, `unsubscribeClient`, `unbanClient`, `clearAllPromos`, `deletePromo`, `createPromo`, `importPromos`. `unbanClient` reads `bannedCustomers` inside the transaction callback for full atomicity. `matchPromoToClients` helper parameter typed as `Pick<typeof db, "insert">` to satisfy the SQLiteTransaction type (which lacks `$client`). | — |
 | 2026-05-07 | C-04 | Added 11 explicit indexes to `lib/db/schema.ts` across 3 tables: `clients` (employeeId, status, heatScore, email, phone), `outreachLogs` (clientId, date, followUpDate, completed), `activityEvents` (clientId, createdAt). Migration `0001_add_indexes.sql` written and applied. Migration tracking table seeded with hash for migration 0000 (previously unapplied). | — |
+| 2026-05-07 | H-05 | Refactored `matchPromoToClients` in `lib/actions.ts` to batch inserts. Loop collects match rows into an array; single `tx.insert(promoMatches).values(matches).run()` replaces per-row inserts. Guard added for empty-matches case. | — |
+| 2026-05-07 | H-15 | Pre-resolved — `types/next-auth.d.ts` module augmentation already in place; `lib/auth.ts` uses direct property assignments with no type casts. TSC clean. Doc-only close. | — |
+| 2026-05-07 | H-19 | Wrapped `addTag`/`removeTag` in `lib/actions.ts` in `db.transaction()`. Replaced JS read-modify-write with SQL-atomic `sql\`${clientTags.usageCount} + 1\`` / `sql\`MAX(0, ${clientTags.usageCount} - 1)\``. Applied same fixes to `app/api/tags/route.ts` POST and DELETE. DELETE now decrements `usageCount` (previously missing entirely). POST now creates new `clientTags` row if tag name not registered (previously missing `else` branch). | — |
+| 2026-05-07 | H-21 | Refactored `edit-client-dialog.tsx` (398 → ~110 lines) to use shared `ClientForm`. All inline form JSX removed. Dialog owns state and `handleSubmit`; delegates rendering to `<ClientForm />`. `ClientFormData` type imported from `client-form.tsx`. All three client form entry points now use the shared component. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.

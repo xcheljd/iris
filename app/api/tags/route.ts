@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { clients, clientTags, activityEvents } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 
@@ -26,20 +26,22 @@ export async function POST(request: Request) {
     }
 
     const tags = Array.from(new Set([...(client.tags || []), tag]));
-    db.update(clients).set({ tags, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
-
-    const existing = db.select().from(clientTags).where(eq(clientTags.name, tag)).get();
-    if (existing) {
-      db.update(clientTags).set({ usageCount: existing.usageCount + 1 }).where(eq(clientTags.id, existing.id)).run();
-    }
-
-    db.insert(activityEvents).values({
-      id: randomUUID(),
-      clientId,
-      eventType: "tag_added",
-      description: `Tag added: ${tag}`,
-      metadata: { tagName: tag },
-    }).run();
+    db.transaction((tx) => {
+      tx.update(clients).set({ tags, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+      const existing = tx.select().from(clientTags).where(eq(clientTags.name, tag)).get();
+      if (existing) {
+        tx.update(clientTags).set({ usageCount: sql`${clientTags.usageCount} + 1` }).where(eq(clientTags.id, existing.id)).run();
+      } else {
+        tx.insert(clientTags).values({ id: randomUUID(), name: tag, usageCount: 1 }).run();
+      }
+      tx.insert(activityEvents).values({
+        id: randomUUID(),
+        clientId,
+        eventType: "tag_added",
+        description: `Tag added: ${tag}`,
+        metadata: { tagName: tag },
+      }).run();
+    });
 
     revalidatePath(`/clients/${clientId}`);
     return NextResponse.json({ success: true });
@@ -67,15 +69,20 @@ export async function DELETE(request: Request) {
     }
 
     const tags = (client.tags || []).filter((t) => t !== tag);
-    db.update(clients).set({ tags, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
-
-    db.insert(activityEvents).values({
-      id: randomUUID(),
-      clientId,
-      eventType: "tag_removed",
-      description: `Tag removed: ${tag}`,
-      metadata: { tagName: tag },
-    }).run();
+    db.transaction((tx) => {
+      tx.update(clients).set({ tags, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+      const existing = tx.select().from(clientTags).where(eq(clientTags.name, tag)).get();
+      if (existing) {
+        tx.update(clientTags).set({ usageCount: sql`MAX(0, ${clientTags.usageCount} - 1)` }).where(eq(clientTags.id, existing.id)).run();
+      }
+      tx.insert(activityEvents).values({
+        id: randomUUID(),
+        clientId,
+        eventType: "tag_removed",
+        description: `Tag removed: ${tag}`,
+        metadata: { tagName: tag },
+      }).run();
+    });
 
     revalidatePath(`/clients/${clientId}`);
     return NextResponse.json({ success: true });

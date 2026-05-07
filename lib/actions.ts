@@ -156,16 +156,18 @@ export async function addTag(clientId: string, tag: string) {
   if (!c) return;
   if ((c.tags || []).includes(tag)) return;
   const tags = [...(c.tags || []), tag];
-  db.update(clients).set({ tags, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
-  const existing = db.select().from(clientTags).where(eq(clientTags.name, tag)).get();
-  if (existing) {
-    db.update(clientTags).set({ usageCount: existing.usageCount + 1 }).where(eq(clientTags.id, existing.id)).run();
-  } else {
-    db.insert(clientTags).values({ id: randomUUID(), name: tag, usageCount: 1 }).run();
-  }
-  db.insert(activityEvents).values({
-    id: randomUUID(), clientId, eventType: "tag_added", description: `Tag added: ${tag}`, employeeId: user.id, metadata: { tagName: tag },
-  }).run();
+  db.transaction((tx) => {
+    tx.update(clients).set({ tags, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+    const existing = tx.select().from(clientTags).where(eq(clientTags.name, tag)).get();
+    if (existing) {
+      tx.update(clientTags).set({ usageCount: sql`${clientTags.usageCount} + 1` }).where(eq(clientTags.id, existing.id)).run();
+    } else {
+      tx.insert(clientTags).values({ id: randomUUID(), name: tag, usageCount: 1 }).run();
+    }
+    tx.insert(activityEvents).values({
+      id: randomUUID(), clientId, eventType: "tag_added", description: `Tag added: ${tag}`, employeeId: user.id, metadata: { tagName: tag },
+    }).run();
+  });
   revalidatePath(`/clients/${clientId}`);
 }
 
@@ -175,14 +177,16 @@ export async function removeTag(clientId: string, tag: string) {
   if (!c) return;
   if (!(c.tags || []).includes(tag)) return;
   const tags = (c.tags || []).filter((t) => t !== tag);
-  db.update(clients).set({ tags, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
-  const existing = db.select().from(clientTags).where(eq(clientTags.name, tag)).get();
-  if (existing && existing.usageCount > 0) {
-    db.update(clientTags).set({ usageCount: existing.usageCount - 1 }).where(eq(clientTags.id, existing.id)).run();
-  }
-  db.insert(activityEvents).values({
-    id: randomUUID(), clientId, eventType: "tag_removed", description: `Tag removed: ${tag}`, employeeId: user.id, metadata: { tagName: tag },
-  }).run();
+  db.transaction((tx) => {
+    tx.update(clients).set({ tags, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+    const existing = tx.select().from(clientTags).where(eq(clientTags.name, tag)).get();
+    if (existing) {
+      tx.update(clientTags).set({ usageCount: sql`MAX(0, ${clientTags.usageCount} - 1)` }).where(eq(clientTags.id, existing.id)).run();
+    }
+    tx.insert(activityEvents).values({
+      id: randomUUID(), clientId, eventType: "tag_removed", description: `Tag removed: ${tag}`, employeeId: user.id, metadata: { tagName: tag },
+    }).run();
+  });
   revalidatePath(`/clients/${clientId}`);
 }
 
@@ -237,13 +241,17 @@ function matchPromoToClients(
 ) {
   const modelLower = modelNumber.toLowerCase();
   const collectionLower = collection.toLowerCase();
+  const matches: { id: string; clientId: string; promoId: string; matchType: "model" | "collection" }[] = [];
   for (const c of allClients) {
     const poi = c.productsOfInterest || [];
     if (poi.some((p) => p.toLowerCase() === modelLower)) {
-      tx.insert(promoMatches).values({ id: randomUUID(), clientId: c.id, promoId, matchType: "model" }).run();
+      matches.push({ id: randomUUID(), clientId: c.id, promoId, matchType: "model" });
     } else if (poi.some((p) => p.toLowerCase().includes(collectionLower))) {
-      tx.insert(promoMatches).values({ id: randomUUID(), clientId: c.id, promoId, matchType: "collection" }).run();
+      matches.push({ id: randomUUID(), clientId: c.id, promoId, matchType: "collection" });
     }
+  }
+  if (matches.length > 0) {
+    tx.insert(promoMatches).values(matches).run();
   }
 }
 
