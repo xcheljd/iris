@@ -124,9 +124,15 @@ Import past customer reports from RVX to build a cold-outreach prospect pool sep
 - Marking a prospect unsubscribed adds them to the global unsubscribe list (same path as regular clients)
 - Reject removes them from active prospect view without affecting other lists
 
-**Notes:**
-- RVX format example to be provided before implementation begins — column mapping TBD
-- Address field available in RVX but omitted from initial import (adds schema weight without clear workflow benefit; revisit if mailing campaigns are added)
+**RVX report format (confirmed from "Sales By Customer" export):**
+- Columns: `STORE #, CUST #, FIRST NAME, LAST NAME, ADDRESS, ADDRESS 2, CITY, STATE, ZIP, TELEPHONE, EMAIL ADDRESS, TOTAL SALES`
+- File structure: 3 header rows (report title, date range `FROM MM/DD/YY TO MM/DD/YY`, blank) → column header row → data rows → large block of trailing empty rows (all commas, must be skipped)
+- `STORE #` is a multi-store identifier (e.g., 125003, 125004, 125005 for different locations) — stored as `rvxStoreId` on the prospect record
+- `TELEPHONE` format is inconsistent within the file (dashes vs raw digits) — normalize to digits-only on import
+- `TOTAL SALES` is a decimal (`947.25`) — maps to `rvxSpend`
+- Date range in row 2 is parsed and stored as `reportStartDate` / `reportEndDate` on the import batch record
+- Address fields (ADDRESS, ADDRESS 2, CITY, STATE, ZIP) are available but omitted from initial import — revisit if mailing campaigns are added
+- Within-import duplicates are same person with different `CUST #` values (RVX-side data issue) — detected by name/email/phone match, same logic as client duplicate detection
 - Existing-client enrichment from RVX data (e.g., updating `customerId` or spend on match) deferred to a future pass — see item 20
 
 ---
