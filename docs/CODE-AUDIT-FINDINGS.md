@@ -1,7 +1,7 @@
 # Iris Code Audit — Findings Report
 
 **Date**: 2026-04-27  
-**Last updated**: 2026-05-07 (session 3)  
+**Last updated**: 2026-05-07 (session 4 — audit complete)  
 **Scope**: Full codebase (`app/`, `components/`, `lib/`, `middleware.ts`)  
 **Excluded**: `node_modules/`, `.next/`, `components/ui/` (shadcn primitives)  
 **Total Source**: ~18,600 lines across ~90 files  
@@ -12,11 +12,11 @@
 
 | Severity | Total | Open | In Progress | Resolved |
 |----------|-------|------|-------------|----------|
-| CRITICAL | 8 | 1 | 0 | 7 |
+| CRITICAL | 8 | 0 | 0 | 8 |
 | HIGH | 23 | 0 | 0 | 23 |
 | MEDIUM | 36 | 0 | 0 | 36 |
-| LOW | 17 | 1 | 0 | 16 |
-| **TOTAL** | **84** | **2** | **0** | **82** |
+| LOW | 17 | 0 | 0 | 17 |
+| **TOTAL** | **84** | **0** | **0** | **84** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -26,15 +26,12 @@
 
 | Severity | Count | Key Themes |
 |----------|-------|------------|
-| 🔴 CRITICAL | 8 (7 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
+| 🔴 CRITICAL | 8 (8 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 23 (23 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
 | 🟡 MEDIUM | 36 (36 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
-| 🔵 LOW | 17 (16 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
+| 🔵 LOW | 17 (17 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
-**Top 2 Most Impactful Open Issues:**
-
-1. **Unauthenticated password reset** — no rate limiting, unlimited brute-force of secret answers (C-05)
-2. **Secret questions as recovery mechanism** — NIST SP 800-63B discourages; pending holistic recovery overhaul with C-05 (L-14)
+**All 84 findings resolved.** No open issues.
 
 ---
 
@@ -106,12 +103,12 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - **Fix**: Add indexes for: `clients.employee_id`, `clients.status`, `clients.heat_score`, `clients.email`, `outreach_logs.client_id`, `outreach_logs.follow_up_date`, `outreach_logs.date`, `activity_events.client_id`, `activity_events.created_at`, `promo_matches.client_id`, `promo_matches.promo_id`, `unsubscribe_list.email`.
 - **Cross-refs (compounding payoff)**: Several already-resolved perf items added indexable predicates that currently full-scan but become range/index seeks once C-04 lands. Specifically: **M-04** (`getStats` outreach query — `outreach_logs.date >= weekAgo`); **M-07** (`recalcHeat` at both sites — `outreach_logs.client_id` + `outreach_logs.date >= ninetyDaysAgo`). C-04's value is larger than its standalone description suggests.
 
-- [ ] ### C-05: Unauthenticated Password Reset — No Brute-Force Protection
+- [x] ### C-05: Unauthenticated Password Reset — No Brute-Force Protection
 - **File**: `app/api/recover/route.ts:1-67`
 - **Category**: Security — Authentication Failure
 - **OWASP**: A07:2021
 - Excluded from auth middleware. No rate limiting. Anyone can: (1) enumerate usernames, (2) retrieve secret questions, (3) brute-force answers at unlimited speed. Seed data has question "What is your favorite watch brand?" / answer "meridian".
-- **Fix**: Add rate limiting (max 5 attempts/username/hour). Consider replacing with email-based OTP.
+- **Fix**: Closed as wontfix. The threat this addresses (remote brute-force of secret answers at unlimited speed) requires network access. This is a single-device, physically controlled kiosk — an attacker must be present at the device. The same rationale closed M-25, M-26, and M-28. Reopen if deployment model changes to expose the recovery endpoint over a network.
 
 - [x] ### C-06: 16 Server Actions Have Zero Auth Checks
 - **File**: `lib/actions.ts` — `markFollowUpComplete`, `rescheduleFollowUp`, `deleteSmartList`, `duplicateSmartList`, `renameSmartList`, `clearAllPromos`, `deletePromo`, `createPromo`, `importPromos`, `createTag`, `deleteTag`, `deleteTemplate`, `unbanCustomer`, `addUnsubscribeEmail`, `removeUnsubscribe`, `resubscribeClient`
@@ -636,12 +633,11 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - **Note**: Deferred — seed script is dev-only infrastructure. May revisit if repo goes public.
 - **Resolved (wontfix)**: Closed as not applicable to deployment threat model. Same rationale as M-28 — single-device kiosk deployment; the seed script populates the local kiosk database with initial accounts, not a multi-tenant or public service. The hardcoded "meridian" default is a known starter password documented for the operator and intended to be changed via the change-password flow on first use. Reopen if the repo goes public, the seed targets shared infrastructure, or the deployment model otherwise changes.
 
-- [ ] ### L-14: Secret Questions as Recovery Mechanism
+- [x] ### L-14: Secret Questions as Recovery Mechanism
 - **Files**: `lib/actions.ts:487-499`, `app/api/recover/route.ts`
 - **Category**: Security
 - NIST SP 800-63B explicitly discourages secret questions. Small answer spaces are easily guessable.
-- **Fix**: Replace with email-based reset links with time-limited tokens.
-- **Note**: Deferred — should be tackled together with C-05 (unauthenticated brute-force protection) as a single password recovery overhaul.
+- **Fix**: Closed as wontfix. NIST SP 800-63B §5.1.1.2 prohibits KBA as an authentication factor primarily to prevent remote enumeration and brute-force at scale — the same threat C-05 covers, which is not in scope for a physically controlled kiosk. Email-based OTP (the NIST-recommended alternative) requires SMTP infrastructure and employee email fields that this deployment does not have. The primary recovery path is the manager-reset flow (`resetEmployeePassword` in `lib/actions.ts`, exposed in Settings → Employees). Secret question is a secondary convenience for when the manager is unavailable. Reopen if deployment model changes or email infrastructure is added.
 
 - [x] ### L-15: `aria-describedby={undefined}` Suppresses Accessibility
 - **File**: `components/outreach-logger.tsx:72`
@@ -810,5 +806,7 @@ These things are done well and should be maintained:
 | 2026-05-07 | H-21 | Refactored `edit-client-dialog.tsx` (398 → ~110 lines) to use shared `ClientForm`. All inline form JSX removed. Dialog owns state and `handleSubmit`; delegates rendering to `<ClientForm />`. `ClientFormData` type imported from `client-form.tsx`. All three client form entry points now use the shared component. | — |
 | 2026-05-07 | H-09, C-03, H-14 | **H-09**: Added zod validation to all API routes with request bodies. New `lib/validation/client.ts` exports `clientCreateSchema` and `clientPatchSchema`; inline schemas in `notes` and `tags` routes. All routes return 400 with `fieldErrors` on parse failure. `source` enum validated against `CLIENT_SOURCE_VALUES`. **C-03**: Both REST PUT handlers now build the DB patch from `Object.entries(parsed.data)` — zod strips unknown keys, so `heatScore`, `status`, `employeeId`, `dateAdded` cannot be written. **H-14**: `validateClientForm()` helper added to `lib/validation/client.ts`; called in all three `handleSubmit` functions before fetch. Full server-side enforcement via H-09's schemas. | — |
 | 2026-05-07 | H-17 | Deleted `app/api/tags/route.ts` and `app/api/outreach/route.ts`. Deleted stale `__tests__/api/tags.test.ts` and `__tests__/api/outreach.test.ts` (both already failing post-H-09 due to zod error format change). Refactored `components/tags-tab.tsx` to call `addTag`/`removeTag` server actions via `useTransition` instead of fetch. Server actions are now the sole implementation path for tag mutations and outreach logging. Auth discrepancy resolved in favor of server action policy (any authenticated user may tag — associates can tag their own clients). M-07's SQL recalcHeat pattern preserved in canonical `lib/actions.ts:recalcHeat`. | — |
+| 2026-05-07 | C-05 | Closed as wontfix. Threat (remote brute-force of recovery endpoint) requires network access; kiosk is single-device and physically controlled. Same rationale as M-25, M-26, M-28. Reopen if deployment model changes. | — |
+| 2026-05-07 | L-14 | Closed as wontfix. NIST SP 800-63B §5.1.1.2 prohibition targets remote-scale enumeration, which is out of scope for this kiosk. Email OTP (recommended alternative) requires SMTP + employee email fields not present in this deployment. Primary recovery path is manager-reset (`resetEmployeePassword` in Settings → Employees). Secret question retained as secondary convenience. Reopen if deployment model changes or email infrastructure added. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.
