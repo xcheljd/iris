@@ -3,7 +3,7 @@
 
 **Date:** April 23, 2026  
 **Last updated:** May 7, 2026  
-**Status:** Implementation tracking — 13 of 20 features shipped (all Tier 1 + Tier 2 complete; 3 new proposals added)
+**Status:** Implementation tracking — 14 of 20 features shipped (all Tier 1 + Tier 2 complete; Feature 18 shipped)
 
 ---
 
@@ -87,9 +87,12 @@ After researching the top retail clienteling platforms (BSPK, Endear, Tulip, Pro
 
 ---
 
-## ⚡ Tier 2 — Planned (V1.5)
+## ⚡ Tier 2 — V1.5
 
-### 18. RVX Import + Prospect List
+### 18. RVX Import + Prospect List — ✅ SHIPPED
+**Implemented:** `app/(app)/prospects/`, `lib/rvx-parser.ts`, `lib/validation/rvx.ts`, schema tables `rvxImportBatches` + `prospects`, 6 server actions in `lib/actions.ts`, 4 queries in `lib/queries.ts`  
+**What's live:** Manager-only CSV import with 3-step dialog (upload → analysis badges → done). Analysis categorizes every row into New / Already a Client / Banned / Unsubscribed / Deleted / RVX Duplicates using batch-loaded sets (4 queries, not N). Within-import duplicates resolved to best record (most fields populated, highest spend as tiebreaker); duplicate rows exportable as CSV for RVX-side cleanup. `/prospects` page with tabbed Active/Graduated/Unsubscribed/Rejected views, name/phone/email search. Prospect detail page with RVX spend + report period. Graduate to Client flow: enrichment form → duplicate check → new client created or backfilled into existing client. Reject and Unsubscribe actions (unsubscribe writes to global unsubscribe list). Fully isolated from client list, heat scoring, follow-up queues, and smart lists.
+
 **Source:** Kliger-Weiss Infosystems (RVX) retail management / POS system
 
 Import past customer reports from RVX to build a cold-outreach prospect pool separate from the active client list. Prospects are people with a known purchase history who haven't yet engaged with clienteling outreach.
@@ -228,7 +231,7 @@ Currently, when a RVX import row matches an existing client (by customerId, emai
 | 15 | Email Campaigns | 🔲 Not started | V2 |
 | 16 | AI Suggestions | 🔲 Not started | V2 |
 | 17 | Shoppable Lookbooks | 🔲 Not started | V2 |
-| 18 | RVX Import + Prospect List | 🔲 Not started | V1.5 — actively being planned; RVX report format TBD |
+| 18 | RVX Import + Prospect List | ✅ Shipped | CSV import, analysis badges, duplicate export, graduate/reject/unsubscribe flows |
 | 19 | Spend Tracking | 🔲 Not started | V2 — coordinate with item 18 |
 | 20 | RVX Enrich Existing Clients | 🔲 Not started | V2 — depends on items 18 + 19 |
 
@@ -245,4 +248,4 @@ Currently, when a RVX import row matches an existing client (by customerId, emai
 
 ---
 
-*Last reviewed May 7, 2026. 13 of 20 features fully shipped, 0 partially shipped, 4 deferred to V2, 3 newly proposed (items 18–20).*
+*Last reviewed May 7, 2026. 14 of 20 features fully shipped, 0 partially shipped, 5 deferred to V2 (items 13–17, 19–20).*

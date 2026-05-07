@@ -4,7 +4,7 @@
 
 | Document | Description | Status |
 |----------|-------------|--------|
-| [FEATURE-PROPOSALS.md](FEATURE-PROPOSALS.md) | Feature backlog inspired by industry CRM research (BSPK, Endear, Tulip, etc.) | Tracking — 12/17 shipped |
+| [FEATURE-PROPOSALS.md](FEATURE-PROPOSALS.md) | Feature backlog inspired by industry CRM research (BSPK, Endear, Tulip, etc.) | Tracking — 14/20 shipped |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System architecture, data model, auth flow, and key design decisions | Reference |
 
 ## Archive
