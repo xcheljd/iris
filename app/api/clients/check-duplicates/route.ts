@@ -35,6 +35,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ duplicate: null });
   }
 
-  const match = db.select().from(clients).where(or(...conditions)).get();
+  const match = db.select({
+    id: clients.id,
+    firstName: clients.firstName,
+    lastName: clients.lastName,
+    phone: clients.phone,
+    email: clients.email,
+  }).from(clients).where(or(...conditions)).get();
   return NextResponse.json({ duplicate: match ?? null });
 }

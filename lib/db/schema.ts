@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, unique } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, unique, index } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const CLIENT_SOURCE_VALUES = ["Client Log", "Customer Report", "Walk-in", "Referral"] as const;
@@ -61,7 +61,13 @@ export const clients = sqliteTable("clients", {
   deletedAt: integer("deleted_at", { mode: "timestamp" }),
   deletedBy: text("deleted_by"),
   previousStatus: text("previous_status", { enum: ["active", "inactive", "banned", "unsubscribed"] }),
-});
+}, (table) => ({
+  clientsEmployeeIdIdx: index("clients_employee_id_idx").on(table.employeeId),
+  clientsStatusIdx: index("clients_status_idx").on(table.status),
+  clientsHeatScoreIdx: index("clients_heat_score_idx").on(table.heatScore),
+  clientsEmailIdx: index("clients_email_idx").on(table.email),
+  clientsPhoneIdx: index("clients_phone_idx").on(table.phone),
+}));
 
 export const outreachLogs = sqliteTable("outreach_logs", {
   id: text("id").primaryKey(),
@@ -75,7 +81,12 @@ export const outreachLogs = sqliteTable("outreach_logs", {
   followUpDate: integer("follow_up_date", { mode: "timestamp" }),
   templateId: text("template_id"),
   completed: integer("completed", { mode: "boolean" }).notNull().default(false),
-});
+}, (table) => ({
+  outreachLogsClientIdIdx: index("outreach_logs_client_id_idx").on(table.clientId),
+  outreachLogsDateIdx: index("outreach_logs_date_idx").on(table.date),
+  outreachLogsFollowUpDateIdx: index("outreach_logs_follow_up_date_idx").on(table.followUpDate),
+  outreachLogsCompletedIdx: index("outreach_logs_completed_idx").on(table.completed),
+}));
 
 export const smartLists = sqliteTable("smart_lists", {
   id: text("id").primaryKey(),
@@ -162,7 +173,10 @@ export const activityEvents = sqliteTable("activity_events", {
   metadata: text("metadata", { mode: "json" }).$type<Record<string, unknown>>(),
   employeeId: text("employee_id").references(() => employees.id),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-});
+}, (table) => ({
+  activityEventsClientIdIdx: index("activity_events_client_id_idx").on(table.clientId),
+  activityEventsCreatedAtIdx: index("activity_events_created_at_idx").on(table.createdAt),
+}));
 
 export const approvalRequests = sqliteTable("approval_requests", {
   id: text("id").primaryKey(),

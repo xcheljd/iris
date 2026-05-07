@@ -190,20 +190,22 @@ export async function banClient(clientId: string, category: "Reselling" | "Gift 
   const user = await requireManager();
   const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
   if (!c) return;
-  db.update(clients).set({ status: "banned", updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
-  db.insert(bannedCustomers).values({
-    id: randomUUID(),
-    customerId: clientId,
-    firstName: c.firstName,
-    lastName: c.lastName,
-    email: c.email,
-    phone: c.phone,
-    banReasonCategory: category,
-    specificBanReason: reason,
-  }).run();
-  db.insert(activityEvents).values({
-    id: randomUUID(), clientId, eventType: "status_changed", description: `Banned: ${category} — ${reason}`, metadata: { newStatus: "banned" }, employeeId: user.id,
-  }).run();
+  db.transaction((tx) => {
+    tx.update(clients).set({ status: "banned", updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+    tx.insert(bannedCustomers).values({
+      id: randomUUID(),
+      customerId: clientId,
+      firstName: c.firstName,
+      lastName: c.lastName,
+      email: c.email,
+      phone: c.phone,
+      banReasonCategory: category,
+      specificBanReason: reason,
+    }).run();
+    tx.insert(activityEvents).values({
+      id: randomUUID(), clientId, eventType: "status_changed", description: `Banned: ${category} — ${reason}`, metadata: { newStatus: "banned" }, employeeId: user.id,
+    }).run();
+  });
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/banned");
 }
@@ -212,19 +214,22 @@ export async function unsubscribeClient(clientId: string) {
   const user = await requireManager();
   const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
   if (!c) return;
-  db.update(clients).set({ status: "unsubscribed", onEmailList: false, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
-  if (c.email) {
-    const existing = db.select().from(unsubscribeList).where(eq(unsubscribeList.email, c.email)).get();
-    if (!existing) db.insert(unsubscribeList).values({ id: randomUUID(), email: c.email }).run();
-  }
-  db.insert(activityEvents).values({
-    id: randomUUID(), clientId, eventType: "status_changed", description: "Unsubscribed", metadata: { newStatus: "unsubscribed" }, employeeId: user.id,
-  }).run();
+  db.transaction((tx) => {
+    tx.update(clients).set({ status: "unsubscribed", onEmailList: false, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+    if (c.email) {
+      const existing = tx.select().from(unsubscribeList).where(eq(unsubscribeList.email, c.email)).get();
+      if (!existing) tx.insert(unsubscribeList).values({ id: randomUUID(), email: c.email }).run();
+    }
+    tx.insert(activityEvents).values({
+      id: randomUUID(), clientId, eventType: "status_changed", description: "Unsubscribed", metadata: { newStatus: "unsubscribed" }, employeeId: user.id,
+    }).run();
+  });
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/unsubscribed");
 }
 
 function matchPromoToClients(
+  tx: Pick<typeof db, "insert">,
   promoId: string,
   modelNumber: string,
   collection: string,
@@ -235,59 +240,67 @@ function matchPromoToClients(
   for (const c of allClients) {
     const poi = c.productsOfInterest || [];
     if (poi.some((p) => p.toLowerCase() === modelLower)) {
-      db.insert(promoMatches).values({ id: randomUUID(), clientId: c.id, promoId, matchType: "model" }).run();
+      tx.insert(promoMatches).values({ id: randomUUID(), clientId: c.id, promoId, matchType: "model" }).run();
     } else if (poi.some((p) => p.toLowerCase().includes(collectionLower))) {
-      db.insert(promoMatches).values({ id: randomUUID(), clientId: c.id, promoId, matchType: "collection" }).run();
+      tx.insert(promoMatches).values({ id: randomUUID(), clientId: c.id, promoId, matchType: "collection" }).run();
     }
   }
 }
 
 export async function createPromo(modelNumber: string, collection: string, msrp?: number | null, discountPercent?: number | null, discountPrice?: number | null) {
   await requireManager();
+  const all = db.select({ id: clients.id, productsOfInterest: clients.productsOfInterest }).from(clients).all();
   const id = randomUUID();
-  db.insert(promoWatches).values({ id, modelNumber, collection, msrp: msrp ?? null, discountPercent: discountPercent ?? null, discountPrice: discountPrice ?? null }).run();
-  const all = db.select().from(clients).all();
-  matchPromoToClients(id, modelNumber, collection, all);
+  db.transaction((tx) => {
+    tx.insert(promoWatches).values({ id, modelNumber, collection, msrp: msrp ?? null, discountPercent: discountPercent ?? null, discountPrice: discountPrice ?? null }).run();
+    matchPromoToClients(tx, id, modelNumber, collection, all);
+  });
   revalidatePath("/promos");
 }
 
 export async function importPromos(rows: { modelNumber: string; collection: string; msrp?: number | null; discountPercent?: number | null; discountPrice?: number | null }[], promoStart?: string | null, promoEnd?: string | null) {
   await requireManager();
-  const all = db.select().from(clients).all();
+  const all = db.select({ id: clients.id, productsOfInterest: clients.productsOfInterest }).from(clients).all();
   let imported = 0;
-  for (const row of rows) {
-    if (!row.modelNumber?.trim() || !row.collection?.trim()) continue;
-    const id = randomUUID();
-    const modelNumber = row.modelNumber.trim();
-    const collection = row.collection.trim();
-    db.insert(promoWatches).values({
-      id,
-      modelNumber,
-      collection,
-      msrp: row.msrp ?? null,
-      discountPercent: row.discountPercent ?? null,
-      discountPrice: row.discountPrice ?? null,
-      promoStart: promoStart ?? null,
-      promoEnd: promoEnd ?? null,
-    }).run();
-    matchPromoToClients(id, modelNumber, collection, all);
-    imported++;
-  }
+  db.transaction((tx) => {
+    for (const row of rows) {
+      if (!row.modelNumber?.trim() || !row.collection?.trim()) continue;
+      const id = randomUUID();
+      const modelNumber = row.modelNumber.trim();
+      const collection = row.collection.trim();
+      tx.insert(promoWatches).values({
+        id,
+        modelNumber,
+        collection,
+        msrp: row.msrp ?? null,
+        discountPercent: row.discountPercent ?? null,
+        discountPrice: row.discountPrice ?? null,
+        promoStart: promoStart ?? null,
+        promoEnd: promoEnd ?? null,
+      }).run();
+      matchPromoToClients(tx, id, modelNumber, collection, all);
+      imported++;
+    }
+  });
   revalidatePath("/promos");
   return { imported };
 }
 
 export async function clearAllPromos() {
   await requireManager();
-  db.delete(promoMatches).run();
-  db.delete(promoWatches).run();
+  db.transaction((tx) => {
+    tx.delete(promoMatches).run();
+    tx.delete(promoWatches).run();
+  });
   revalidatePath("/promos");
 }
 
 export async function deletePromo(id: string) {
   await requireManager();
-  db.delete(promoMatches).where(eq(promoMatches.promoId, id)).run();
-  db.delete(promoWatches).where(eq(promoWatches.id, id)).run();
+  db.transaction((tx) => {
+    tx.delete(promoMatches).where(eq(promoMatches.promoId, id)).run();
+    tx.delete(promoWatches).where(eq(promoWatches.id, id)).run();
+  });
   revalidatePath("/promos");
 }
 
@@ -319,14 +332,16 @@ export async function unbanClient(clientId: string) {
   await requireManager();
   const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
   if (!c || c.status !== "banned") return;
-  db.update(clients).set({ status: "active", updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
-  if (c.email) {
-    const row = db.select().from(bannedCustomers).where(eq(bannedCustomers.email, c.email)).get();
-    if (row) db.delete(bannedCustomers).where(eq(bannedCustomers.id, row.id)).run();
-  }
-  db.insert(activityEvents).values({
-    id: randomUUID(), clientId, eventType: "status_changed", description: "Unbanned", metadata: { newStatus: "active" }, employeeId: null,
-  }).run();
+  db.transaction((tx) => {
+    tx.update(clients).set({ status: "active", updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+    if (c.email) {
+      const row = tx.select().from(bannedCustomers).where(eq(bannedCustomers.email, c.email)).get();
+      if (row) tx.delete(bannedCustomers).where(eq(bannedCustomers.id, row.id)).run();
+    }
+    tx.insert(activityEvents).values({
+      id: randomUUID(), clientId, eventType: "status_changed", description: "Unbanned", metadata: { newStatus: "active" }, employeeId: null,
+    }).run();
+  });
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/banned");
 }

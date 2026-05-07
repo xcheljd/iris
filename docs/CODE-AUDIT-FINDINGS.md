@@ -1,7 +1,7 @@
 # Iris Code Audit — Findings Report
 
 **Date**: 2026-04-27  
-**Last updated**: 2026-05-06  
+**Last updated**: 2026-05-07  
 **Scope**: Full codebase (`app/`, `components/`, `lib/`, `middleware.ts`)  
 **Excluded**: `node_modules/`, `.next/`, `components/ui/` (shadcn primitives)  
 **Total Source**: ~18,600 lines across ~90 files  
@@ -12,11 +12,11 @@
 
 | Severity | Total | Open | In Progress | Resolved |
 |----------|-------|------|-------------|----------|
-| CRITICAL | 8 | 3 | 0 | 5 |
-| HIGH | 23 | 9 | 0 | 14 |
+| CRITICAL | 8 | 2 | 0 | 6 |
+| HIGH | 23 | 7 | 0 | 16 |
 | MEDIUM | 36 | 0 | 0 | 36 |
 | LOW | 17 | 1 | 0 | 16 |
-| **TOTAL** | **84** | **13** | **0** | **71** |
+| **TOTAL** | **84** | **10** | **0** | **74** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -101,7 +101,7 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - All three update paths iterate `Object.entries(data)` with no field whitelist. Any field (`id`, `dateAdded`, `heatScore`, `status`, `employeeId`) can be overwritten by the caller.
 - **Fix**: Replace dynamic loop with explicit allowlist of updatable fields.
 
-- [ ] ### C-04: Zero Database Indexes
+- [x] ### C-04: Zero Database Indexes
 - **File**: `lib/db/schema.ts` (entire file)
 - **Category**: Performance — Full Table Scans
 - 10 tables, zero explicit indexes. All queries on foreign keys, status fields, date columns, and searchable text perform full table scans. Performance will degrade severely as data grows.
@@ -150,11 +150,11 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - Deletes `activityEvents` by ID without verifying `eventType === "note_added"`. Any activity event (purchase, status change, ban) can be deleted, destroying audit trail.
 - **Fix**: Added `and` to drizzle-orm imports and tightened the DELETE WHERE to `and(eq(activityEvents.id, noteId), eq(activityEvents.eventType, "note_added"))`. Non-note events are now untouchable via this endpoint.
 
-- [ ] ### H-03: Multi-Step Mutations Not in Transactions
+- [x] ### H-03: Multi-Step Mutations Not in Transactions
 - **File**: `lib/actions.ts` — `banClient` (L241-261), `unsubscribeClient` (L263-277), `unbanCustomer` (L357-374), `clearAllPromos` (L324-328), `deletePromo` (L330-334), `createPromo` (L279-292), `importPromos` (L294-322)
 - **Category**: Data Integrity
 - Multiple writes across different tables with no transaction wrapping. A failure midway leaves data inconsistent (e.g., client marked "banned" but no banned record exists).
-- **Fix**: Wrap in `db.transaction()`.
+- **Fix**: Wrap in `db.transaction()`. All 7 functions wrapped. `unbanClient` moves the `bannedCustomers` lookup inside the transaction callback so the read and deletes are atomic. `matchPromoToClients` helper typed as `Pick<typeof db, "insert">` so it accepts the transaction object without `$client` mismatch.
 
 - [x] ### H-04: No Error Boundaries
 - **File**: `app/` directory — zero `error.tsx` files anywhere
@@ -168,11 +168,11 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - `createPromo` loads ALL clients then does individual inserts in a loop. `importPromos` is O(rows × clients) — 50 promos × 10K clients = 500K potential inserts.
 - **Fix**: Batch match inserts. Use SQL-based matching instead of JavaScript loops.
 
-- [ ] ### H-06: `check-duplicates` Loads Entire Clients Table
+- [x] ### H-06: `check-duplicates` Loads Entire Clients Table
 - **File**: `app/api/clients/check-duplicates/route.ts:34-40`
 - **Category**: Performance / OOM Risk
 - Falls back to `db.select().from(clients).all()` + JavaScript `.find()` for first-name matching. Returns full client records including all fields.
-- **Fix**: Use `WHERE lower(first_name) = ?` SQL query. Return only necessary fields.
+- **Fix**: Full-table-scan fallback was already gone by the time this fix landed (prior M-19 work replaced it with SQL `lower()` matching). Projection narrowed to 5 columns (`id`, `firstName`, `lastName`, `phone`, `email`) to avoid returning full client rows.
 
 - [x] ### H-07: 10 Server Actions Call `getSessionUser()` But Don't Check for Null
 - **File**: `lib/actions.ts` — `createClient`, `updateClient`, `transferClient`, `logOutreach`, `addTag`, `removeTag`, `banClient`, `unsubscribeClient`, `createTemplate`, `createSmartList`
@@ -803,5 +803,8 @@ These things are done well and should be maintained:
 | 2026-05-06 | C-02 | Added startup guard in `lib/auth.ts`: `if (!process.env.NEXTAUTH_SECRET) throw new Error(...)`. Removed `|| "iris-dev-secret-change-me"` fallback. Server now fails fast rather than silently using a known key. | — |
 | 2026-05-06 | C-07, C-08 | Fixed `addTag` and `removeTag` in `lib/actions.ts`. `addTag`: early return if tag already on client (prevents bogus usageCount increments); `else` branch now inserts new `clientTags` row with `usageCount: 1` when tag name not in registry. `removeTag`: early return if tag not on client; now fetches `clientTags` row and decrements `usageCount` when positive. | — |
 | 2026-05-06 | H-23 | Added ownership guard to both PUT handlers (`app/api/clients/[id]/route.ts`, `app/api/clients/route.ts`). Each now fetches the client first (404 if missing), then returns 403 if requester is not a manager and doesn't own the client. | — |
+| 2026-05-07 | H-06 | Projection in `check-duplicates` route narrowed to 5 columns (`id`, `firstName`, `lastName`, `phone`, `email`). Full-table-scan fallback was already eliminated by M-19; this closes the remaining "returns full rows" concern. | — |
+| 2026-05-07 | H-03 | All 7 multi-write functions in `lib/actions.ts` wrapped in `db.transaction()`: `banClient`, `unsubscribeClient`, `unbanClient`, `clearAllPromos`, `deletePromo`, `createPromo`, `importPromos`. `unbanClient` reads `bannedCustomers` inside the transaction callback for full atomicity. `matchPromoToClients` helper parameter typed as `Pick<typeof db, "insert">` to satisfy the SQLiteTransaction type (which lacks `$client`). | — |
+| 2026-05-07 | C-04 | Added 11 explicit indexes to `lib/db/schema.ts` across 3 tables: `clients` (employeeId, status, heatScore, email, phone), `outreachLogs` (clientId, date, followUpDate, completed), `activityEvents` (clientId, createdAt). Migration `0001_add_indexes.sql` written and applied. Migration tracking table seeded with hash for migration 0000 (previously unapplied). | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.
