@@ -93,6 +93,7 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
       
       case "outreach_logged": {
         const m = getMetadata("outreach_logged", event.metadata);
+        if (!m.method && !m.outcome) return event.description;
         return `${m.method ?? "outreach"} — ${(m.outcome ?? "logged").replace(/_/g, " ")}`;
       }
       

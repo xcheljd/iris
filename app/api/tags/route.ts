@@ -38,6 +38,7 @@ export async function POST(request: Request) {
       clientId,
       eventType: "tag_added",
       description: `Tag added: ${tag}`,
+      metadata: { tagName: tag },
     }).run();
 
     revalidatePath(`/clients/${clientId}`);
@@ -73,6 +74,7 @@ export async function DELETE(request: Request) {
       clientId,
       eventType: "tag_removed",
       description: `Tag removed: ${tag}`,
+      metadata: { tagName: tag },
     }).run();
 
     revalidatePath(`/clients/${clientId}`);

@@ -60,7 +60,7 @@ export async function logOutreach(data: OutreachInput) {
     eventType: parsed.outcome === "purchased" ? "purchase" : "outreach_logged",
     description: `${parsed.method} — ${parsed.outcome.replace(/_/g, " ")}${parsed.purchasedModel ? ` (${parsed.purchasedModel})` : ""}`,
     employeeId: user.id,
-    metadata: { method: parsed.method, outcome: parsed.outcome },
+    metadata: { method: parsed.method, outcome: parsed.outcome, ...(parsed.purchasedModel ? { purchasedModel: parsed.purchasedModel } : {}) },
   }).run();
   await recalcHeat(parsed.clientId);
   if (parsed.outcome === "purchased" && parsed.purchasedModel) {
@@ -161,7 +161,7 @@ export async function addTag(clientId: string, tag: string) {
     db.update(clientTags).set({ usageCount: existing.usageCount + 1 }).where(eq(clientTags.id, existing.id)).run();
   }
   db.insert(activityEvents).values({
-    id: randomUUID(), clientId, eventType: "tag_added", description: `Tag added: ${tag}`, employeeId: user.id,
+    id: randomUUID(), clientId, eventType: "tag_added", description: `Tag added: ${tag}`, employeeId: user.id, metadata: { tagName: tag },
   }).run();
   revalidatePath(`/clients/${clientId}`);
 }
@@ -173,7 +173,7 @@ export async function removeTag(clientId: string, tag: string) {
   const tags = (c.tags || []).filter((t) => t !== tag);
   db.update(clients).set({ tags, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
   db.insert(activityEvents).values({
-    id: randomUUID(), clientId, eventType: "tag_removed", description: `Tag removed: ${tag}`, employeeId: user.id,
+    id: randomUUID(), clientId, eventType: "tag_removed", description: `Tag removed: ${tag}`, employeeId: user.id, metadata: { tagName: tag },
   }).run();
   revalidatePath(`/clients/${clientId}`);
 }

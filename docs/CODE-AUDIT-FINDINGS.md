@@ -14,9 +14,9 @@
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
 | HIGH | 23 | 17 | 0 | 6 |
-| MEDIUM | 36 | 1 | 0 | 35 |
+| MEDIUM | 36 | 0 | 0 | 36 |
 | LOW | 17 | 1 | 0 | 16 |
-| **TOTAL** | **84** | **25** | **0** | **59** |
+| **TOTAL** | **84** | **24** | **0** | **60** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -28,7 +28,7 @@
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
 | 🟠 HIGH | 23 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
-| 🟡 MEDIUM | 36 (35 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
+| 🟡 MEDIUM | 36 (36 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (16 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
 **Top 5 Most Impactful Open Issues:**
@@ -538,11 +538,12 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - **Fix**: Extract a shared `HeatDistributionChart` component and use it in both tabs, or remove one if only one visualization is desired.
 - **Resolved**: Extracted `<HeatDistributionChart hot warm cold active />` to `components/heat-distribution-chart.tsx` — wraps the Overview tab's Recharts horizontal `BarChart` (the user-preferred visualization). Both tabs now render this single component: the Overview tab's inline chart was replaced; the Heat tab's stacked CSS bar was replaced. The Heat tab's per-category Progress bars and legend (a different breakdown view) are kept untouched. Recharts/chartConfig imports removed from the Overview tab.
 
-- [ ] ### M-35: Activity Timeline Reads Metadata Fields That Are Never Written
-- **Files**: `components/activity-timeline-tab.tsx:62-118` (reader), `lib/actions.ts` (writers)
+- [x] ### M-35: Activity Timeline Reads Metadata Fields That Are Never Written
+- **Files**: `components/activity-timeline-tab.tsx:62-118` (reader), `lib/actions.ts` (writers), `app/api/clients/route.ts`, `app/api/clients/[id]/route.ts`, `app/api/tags/route.ts`
 - **Category**: Silent UI Bug
 - 6 of 8 `formatEventDescription` switch cases read metadata fields that no writer in the codebase actually produces (`purchasedModel`, `tagName`, `newEmployeeName`, `notePreview`, `sourceClientId`, `fieldChanges`). UI silently falls back to default placeholder strings ("Product", "Tag", "another associate", etc.) for these event types. Discovered during M-18 verification.
 - **Fix**: Audit each writer/reader pair. Either (a) populate the missing metadata keys at write time (e.g., `purchase` event should record `purchasedModel`; `transferred` should record new employee name), or (b) revise the formatter to read what's actually written.
+- **Resolved**: Investigated all 8 writer/reader pairs. `note_added` was already correctly written (audit overstated count). `transferred` and `merged` have no feature implementation at all — being built out in Phase B/C. Fixed the 4 real metadata gaps: `purchase` writer now includes `purchasedModel`; both `edited` writers (`app/api/clients/route.ts` PUT and `app/api/clients/[id]/route.ts` PUT) now include `fieldChanges`; both `tag_added` writers now include `tagName`; both `tag_removed` writers now include `tagName`. Fixed `outreach_logged` reader to fall through to `event.description` when both `method` and `outcome` are absent (guards against old events written before M-35).
 
 - [x] ### M-36: Settings Page Over-Fetches Employees for Associates
 - **Files**: `app/(app)/settings/page.tsx:18`, `lib/queries.ts` (added `getEmployee(id)` helper)
@@ -800,5 +801,6 @@ These things are done well and should be maintained:
 | 2026-05-03 | M-31 | Replaced fake `KeyboardEvent` dispatch in `Topbar` with `CommandPaletteProvider` + `useCommandPalette()` hook. Layout wraps the app; topbar button calls `setOpen(true)`. Cmd/Ctrl+K still works (listener inside palette toggles via context). | — |
 | 2026-05-03 | M-33 | Split `ClientProvider`: removed `ActiveTabContext`/`useActiveTab` and the internal `useState`. Tab state now local to `<ClientDetailTabs>`. Tests updated (4 of 7 remaining; the 3 activeTab tests removed since the hook is gone). | — |
 | 2026-05-03 | M-34 | Extracted `<HeatDistributionChart>` (Recharts horizontal BarChart) to `components/heat-distribution-chart.tsx`. Used in both Overview tab (replaces inline chart) and Heat tab (replaces CSS stacked bar). Heat tab's per-category progress bars + legend kept (different breakdown view). | — |
+| 2026-05-06 | M-35 | Wired the 4 real metadata gaps. `purchase` event in `lib/actions.ts` now includes `purchasedModel`. Both `edited` writers (`app/api/clients/route.ts` PUT, `app/api/clients/[id]/route.ts` PUT) now include `fieldChanges`. Both `tag_added` writers (`lib/actions.ts:addTag`, `app/api/tags/route.ts` POST) now include `tagName`. Both `tag_removed` writers now include `tagName`. `outreach_logged` reader falls through to `event.description` when both fields absent (guards pre-fix events). `note_added` was already correctly written (audit count overstated). `transferred`/`merged` are unimplemented features being built in Phase B/C. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.
