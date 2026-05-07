@@ -2,8 +2,8 @@
 ## Inspired by Industry CRM Research (BSPK, Endear, Tulip, Proximity Insight, Salesforce Retail Cloud)
 
 **Date:** April 23, 2026  
-**Last updated:** April 27, 2026  
-**Status:** Implementation tracking — 13 of 17 features shipped
+**Last updated:** May 7, 2026  
+**Status:** Implementation tracking — 13 of 17 features shipped (all Tier 1 + Tier 2 complete)
 
 ---
 
@@ -31,10 +31,9 @@ After researching the top retail clienteling platforms (BSPK, Endear, Tulip, Pro
 
 ---
 
-### 4. Duplicate Detection & Merge Tool — ⚠️ PARTIALLY SHIPPED
-**Implemented:** `app/api/clients/check-duplicates/`  
-**What's live:** Real-time duplicate checking on client create/edit (name + phone/email matching). Warning shown before save.  
-**Not yet built:** Side-by-side merge UI, merge history log, bulk duplicate scanner. The `/api/clients/merge` route is called from 3 places but does not exist (see CODE-AUDIT-FINDINGS.md H-01).
+### 4. Duplicate Detection & Merge Tool — ✅ SHIPPED
+**Implemented:** `app/api/clients/check-duplicates/`, `components/merge-client-dialog.tsx`, `components/merge-from-form-dialog.tsx`, server action `mergeClients` in `lib/actions.ts`  
+**What's live:** Real-time duplicate checking on client create/edit (name + phone/email matching). Warning shown before save. Full field-by-field merge UI: two-step flow — debounced search → resolution panel (pick winner per field) → confirm. All FK references (outreach logs, activity events, promo matches) migrated to winner before hard-deleting loser. Merge accessible from client detail actions menu (manager-only) and from the new client form duplicate warning. Merge event recorded on activity timeline.
 
 ---
 
@@ -145,7 +144,7 @@ Create curated product lookbooks with watch images + details that associates can
 | 1 | Smart Lists | ✅ Shipped | Full CRUD + pre-built filters |
 | 2 | Follow-Up Reminders | ✅ Shipped | Tabbed view, complete/reschedule |
 | 3 | Customer Tags | ✅ Shipped | Color-coded, autocomplete, filterable |
-| 4 | Duplicate Detection | ⚠️ Partial | Real-time check only; no merge UI |
+| 4 | Duplicate Detection | ✅ Shipped | Real-time check + full field-by-field merge UI |
 | 5 | Employee Analytics | ✅ Shipped | Per-employee metrics + charts |
 | 6 | Command Palette | ✅ Shipped | Ctrl+K, client search, navigation |
 | 7 | Birthday Tracking | ✅ Shipped | Date fields, dashboard widget, smart list |
@@ -173,4 +172,4 @@ Create curated product lookbooks with watch images + details that associates can
 
 ---
 
-*Last reviewed April 27, 2026. 12 of 17 features fully shipped, 1 partially shipped, 4 deferred to V2.*
+*Last reviewed May 7, 2026. 13 of 17 features fully shipped, 0 partially shipped, 4 deferred to V2.*
