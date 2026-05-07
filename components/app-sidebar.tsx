@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Users, Phone, ListFilter, Tag, BarChart3, Ban, MailX, Settings, LogOut, Watch, KeyRound, ShieldCheck } from "lucide-react";
+import { Home, Users, Phone, ListFilter, Tag, BarChart3, Ban, MailX, Settings, LogOut, Watch, KeyRound, ShieldCheck, UserSearch } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton, useSidebar } from "@/components/ui/sidebar";
 import { IrisIcon } from "@/components/iris-icon";
@@ -20,6 +20,7 @@ const baseNav = [
   ]},
   { section: "Clients", items: [
     { href: "/clients", label: "Client List", icon: Users },
+    { href: "/prospects", label: "Prospects", icon: UserSearch },
     { href: "/follow-ups", label: "Follow-Ups", icon: Phone },
     { href: "/smart-lists", label: "Smart Lists", icon: ListFilter },
   ]},

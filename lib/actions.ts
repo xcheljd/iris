@@ -1,6 +1,8 @@
 "use server";
 import { db } from "@/lib/db";
-import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bannedCustomers, unsubscribeList, clientTags, outreachTemplates, employees, smartLists, approvalRequests } from "@/lib/db/schema";
+import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bannedCustomers, unsubscribeList, clientTags, outreachTemplates, employees, smartLists, approvalRequests, rvxImportBatches, prospects } from "@/lib/db/schema";
+import { parseRvxCsv, findWithinImportDuplicates, selectBestRecord, serializeDuplicatesToCsv, type RvxRawRow } from "@/lib/rvx-parser";
+import { graduateProspectSchema, type GraduateProspectInput } from "@/lib/validation/rvx";
 import { eq, desc, sql, gte, and, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
@@ -849,4 +851,356 @@ export async function setSecretQuestion(question: string, answer: string) {
     .where(eq(employees.id, user.id))
     .run();
   return { success: true as const };
+}
+
+// ─── RVX Import ───────────────────────────────────────────────────────────────
+
+export interface RvxAnalysisResult {
+  newCount: number;
+  alreadyClientCount: number;
+  bannedCount: number;
+  unsubscribedCount: number;
+  deletedCount: number;
+  duplicateCount: number;
+  duplicateCsv: string;
+  readyToImport: RvxRawRow[];
+  reportStartDate: Date;
+  reportEndDate: Date;
+  parseErrors: string[];
+}
+
+async function categorizeRvxRows(rows: RvxRawRow[]): Promise<{
+  newRows: RvxRawRow[];
+  alreadyClientCount: number;
+  bannedCount: number;
+  unsubscribedCount: number;
+  deletedCount: number;
+}> {
+  // Batch-load all comparison sets (4 queries total)
+  const allBanned = db.select({ email: bannedCustomers.email, phone: bannedCustomers.phone }).from(bannedCustomers).all();
+  const bannedEmails = new Set(allBanned.map((r) => r.email?.toLowerCase()).filter(Boolean) as string[]);
+  const bannedPhones = new Set(allBanned.map((r) => r.phone?.replace(/\D/g, "")).filter(Boolean) as string[]);
+
+  const allUnsub = db.select({ email: unsubscribeList.email }).from(unsubscribeList).all();
+  const unsubEmails = new Set(allUnsub.map((r) => r.email.toLowerCase()));
+
+  const allClients = db
+    .select({ email: clients.email, phone: clients.phone, deletedAt: clients.deletedAt })
+    .from(clients)
+    .all();
+  const activeClientEmails = new Set<string>();
+  const activeClientPhones = new Set<string>();
+  const deletedClientEmails = new Set<string>();
+  const deletedClientPhones = new Set<string>();
+  for (const c of allClients) {
+    if (c.deletedAt) {
+      if (c.email) deletedClientEmails.add(c.email.toLowerCase());
+      if (c.phone) deletedClientPhones.add(c.phone.replace(/\D/g, ""));
+    } else {
+      if (c.email) activeClientEmails.add(c.email.toLowerCase());
+      if (c.phone) activeClientPhones.add(c.phone.replace(/\D/g, ""));
+    }
+  }
+
+  const newRows: RvxRawRow[] = [];
+  let alreadyClientCount = 0;
+  let bannedCount = 0;
+  let unsubscribedCount = 0;
+  let deletedCount = 0;
+
+  for (const row of rows) {
+    const email = row.email?.toLowerCase() ?? null;
+    const phone = row.phone ?? null;
+
+    if (email && bannedEmails.has(email) || phone && bannedPhones.has(phone)) {
+      bannedCount++;
+    } else if (email && unsubEmails.has(email)) {
+      unsubscribedCount++;
+    } else if (
+      (email && deletedClientEmails.has(email)) ||
+      (phone && deletedClientPhones.has(phone))
+    ) {
+      deletedCount++;
+    } else if (
+      (email && activeClientEmails.has(email)) ||
+      (phone && activeClientPhones.has(phone))
+    ) {
+      alreadyClientCount++;
+    } else {
+      newRows.push(row);
+    }
+  }
+
+  return { newRows, alreadyClientCount, bannedCount, unsubscribedCount, deletedCount };
+}
+
+export async function analyzeRvxImport(csvText: string): Promise<RvxAnalysisResult> {
+  await requireManager();
+
+  const { rows, reportStartDate, reportEndDate, parseErrors } = parseRvxCsv(csvText);
+
+  const dupeGroups = findWithinImportDuplicates(rows);
+  const dupeRows: RvxRawRow[] = [];
+  const deduped: RvxRawRow[] = [];
+
+  for (const row of rows) {
+    const key = [
+      row.firstName.toLowerCase(),
+      row.lastName?.toLowerCase() ?? "",
+      row.phone ?? "",
+      row.email?.toLowerCase() ?? "",
+    ].join("|");
+    const group = dupeGroups.get(key);
+    if (group) {
+      if (!dupeRows.includes(row)) dupeRows.push(...group);
+      if (!deduped.some((r) => r === selectBestRecord(group))) {
+        deduped.push(selectBestRecord(group));
+      }
+    } else {
+      deduped.push(row);
+    }
+  }
+
+  const { newRows, alreadyClientCount, bannedCount, unsubscribedCount, deletedCount } =
+    await categorizeRvxRows(deduped);
+
+  return {
+    newCount: newRows.length,
+    alreadyClientCount,
+    bannedCount,
+    unsubscribedCount,
+    deletedCount,
+    duplicateCount: dupeRows.length,
+    duplicateCsv: serializeDuplicatesToCsv(dupeRows),
+    readyToImport: newRows,
+    reportStartDate,
+    reportEndDate,
+    parseErrors,
+  };
+}
+
+export async function importProspectsFromRvx(
+  csvText: string,
+): Promise<{ importedCount: number }> {
+  const user = await requireManager();
+
+  const { rows, reportStartDate, reportEndDate } = parseRvxCsv(csvText);
+
+  const dupeGroups = findWithinImportDuplicates(rows);
+  const deduped: RvxRawRow[] = [];
+  const seen = new Set<RvxRawRow>();
+
+  for (const row of rows) {
+    const key = [
+      row.firstName.toLowerCase(),
+      row.lastName?.toLowerCase() ?? "",
+      row.phone ?? "",
+      row.email?.toLowerCase() ?? "",
+    ].join("|");
+    const group = dupeGroups.get(key);
+    if (group) {
+      const best = selectBestRecord(group);
+      if (!seen.has(best)) {
+        seen.add(best);
+        deduped.push(best);
+      }
+    } else {
+      deduped.push(row);
+    }
+  }
+
+  const { newRows } = await categorizeRvxRows(deduped);
+
+  const batchId = randomUUID();
+
+  db.transaction(() => {
+    db.insert(rvxImportBatches).values({
+      id: batchId,
+      reportStartDate,
+      reportEndDate,
+      totalRows: rows.length,
+      importedCount: newRows.length,
+      importedBy: user.id,
+    }).run();
+
+    for (const row of newRows) {
+      db.insert(prospects).values({
+        id: randomUUID(),
+        rvxCustomerId: row.customerId,
+        rvxStoreId: row.storeId,
+        rvxSpend: row.spend,
+        importBatchId: batchId,
+        firstName: row.firstName,
+        lastName: row.lastName,
+        phone: row.phone,
+        email: row.email,
+        productsOfInterest: [],
+      }).run();
+    }
+  });
+
+  revalidatePath("/prospects");
+  return { importedCount: newRows.length };
+}
+
+export async function graduateProspect(input: GraduateProspectInput): Promise<
+  | { type: "created"; clientId: string }
+  | { type: "duplicate"; existingClientId: string; existingClientName: string }
+> {
+  const user = await requireAuth();
+  const parsed = graduateProspectSchema.parse(input);
+
+  const prospect = db.select().from(prospects).where(eq(prospects.id, parsed.prospectId)).get();
+  if (!prospect) throw new Error("Prospect not found");
+  if (prospect.status !== "active") throw new Error("Prospect is not active");
+
+  // Duplicate check against live clients
+  const allClients = db
+    .select({ id: clients.id, firstName: clients.firstName, lastName: clients.lastName, email: clients.email, phone: clients.phone, deletedAt: clients.deletedAt })
+    .from(clients)
+    .all();
+
+  const email = parsed.email?.toLowerCase() ?? null;
+  const phone = parsed.phone ?? null;
+
+  const match = allClients.find(
+    (c) =>
+      c.deletedAt === null &&
+      ((email && c.email?.toLowerCase() === email) ||
+        (phone && c.phone?.replace(/\D/g, "") === phone?.replace(/\D/g, ""))),
+  );
+
+  if (match) {
+    return {
+      type: "duplicate",
+      existingClientId: match.id,
+      existingClientName: [match.firstName, match.lastName].filter(Boolean).join(" "),
+    };
+  }
+
+  const newClientId = randomUUID();
+
+  db.transaction(() => {
+    db.insert(clients).values({
+      id: newClientId,
+      firstName: parsed.firstName,
+      lastName: parsed.lastName ?? null,
+      phone: parsed.phone ?? null,
+      email: parsed.email ?? null,
+      birthday: parsed.birthday ?? null,
+      anniversary: parsed.anniversary ?? null,
+      notes: parsed.notes ?? null,
+      productsOfInterest: parsed.productsOfInterest,
+      source: "Customer Report",
+      customerId: prospect.rvxCustomerId,
+      employeeId: user.role === "associate" ? user.id : undefined,
+    }).run();
+
+    db.update(prospects)
+      .set({ status: "graduated", graduatedToClientId: newClientId, updatedAt: new Date() })
+      .where(eq(prospects.id, parsed.prospectId))
+      .run();
+
+    db.insert(activityEvents).values({
+      id: randomUUID(),
+      clientId: newClientId,
+      eventType: "created",
+      description: "Client created from prospect graduation",
+      employeeId: user.id,
+      metadata: { source: "prospect_graduation", prospectId: parsed.prospectId },
+    }).run();
+  });
+
+  revalidatePath("/prospects");
+  revalidatePath("/clients");
+  return { type: "created", clientId: newClientId };
+}
+
+export async function graduateProspectIntoExistingClient(
+  prospectId: string,
+  existingClientId: string,
+  enrichment: Partial<GraduateProspectInput>,
+): Promise<void> {
+  const user = await requireAuth();
+
+  const prospect = db.select().from(prospects).where(eq(prospects.id, prospectId)).get();
+  if (!prospect) throw new Error("Prospect not found");
+
+  const existing = db.select().from(clients).where(eq(clients.id, existingClientId)).get();
+  if (!existing) throw new Error("Client not found");
+
+  // Only backfill fields that are currently null/empty on the existing client
+  const patch: Partial<typeof clients.$inferInsert> = { updatedAt: new Date() };
+  if (!existing.phone && enrichment.phone) patch.phone = enrichment.phone;
+  if (!existing.email && enrichment.email) patch.email = enrichment.email;
+  if (!existing.birthday && enrichment.birthday) patch.birthday = enrichment.birthday;
+  if (!existing.anniversary && enrichment.anniversary) patch.anniversary = enrichment.anniversary;
+  if (!existing.notes && enrichment.notes) patch.notes = enrichment.notes;
+  if (!existing.customerId && prospect.rvxCustomerId) patch.customerId = prospect.rvxCustomerId;
+  if (
+    (!existing.productsOfInterest || existing.productsOfInterest.length === 0) &&
+    enrichment.productsOfInterest?.length
+  ) {
+    patch.productsOfInterest = enrichment.productsOfInterest;
+  }
+
+  db.transaction(() => {
+    db.update(clients).set(patch).where(eq(clients.id, existingClientId)).run();
+
+    db.update(prospects)
+      .set({ status: "graduated", graduatedToClientId: existingClientId, updatedAt: new Date() })
+      .where(eq(prospects.id, prospectId))
+      .run();
+
+    db.insert(activityEvents).values({
+      id: randomUUID(),
+      clientId: existingClientId,
+      eventType: "created",
+      description: "Prospect graduated into this client record",
+      employeeId: user.id,
+      metadata: { source: "prospect_graduation", prospectId },
+    }).run();
+  });
+
+  revalidatePath("/prospects");
+  revalidatePath(`/clients/${existingClientId}`);
+}
+
+export async function rejectProspect(prospectId: string): Promise<void> {
+  await requireAuth();
+  db.update(prospects)
+    .set({ status: "rejected", updatedAt: new Date() })
+    .where(eq(prospects.id, prospectId))
+    .run();
+  revalidatePath("/prospects");
+}
+
+export async function unsubscribeProspect(prospectId: string): Promise<void> {
+  await requireAuth();
+
+  const prospect = db.select().from(prospects).where(eq(prospects.id, prospectId)).get();
+  if (!prospect) throw new Error("Prospect not found");
+
+  db.transaction(() => {
+    db.update(prospects)
+      .set({ status: "unsubscribed", updatedAt: new Date() })
+      .where(eq(prospects.id, prospectId))
+      .run();
+
+    if (prospect.email) {
+      const alreadyUnsub = db
+        .select({ id: unsubscribeList.id })
+        .from(unsubscribeList)
+        .where(eq(unsubscribeList.email, prospect.email))
+        .get();
+      if (!alreadyUnsub) {
+        db.insert(unsubscribeList).values({
+          id: randomUUID(),
+          email: prospect.email,
+        }).run();
+      }
+    }
+  });
+
+  revalidatePath("/prospects");
 }

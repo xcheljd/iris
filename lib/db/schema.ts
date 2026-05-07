@@ -191,6 +191,43 @@ export const approvalRequests = sqliteTable("approval_requests", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
+export const rvxImportBatches = sqliteTable("rvx_import_batches", {
+  id: text("id").primaryKey(),
+  reportStartDate: integer("report_start_date", { mode: "timestamp" }).notNull(),
+  reportEndDate: integer("report_end_date", { mode: "timestamp" }).notNull(),
+  totalRows: integer("total_rows").notNull(),
+  importedCount: integer("imported_count").notNull(),
+  importedBy: text("imported_by").notNull().references(() => employees.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+}, (t) => ({
+  importedByIdx: index("rvx_import_batches_imported_by_idx").on(t.importedBy),
+}));
+
+export const prospects = sqliteTable("prospects", {
+  id: text("id").primaryKey(),
+  rvxCustomerId: text("rvx_customer_id").notNull(),
+  rvxStoreId: text("rvx_store_id").notNull(),
+  rvxSpend: real("rvx_spend"),
+  importBatchId: text("import_batch_id").notNull().references(() => rvxImportBatches.id),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name"),
+  phone: text("phone"),
+  email: text("email"),
+  status: text("status", { enum: ["active", "graduated", "unsubscribed", "rejected"] }).notNull().default("active"),
+  productsOfInterest: text("products_of_interest", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
+  notes: text("notes"),
+  birthday: text("birthday"),
+  anniversary: text("anniversary"),
+  graduatedToClientId: text("graduated_to_client_id").references(() => clients.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+}, (t) => ({
+  prospectsBatchIdx: index("prospects_import_batch_id_idx").on(t.importBatchId),
+  prospectsStatusIdx: index("prospects_status_idx").on(t.status),
+  prospectsEmailIdx: index("prospects_email_idx").on(t.email),
+  prospectsPhoneIdx: index("prospects_phone_idx").on(t.phone),
+}));
+
 export type Client = typeof clients.$inferSelect;
 export type NewClient = typeof clients.$inferInsert;
 export type Employee = typeof employees.$inferSelect;
@@ -203,3 +240,5 @@ export type ClientTag = typeof clientTags.$inferSelect;
 export type OutreachTemplate = typeof outreachTemplates.$inferSelect;
 export type SmartList = typeof smartLists.$inferSelect;
 export type ApprovalRequest = typeof approvalRequests.$inferSelect;
+export type RvxImportBatch = typeof rvxImportBatches.$inferSelect;
+export type Prospect = typeof prospects.$inferSelect;

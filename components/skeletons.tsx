@@ -365,3 +365,38 @@ export function SettingsSkeleton() {
     </div>
   );
 }
+
+export function ProspectsSkeleton() {
+  return (
+    <div className="flex-1 p-4 md:p-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-9 w-40" />
+        <Skeleton className="h-9 w-32" />
+      </div>
+      <div className="flex gap-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-8 w-24" />
+        ))}
+      </div>
+      <TableSkeleton rows={8} cols={5} />
+    </div>
+  );
+}
+
+export function ProspectDetailSkeleton() {
+  return (
+    <div className="flex-1 p-4 md:p-6 space-y-4">
+      <Skeleton className="h-9 w-48" />
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex gap-4">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-4 w-48" />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

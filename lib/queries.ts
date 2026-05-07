@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bannedCustomers, unsubscribeList, employees, clientTags, outreachTemplates, smartLists } from "@/lib/db/schema";
+import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bannedCustomers, unsubscribeList, employees, clientTags, outreachTemplates, smartLists, rvxImportBatches, prospects } from "@/lib/db/schema";
 import { eq, desc, and, or, isNotNull, lte, gte, notInArray, sql as rawSql } from "drizzle-orm";
 import { applyClientFilter } from "@/lib/utils";
 import { MS_PER_DAY } from "@/lib/constants";
@@ -257,3 +257,62 @@ export async function getRecentActivity(limit = 30, employeeId?: string) {
 }
 
 export { applyClientFilter };
+
+// ─── Prospects ────────────────────────────────────────────────────────────────
+
+export async function getProspects(status: "active" | "graduated" | "unsubscribed" | "rejected" = "active") {
+  return db
+    .select({
+      id: prospects.id,
+      rvxCustomerId: prospects.rvxCustomerId,
+      rvxStoreId: prospects.rvxStoreId,
+      rvxSpend: prospects.rvxSpend,
+      firstName: prospects.firstName,
+      lastName: prospects.lastName,
+      phone: prospects.phone,
+      email: prospects.email,
+      status: prospects.status,
+      productsOfInterest: prospects.productsOfInterest,
+      notes: prospects.notes,
+      birthday: prospects.birthday,
+      anniversary: prospects.anniversary,
+      importBatchId: prospects.importBatchId,
+      createdAt: prospects.createdAt,
+    })
+    .from(prospects)
+    .where(eq(prospects.status, status))
+    .orderBy(desc(prospects.createdAt))
+    .all();
+}
+
+export type ProspectListRow = Awaited<ReturnType<typeof getProspects>>[number];
+
+export async function getProspect(id: string) {
+  return db.select().from(prospects).where(eq(prospects.id, id)).get();
+}
+
+export async function getProspectWithBatch(id: string) {
+  return db
+    .select({
+      prospect: prospects,
+      batchStart: rvxImportBatches.reportStartDate,
+      batchEnd: rvxImportBatches.reportEndDate,
+      importedBy: rvxImportBatches.importedBy,
+    })
+    .from(prospects)
+    .leftJoin(rvxImportBatches, eq(prospects.importBatchId, rvxImportBatches.id))
+    .where(eq(prospects.id, id))
+    .get();
+}
+
+export async function getImportBatches() {
+  return db
+    .select({
+      batch: rvxImportBatches,
+      importedByName: rawSql<string>`COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, '')`,
+    })
+    .from(rvxImportBatches)
+    .leftJoin(employees, eq(rvxImportBatches.importedBy, employees.id))
+    .orderBy(desc(rvxImportBatches.createdAt))
+    .all();
+}
