@@ -1,7 +1,7 @@
 # Iris Code Audit — Findings Report
 
 **Date**: 2026-04-27  
-**Last updated**: 2026-04-30  
+**Last updated**: 2026-05-06  
 **Scope**: Full codebase (`app/`, `components/`, `lib/`, `middleware.ts`)  
 **Excluded**: `node_modules/`, `.next/`, `components/ui/` (shadcn primitives)  
 **Total Source**: ~18,600 lines across ~90 files  
@@ -13,10 +13,10 @@
 | Severity | Total | Open | In Progress | Resolved |
 |----------|-------|------|-------------|----------|
 | CRITICAL | 8 | 6 | 0 | 2 |
-| HIGH | 23 | 17 | 0 | 6 |
+| HIGH | 23 | 14 | 0 | 9 |
 | MEDIUM | 36 | 0 | 0 | 36 |
 | LOW | 17 | 1 | 0 | 16 |
-| **TOTAL** | **84** | **24** | **0** | **60** |
+| **TOTAL** | **84** | **21** | **0** | **63** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -27,7 +27,7 @@
 | Severity | Count | Key Themes |
 |----------|-------|------------|
 | 🔴 CRITICAL | 8 (2 resolved) | Auth bypass, mass assignment, missing DB indexes, tag corruption |
-| 🟠 HIGH | 23 (6 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
+| 🟠 HIGH | 23 (9 resolved) | Phantom API routes, no error boundaries, missing validation, duplicated logic |
 | 🟡 MEDIUM | 36 (36 resolved) | Duplicated code, missing transactions, memory leaks, unbounded queries, new UI findings |
 | 🔵 LOW | 17 (16 resolved) | Deprecated APIs, hardcoded configs, index-based keys, debug leftovers, new low findings |
 
@@ -36,8 +36,8 @@
 1. **Hardcoded JWT secret fallback** `"iris-dev-secret-change-me"` enables session forgery (C-02)
 2. **Mass assignment** on all client update paths — any field can be overwritten (C-03)
 3. **Zero database indexes** — every query does a full table scan (C-04)
-4. **`/api/clients/merge` called from 3 places but does not exist** — runtime 404 (H-01)
-5. **Tag `usageCount` permanently inaccurate** — monotonically increasing, never decremented (C-07)
+4. **Tag `usageCount` permanently inaccurate** — monotonically increasing, never decremented (C-07)
+5. **Multi-step mutations not in transactions** — partial failure leaves data inconsistent (H-03)
 
 ---
 
@@ -138,11 +138,11 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 
 ## 🟠 HIGH
 
-- [ ] ### H-01: Phantom API Route — `/api/clients/merge` Does Not Exist
+- [x] ### H-01: Phantom API Route — `/api/clients/merge` Does Not Exist
 - **Files**: `components/edit-client-dialog.tsx:120`, `app/(app)/clients/[id]/edit/page.tsx:228`, `app/(app)/clients/new/page.tsx:152`
 - **Category**: Runtime Bug
 - Three files call `fetch("/api/clients/merge", ...)` but no `app/api/clients/merge/route.ts` exists. All merge/duplicate operations will 404 at runtime.
-- **Fix**: Create the merge route handler, or remove the fetch calls.
+- **Fix**: Implemented merge via server actions instead of a REST route. `mergeClients()` (manager-gated) handles all FK migrations (outreachLogs, activityEvents, approvalRequests, promoMatches with unique-constraint conflict pre-deletion) then hard-deletes the loser. `patchClientFromFormMerge()` handles the new-client-form duplicate path. Original fetch call sites removed; `MergeClientDialog` and `MergeFromFormDialog` components call the server actions directly. Resolved `3ced678`.
 
 - [ ] ### H-02: Notes DELETE Can Delete Any Activity Event
 - **File**: `app/api/notes/route.ts:44`
@@ -156,11 +156,11 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - Multiple writes across different tables with no transaction wrapping. A failure midway leaves data inconsistent (e.g., client marked "banned" but no banned record exists).
 - **Fix**: Wrap in `db.transaction()`.
 
-- [ ] ### H-04: No Error Boundaries
+- [x] ### H-04: No Error Boundaries
 - **File**: `app/` directory — zero `error.tsx` files anywhere
 - **Category**: UX / Resilience
 - A single unhandled error in any server component crashes the entire page with Next.js's default unstyled error screen. No graceful fallback.
-- **Fix**: Add `error.tsx` at `app/error.tsx`, `app/(app)/error.tsx`, `app/(app)/clients/error.tsx`, `app/(app)/clients/[id]/error.tsx`.
+- **Fix**: Added `error.tsx` at all four segments: `app/error.tsx` (root, full-page fallback), `app/(app)/error.tsx` (app group — renders inside sidebar layout), `app/(app)/clients/error.tsx` (clients list, shows "Failed to load clients"), `app/(app)/clients/[id]/error.tsx` (client detail, adds "Back to clients" escape hatch alongside Try again). All log to console.error and are "use client" per Next.js requirement.
 
 - [ ] ### H-05: N+1 Query — `createPromo` and `importPromos`
 - **Files**: `lib/actions.ts:279-292`, `lib/actions.ts:294-322`
@@ -206,11 +206,11 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - `import Database from "better-sqlite3"` creates a separate DB connection, bypassing Drizzle ORM, WAL mode, and foreign key settings.
 - **Fix**: Use the shared `db` from `lib/db/index.ts`.
 
-- [ ] ### H-12: Outreach History "Complete" Button Is a Stub
+- [x] ### H-12: Outreach History "Complete" Button Is a Stub
 - **File**: `components/outreach-history-tab.tsx:188-190`
 - **Category**: Broken Feature
 - `onClick={() => { alert("Mark follow-up complete") }}` — browser alert instead of calling the existing `markFollowUpComplete` server action.
-- **Fix**: Import and call `markFollowUpComplete(row.log.id)` with toast + refresh.
+- **Fix**: Imported `markFollowUpComplete` from `lib/actions` and `toast` from `sonner`. Added `useTransition` for pending state — button shows "Saving…" and disables during the call. Success/failure toasts on completion. `revalidatePath` in the action handles the UI refresh.
 
 - [x] ### H-13: Common Tag Click Doesn't Pass Tag Value
 - **File**: `app/(app)/clients/new/page.tsx:474-484`
@@ -801,6 +801,9 @@ These things are done well and should be maintained:
 | 2026-05-03 | M-31 | Replaced fake `KeyboardEvent` dispatch in `Topbar` with `CommandPaletteProvider` + `useCommandPalette()` hook. Layout wraps the app; topbar button calls `setOpen(true)`. Cmd/Ctrl+K still works (listener inside palette toggles via context). | — |
 | 2026-05-03 | M-33 | Split `ClientProvider`: removed `ActiveTabContext`/`useActiveTab` and the internal `useState`. Tab state now local to `<ClientDetailTabs>`. Tests updated (4 of 7 remaining; the 3 activeTab tests removed since the hook is gone). | — |
 | 2026-05-03 | M-34 | Extracted `<HeatDistributionChart>` (Recharts horizontal BarChart) to `components/heat-distribution-chart.tsx`. Used in both Overview tab (replaces inline chart) and Heat tab (replaces CSS stacked bar). Heat tab's per-category progress bars + legend kept (different breakdown view). | — |
-| 2026-05-06 | M-35 | Wired the 4 real metadata gaps. `purchase` event in `lib/actions.ts` now includes `purchasedModel`. Both `edited` writers (`app/api/clients/route.ts` PUT, `app/api/clients/[id]/route.ts` PUT) now include `fieldChanges`. Both `tag_added` writers (`lib/actions.ts:addTag`, `app/api/tags/route.ts` POST) now include `tagName`. Both `tag_removed` writers now include `tagName`. `outreach_logged` reader falls through to `event.description` when both fields absent (guards pre-fix events). `note_added` was already correctly written (audit count overstated). `transferred`/`merged` are unimplemented features being built in Phase B/C. | — |
+| 2026-05-06 | M-35 | Wired the 4 real metadata gaps. `purchase` event in `lib/actions.ts` now includes `purchasedModel`. Both `edited` writers (`app/api/clients/route.ts` PUT, `app/api/clients/[id]/route.ts` PUT) now include `fieldChanges`. Both `tag_added` writers (`lib/actions.ts:addTag`, `app/api/tags/route.ts` POST) now include `tagName`. Both `tag_removed` writers now include `tagName`. `outreach_logged` reader falls through to `event.description` when both fields absent (guards pre-fix events). `note_added` was already correctly written (audit count overstated). `transferred`/`merged` are unimplemented features being built in Phase B/C. | `458237a` |
+| 2026-05-06 | M-35 Phase B | Implemented client transfer feature. `transferClient()` server action (manager-gated): looks up previous/new employee names, updates `clients.employeeId`, emits `transferred` event with `previousEmployeeName` and `newEmployeeName` in metadata. `ActivityEventMetadataMap.transferred` extended. Timeline reader updated to show "Transferred from X to Y" when both names present. New `TransferClientDialog` component: fetches active employees on open, disables current employee in select, calls server action on confirm. Wired into client detail actions dropdown (manager-only). | `be127c1` |
+| 2026-05-06 | H-04, H-12 | H-04: Added `error.tsx` at `app/`, `app/(app)/`, `app/(app)/clients/`, `app/(app)/clients/[id]/`. All are `"use client"` per Next.js requirement, log to `console.error`, and render an `AlertCircle` + Try again button. Client-detail boundary adds a "Back to clients" escape hatch. H-12: Replaced `alert("Mark follow-up complete")` stub with real `markFollowUpComplete(log.id)` call. Added `useTransition` for pending state (button shows "Saving…" / disabled during call) and `sonner` toasts for success/failure. | — |
+| 2026-05-06 | M-35 Phase C, H-01 | Implemented field-by-field client merge, closing H-01. `mergeClients()` server action (manager-gated): older record's ID wins; all FK references (outreachLogs, activityEvents, approvalRequests, promoMatches) migrated before hard-deleting loser; promoMatches handles unique-constraint conflicts by pre-deleting conflicting loser rows. onEmailList/productsOfInterest/tags always unioned. Emits `merged` event on winner. `patchClientFromFormMerge()` handles duplicate-detection path from new client form. `MergeClientDialog` (actions menu): two-step flow — debounced search → field-by-field resolution panel → confirm. `MergeFromFormDialog` (new client form): constructs form snapshot, resolves fields against existing record. Both dialogs share internal `ResolutionPanel` grid component. Notes: editable final textarea with "Use this" shortcuts from each side. Wired in `client-detail-tabs.tsx` (manager-only) and `client-form.tsx` / `clients/new/page.tsx` (duplicate warning). | `3ced678` |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.

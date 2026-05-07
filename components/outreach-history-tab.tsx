@@ -1,15 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Phone, Calendar, Clock, CheckCircle, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import { EmptyState } from "@/components/empty-state";
 import type { FullClient } from "@/components/client-provider";
 import type { OutreachLog } from "@/lib/db/schema";
 import { getMethodIcon } from "@/lib/outreach-helpers";
+import { markFollowUpComplete } from "@/lib/actions";
 
 const PAGE_SIZE = 10;
 
@@ -18,6 +20,19 @@ interface OutreachHistoryTabProps {
 }
 
 export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
+  const [isPending, startTransition] = useTransition();
+
+  const handleComplete = (logId: string) => {
+    startTransition(async () => {
+      try {
+        await markFollowUpComplete(logId);
+        toast.success("Follow-up marked complete");
+      } catch {
+        toast.error("Failed to mark complete");
+      }
+    });
+  };
+
   const getOutcomeBadge = (outcome: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       "responded": "default",
@@ -172,12 +187,11 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
                         {!log.completed && (
                           <Button
                             size="sm"
-                            onClick={() => {
-                              alert("Mark follow-up complete");
-                            }}
+                            disabled={isPending}
+                            onClick={() => handleComplete(log.id)}
                           >
                             <CheckCircle className="h-4 w-4 mr-1" />
-                            Complete
+                            {isPending ? "Saving…" : "Complete"}
                           </Button>
                         )}
                       </div>
