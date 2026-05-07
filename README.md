@@ -37,11 +37,13 @@ Open [http://localhost:3000](http://localhost:3000). Default credentials are dis
 app/                  # Next.js App Router pages
   (app)/              # Authenticated app layout (sidebar, command palette)
     analytics/        # Outreach analytics + collection insights
+    approvals/        # Manager approval queue (ban, unsubscribe, delete)
     banned/           # Banned customer management
     change-password/  # Self-service password change
     clients/          # Client list, detail, new, edit
     follow-ups/       # Follow-up manager
     promos/           # Promo watch management
+    prospects/        # RVX prospect import + graduation flow
     settings/         # Employee, tag, template management
     smart-lists/      # Saved filter management
     unsubscribed/     # Unsubscribe list management
@@ -54,8 +56,10 @@ lib/                  # Shared logic
   auth.ts             # NextAuth configuration
   db/                 # Schema, migrations, seed, connection
   heat-score.ts       # Client engagement scoring algorithm
+  rvx-parser.ts       # RVX CSV parser (dedup, normalization, export)
   queries.ts          # Database query functions
   utils.ts            # Utility functions
+  validation/         # Zod schemas (client, outreach, rvx)
 data/                 # SQLite database file (gitignored)
 docs/                 # Project documentation
 ```
@@ -77,8 +81,8 @@ docs/                 # Project documentation
 
 | Role | Access |
 |------|--------|
-| **Manager** | Full CRUD, dashboard, employee management, promo config, analytics, banned/unsubscribed |
-| **Associate** | CRUD on own clients, view all clients, outreach logging, personal smart lists |
+| **Manager** | Full CRUD, dashboard, employee management, promo config, analytics, banned/unsubscribed, approval queue, RVX import |
+| **Associate** | CRUD on own clients, view all clients, outreach logging, personal smart lists, prospect graduation/reject/unsubscribe |
 
 ## Documentation
 
