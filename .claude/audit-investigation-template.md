@@ -50,7 +50,8 @@ Pick A or B (or however many options you laid out), justify briefly. List the fi
 
 ## Strict constraints
 
-- **Read-only.** No file edits. No `rm`. No commits. No destructive operations of any kind.
-- Word limit ~600. Concision beats comprehensiveness — flag what matters, skip the rest.
+- **Read-only — except for writing the report file.** No code edits. No `rm`. No commits. No destructive operations.
+- **Write your full structured report to a file** at the path the per-task prompt specifies (e.g., `/tmp/m20-investigation-report.md`). Do not rely on stdout — when invoked via `droid exec`, only the final summary is captured. Writing the report to a file is the only reliable way for the human reviewer to read it.
+- Word limit ~600 inside the report file. Concision beats comprehensiveness — flag what matters, skip the rest.
 - Cite line numbers. Don't assert without evidence.
 - Don't speculate beyond what the code shows.
