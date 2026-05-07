@@ -114,7 +114,10 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
       
       case "transferred": {
         const m = getMetadata("transferred", event.metadata);
-        return `Transferred to ${m.newEmployeeName ?? "another associate"}`;
+        const to = m.newEmployeeName ?? "another associate";
+        return m.previousEmployeeName
+          ? `Transferred from ${m.previousEmployeeName} to ${to}`
+          : `Transferred to ${to}`;
       }
       
       case "status_changed": {

@@ -576,6 +576,36 @@ async function requireManager() {
   return user;
 }
 
+export async function transferClient(clientId: string, newEmployeeId: string) {
+  const user = await requireManager();
+
+  const clientRow = db.select({ employeeId: clients.employeeId }).from(clients).where(eq(clients.id, clientId)).get();
+  if (!clientRow) throw new Error("Client not found");
+
+  const newEmployee = db.select({ firstName: employees.firstName, lastName: employees.lastName }).from(employees).where(eq(employees.id, newEmployeeId)).get();
+  if (!newEmployee) throw new Error("Employee not found");
+
+  const previousEmployee = clientRow.employeeId
+    ? db.select({ firstName: employees.firstName, lastName: employees.lastName }).from(employees).where(eq(employees.id, clientRow.employeeId)).get()
+    : null;
+
+  db.update(clients).set({ employeeId: newEmployeeId, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+
+  const newEmployeeName = `${newEmployee.firstName} ${newEmployee.lastName ?? ""}`.trim();
+  const previousEmployeeName = previousEmployee ? `${previousEmployee.firstName} ${previousEmployee.lastName ?? ""}`.trim() : undefined;
+
+  db.insert(activityEvents).values({
+    id: randomUUID(),
+    clientId,
+    eventType: "transferred",
+    description: `Transferred to ${newEmployeeName}`,
+    employeeId: user.id,
+    metadata: { newEmployeeName, ...(previousEmployeeName ? { previousEmployeeName } : {}) },
+  }).run();
+
+  revalidatePath(`/clients/${clientId}`);
+}
+
 export async function deleteClient(clientId: string) {
   const user = await requireManager();
 

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Calendar, Mail, Gift, Users, MoreHorizontal, Edit, Ban, MailX, Trash2, ShieldOff, UserCheck, StickyNote, Tag, Activity } from "lucide-react";
+import { Calendar, Mail, Gift, Users, MoreHorizontal, Edit, Ban, MailX, Trash2, ShieldOff, UserCheck, StickyNote, Tag, Activity, ArrowRightLeft } from "lucide-react";
 import { format } from "date-fns";
 import { useState } from "react";
 import { useClient } from "@/components/client-provider";
@@ -20,6 +20,7 @@ import { HeatScoreBar } from "@/components/heat-score-bar";
 import { EditClientDialog } from "@/components/edit-client-dialog";
 import { OutreachLogger } from "@/components/outreach-logger";
 import { BanCustomerDialog, UnsubscribeCustomerDialog, DeleteCustomerDialog } from "@/components/client-status-actions";
+import { TransferClientDialog } from "@/components/transfer-client-dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { toggleEmailList, resubscribeClient, unbanClient } from "@/lib/actions";
 import { toast } from "sonner";
@@ -76,6 +77,17 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                   </DropdownMenuItem>
                 }
               />
+              {currentUserRole === "manager" && (
+                <TransferClientDialog
+                  clientId={client.id}
+                  clientName={`${client.firstName} ${client.lastName ?? ""}`}
+                  currentEmployeeId={client.employeeId}
+                >
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                    <ArrowRightLeft className="h-4 w-4 mr-2" /> Transfer Client
+                  </DropdownMenuItem>
+                </TransferClientDialog>
+              )}
               {client.status !== "unsubscribed" && client.status !== "deleted" && client.onEmailList && (
                 <ConfirmDialog
                   title="Remove from Email List"

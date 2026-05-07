@@ -7,7 +7,7 @@ export type ActivityEventMetadataMap = {
   purchase: { method?: OutreachMethod; outcome?: OutreachOutcome; purchasedModel?: string };
   tag_added: { tagName?: string };
   tag_removed: { tagName?: string };
-  transferred: { newEmployeeName?: string };
+  transferred: { previousEmployeeName?: string; newEmployeeName?: string };
   promoted: Record<string, never>;
   note_added: { notePreview?: string };
   status_changed: { newStatus?: string };
