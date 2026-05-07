@@ -4,8 +4,9 @@ import { authOptions } from "@/lib/auth";
 import { getClient, getEmployees } from "@/lib/queries";
 import { EditClientForm } from "./edit-client-form";
 
-export default async function EditClientPage({ params }: { params: { id: string } }) {
-  const client = await getClient(params.id);
+export default async function EditClientPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const client = await getClient(id);
   if (!client) notFound();
 
   const session = await getServerSession(authOptions);
@@ -22,7 +23,7 @@ export default async function EditClientPage({ params }: { params: { id: string 
   return (
     <EditClientForm
       initialClient={JSON.parse(JSON.stringify(client))}
-      clientId={params.id}
+      clientId={id}
       employees={employees}
     />
   );
