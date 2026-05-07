@@ -154,11 +154,14 @@ export async function addTag(clientId: string, tag: string) {
   const user = await requireAuth();
   const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
   if (!c) return;
-  const tags = Array.from(new Set([...(c.tags || []), tag]));
+  if ((c.tags || []).includes(tag)) return;
+  const tags = [...(c.tags || []), tag];
   db.update(clients).set({ tags, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
   const existing = db.select().from(clientTags).where(eq(clientTags.name, tag)).get();
   if (existing) {
     db.update(clientTags).set({ usageCount: existing.usageCount + 1 }).where(eq(clientTags.id, existing.id)).run();
+  } else {
+    db.insert(clientTags).values({ id: randomUUID(), name: tag, usageCount: 1 }).run();
   }
   db.insert(activityEvents).values({
     id: randomUUID(), clientId, eventType: "tag_added", description: `Tag added: ${tag}`, employeeId: user.id, metadata: { tagName: tag },
@@ -170,8 +173,13 @@ export async function removeTag(clientId: string, tag: string) {
   const user = await requireAuth();
   const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
   if (!c) return;
+  if (!(c.tags || []).includes(tag)) return;
   const tags = (c.tags || []).filter((t) => t !== tag);
   db.update(clients).set({ tags, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+  const existing = db.select().from(clientTags).where(eq(clientTags.name, tag)).get();
+  if (existing && existing.usageCount > 0) {
+    db.update(clientTags).set({ usageCount: existing.usageCount - 1 }).where(eq(clientTags.id, existing.id)).run();
+  }
   db.insert(activityEvents).values({
     id: randomUUID(), clientId, eventType: "tag_removed", description: `Tag removed: ${tag}`, employeeId: user.id, metadata: { tagName: tag },
   }).run();

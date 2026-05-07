@@ -90,6 +90,12 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Client ID is required" }, { status: 400 });
     }
 
+    const client = db.select().from(clients).where(eq(clients.id, id)).get();
+    if (!client) return NextResponse.json({ error: "Client not found" }, { status: 404 });
+    if (session.user.role !== "manager" && client.employeeId !== session.user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const patch: Record<string, unknown> = { updatedAt: new Date() };
     for (const [k, v] of Object.entries(data)) {
       if (v !== undefined && k !== "id") patch[k] = v;

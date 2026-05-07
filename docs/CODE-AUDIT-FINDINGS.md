@@ -12,11 +12,11 @@
 
 | Severity | Total | Open | In Progress | Resolved |
 |----------|-------|------|-------------|----------|
-| CRITICAL | 8 | 6 | 0 | 2 |
-| HIGH | 23 | 10 | 0 | 13 |
+| CRITICAL | 8 | 3 | 0 | 5 |
+| HIGH | 23 | 9 | 0 | 14 |
 | MEDIUM | 36 | 0 | 0 | 36 |
 | LOW | 17 | 1 | 0 | 16 |
-| **TOTAL** | **84** | **17** | **0** | **67** |
+| **TOTAL** | **84** | **13** | **0** | **71** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and PR/commit reference in a `**Fix:**` line below the issue description.
 
@@ -88,12 +88,12 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - **Fix**: Explicitly select only safe columns: `{ id, name, username, role, active, createdAt }`.
 - **Resolved**: API route now destructures to strip `passwordHash` and `secretAnswerHash` via rest spread. `getEmployees()` in `lib/queries.ts` now uses explicit column projection omitting `passwordHash`, `secretQuestion`, `secretAnswerHash`. `SafeEmployeeRow` type exported for consumers. Settings page (`app/(app)/settings/page.tsx`) no longer leaks credentials via RSC payload. All three original sites now covered.
 
-- [ ] ### C-02: Hardcoded JWT Secret Fallback
+- [x] ### C-02: Hardcoded JWT Secret Fallback
 - **File**: `lib/auth.ts:44`
 - **Category**: Security — Session Forgery
 - **OWASP**: A02:2021 — Cryptographic Failures
 - `secret: process.env.NEXTAUTH_SECRET || "iris-dev-secret-change-me"`. If env var is unset in production, JWTs are signed with a known key. Attackers can forge sessions.
-- **Fix**: Remove fallback. Fail at startup if `NEXTAUTH_SECRET` is missing.
+- **Fix**: Added startup guard — `if (!process.env.NEXTAUTH_SECRET) throw new Error(...)` before the config object. Removed the `|| "iris-dev-secret-change-me"` fallback. Server now fails fast if the env var is missing instead of silently using a known key.
 
 - [ ] ### C-03: Mass Assignment on Client Updates
 - **Files**: `lib/actions.ts:86-88`, `app/api/clients/route.ts:82-87`, `app/api/clients/[id]/route.ts:30-35`
@@ -122,17 +122,17 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - **Fix**: Every exported server action must verify authentication.
 - **Resolved**: All listed server actions now use `requireAuth()` or `requireManager()` helpers. Note: `removeUnsubscribe` was deleted entirely as part of H-18, so the effective set is 15 actions, all auth-gated.
 
-- [ ] ### C-07: Tag `usageCount` Permanently Inaccurate
+- [x] ### C-07: Tag `usageCount` Permanently Inaccurate
 - **Files**: `lib/actions.ts:213-239`
 - **Category**: Silent Data Corruption
 - `addTag` (L221) always increments `usageCount`, even when the tag already exists on the client. `removeTag` (L229-239) never decrements it. No code in the entire codebase decrements `usageCount`. Counter is monotonically increasing and permanently wrong after first removal.
-- **Fix**: In `addTag`, check if tag already exists before incrementing. In `removeTag`, add `SET usageCount = usageCount - 1`. Wrap in SQL atomic operation.
+- **Fix**: `addTag` now short-circuits with `return` if the tag is already on the client — no redundant increment. `removeTag` now fetches the `clientTags` row and decrements `usageCount` if it exists and is positive. Also added early return in `removeTag` if tag isn't on client. Note: C-07 and C-08 are fixed together since both touch the same `addTag` block.
 
-- [ ] ### C-08: `addTag` Missing `else` Branch — New Tags Never Created in `clientTags`
+- [x] ### C-08: `addTag` Missing `else` Branch — New Tags Never Created in `clientTags`
 - **File**: `lib/actions.ts:219-221`
 - **Category**: Silent Data Corruption
 - If a tag name doesn't exist in `clientTags`, the `if (existing)` block is skipped entirely — no new row is created. Tags added directly to clients never appear in the "Available Tags" registry.
-- **Fix**: Add `else` branch that inserts a new `clientTags` row with `usageCount: 1`.
+- **Fix**: Added `else` branch that inserts a new `clientTags` row with `usageCount: 1`. Fixed together with C-07.
 
 ---
 
@@ -278,21 +278,12 @@ After every 5 resolutions, run a verification sweep on resolved items in the sam
 - **Fix**: Delete lines 42-71.
 - **Resolved**: Interface now defined only once.
 
-- [ ] ### H-23: Missing Ownership Check on Client Update REST Route
+- [x] ### H-23: Missing Ownership Check on Client Update REST Route
 - **Files**: `app/api/clients/[id]/route.ts` (PUT handler), `app/api/clients/route.ts` (PUT handler)
 - **Category**: Security — Broken Access Control
 - **OWASP**: A01:2021
 - The PUT handlers update any client by ID with no check that the requesting user owns the client (or is a manager). Any authenticated associate can modify any other associate's client records. Discovered during L-01 investigation: the deleted `updateClient` server action (formerly in `lib/actions.ts`) contained the correct ownership-check pattern that the REST routes never adopted.
-- **Fix**: Add ownership guard at the top of both PUT handlers. Pattern (preserved here from the deleted server action so the fix is straightforward):
-  ```ts
-  const user = await requireAuth();
-  const client = db.select().from(clients).where(eq(clients.id, id)).get();
-  if (!client) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (user.role !== "manager" && client.employeeId !== user.id) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-  ```
-  Also consider porting the action's `recalcHeat(id)` call and user-attributed activity event description (`"Profile updated by ${user.name}"`) — both are behavioral improvements the REST route currently lacks.
+- **Fix**: Added ownership guard to both PUT handlers using `session.user.id` and `session.user.role`. Both now fetch the client first, return 404 if not found, and return 403 if the requesting user is not a manager and doesn't own the client (`client.employeeId !== session.user.id`).
 - **Cross-ref**: Discovered while resolving L-01 (deletion of dead `updateClient` action). The action's richer behavior was not reachable from any UI, so its existence didn't compensate for the gap.
 
 ---
@@ -809,5 +800,8 @@ These things are done well and should be maintained:
 | 2026-05-06 | H-11 | Rewrote `app/api/recover/route.ts` to use shared `db` from `@/lib/db` with Drizzle ORM. Removed `better-sqlite3` dependency, two manual connection open/close try/finally blocks, and raw prepared-statement strings. Both branches (lookup, verify) now use `db.select()` / `db.update()` with typed column references. Replaced `bcrypt.compareSync` with `await bcrypt.compare`. | — |
 | 2026-05-06 | H-20 | Deleted `getClientOutreach` and `getClientActivity` from `lib/queries.ts` (confirmed zero external imports). Both functions were dead exports — their queries are duplicated inline wherever needed. | — |
 | 2026-05-06 | H-10 | Replaced `export { default } from "next-auth/middleware"` with a custom `middleware()` using `getToken`. Unauthenticated `/api/*` requests now return 401 JSON (`{ error: "Not authenticated" }`); all other protected routes still redirect to `/login`. Existing matcher exclusions unchanged. | — |
+| 2026-05-06 | C-02 | Added startup guard in `lib/auth.ts`: `if (!process.env.NEXTAUTH_SECRET) throw new Error(...)`. Removed `|| "iris-dev-secret-change-me"` fallback. Server now fails fast rather than silently using a known key. | — |
+| 2026-05-06 | C-07, C-08 | Fixed `addTag` and `removeTag` in `lib/actions.ts`. `addTag`: early return if tag already on client (prevents bogus usageCount increments); `else` branch now inserts new `clientTags` row with `usageCount: 1` when tag name not in registry. `removeTag`: early return if tag not on client; now fetches `clientTags` row and decrements `usageCount` when positive. | — |
+| 2026-05-06 | H-23 | Added ownership guard to both PUT handlers (`app/api/clients/[id]/route.ts`, `app/api/clients/route.ts`). Each now fetches the client first (404 if missing), then returns 403 if requester is not a manager and doesn't own the client. | — |
 
 > To resolve an issue: (1) change `[ ]` to `[x]` in the issue heading, (2) update the Tracking Summary counts at the top, (3) add a row to this Resolution Log.

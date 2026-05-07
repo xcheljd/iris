@@ -33,6 +33,12 @@ export async function PUT(
 
   try {
     const { id } = await params;
+    const client = db.select().from(clients).where(eq(clients.id, id)).get();
+    if (!client) return NextResponse.json({ error: "Client not found" }, { status: 404 });
+    if (session.user.role !== "manager" && client.employeeId !== session.user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const body = await request.json();
 
     const patch: Record<string, unknown> = { updatedAt: new Date() };
