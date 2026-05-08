@@ -44,16 +44,18 @@ app/                  # Next.js App Router pages
     follow-ups/       # Follow-up manager
     promos/           # Promo watch management
     prospects/        # RVX prospect import + graduation flow
-    settings/         # Employee, tag, template management
+    settings/         # Employee, tag, template, and backup management
     smart-lists/      # Saved filter management
     unsubscribed/     # Unsubscribe list management
   api/                # REST API routes
+    backup/           # Backup download + restore endpoints
   login/              # Authentication page
 components/           # React components (non-shadcn)
   ui/                 # shadcn/ui primitives (34+ components)
 lib/                  # Shared logic
   actions.ts          # Server actions (mutations)
   auth.ts             # NextAuth configuration
+  backup-client.ts    # Backup download + localStorage reminder logic
   db/                 # Schema, migrations, seed, connection
   heat-score.ts       # Client engagement scoring algorithm
   rvx-parser.ts       # RVX CSV parser (dedup, normalization, export)
@@ -81,8 +83,18 @@ docs/                 # Project documentation
 
 | Role | Access |
 |------|--------|
-| **Manager** | Full CRUD, dashboard, employee management, promo config, analytics, banned/unsubscribed, approval queue, RVX import |
+| **Manager** | Full CRUD, dashboard, employee management, promo config, analytics, banned/unsubscribed, approval queue, RVX import, database backup/restore |
 | **Associate** | CRUD on own clients, view all clients, outreach logging, personal smart lists, prospect graduation/reject/unsubscribe |
+
+## Backup & Restore
+
+The Settings → Backup tab (managers only) provides:
+
+- **Download** — exports `iris.db` via the browser's native save dialog (Chrome/Edge File System Access API, with `<a download>` fallback)
+- **Restore** — uploads a `.db` file, validates SQLite magic bytes, atomically swaps in the new file, and saves the previous database as `iris.db.bak` before restarting the server
+- **Weekly reminder** — a dialog appears every Monday when the last backup is more than 7 days ago; stored in `localStorage`
+
+The restore endpoint calls `process.exit(0)` after a short delay so that PM2 or systemd restarts the process automatically with the new database in place.
 
 ## Documentation
 
