@@ -21,9 +21,9 @@
 | Code Quality — Missing Error Handling | 8 | 0 | 8 |
 | Code Quality — Hardcoded Values | 10 | 0 | 10 |
 | Performance | 6 | 2 | 4 |
-| Accessibility | 6 | 1 | 5 |
+| Accessibility | 6 | 0 | 6 |
 | Security | 6 | 0 | 6 |
-| **TOTAL** | **74** | **13** | **61** |
+| **TOTAL** | **74** | **12** | **62** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -622,7 +622,7 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### A-6. Heat distribution bar relies solely on color
 **File:** `app/(app)/page.tsx`
 **Description:** Hot/Warm/Cold bar segments use only color to convey information. No text labels visible on narrow segments.
-- [ ] Ensure text labels are always visible or add aria-labels to bar segments.
+- [x] Fix: Added `role="img"` + `aria-label="Heat distribution: N hot, N warm, N cold"` on the bar container. Individual segments marked `aria-hidden="true"` to avoid redundant announcements. Added `overflow-hidden` to segments so inline labels don't spill out of narrow segments.
 
 ---
 

@@ -312,14 +312,14 @@ async function DashboardContent() {
               <CardContent className="space-y-4">
                 {stats.active > 0 ? (
                   <>
-                    <div className="flex rounded-lg overflow-hidden h-10">
-                      <div className="bg-orange-500 flex items-center justify-center text-white text-xs font-medium" style={{ width: `${(stats.hot / stats.active) * 100}%` }}>
+                    <div className="flex rounded-lg overflow-hidden h-10" role="img" aria-label={`Heat distribution: ${stats.hot} hot, ${stats.warm} warm, ${stats.cold} cold`}>
+                      <div role="presentation" className="bg-orange-500 flex items-center justify-center text-white text-xs font-medium overflow-hidden" style={{ width: `${(stats.hot / stats.active) * 100}%` }} aria-hidden="true">
                         {stats.hot > 0 ? `${stats.hot} Hot` : ""}
                       </div>
-                      <div className="bg-yellow-500 flex items-center justify-center text-white text-xs font-medium" style={{ width: `${(stats.warm / stats.active) * 100}%` }}>
+                      <div role="presentation" className="bg-yellow-500 flex items-center justify-center text-white text-xs font-medium overflow-hidden" style={{ width: `${(stats.warm / stats.active) * 100}%` }} aria-hidden="true">
                         {stats.warm > 0 ? `${stats.warm} Warm` : ""}
                       </div>
-                      <div className="bg-blue-500 flex items-center justify-center text-white text-xs font-medium" style={{ width: `${(stats.cold / stats.active) * 100}%` }}>
+                      <div role="presentation" className="bg-blue-500 flex items-center justify-center text-white text-xs font-medium overflow-hidden" style={{ width: `${(stats.cold / stats.active) * 100}%` }} aria-hidden="true">
                         {stats.cold > 0 ? `${stats.cold} Cold` : ""}
                       </div>
                     </div>
