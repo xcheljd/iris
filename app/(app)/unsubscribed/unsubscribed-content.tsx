@@ -191,14 +191,13 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
       return;
     }
     setAddEmailError("");
-    try {
-      await addUnsubscribeEmail(addEmail.trim());
-      toast.success("Email added to unsubscribe list");
-      router.refresh();
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Failed to add email";
-      toast.error(message);
+    const result = await addUnsubscribeEmail(addEmail.trim());
+    if (result?.error) {
+      toast.error(result.error);
+      return;
     }
+    toast.success("Email added to unsubscribe list");
+    router.refresh();
   };
 
   const matchCount = list.filter((l) => l.clientId).length;

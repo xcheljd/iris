@@ -57,13 +57,13 @@ export function TransferClientDialog({
   const handleTransfer = () => {
     if (!newEmployeeId || newEmployeeId === currentEmployeeId) return;
     start(async () => {
-      try {
-        await transferClient(clientId, newEmployeeId);
+      const result = await transferClient(clientId, newEmployeeId);
+      if (result?.error) {
+        toast.error(result.error);
+      } else {
         toast.success(`${clientName} transferred`);
         setOpen(false);
         setNewEmployeeId("");
-      } catch {
-        toast.error("Failed to transfer client");
       }
     });
   };

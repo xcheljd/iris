@@ -76,14 +76,14 @@ export function MergeFromFormDialog({
   const handleMerge = () => {
     if (!existingClient) return;
     start(async () => {
-      try {
-        const patch = buildMergePatch(existingClient, formSnapshot, choices, finalNotes);
-        await patchClientFromFormMerge(existingClientId, patch);
+      const patch = buildMergePatch(existingClient, formSnapshot, choices, finalNotes);
+      const result = await patchClientFromFormMerge(existingClientId, patch);
+      if (result?.error) {
+        toast.error(result.error);
+      } else {
         toast.success("Records merged successfully");
         onOpenChange(false);
         onMerged(existingClientId);
-      } catch {
-        toast.error("Failed to merge records");
       }
     });
   };

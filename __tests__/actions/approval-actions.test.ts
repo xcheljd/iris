@@ -50,7 +50,7 @@ describe("createApprovalRequest", () => {
 
   it("creates a pending approval request", async () => {
     vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
-    const { id } = await createApprovalRequest("ban", FIRST_CLIENT_ID, "Testing ban request");
+    const { id } = await createApprovalRequest("ban", FIRST_CLIENT_ID, "Testing ban request") as { id: string };
     createdRequestIds.push(id);
 
     const row = db.select().from(approvalRequests).where(eq(approvalRequests.id, id)).get();
@@ -64,7 +64,7 @@ describe("createApprovalRequest", () => {
 
   it("associates can create approval requests", async () => {
     vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
-    const { id } = await createApprovalRequest("unsubscribe", FIRST_CLIENT_ID, "Client asked to unsub");
+    const { id } = await createApprovalRequest("unsubscribe", FIRST_CLIENT_ID, "Client asked to unsub") as { id: string };
     createdRequestIds.push(id);
 
     const row = db.select().from(approvalRequests).where(eq(approvalRequests.id, id)).get();
@@ -74,7 +74,7 @@ describe("createApprovalRequest", () => {
 
   it("logs the correct activity event type for ban", async () => {
     vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
-    const { id } = await createApprovalRequest("ban", FIRST_CLIENT_ID, "Reason A");
+    const { id } = await createApprovalRequest("ban", FIRST_CLIENT_ID, "Reason A") as { id: string };
     createdRequestIds.push(id);
 
     const events = db
@@ -88,7 +88,7 @@ describe("createApprovalRequest", () => {
 
   it("logs the correct activity event type for unsubscribe", async () => {
     vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
-    const { id } = await createApprovalRequest("unsubscribe", FIRST_CLIENT_ID, "Reason B");
+    const { id } = await createApprovalRequest("unsubscribe", FIRST_CLIENT_ID, "Reason B") as { id: string };
     createdRequestIds.push(id);
 
     const events = db
@@ -102,7 +102,7 @@ describe("createApprovalRequest", () => {
 
   it("logs the correct activity event type for delete", async () => {
     vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
-    const { id } = await createApprovalRequest("delete", FIRST_CLIENT_ID, "Reason C");
+    const { id } = await createApprovalRequest("delete", FIRST_CLIENT_ID, "Reason C") as { id: string };
     createdRequestIds.push(id);
 
     const events = db
@@ -114,11 +114,11 @@ describe("createApprovalRequest", () => {
     expect(event).toBeDefined();
   });
 
-  it("throws when reason is empty", async () => {
+  it("returns an error when reason is empty", async () => {
     vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
-    await expect(createApprovalRequest("ban", FIRST_CLIENT_ID, "   ")).rejects.toThrow(
-      "Reason is required"
-    );
+    const result = await createApprovalRequest("ban", FIRST_CLIENT_ID, "   ");
+    expect("error" in result).toBe(true);
+    expect((result as { error: string }).error).toBe("Reason is required");
   });
 
   it("throws when not authenticated", async () => {
@@ -170,7 +170,7 @@ describe("reviewApprovalRequest", () => {
   });
 
   async function createPendingRequest(type: "ban" | "unsubscribe" | "delete") {
-    const { id } = await createApprovalRequest(type, FIRST_CLIENT_ID, `Test ${type} reason`);
+    const { id } = await createApprovalRequest(type, FIRST_CLIENT_ID, `Test ${type} reason`) as { id: string };
     createdRequestIds.push(id);
     return id;
   }
@@ -220,17 +220,17 @@ describe("reviewApprovalRequest", () => {
     expect(client!.deletedAt).not.toBeNull();
   });
 
-  it("throws when trying to review a non-existent request", async () => {
-    await expect(
-      reviewApprovalRequest("00000000-0000-0000-0000-000000000000", true)
-    ).rejects.toThrow("Request not found");
+  it("returns an error when request does not exist", async () => {
+    const result = await reviewApprovalRequest("00000000-0000-0000-0000-000000000000", true);
+    expect(result?.error).toBe("Request not found");
   });
 
-  it("throws when trying to review an already-reviewed request", async () => {
+  it("returns an error when request is already reviewed", async () => {
     const requestId = await createPendingRequest("ban");
     await reviewApprovalRequest(requestId, false);
 
-    await expect(reviewApprovalRequest(requestId, true)).rejects.toThrow("Request already reviewed");
+    const result = await reviewApprovalRequest(requestId, true);
+    expect(result?.error).toBe("Request already reviewed");
   });
 
   it("throws when associate tries to review", async () => {

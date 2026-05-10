@@ -120,10 +120,14 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
   const handleDelete = () => {
     if (!deleteTarget) return;
     startTransition(async () => {
-      await deleteSmartList(deleteTarget.id);
-      toast.success("Smart list deleted");
-      if (selectedListId === deleteTarget.id) router.replace("/smart-lists");
-      setDeleteTarget(null);
+      const result = await deleteSmartList(deleteTarget.id);
+      if (result?.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Smart list deleted");
+        if (selectedListId === deleteTarget.id) router.replace("/smart-lists");
+        setDeleteTarget(null);
+      }
     });
   };
 
@@ -136,8 +140,12 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
 
   const handleRename = (listId: string, newName: string) => {
     startTransition(async () => {
-      await renameSmartList(listId, newName);
-      toast.success("Smart list renamed");
+      const result = await renameSmartList(listId, newName);
+      if (result?.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Smart list renamed");
+      }
     });
   };
 

@@ -33,25 +33,25 @@ export function DeletedTab({ deletedClients, isManager }: DeletedTabProps) {
 
   const handleRestore = async () => {
     if (!restoreTarget) return;
-    try {
-      await restoreClient(restoreTarget.id);
+    const result = await restoreClient(restoreTarget.id);
+    if (result?.error) {
+      toast.error(result.error);
+    } else {
       toast.success("Client restored");
       setRestoreTarget(null);
       router.refresh();
-    } catch {
-      toast.error("Failed to restore client");
     }
   };
 
   const handlePurge = async () => {
     if (!purgeTarget) return;
-    try {
-      await purgeClient(purgeTarget.id);
+    const result = await purgeClient(purgeTarget.id);
+    if (result?.error) {
+      toast.error(result.error);
+    } else {
       toast.success("Client permanently deleted");
       setPurgeTarget(null);
       router.refresh();
-    } catch {
-      toast.error("Failed to purge client");
     }
   };
 

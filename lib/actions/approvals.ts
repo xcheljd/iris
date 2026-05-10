@@ -12,9 +12,9 @@ export async function createApprovalRequest(
   clientId: string,
   reason: string,
   metadata?: Record<string, unknown>,
-) {
+): Promise<{ id: string } | { error: string }> {
   const user = await requireAuth();
-  if (!reason.trim()) throw new Error("Reason is required");
+  if (!reason.trim()) return { error: "Reason is required" };
   const id = randomUUID();
   db.insert(approvalRequests).values({
     id,
@@ -47,11 +47,11 @@ export async function createApprovalRequest(
 export async function reviewApprovalRequest(
   requestId: string,
   approved: boolean,
-) {
+): Promise<{ error: string } | undefined> {
   const user = await requireManager();
   const request = db.select().from(approvalRequests).where(eq(approvalRequests.id, requestId)).get();
-  if (!request) throw new Error("Request not found");
-  if (request.status !== "pending") throw new Error("Request already reviewed");
+  if (!request) return { error: "Request not found" };
+  if (request.status !== "pending") return { error: "Request already reviewed" };
 
   // Run the downstream action first — if it throws, approval stays "pending" and is retryable.
   // Previously the status was committed before the action, making failures unrecoverable.
@@ -63,9 +63,11 @@ export async function reviewApprovalRequest(
       case "unsubscribe":
         await unsubscribeClient(request.clientId);
         break;
-      case "delete":
-        await deleteClient(request.clientId);
+      case "delete": {
+        const r = await deleteClient(request.clientId);
+        if (r?.error) return { error: r.error };
         break;
+      }
     }
   }
 

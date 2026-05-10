@@ -82,18 +82,18 @@ export function MergeClientDialog({ children }: { children: React.ReactNode }) {
   const handleMerge = () => {
     if (!client || !candidateClient) return;
     start(async () => {
-      try {
-        const { winnerId } = await mergeClients(
-          client.id,
-          candidateClient.id,
-          choices,
-          finalNotes || null,
-        );
+      const result = await mergeClients(
+        client.id,
+        candidateClient.id,
+        choices,
+        finalNotes || null,
+      );
+      if ("error" in result) {
+        toast.error(result.error);
+      } else {
         toast.success("Clients merged successfully");
         setOpen(false);
-        router.push(`/clients/${winnerId}`);
-      } catch {
-        toast.error("Failed to merge clients");
+        router.push(`/clients/${result.winnerId}`);
       }
     });
   };

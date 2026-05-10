@@ -64,10 +64,10 @@ export async function unbanClient(clientId: string) {
   revalidatePath("/banned");
 }
 
-export async function addUnsubscribeEmail(email: string) {
+export async function addUnsubscribeEmail(email: string): Promise<{ error: string } | undefined> {
   await requireManager();
   const existing = db.select().from(unsubscribeList).where(eq(unsubscribeList.email, email)).get();
-  if (existing) throw new Error("Email already exists");
+  if (existing) return { error: "Email already exists" };
   const matchingClient = db.select().from(clients).where(eq(clients.email, email)).get();
   db.transaction((tx) => {
     tx.insert(unsubscribeList).values({ id: randomUUID(), email }).run();
@@ -97,11 +97,11 @@ export async function resubscribeClient(clientId: string) {
   revalidatePath("/unsubscribed");
 }
 
-export async function toggleEmailList(clientId: string) {
+export async function toggleEmailList(clientId: string): Promise<{ error: string } | undefined> {
   await requireAuth();
   const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
-  if (!c) throw new Error("Client not found");
-  if (c.status === "unsubscribed") throw new Error("Cannot toggle email list for unsubscribed client");
+  if (!c) return { error: "Client not found" };
+  if (c.status === "unsubscribed") return { error: "Cannot toggle email list for unsubscribed client" };
   const newValue = !c.onEmailList;
   db.update(clients).set({ onEmailList: newValue, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
   db.insert(activityEvents).values({
@@ -111,14 +111,14 @@ export async function toggleEmailList(clientId: string) {
   revalidatePath("/clients");
 }
 
-export async function transferClient(clientId: string, newEmployeeId: string) {
+export async function transferClient(clientId: string, newEmployeeId: string): Promise<{ error: string } | undefined> {
   const user = await requireManager();
 
   const clientRow = db.select({ employeeId: clients.employeeId }).from(clients).where(eq(clients.id, clientId)).get();
-  if (!clientRow) throw new Error("Client not found");
+  if (!clientRow) return { error: "Client not found" };
 
   const newEmployee = db.select({ firstName: employees.firstName, lastName: employees.lastName }).from(employees).where(eq(employees.id, newEmployeeId)).get();
-  if (!newEmployee) throw new Error("Employee not found");
+  if (!newEmployee) return { error: "Employee not found" };
 
   const previousEmployee = clientRow.employeeId
     ? db.select({ firstName: employees.firstName, lastName: employees.lastName }).from(employees).where(eq(employees.id, clientRow.employeeId)).get()
@@ -141,12 +141,12 @@ export async function transferClient(clientId: string, newEmployeeId: string) {
   revalidatePath(`/clients/${clientId}`);
 }
 
-export async function deleteClient(clientId: string) {
+export async function deleteClient(clientId: string): Promise<{ error: string } | undefined> {
   const user = await requireManager();
 
   const client = db.select().from(clients).where(eq(clients.id, clientId)).get();
-  if (!client) throw new Error("Client not found");
-  if (client.status === "deleted") throw new Error("Client already deleted");
+  if (!client) return { error: "Client not found" };
+  if (client.status === "deleted") return { error: "Client already deleted" };
 
   db.update(clients).set({
     status: "deleted",
@@ -168,12 +168,12 @@ export async function deleteClient(clientId: string) {
   revalidatePath("/settings");
 }
 
-export async function restoreClient(clientId: string) {
+export async function restoreClient(clientId: string): Promise<{ error: string } | undefined> {
   const user = await requireManager();
 
   const client = db.select().from(clients).where(eq(clients.id, clientId)).get();
-  if (!client) throw new Error("Client not found");
-  if (client.status !== "deleted") throw new Error("Client is not deleted");
+  if (!client) return { error: "Client not found" };
+  if (client.status !== "deleted") return { error: "Client is not deleted" };
 
   db.update(clients).set({
     status: client.previousStatus ?? "active",
@@ -195,11 +195,11 @@ export async function restoreClient(clientId: string) {
   revalidatePath("/settings");
 }
 
-export async function purgeClient(clientId: string) {
+export async function purgeClient(clientId: string): Promise<{ error: string } | undefined> {
   await requireManager();
 
   const client = db.select().from(clients).where(eq(clients.id, clientId)).get();
-  if (!client) throw new Error("Client not found");
+  if (!client) return { error: "Client not found" };
 
   db.transaction((tx) => {
     tx.delete(activityEvents).where(eq(activityEvents.clientId, clientId)).run();
@@ -218,12 +218,12 @@ export async function mergeClients(
   clientBId: string,
   fieldChoices: Record<string, "a" | "b">,
   finalNotes: string | null,
-): Promise<{ winnerId: string }> {
+): Promise<{ winnerId: string } | { error: string }> {
   const user = await requireManager();
 
   const clientA = db.select().from(clients).where(eq(clients.id, clientAId)).get();
   const clientB = db.select().from(clients).where(eq(clients.id, clientBId)).get();
-  if (!clientA || !clientB) throw new Error("Client not found");
+  if (!clientA || !clientB) return { error: "Client not found" };
 
   // Older dateAdded survives
   const aIsOlder = new Date(clientA.dateAdded).getTime() <= new Date(clientB.dateAdded).getTime();
@@ -311,10 +311,10 @@ export async function patchClientFromFormMerge(
     productsOfInterest?: string[];
     tags?: string[];
   },
-): Promise<void> {
+): Promise<{ error: string } | undefined> {
   const user = await requireManager();
   const existing = db.select().from(clients).where(eq(clients.id, existingId)).get();
-  if (!existing) throw new Error("Client not found");
+  if (!existing) return { error: "Client not found" };
 
   db.update(clients).set({
     firstName: patch.firstName,

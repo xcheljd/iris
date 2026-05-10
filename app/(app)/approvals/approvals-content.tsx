@@ -82,15 +82,14 @@ export function ApprovalsContent({ requests: initialRequests }: ApprovalsContent
 
   const handleReview = (id: string, approved: boolean) => {
     startTransition(async () => {
-      try {
-        await reviewApprovalRequest(id, approved);
+      const result = await reviewApprovalRequest(id, approved);
+      if (result?.error) {
+        toast.error(result.error);
+      } else {
         setRequests((prev) => prev.filter((r) => r.request.id !== id));
         toast.success(approved ? "Request approved" : "Request rejected");
-      } catch {
-        toast.error("Failed to process request");
-      } finally {
-        setConfirmAction(null);
       }
+      setConfirmAction(null);
     });
   };
 

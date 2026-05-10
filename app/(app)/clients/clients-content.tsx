@@ -143,13 +143,13 @@ export function ClientListContent({
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    try {
-      await deleteClient(deleteTarget.client.id);
+    const result = await deleteClient(deleteTarget.client.id);
+    if (result?.error) {
+      toast.error(result.error);
+    } else {
       toast.success("Client deleted");
       setDeleteTarget(null);
       router.refresh();
-    } catch {
-      toast.error("Failed to delete client");
     }
   };
 

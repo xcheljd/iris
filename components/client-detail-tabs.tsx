@@ -102,7 +102,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                   description={<>Are you sure you want to remove <strong>{client.firstName} {client.lastName}</strong> from the email list? They will no longer receive marketing emails.</>}
                   confirmLabel="Remove"
                   variant="destructive"
-                  onConfirm={() => toggleEmailList(client.id).then(() => { toast.success("Removed from email list"); }).catch(() => { toast.error("Failed to update"); })}
+                  onConfirm={async () => { const r = await toggleEmailList(client.id); if (r?.error) { toast.error(r.error); } else { toast.success("Removed from email list"); } }}
                 >
                   <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={(e) => e.preventDefault()}>
                     <Mail className="h-4 w-4 mr-2" /> Remove from Email List
@@ -110,7 +110,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                 </ConfirmDialog>
               )}
               {client.status !== "unsubscribed" && client.status !== "deleted" && !client.onEmailList && (
-                <DropdownMenuItem onClick={() => toggleEmailList(client.id).then(() => { toast.success("Added to email list"); }).catch(() => { toast.error("Failed to update"); })}>
+                <DropdownMenuItem onClick={async () => { const r = await toggleEmailList(client.id); if (r?.error) { toast.error(r.error); } else { toast.success("Added to email list"); } }}>
                   <Mail className="h-4 w-4 mr-2" /> Add to Email List
                 </DropdownMenuItem>
               )}

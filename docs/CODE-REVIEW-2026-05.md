@@ -17,13 +17,13 @@
 | Dead Code / Unwired | 7 | 1 | 6 |
 | Code Quality — Large Files | 5 | 0 | 5 |
 | Code Quality — Duplication | 6 | 0 | 6 |
-| Code Quality — Inconsistency | 4 | 3 | 1 |
+| Code Quality — Inconsistency | 4 | 2 | 2 |
 | Code Quality — Missing Error Handling | 8 | 0 | 8 |
 | Code Quality — Hardcoded Values | 10 | 0 | 10 |
 | Performance | 6 | 0 | 6 |
 | Accessibility | 6 | 0 | 6 |
 | Security | 6 | 0 | 6 |
-| **TOTAL** | **74** | **4** | **70** |
+| **TOTAL** | **74** | **3** | **71** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -446,7 +446,8 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### Q-INCON-1. Mixed error handling in server actions
 **File:** `lib/actions.ts`
 **Description:** Some functions throw errors (`throw new Error("Not authenticated")`), others return `{ error: string }`. Client components need both try/catch and result checks. Employee functions return `{ error }`, client functions throw.
-- [ ] Standardize: all server actions should return typed results (`{ success: true, data? }` or `{ error: string }`). Never throw for expected failures.
+- [x] Standardize: all server actions should return typed results (`{ success: true, data? }` or `{ error: string }`). Never throw for expected failures.
+  **Fix (2026-05-10):** All expected-failure paths in `clients.ts`, `prospects.ts`, `approvals.ts`, and `smart-lists.ts` now return `{ error: string }` instead of throwing. Auth guards (`requireAuth`, `requireManager`) remain as throws — those are unrecoverable access violations, not app-level errors. `mergeClients` return type tightened to `{ winnerId: string } | { error: string }`. All ~11 caller files updated to check `result?.error` or `'error' in result`. Tests updated to match.
 
 ### Q-INCON-2. Mixed loading state patterns
 **Files:** Multiple `*-content.tsx` files

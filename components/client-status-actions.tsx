@@ -224,7 +224,8 @@ export function BanCustomerDialog({
       associateReasonLabel="Reason for ban request"
       associatePlaceholder="Describe why this customer should be banned…"
       onApprovalRequest={async (r) => {
-        await createApprovalRequest("ban", clientId, r, { category });
+        const result = await createApprovalRequest("ban", clientId, r, { category });
+        if ("error" in result) throw new Error(result.error);
       }}
       approvalSuccessMessage={`Ban request for ${clientName} sent to your manager`}
       approvalErrorMessage="Failed to submit ban request"
@@ -262,7 +263,10 @@ export function UnsubscribeCustomerDialog({
       associateDescription="Only managers can unsubscribe customers. Describe the issue and your manager will review this request."
       associateReasonLabel="Reason for unsubscribe request"
       associatePlaceholder="Describe why this customer should be unsubscribed…"
-      onApprovalRequest={async (r) => { await createApprovalRequest("unsubscribe", clientId, r); }}
+      onApprovalRequest={async (r) => {
+        const result = await createApprovalRequest("unsubscribe", clientId, r);
+        if ("error" in result) throw new Error(result.error);
+      }}
       approvalSuccessMessage={`Unsubscribe request for ${clientName} sent to your manager`}
       approvalErrorMessage="Failed to submit unsubscribe request"
     >
@@ -293,7 +297,8 @@ export function DeleteCustomerDialog({
       managerActionLabel="Delete"
       managerPendingLabel="Deleting…"
       onManagerAction={async () => {
-        await deleteClient(clientId);
+        const r = await deleteClient(clientId);
+        if (r?.error) throw new Error(r.error);
         window.location.href = "/clients";
       }}
       managerSuccessMessage="Client deleted"
@@ -302,7 +307,10 @@ export function DeleteCustomerDialog({
       associateDescription="Only managers can delete clients. Describe the reason and your manager will review this request."
       associateReasonLabel="Reason for deletion request"
       associatePlaceholder="Describe why this client should be deleted…"
-      onApprovalRequest={async (r) => { await createApprovalRequest("delete", clientId, r); }}
+      onApprovalRequest={async (r) => {
+        const result = await createApprovalRequest("delete", clientId, r);
+        if ("error" in result) throw new Error(result.error);
+      }}
       approvalSuccessMessage={`Delete request for ${clientName} sent to your manager`}
       approvalErrorMessage="Failed to submit delete request"
     >

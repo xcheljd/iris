@@ -146,7 +146,7 @@ describe("mergeClients", () => {
     const newerId = createTestClient({ firstName: "Newer", dateAdded: new Date("2022-01-01") });
     createdClientIds.push(olderId, newerId);
 
-    const { winnerId } = await mergeClients(olderId, newerId, {}, null);
+    const { winnerId } = await mergeClients(olderId, newerId, {}, null) as { winnerId: string };
     expect(winnerId).toBe(olderId);
     createdClientIds.splice(createdClientIds.indexOf(newerId), 1); // loser was deleted
   });
@@ -172,7 +172,7 @@ describe("mergeClients", () => {
     const bId = createTestClient({ firstName: "Alicia", phone: "2222222222", dateAdded: new Date("2022-01-01") });
     createdClientIds.push(aId, bId);
 
-    const { winnerId } = await mergeClients(aId, bId, { firstName: "b", phone: "b" }, null);
+    const { winnerId } = await mergeClients(aId, bId, { firstName: "b", phone: "b" }, null) as { winnerId: string };
     createdClientIds.splice(createdClientIds.indexOf(bId), 1);
 
     const winner = db.select().from(clients).where(eq(clients.id, winnerId)).get();
@@ -186,7 +186,7 @@ describe("mergeClients", () => {
     const bId = createTestClient({ firstName: "Beta", dateAdded: new Date("2022-01-01") });
     createdClientIds.push(aId, bId);
 
-    const { winnerId } = await mergeClients(aId, bId, {}, null);
+    const { winnerId } = await mergeClients(aId, bId, {}, null) as { winnerId: string };
     createdClientIds.splice(createdClientIds.indexOf(bId), 1);
 
     const events = db.select().from(activityEvents).where(eq(activityEvents.clientId, winnerId)).all();
@@ -204,7 +204,7 @@ describe("mergeClients", () => {
     db.update(clients).set({ productsOfInterest: ["SKU-001"] }).where(eq(clients.id, aId)).run();
     db.update(clients).set({ productsOfInterest: ["SKU-002"] }).where(eq(clients.id, bId)).run();
 
-    const { winnerId } = await mergeClients(aId, bId, {}, null);
+    const { winnerId } = await mergeClients(aId, bId, {}, null) as { winnerId: string };
     createdClientIds.splice(createdClientIds.indexOf(bId), 1);
 
     const winner = db.select().from(clients).where(eq(clients.id, winnerId)).get();
@@ -218,21 +218,21 @@ describe("mergeClients", () => {
     const bId = createTestClient({ firstName: "B", dateAdded: new Date("2022-01-01") });
     createdClientIds.push(aId, bId);
 
-    const { winnerId } = await mergeClients(aId, bId, {}, "Merged notes here");
+    const { winnerId } = await mergeClients(aId, bId, {}, "Merged notes here") as { winnerId: string };
     createdClientIds.splice(createdClientIds.indexOf(bId), 1);
 
     const winner = db.select().from(clients).where(eq(clients.id, winnerId)).get();
     expect(winner!.notes).toBe("Merged notes here");
   });
 
-  it("throws when either client does not exist", async () => {
+  it("returns an error when either client does not exist", async () => {
     vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
     const validId = createTestClient({ firstName: "Valid" });
     createdClientIds.push(validId);
 
-    await expect(
-      mergeClients(validId, "00000000-0000-0000-0000-000000000000", {}, null)
-    ).rejects.toThrow("Client not found");
+    const result = await mergeClients(validId, "00000000-0000-0000-0000-000000000000", {}, null);
+    expect("error" in result).toBe(true);
+    expect((result as { error: string }).error).toBe("Client not found");
   });
 
   it("throws when associate calls it", async () => {

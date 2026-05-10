@@ -85,14 +85,14 @@ export async function graduateProspectIntoExistingClient(
   prospectId: string,
   existingClientId: string,
   enrichment: Partial<GraduateProspectInput>,
-): Promise<void> {
+): Promise<{ error: string } | undefined> {
   const user = await requireAuth();
 
   const prospect = db.select().from(prospects).where(eq(prospects.id, prospectId)).get();
-  if (!prospect) throw new Error("Prospect not found");
+  if (!prospect) return { error: "Prospect not found" };
 
   const existing = db.select().from(clients).where(eq(clients.id, existingClientId)).get();
-  if (!existing) throw new Error("Client not found");
+  if (!existing) return { error: "Client not found" };
 
   // Only backfill fields that are currently null/empty on the existing client
   const patch: Partial<typeof clients.$inferInsert> = { updatedAt: new Date() };
@@ -140,11 +140,11 @@ export async function rejectProspect(prospectId: string): Promise<void> {
   revalidatePath("/prospects");
 }
 
-export async function unsubscribeProspect(prospectId: string): Promise<void> {
+export async function unsubscribeProspect(prospectId: string): Promise<{ error: string } | undefined> {
   await requireAuth();
 
   const prospect = db.select().from(prospects).where(eq(prospects.id, prospectId)).get();
-  if (!prospect) throw new Error("Prospect not found");
+  if (!prospect) return { error: "Prospect not found" };
 
   db.transaction(() => {
     db.update(prospects)

@@ -96,19 +96,19 @@ export function GraduateProspectDialog({
 
   const handleGraduateIntoExisting = () => {
     startTransition(async () => {
-      try {
-        await graduateProspectIntoExistingClient(prospect.id, duplicateClientId, {
-          phone: phone.trim() || null,
-          email: email.trim() || null,
-          birthday: birthday.trim() || null,
-          anniversary: anniversary.trim() || null,
-          notes: notes.trim() || null,
-          productsOfInterest,
-        });
+      const result = await graduateProspectIntoExistingClient(prospect.id, duplicateClientId, {
+        phone: phone.trim() || null,
+        email: email.trim() || null,
+        birthday: birthday.trim() || null,
+        anniversary: anniversary.trim() || null,
+        notes: notes.trim() || null,
+        productsOfInterest,
+      });
+      if (result?.error) {
+        toast.error(result.error);
+      } else {
         toast.success(`Prospect graduated into ${duplicateClientName}`);
         handleClose();
-      } catch {
-        toast.error("Failed to graduate prospect");
       }
     });
   };

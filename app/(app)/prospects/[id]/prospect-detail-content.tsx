@@ -76,11 +76,11 @@ export function ProspectDetailContent({
 
   const handleUnsubscribe = () => {
     startTransition(async () => {
-      try {
-        await unsubscribeProspect(prospect.id);
+      const result = await unsubscribeProspect(prospect.id);
+      if (result?.error) {
+        toast.error(result.error);
+      } else {
         toast.success("Prospect unsubscribed");
-      } catch {
-        toast.error("Failed to unsubscribe prospect");
       }
     });
   };

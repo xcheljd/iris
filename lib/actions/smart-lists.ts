@@ -6,11 +6,11 @@ import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireAuth } from "./_shared";
 
-export async function deleteSmartList(listId: string) {
+export async function deleteSmartList(listId: string): Promise<{ error: string } | undefined> {
   const user = await requireAuth();
   const list = db.select().from(smartLists).where(eq(smartLists.id, listId)).get();
-  if (!list) throw new Error("Smart list not found");
-  if (user.role !== "manager" && list.ownerId !== user.id) throw new Error("Not authorized to delete this smart list");
+  if (!list) return { error: "Smart list not found" };
+  if (user.role !== "manager" && list.ownerId !== user.id) return { error: "Not authorized to delete this smart list" };
   db.delete(smartLists).where(eq(smartLists.id, listId)).run();
   revalidatePath("/smart-lists");
 }
@@ -30,11 +30,11 @@ export async function duplicateSmartList(listId: string) {
   revalidatePath("/smart-lists");
 }
 
-export async function renameSmartList(listId: string, newName: string) {
+export async function renameSmartList(listId: string, newName: string): Promise<{ error: string } | undefined> {
   const user = await requireAuth();
   const list = db.select().from(smartLists).where(eq(smartLists.id, listId)).get();
-  if (!list) throw new Error("Smart list not found");
-  if (user.role !== "manager" && list.ownerId !== user.id) throw new Error("Not authorized to rename this smart list");
+  if (!list) return { error: "Smart list not found" };
+  if (user.role !== "manager" && list.ownerId !== user.id) return { error: "Not authorized to rename this smart list" };
   db.update(smartLists).set({ name: newName }).where(eq(smartLists.id, listId)).run();
   revalidatePath("/smart-lists");
 }
