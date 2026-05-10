@@ -27,12 +27,16 @@ async function requireAuth() {
 }
 
 export async function recalcHeat(clientId: string) {
-  const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
-  if (!c) return;
-  const ninetyDaysAgo = new Date(Date.now() - 90 * MS_PER_DAY);
-  const last90 = db.select({ outcome: outreachLogs.outcome, date: outreachLogs.date }).from(outreachLogs).where(and(eq(outreachLogs.clientId, clientId), gte(outreachLogs.date, ninetyDaysAgo))).all();
-  const { score, level } = calcHeatScore(c, last90);
-  db.update(clients).set({ heatScore: score, heatLevel: level, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+  try {
+    const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
+    if (!c) return;
+    const ninetyDaysAgo = new Date(Date.now() - 90 * MS_PER_DAY);
+    const last90 = db.select({ outcome: outreachLogs.outcome, date: outreachLogs.date }).from(outreachLogs).where(and(eq(outreachLogs.clientId, clientId), gte(outreachLogs.date, ninetyDaysAgo))).all();
+    const { score, level } = calcHeatScore(c, last90);
+    db.update(clients).set({ heatScore: score, heatLevel: level, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+  } catch (err) {
+    console.error(`recalcHeat failed for client ${clientId}:`, err);
+  }
 }
 
 export async function logOutreach(data: OutreachInput) {
@@ -40,30 +44,32 @@ export async function logOutreach(data: OutreachInput) {
   const user = await getSessionUser();
   const id = randomUUID();
   const date = new Date();
-  db.insert(outreachLogs).values({
-    id,
-    clientId: parsed.clientId,
-    method: parsed.method,
-    date,
-    outcome: parsed.outcome,
-    purchasedModel: parsed.outcome === "purchased" ? parsed.purchasedModel || null : null,
-    notes: parsed.notes || null,
-    employeeId: user?.id ?? null,
-    followUpDate: parsed.followUpDate ? new Date(parsed.followUpDate) : null,
-    templateId: parsed.templateId || null,
-    completed: false,
-  }).run();
   const patch: Record<string, unknown> = { lastOutreachAt: date, updatedAt: date };
   if (parsed.outcome === "purchased") patch.lastPurchaseAt = date;
-  db.update(clients).set(patch).where(eq(clients.id, parsed.clientId)).run();
-  db.insert(activityEvents).values({
-    id: randomUUID(),
-    clientId: parsed.clientId,
-    eventType: parsed.outcome === "purchased" ? "purchase" : "outreach_logged",
-    description: `${parsed.method} — ${parsed.outcome.replace(/_/g, " ")}${parsed.purchasedModel ? ` (${parsed.purchasedModel})` : ""}`,
-    employeeId: user?.id ?? null,
-    metadata: { method: parsed.method, outcome: parsed.outcome, ...(parsed.purchasedModel ? { purchasedModel: parsed.purchasedModel } : {}) },
-  }).run();
+  db.transaction((tx) => {
+    tx.insert(outreachLogs).values({
+      id,
+      clientId: parsed.clientId,
+      method: parsed.method,
+      date,
+      outcome: parsed.outcome,
+      purchasedModel: parsed.outcome === "purchased" ? parsed.purchasedModel || null : null,
+      notes: parsed.notes || null,
+      employeeId: user?.id ?? null,
+      followUpDate: parsed.followUpDate ? new Date(parsed.followUpDate) : null,
+      templateId: parsed.templateId || null,
+      completed: false,
+    }).run();
+    tx.update(clients).set(patch).where(eq(clients.id, parsed.clientId)).run();
+    tx.insert(activityEvents).values({
+      id: randomUUID(),
+      clientId: parsed.clientId,
+      eventType: parsed.outcome === "purchased" ? "purchase" : "outreach_logged",
+      description: `${parsed.method} — ${parsed.outcome.replace(/_/g, " ")}${parsed.purchasedModel ? ` (${parsed.purchasedModel})` : ""}`,
+      employeeId: user?.id ?? null,
+      metadata: { method: parsed.method, outcome: parsed.outcome, ...(parsed.purchasedModel ? { purchasedModel: parsed.purchasedModel } : {}) },
+    }).run();
+  });
   await recalcHeat(parsed.clientId);
   if (parsed.outcome === "purchased" && parsed.purchasedModel) {
     await createPromoMatchIfApplies(parsed.clientId, parsed.purchasedModel);
@@ -155,41 +161,49 @@ export async function createSmartList(name: string, filters: Record<string, unkn
 export async function addTag(clientId: string, tag: string) {
   const user = await requireAuth();
   const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
-  if (!c) return;
+  if (!c) return { error: "Client not found" };
   if ((c.tags || []).includes(tag)) return;
   const tags = [...(c.tags || []), tag];
-  db.transaction((tx) => {
-    tx.update(clients).set({ tags, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
-    const existing = tx.select().from(clientTags).where(eq(clientTags.name, tag)).get();
-    if (existing) {
-      tx.update(clientTags).set({ usageCount: sql`${clientTags.usageCount} + 1` }).where(eq(clientTags.id, existing.id)).run();
-    } else {
-      tx.insert(clientTags).values({ id: randomUUID(), name: tag, usageCount: 1 }).run();
-    }
-    tx.insert(activityEvents).values({
-      id: randomUUID(), clientId, eventType: "tag_added", description: `Tag added: ${tag}`, employeeId: user.id, metadata: { tagName: tag },
-    }).run();
-  });
-  revalidatePath(`/clients/${clientId}`);
+  try {
+    db.transaction((tx) => {
+      tx.update(clients).set({ tags, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+      const existing = tx.select().from(clientTags).where(eq(clientTags.name, tag)).get();
+      if (existing) {
+        tx.update(clientTags).set({ usageCount: sql`${clientTags.usageCount} + 1` }).where(eq(clientTags.id, existing.id)).run();
+      } else {
+        tx.insert(clientTags).values({ id: randomUUID(), name: tag, usageCount: 1 }).run();
+      }
+      tx.insert(activityEvents).values({
+        id: randomUUID(), clientId, eventType: "tag_added", description: `Tag added: ${tag}`, employeeId: user.id, metadata: { tagName: tag },
+      }).run();
+    });
+    revalidatePath(`/clients/${clientId}`);
+  } catch (_err) {
+    return { error: "Failed to add tag" };
+  }
 }
 
 export async function removeTag(clientId: string, tag: string) {
   const user = await requireAuth();
   const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
-  if (!c) return;
+  if (!c) return { error: "Client not found" };
   if (!(c.tags || []).includes(tag)) return;
   const tags = (c.tags || []).filter((t) => t !== tag);
-  db.transaction((tx) => {
-    tx.update(clients).set({ tags, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
-    const existing = tx.select().from(clientTags).where(eq(clientTags.name, tag)).get();
-    if (existing) {
-      tx.update(clientTags).set({ usageCount: sql`CASE WHEN ${clientTags.usageCount} - 1 < 0 THEN 0 ELSE ${clientTags.usageCount} - 1 END` }).where(eq(clientTags.id, existing.id)).run();
-    }
-    tx.insert(activityEvents).values({
-      id: randomUUID(), clientId, eventType: "tag_removed", description: `Tag removed: ${tag}`, employeeId: user.id, metadata: { tagName: tag },
-    }).run();
-  });
-  revalidatePath(`/clients/${clientId}`);
+  try {
+    db.transaction((tx) => {
+      tx.update(clients).set({ tags, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+      const existing = tx.select().from(clientTags).where(eq(clientTags.name, tag)).get();
+      if (existing) {
+        tx.update(clientTags).set({ usageCount: sql`CASE WHEN ${clientTags.usageCount} - 1 < 0 THEN 0 ELSE ${clientTags.usageCount} - 1 END` }).where(eq(clientTags.id, existing.id)).run();
+      }
+      tx.insert(activityEvents).values({
+        id: randomUUID(), clientId, eventType: "tag_removed", description: `Tag removed: ${tag}`, employeeId: user.id, metadata: { tagName: tag },
+      }).run();
+    });
+    revalidatePath(`/clients/${clientId}`);
+  } catch (_err) {
+    return { error: "Failed to remove tag" };
+  }
 }
 
 export async function banClient(clientId: string, category: "Reselling" | "Gift Card Fraud" | "Other", reason: string) {
@@ -260,50 +274,62 @@ function matchPromoToClients(
 export async function createPromo(modelNumber: string, collection: string, msrp?: number | null, discountPercent?: number | null, discountPrice?: number | null) {
   await requireManager();
   if (!modelNumber?.trim() || !collection?.trim()) return { error: "Model number and collection are required" };
-  const all = db.select({ id: clients.id, productsOfInterest: clients.productsOfInterest }).from(clients).all();
-  const id = randomUUID();
-  db.transaction((tx) => {
-    tx.insert(promoWatches).values({ id, modelNumber, collection, msrp: msrp ?? null, discountPercent: discountPercent ?? null, discountPrice: discountPrice ?? null }).run();
-    matchPromoToClients(tx, id, modelNumber, collection, all);
-  });
-  revalidatePath("/promos");
+  try {
+    const all = db.select({ id: clients.id, productsOfInterest: clients.productsOfInterest }).from(clients).all();
+    const id = randomUUID();
+    db.transaction((tx) => {
+      tx.insert(promoWatches).values({ id, modelNumber, collection, msrp: msrp ?? null, discountPercent: discountPercent ?? null, discountPrice: discountPrice ?? null }).run();
+      matchPromoToClients(tx, id, modelNumber, collection, all);
+    });
+    revalidatePath("/promos");
+  } catch (_err) {
+    return { error: "Failed to create promo" };
+  }
 }
 
 export async function importPromos(rows: { modelNumber: string; collection: string; msrp?: number | null; discountPercent?: number | null; discountPrice?: number | null }[], promoStart?: string | null, promoEnd?: string | null) {
   await requireManager();
-  const all = db.select({ id: clients.id, productsOfInterest: clients.productsOfInterest }).from(clients).all();
-  let imported = 0;
-  db.transaction((tx) => {
-    for (const row of rows) {
-      if (!row.modelNumber?.trim() || !row.collection?.trim()) continue;
-      const id = randomUUID();
-      const modelNumber = row.modelNumber.trim();
-      const collection = row.collection.trim();
-      tx.insert(promoWatches).values({
-        id,
-        modelNumber,
-        collection,
-        msrp: row.msrp ?? null,
-        discountPercent: row.discountPercent ?? null,
-        discountPrice: row.discountPrice ?? null,
-        promoStart: promoStart ?? null,
-        promoEnd: promoEnd ?? null,
-      }).run();
-      matchPromoToClients(tx, id, modelNumber, collection, all);
-      imported++;
-    }
-  });
-  revalidatePath("/promos");
-  return { imported };
+  try {
+    const all = db.select({ id: clients.id, productsOfInterest: clients.productsOfInterest }).from(clients).all();
+    let imported = 0;
+    db.transaction((tx) => {
+      for (const row of rows) {
+        if (!row.modelNumber?.trim() || !row.collection?.trim()) continue;
+        const id = randomUUID();
+        const modelNumber = row.modelNumber.trim();
+        const collection = row.collection.trim();
+        tx.insert(promoWatches).values({
+          id,
+          modelNumber,
+          collection,
+          msrp: row.msrp ?? null,
+          discountPercent: row.discountPercent ?? null,
+          discountPrice: row.discountPrice ?? null,
+          promoStart: promoStart ?? null,
+          promoEnd: promoEnd ?? null,
+        }).run();
+        matchPromoToClients(tx, id, modelNumber, collection, all);
+        imported++;
+      }
+    });
+    revalidatePath("/promos");
+    return { imported };
+  } catch (_err) {
+    return { error: "Failed to import promos" };
+  }
 }
 
 export async function clearAllPromos() {
   await requireManager();
-  db.transaction((tx) => {
-    tx.delete(promoMatches).run();
-    tx.delete(promoWatches).run();
-  });
-  revalidatePath("/promos");
+  try {
+    db.transaction((tx) => {
+      tx.delete(promoMatches).run();
+      tx.delete(promoWatches).run();
+    });
+    revalidatePath("/promos");
+  } catch (_err) {
+    return { error: "Failed to clear promos" };
+  }
 }
 
 export async function deletePromo(id: string) {

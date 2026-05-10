@@ -18,12 +18,12 @@
 | Code Quality — Large Files | 5 | 5 | 0 |
 | Code Quality — Duplication | 6 | 6 | 0 |
 | Code Quality — Inconsistency | 4 | 4 | 0 |
-| Code Quality — Missing Error Handling | 8 | 8 | 0 |
+| Code Quality — Missing Error Handling | 8 | 4 | 4 |
 | Code Quality — Hardcoded Values | 10 | 10 | 0 |
 | Performance | 6 | 6 | 0 |
 | Accessibility | 6 | 6 | 0 |
 | Security | 6 | 1 | 5 |
-| **TOTAL** | **74** | **54** | **20** |
+| **TOTAL** | **74** | **50** | **24** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -465,17 +465,17 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### E-1. `recalcHeat()` — no error handling
 **File:** `lib/actions.ts` (~L29)
 **Description:** If the DB query fails, silently returns. Heat scores become stale with no feedback.
-- [ ] Wrap in try/catch and log errors.
+- [x] Fix: Wrapped body in try/catch; logs error to console on failure so heat score staleness is surfaced in server logs.
 
 ### E-2. `addTag()`, `removeTag()` — no error handling or user feedback
 **File:** `lib/actions.ts`
 **Description:** Functions silently return on failure. No error state propagated to the UI.
-- [ ] Add try/catch and return result objects.
+- [x] Fix: Wrapped transaction in try/catch; returns `{ error: string }` on failure so callers can surface feedback.
 
 ### E-3. `createPromo()`, `importPromos()`, `clearAllPromos()` — no try/catch
 **File:** `lib/actions.ts`
 **Description:** Transactional operations with no error handling. Errors propagate as unhandled server action errors.
-- [ ] Wrap in try/catch with user-friendly error returns.
+- [x] Fix: Wrapped each in try/catch; returns `{ error: string }` on failure.
 
 ### E-4. Backup restore file operations — no error handling
 **File:** `app/api/backup/restore/route.ts`
@@ -495,7 +495,7 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### E-7. `logOutreach` multi-step operation not in a transaction
 **File:** `lib/actions.ts` (~L39)
 **Description:** Insert log → update client → insert event → recalc heat → create promo match. If any step fails mid-way, data is left inconsistent.
-- [ ] Wrap entire operation in `db.transaction()`.
+- [x] Fix: Wrapped insert log + update client + insert activity event in `db.transaction()`. recalcHeat and createPromoMatchIfApplies remain outside (supplementary, non-critical to atomicity).
 
 ### E-8. `GET /api/clients` — no pagination, potential OOM
 **File:** `app/api/clients/route.ts`
