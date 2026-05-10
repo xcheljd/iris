@@ -51,7 +51,7 @@ export function TransferClientDialog({
     fetch("/api/employees")
       .then((r) => r.json())
       .then((data: Employee[]) => setEmployeeList(data.filter((e) => e.active)))
-      .catch(() => {});
+      .catch(() => toast.error("Failed to load employee list"));
   }, [open]);
 
   const handleTransfer = () => {

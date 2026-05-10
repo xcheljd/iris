@@ -17,13 +17,13 @@
 | Dead Code / Unwired | 7 | 1 | 6 |
 | Code Quality — Large Files | 5 | 0 | 5 |
 | Code Quality — Duplication | 6 | 0 | 6 |
-| Code Quality — Inconsistency | 4 | 1 | 3 |
+| Code Quality — Inconsistency | 4 | 0 | 4 |
 | Code Quality — Missing Error Handling | 8 | 0 | 8 |
 | Code Quality — Hardcoded Values | 10 | 0 | 10 |
 | Performance | 6 | 0 | 6 |
 | Accessibility | 6 | 0 | 6 |
 | Security | 6 | 0 | 6 |
-| **TOTAL** | **74** | **2** | **72** |
+| **TOTAL** | **74** | **1** | **73** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -458,7 +458,8 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### Q-INCON-3. Mixed data fetching patterns
 **Files:** `app/(app)/*/page.tsx`, various components
 **Description:** Some pages fetch in server components (correct pattern), others use `fetch()` in `useEffect` (merge-client-dialog search, promo matches).
-- [ ] Prefer server component data fetching. For client-side needs, use a consistent pattern.
+- [x] Prefer server component data fetching. For client-side needs, use a consistent pattern.
+  **Fix (2026-05-10):** Both cited cases are intentional client-side interactive patterns that cannot be server-component-fetched. Approved patterns: debounced `useEffect` + `fetch` with `AbortController` for search-as-you-type; async event handler + try/catch for on-demand loads. Added `AbortController` to `merge-client-dialog.tsx` search to prevent stale responses overriding fresh results on rapid typing. Fixed silent `.catch(() => {})` in `transfer-client-dialog.tsx` employee fetch (now toasts on failure).
 
 ### Q-INCON-4. Inconsistent dialog trigger patterns
 **Files:** `client-status-actions.tsx`, `merge-client-dialog.tsx`, `edit-client-dialog.tsx`

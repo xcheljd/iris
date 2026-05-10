@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -33,6 +33,7 @@ export function MergeClientDialog({ children }: { children: React.ReactNode }) {
   const [choices, setChoices] = useState<Record<string, "a" | "b">>({});
   const [finalNotes, setFinalNotes] = useState("");
   const [pending, start] = useTransition();
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!open) {
@@ -51,7 +52,10 @@ export function MergeClientDialog({ children }: { children: React.ReactNode }) {
       return;
     }
     const t = setTimeout(() => {
-      fetch(`/api/search?q=${encodeURIComponent(query)}`)
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      fetch(`/api/search?q=${encodeURIComponent(query)}`, { signal: controller.signal })
         .then((r) => r.json())
         .then(
           (
@@ -63,7 +67,10 @@ export function MergeClientDialog({ children }: { children: React.ReactNode }) {
             }[],
           ) => setResults(data.filter((r) => r.id !== client?.id)),
         )
-        .catch(() => toast.error("Search failed. Please try again."));
+        .catch((e) => {
+          if (e instanceof DOMException && e.name === "AbortError") return;
+          toast.error("Search failed. Please try again.");
+        });
     }, 300);
     return () => clearTimeout(t);
   }, [query, client?.id]);
