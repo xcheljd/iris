@@ -182,7 +182,7 @@ export async function removeTag(clientId: string, tag: string) {
     tx.update(clients).set({ tags, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
     const existing = tx.select().from(clientTags).where(eq(clientTags.name, tag)).get();
     if (existing) {
-      tx.update(clientTags).set({ usageCount: sql`MAX(0, ${clientTags.usageCount} - 1)` }).where(eq(clientTags.id, existing.id)).run();
+      tx.update(clientTags).set({ usageCount: sql`CASE WHEN ${clientTags.usageCount} - 1 < 0 THEN 0 ELSE ${clientTags.usageCount} - 1 END` }).where(eq(clientTags.id, existing.id)).run();
     }
     tx.insert(activityEvents).values({
       id: randomUUID(), clientId, eventType: "tag_removed", description: `Tag removed: ${tag}`, employeeId: user.id, metadata: { tagName: tag },
