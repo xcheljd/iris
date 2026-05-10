@@ -1172,7 +1172,7 @@ export async function graduateProspectIntoExistingClient(
     db.insert(activityEvents).values({
       id: randomUUID(),
       clientId: existingClientId,
-      eventType: "created",
+      eventType: "edited",
       description: "Prospect graduated into this client record",
       employeeId: user.id,
       metadata: { source: "prospect_graduation", prospectId },

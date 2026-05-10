@@ -13,7 +13,7 @@
 | Category | Total | Open | Resolved |
 |----------|-------|------|----------|
 | Silent Bugs — Critical | 4 | 0 | 4 |
-| Silent Bugs — Medium | 12 | 10 | 2 |
+| Silent Bugs — Medium | 12 | 9 | 3 |
 | Dead Code / Unwired | 7 | 7 | 0 |
 | Code Quality — Large Files | 5 | 5 | 0 |
 | Code Quality — Duplication | 6 | 6 | 0 |
@@ -23,7 +23,7 @@
 | Performance | 6 | 6 | 0 |
 | Accessibility | 6 | 6 | 0 |
 | Security | 6 | 6 | 0 |
-| **TOTAL** | **74** | **68** | **6** |
+| **TOTAL** | **74** | **67** | **7** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -332,7 +332,7 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 **Severity:** MEDIUM
 **File:** `lib/actions.ts` (~L1157, `graduateProspectIntoExistingClient`)
 **Description:** When a prospect is graduated into an existing client record (the merge-into-existing path), the activity event is logged with `eventType: "created"`. The client already exists — this is an enrichment of an existing record, not a creation. Using `"created"` makes the timeline misleading and could break UI logic that filters activity events by type to identify record creation (e.g., the "Client created from prospect graduation" description would appear alongside the original creation event).
-- [ ] Fix: Change to `eventType: "edited"` with description `"Prospect graduated into this client record"` (already the correct description at L1163). Alternatively, add a dedicated `"prospect_merged"` event type to the schema enum if the distinction is needed downstream.
+- [x] Fix: Changed `eventType: "created"` to `eventType: "edited"` — this is enrichment of an existing record, not a creation event.
 
 ---
 
