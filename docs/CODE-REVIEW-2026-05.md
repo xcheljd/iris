@@ -20,10 +20,10 @@
 | Code Quality — Inconsistency | 4 | 3 | 1 |
 | Code Quality — Missing Error Handling | 8 | 0 | 8 |
 | Code Quality — Hardcoded Values | 10 | 0 | 10 |
-| Performance | 6 | 1 | 5 |
+| Performance | 6 | 0 | 6 |
 | Accessibility | 6 | 0 | 6 |
 | Security | 6 | 0 | 6 |
-| **TOTAL** | **74** | **12** | **62** |
+| **TOTAL** | **74** | **11** | **63** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -574,7 +574,8 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### P-3. Smart lists filter entire client dataset client-side
 **File:** `app/(app)/smart-lists/smart-lists-content.tsx`
 **Description:** Receives `allClients` as a prop and filters in JavaScript. Transfers entire dataset to the browser.
-- [ ] Move filtering to server side for large datasets.
+- [x] Move filtering to server side for large datasets.
+**Fix:** Removed `allClients` prop entirely. Added `buildBuiltInConds`/`buildCustomConds` helpers in `lib/queries.ts` that build Drizzle WHERE conditions for all smart list filter types (heat, source, stale, birthdayMonth, tags, onEmailList). Added `getBuiltInListClients`, `getCustomListClients`, `getAllSmartListCounts` query functions. `app/(app)/smart-lists/page.tsx` reads `?list=` search param and fetches only the selected list's clients server-side; counts for all lists computed in one pass. `smart-lists-content.tsx` receives pre-filtered `selectedClients` (≤1000 rows) and uses client-side search only within that set. `CreateListDialog` no longer has live count preview (count appears in sidebar after creation).
 
 ### P-4. `importPromos` O(promos × clients) matching loop
 **File:** `lib/actions.ts`

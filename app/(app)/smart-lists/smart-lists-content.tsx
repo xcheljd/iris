@@ -23,11 +23,11 @@ import { EmptyState } from "@/components/empty-state";
 import { PaginationFooter } from "@/components/pagination-footer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  ListFilter, 
-  Plus, 
-  Users, 
-  Flame, 
+import {
+  ListFilter,
+  Plus,
+  Users,
+  Flame,
   Clock,
   Calendar,
   Mail,
@@ -43,43 +43,32 @@ import {
   Filter,
 } from "lucide-react";
 import Link from "next/link";
-import { applyClientFilter } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 import { deleteSmartList, duplicateSmartList, renameSmartList, createSmartList } from "@/lib/actions";
 import { toast } from "sonner";
 import { Topbar } from "@/components/topbar";
 import type { SmartList } from "@/lib/db/schema";
 import { CLIENT_SOURCE_VALUES } from "@/lib/db/schema";
 import type { ClientListRow } from "@/lib/queries";
-import { MS_PER_DAY, HEAT_LOOKBACK_DAYS, DEFAULT_PAGE_SIZE } from "@/lib/constants";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
+
+const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 interface SmartListsContentProps {
   lists: SmartList[];
-  allClients: ClientListRow[];
+  counts: { builtIn: Record<string, number>; custom: Record<string, number> };
+  selectedListId: string | null;
+  selectedClients: ClientListRow[] | null;
 }
 
-function getFilterIcon(filter: string) {
-  switch (filter) {
-    case "hot": return <Flame className="h-4 w-4 text-orange-500" />;
-    case "stale": return <Clock className="h-4 w-4 text-yellow-500" />;
-    case "recent_purchases": return <Star className="h-4 w-4 text-emerald-500" />;
-    case "no_outreach_60": return <Clock className="h-4 w-4 text-red-500" />;
-    case "birthdays_month": return <Calendar className="h-4 w-4 text-pink-500" />;
-    case "email_subscribers": return <Mail className="h-4 w-4 text-blue-500" />;
-    default: return <ListFilter className="h-4 w-4" />;
-  }
-}
-
-function getFilterLabel(filter: string) {
-  switch (filter) {
-    case "hot": return "Hot Clients";
-    case "stale": return "Stale (90+ days)";
-    case "recent_purchases": return "Recent Purchases";
-    case "no_outreach_60": return "No Outreach (60d)";
-    case "birthdays_month": return "Birthdays This Month";
-    case "email_subscribers": return "Email Subscribers";
-    default: return filter;
-  }
-}
+const BUILTIN_FILTERS = [
+  { id: "hot", label: "Hot Clients", icon: <Flame className="h-4 w-4 text-orange-500" /> },
+  { id: "stale", label: "Stale (90+ days)", icon: <Clock className="h-4 w-4 text-yellow-500" /> },
+  { id: "recent_purchases", label: "Recent Purchases", icon: <Star className="h-4 w-4 text-emerald-500" /> },
+  { id: "no_outreach_60", label: "No Outreach (60d)", icon: <Clock className="h-4 w-4 text-red-500" /> },
+  { id: "birthdays_month", label: "Birthdays This Month", icon: <Calendar className="h-4 w-4 text-pink-500" /> },
+  { id: "email_subscribers", label: "Email Subscribers", icon: <Mail className="h-4 w-4 text-blue-500" /> },
+] as const;
 
 function ClientRow({ client }: { client: ClientListRow }) {
   return (
@@ -104,41 +93,36 @@ function ClientRow({ client }: { client: ClientListRow }) {
   );
 }
 
-type FilterValue = string | number | boolean | string[] | null | undefined;
-
-interface ResolvedList {
-  id: string;
-  name: string;
-  filters: Record<string, FilterValue>;
-  sort: string | null;
-  isShared: boolean;
-  isBuiltIn: boolean;
-  _count: number;
-  _clients: ClientListRow[];
-}
-
 function SmartListItem({
-  list,
+  id: _id,
+  name,
+  icon,
+  count,
+  isBuiltIn,
+  isShared,
   isSelected,
   onSelect,
   onDelete,
   onDuplicate,
   onRename,
 }: {
-  list: ResolvedList;
+  id: string;
+  name: string;
+  icon: React.ReactNode;
+  count: number;
+  isBuiltIn: boolean;
+  isShared: boolean;
   isSelected: boolean;
   onSelect: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
-  onRename: (newName: string) => void;
+  onRename: (name: string) => void;
 }) {
   const [renameOpen, setRenameOpen] = useState(false);
-  const [newName, setNewName] = useState(list.name);
+  const [newName, setNewName] = useState(name);
 
   const handleRename = () => {
-    if (newName.trim() && newName !== list.name) {
-      onRename(newName.trim());
-    }
+    if (newName.trim() && newName !== name) onRename(newName.trim());
     setRenameOpen(false);
   };
 
@@ -151,29 +135,23 @@ function SmartListItem({
       >
         <button className="flex items-center gap-2 min-w-0 flex-1" onClick={onSelect}>
           <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="flex items-center gap-2 min-w-0">
-                  {list.isBuiltIn
-                    ? getFilterIcon(list.filters.type as string)
-                    : list.isShared
-                      ? <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
-                      : <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
-                  }
-                  <span className="text-sm truncate">{list.name}</span>
-                </span>
-              </TooltipTrigger>
-              {list.name.length > 20 && (
-                <TooltipContent side="right">
-                  <p>{list.name}</p>
-                </TooltipContent>
-              )}
-            </Tooltip>
+            <TooltipTrigger asChild>
+              <span className="flex items-center gap-2 min-w-0">
+                {isBuiltIn ? icon : isShared
+                  ? <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
+                  : <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+                }
+                <span className="text-sm truncate">{name}</span>
+              </span>
+            </TooltipTrigger>
+            {name.length > 20 && (
+              <TooltipContent side="right"><p>{name}</p></TooltipContent>
+            )}
+          </Tooltip>
         </button>
         <div className="flex items-center gap-1">
-          <Badge variant="secondary" className="text-xs shrink-0">
-            {list._count}
-          </Badge>
-          {!list.isBuiltIn && (
+          <Badge variant="secondary" className="text-xs shrink-0">{count}</Badge>
+          {!isBuiltIn && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -187,18 +165,15 @@ function SmartListItem({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => { setNewName(list.name); setRenameOpen(true); }}>
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Rename
+                <DropdownMenuItem onClick={() => { setNewName(name); setRenameOpen(true); }}>
+                  <Pencil className="h-4 w-4 mr-2" />Rename
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={onDuplicate}>
-                  <Copy className="h-4 w-4 mr-2" />
-                  Duplicate
+                  <Copy className="h-4 w-4 mr-2" />Duplicate
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-destructive" onClick={onDelete}>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
+                  <Trash2 className="h-4 w-4 mr-2" />Delete
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -225,20 +200,12 @@ function SmartListItem({
   );
 }
 
-function CreateListDialog({ open, onOpenChange, allClients }: { open: boolean; onOpenChange: (open: boolean) => void; allClients: ClientListRow[] }) {
+function CreateListDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const [name, setName] = useState("");
   const [heatLevel, setHeatLevel] = useState<string>("__none__");
   const [source, setSource] = useState<string>("__none__");
   const [onEmailList, setOnEmailList] = useState(false);
   const [isPending, startTransition] = useTransition();
-
-  const matchingCount = useMemo(() => {
-    let filtered = allClients;
-    if (heatLevel !== "__none__") filtered = filtered.filter((c) => c.heatLevel === heatLevel);
-    if (source !== "__none__") filtered = filtered.filter((c) => c.source === source);
-    if (onEmailList) filtered = filtered.filter((c) => c.onEmailList);
-    return filtered.length;
-  }, [allClients, heatLevel, source, onEmailList]);
 
   const handleCreate = () => {
     if (!name.trim()) return;
@@ -308,9 +275,6 @@ function CreateListDialog({ open, onOpenChange, allClients }: { open: boolean; o
               <Label htmlFor="email-list-filter" className="text-sm">On email list only</Label>
             </div>
           </div>
-          <p className="text-sm text-muted-foreground">
-            {matchingCount} client{matchingCount !== 1 ? "s" : ""} match current filters
-          </p>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -323,101 +287,59 @@ function CreateListDialog({ open, onOpenChange, allClients }: { open: boolean; o
   );
 }
 
-const PAGE_SIZE = DEFAULT_PAGE_SIZE;
-
-export function SmartListsContent({ lists, allClients }: SmartListsContentProps) {
-  const [selectedList, setSelectedList] = useState<ResolvedList | null>(null);
+export function SmartListsContent({ lists, counts, selectedListId, selectedClients }: SmartListsContentProps) {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [clientPage, setClientPage] = useState(1);
-  const [deleteTarget, setDeleteTarget] = useState<ResolvedList | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SmartList | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  const builtInLists = useMemo(() => {
-    const filters = ["hot", "stale", "recent_purchases", "no_outreach_60", "birthdays_month", "email_subscribers"];
-    return filters.map((filter) => {
-      const filtered = applyClientFilter(allClients, filter);
-      return {
-        id: `builtin-${filter}`,
-        name: getFilterLabel(filter),
-        filters: { type: filter },
-        sort: null,
-        isShared: true,
-        isBuiltIn: true,
-        _count: filtered.length,
-        _clients: filtered,
-      } as ResolvedList;
-    });
-  }, [allClients]);
+  const selectList = (id: string) => {
+    router.replace(`/smart-lists?list=${encodeURIComponent(id)}`);
+    setSearchQuery("");
+    setClientPage(1);
+  };
 
-  const customLists = useMemo(() => {
-    return lists.map((list) => {
-      const filters = list.filters as Record<string, FilterValue>;
-      let filtered: ClientListRow[] = allClients;
+  const filteredClients = useMemo(() => {
+    if (!selectedClients) return [];
+    if (!searchQuery) return selectedClients;
+    const q = searchQuery.toLowerCase();
+    return selectedClients.filter((c) =>
+      `${c.firstName} ${c.lastName || ""} ${c.phone || ""} ${c.email || ""}`.toLowerCase().includes(q)
+    );
+  }, [selectedClients, searchQuery]);
 
-      if (filters.heatLevel) {
-        filtered = filtered.filter((c) => c.heatLevel === String(filters.heatLevel));
-      }
-      if (filters.tags) {
-        const tagsArr = Array.isArray(filters.tags) ? filters.tags : [filters.tags];
-        filtered = filtered.filter((c) => tagsArr.some((t) => c.tags?.includes(String(t))));
-      }
-      if (filters.tag) {
-        filtered = filtered.filter((c) => c.tags?.includes(String(filters.tag)));
-      }
-      if (filters.source) {
-        filtered = filtered.filter((c) => c.source === String(filters.source));
-      }
-      if (filters.onEmailList) {
-        filtered = filtered.filter((c) => c.onEmailList);
-      }
-      if (filters.stale) {
-        const now = Date.now();
-        filtered = filtered.filter((c) => {
-          if (c.status !== "active") return false;
-          const last = Math.max(
-            c.lastOutreachAt ? new Date(c.lastOutreachAt).getTime() : 0,
-            c.lastPurchaseAt ? new Date(c.lastPurchaseAt).getTime() : 0,
-          );
-          return !c.lastOutreachAt && !c.lastPurchaseAt ? true : (now - last) > HEAT_LOOKBACK_DAYS * MS_PER_DAY;
-        });
-      }
-      if (filters.birthdayMonth) {
-        const month = filters.birthdayMonth as number;
-        filtered = filtered.filter((c) => {
-          if (!c.birthday) return false;
-          const m = parseInt(c.birthday.split("-")[1] || "0", 10);
-          return m === month;
-        });
-      }
-
-      return { ...list, _count: filtered.length, _clients: filtered } as ResolvedList;
-    });
-  }, [lists, allClients]);
-
-  const activeClients = selectedList?._clients || [];
-  const filteredClients = searchQuery
-    ? activeClients.filter((c) =>
-        `${c.firstName} ${c.lastName || ""} ${c.phone || ""} ${c.email || ""}`
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase())
-      )
-    : activeClients;
-
-  const clientTotalPages = Math.ceil(filteredClients.length / PAGE_SIZE);
+  const totalPages = Math.ceil(filteredClients.length / PAGE_SIZE);
   const pagedClients = filteredClients.slice((clientPage - 1) * PAGE_SIZE, clientPage * PAGE_SIZE);
+
+  const selectedBuiltInFilter = selectedListId?.startsWith("builtin-") ? selectedListId.slice(8) : null;
+  const selectedCustomListId = selectedListId && !selectedListId.startsWith("builtin-") ? selectedListId : null;
+
+  const selectedBuiltIn = selectedBuiltInFilter
+    ? BUILTIN_FILTERS.find((f) => f.id === selectedBuiltInFilter)
+    : null;
+  const selectedCustom = selectedCustomListId
+    ? lists.find((l) => l.id === selectedCustomListId)
+    : null;
+  const selectedName = selectedBuiltIn?.label ?? selectedCustom?.name ?? null;
+  const selectedCount = selectedBuiltIn
+    ? counts.builtIn[selectedBuiltIn.id] ?? 0
+    : selectedCustom
+      ? counts.custom[selectedCustom.id] ?? 0
+      : 0;
 
   const handleDelete = () => {
     if (!deleteTarget) return;
     startTransition(async () => {
       await deleteSmartList(deleteTarget.id);
       toast.success("Smart list deleted");
-      if (selectedList?.id === deleteTarget.id) setSelectedList(null);
+      if (selectedListId === deleteTarget.id) router.replace("/smart-lists");
       setDeleteTarget(null);
     });
   };
 
-  const handleDuplicate = (list: ResolvedList) => {
+  const handleDuplicate = (list: SmartList) => {
     startTransition(async () => {
       await duplicateSmartList(list.id);
       toast.success("Smart list duplicated");
@@ -435,49 +357,48 @@ export function SmartListsContent({ lists, allClients }: SmartListsContentProps)
     <>
       <Topbar title="Smart Lists" />
       <div className="flex-1 p-4 md:p-6">
-      <div className="mb-6">
-        <h1 className="sr-only">Smart Lists</h1>
-        <p className="text-muted-foreground mt-1">
-          Saved filter combinations for quick access
-        </p>
-      </div>
+        <div className="mb-6">
+          <h1 className="sr-only">Smart Lists</h1>
+          <p className="text-muted-foreground mt-1">Saved filter combinations for quick access</p>
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6">
-        {/* List Sidebar */}
-        <div className="space-y-4">
-          {/* Built-in Lists */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Sparkles className="h-4 w-4" />
-                Built-in Lists
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-1">
-              {builtInLists.map((list) => (
-                <SmartListItem
-                  key={list.id}
-                  list={list}
-                  isSelected={selectedList?.id === list.id}
-                  onSelect={() => { setSelectedList(list); setClientPage(1); }}
-                  onDelete={() => {}}
-                  onDuplicate={() => {}}
-                  onRename={() => {}}
-                />
-              ))}
-            </CardContent>
-          </Card>
-
-          <Separator />
-
-          {/* Custom Lists */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
+        <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6">
+          {/* List Sidebar */}
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Star className="h-4 w-4" />
-                  Custom Lists
+                  <Sparkles className="h-4 w-4" />Built-in Lists
                 </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                {BUILTIN_FILTERS.map((f) => (
+                  <SmartListItem
+                    key={f.id}
+                    id={f.id}
+                    name={f.label}
+                    icon={f.icon}
+                    count={counts.builtIn[f.id] ?? 0}
+                    isBuiltIn
+                    isShared={false}
+                    isSelected={selectedListId === `builtin-${f.id}`}
+                    onSelect={() => selectList(f.id)}
+                    onDelete={() => {}}
+                    onDuplicate={() => {}}
+                    onRename={() => {}}
+                  />
+                ))}
+              </CardContent>
+            </Card>
+
+            <Separator />
+
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Star className="h-4 w-4" />Custom Lists
+                  </CardTitle>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button size="sm" variant="ghost" onClick={() => setCreateOpen(true)} aria-label="Create new list">
@@ -486,120 +407,115 @@ export function SmartListsContent({ lists, allClients }: SmartListsContentProps)
                     </TooltipTrigger>
                     <TooltipContent>Create new list</TooltipContent>
                   </Tooltip>
-              </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                {lists.length === 0 ? (
+                  <div className="text-center py-4">
+                    <ListFilter className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                    <p className="text-sm text-muted-foreground">No custom lists yet</p>
+                    <Button size="sm" variant="outline" className="mt-2" onClick={() => setCreateOpen(true)}>
+                      <Plus className="h-3 w-3 mr-1" />Create one
+                    </Button>
+                  </div>
+                ) : (
+                  lists.map((list) => (
+                    <SmartListItem
+                      key={list.id}
+                      id={list.id}
+                      name={list.name}
+                      icon={<Filter className="h-4 w-4" />}
+                      count={counts.custom[list.id] ?? 0}
+                      isBuiltIn={false}
+                      isShared={list.isShared}
+                      isSelected={selectedListId === list.id}
+                      onSelect={() => selectList(list.id)}
+                      onDelete={() => setDeleteTarget(list)}
+                      onDuplicate={() => handleDuplicate(list)}
+                      onRename={(newName) => handleRename(list.id, newName)}
+                    />
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Client List Panel */}
+          <Card>
+            <CardHeader>
+              {selectedName ? (
+                <>
+                  <CardTitle className="flex items-center gap-2">
+                    {selectedBuiltIn?.icon ?? <Filter className="h-4 w-4" />}
+                    {selectedName}
+                  </CardTitle>
+                  <CardDescription>
+                    {selectedCount} client{selectedCount !== 1 ? "s" : ""} match
+                  </CardDescription>
+                </>
+              ) : (
+                <>
+                  <CardTitle>Select a List</CardTitle>
+                  <CardDescription>Choose a smart list from the sidebar to view matching clients</CardDescription>
+                </>
+              )}
             </CardHeader>
-            <CardContent className="space-y-1">
-              {customLists.length === 0 ? (
-                <div className="text-center py-4">
-                  <ListFilter className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
-                  <p className="text-sm text-muted-foreground">No custom lists yet</p>
-                  <Button size="sm" variant="outline" className="mt-2" onClick={() => setCreateOpen(true)}>
-                    <Plus className="h-3 w-3 mr-1" />
-                    Create one
-                  </Button>
+            <CardContent>
+              {selectedClients !== null ? (
+                <div className="space-y-3">
+                  <SearchInput
+                    placeholder="Search within list..."
+                    value={searchQuery}
+                    onChange={(v) => { setSearchQuery(v); setClientPage(1); }}
+                  />
+                  {filteredClients.length === 0 ? (
+                    <EmptyState icon={Users} description="No clients match this filter" compact />
+                  ) : (
+                    <div className="space-y-1">
+                      {pagedClients.map((client) => (
+                        <ClientRow key={client.id} client={client} />
+                      ))}
+                    </div>
+                  )}
+                  <PaginationFooter
+                    currentPage={clientPage}
+                    totalPages={totalPages}
+                    onPageChange={setClientPage}
+                    totalItems={filteredClients.length}
+                    pageSize={PAGE_SIZE}
+                    itemLabel="clients"
+                  />
                 </div>
               ) : (
-                customLists.map((list) => (
-                  <SmartListItem
-                    key={list.id}
-                    list={list}
-                    isSelected={selectedList?.id === list.id}
-                    onSelect={() => { setSelectedList(list); setClientPage(1); }}
-                    onDelete={() => setDeleteTarget(list)}
-                    onDuplicate={() => handleDuplicate(list)}
-                    onRename={(newName) => handleRename(list.id, newName)}
-                  />
-                ))
+                <div className="text-center py-16">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted/50 mb-4">
+                    <ListFilter className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-lg font-medium">No list selected</p>
+                  <p className="text-sm text-muted-foreground mt-1 mb-4">
+                    Pick a smart list from the sidebar to view matching clients
+                  </p>
+                  <Button variant="outline" onClick={() => setCreateOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />Create Custom List
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Client List */}
-        <Card>
-          <CardHeader>
-            {selectedList ? (
-              <>
-                <CardTitle className="flex items-center gap-2">
-                  {selectedList.isBuiltIn
-                    ? getFilterIcon(selectedList.filters.type as string)
-                    : <Filter className="h-4 w-4" />
-                  }
-                  {selectedList.name}
-                </CardTitle>
-                <CardDescription>
-                  {selectedList._count} client{selectedList._count !== 1 ? "s" : ""} match
-                </CardDescription>
-              </>
-            ) : (
-              <>
-                <CardTitle>Select a List</CardTitle>
-                <CardDescription>
-                  Choose a smart list from the sidebar to view matching clients
-                </CardDescription>
-              </>
-            )}
-          </CardHeader>
-          <CardContent>
-            {selectedList ? (
-              <div className="space-y-3">
-                <SearchInput
-                  placeholder="Search within list..."
-                  value={searchQuery}
-                  onChange={(v) => { setSearchQuery(v); setClientPage(1); }}
-                />
+        <ConfirmDialog
+          open={!!deleteTarget}
+          onOpenChange={(open) => !open && setDeleteTarget(null)}
+          title="Delete Smart List?"
+          description={`This will permanently delete "${deleteTarget?.name}". This action cannot be undone.`}
+          confirmLabel={isPending ? "Deleting..." : "Delete"}
+          onConfirm={handleDelete}
+          variant="destructive"
+          disabled={isPending}
+        />
 
-                {filteredClients.length === 0 ? (
-                  <EmptyState icon={Users} description="No clients match this filter" compact />
-                ) : (
-                  <div className="space-y-1">
-                    {pagedClients.map((client) => (
-                      <ClientRow key={client.id} client={client} />
-                    ))}
-                  </div>
-                )}
-                <PaginationFooter
-                  currentPage={clientPage}
-                  totalPages={clientTotalPages}
-                  onPageChange={setClientPage}
-                  totalItems={filteredClients.length}
-                  pageSize={PAGE_SIZE}
-                  itemLabel="clients"
-                />
-              </div>
-            ) : (
-              <div className="text-center py-16">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted/50 mb-4">
-                  <ListFilter className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <p className="text-lg font-medium">No list selected</p>
-                <p className="text-sm text-muted-foreground mt-1 mb-4">
-                  Pick a smart list from the sidebar to view matching clients
-                </p>
-                <Button variant="outline" onClick={() => setCreateOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Custom List
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Delete Confirmation */}
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title="Delete Smart List?"
-        description={`This will permanently delete "${deleteTarget?.name}". This action cannot be undone.`}
-        confirmLabel={isPending ? "Deleting..." : "Delete"}
-        onConfirm={handleDelete}
-        variant="destructive"
-        disabled={isPending}
-      />
-
-      {/* Create List Dialog */}
-      <CreateListDialog open={createOpen} onOpenChange={setCreateOpen} allClients={allClients} />
+        <CreateListDialog open={createOpen} onOpenChange={setCreateOpen} />
       </div>
     </>
   );

@@ -343,6 +343,98 @@ export async function getSmartLists(employeeId?: string) {
   return db.select().from(smartLists).where(filter).orderBy(smartLists.name).all();
 }
 
+const BUILTIN_FILTER_TYPES = ["hot", "stale", "recent_purchases", "no_outreach_60", "birthdays_month", "email_subscribers"] as const;
+export type BuiltInFilter = typeof BUILTIN_FILTER_TYPES[number];
+export const BUILTIN_FILTER_IDS = BUILTIN_FILTER_TYPES;
+
+function buildBuiltInConds(filter: BuiltInFilter, nowSec: number, employeeId?: string): (SQL<unknown> | undefined)[] {
+  const base: (SQL<unknown> | undefined)[] = [
+    notInArray(clients.status, ["banned", "deleted"]),
+    employeeId ? eq(clients.employeeId, employeeId) : undefined,
+  ];
+  const SEC_PER_DAY = 86400;
+  switch (filter) {
+    case "hot":
+      return [...base, eq(clients.heatLevel, "hot"), eq(clients.status, "active")];
+    case "stale":
+      return [...base, eq(clients.status, "active"), or(isNull(clients.lastOutreachAt), rawSql`${clients.lastOutreachAt} < ${nowSec - 90 * SEC_PER_DAY}`)];
+    case "recent_purchases":
+      return [...base, rawSql`${clients.lastPurchaseAt} > ${nowSec - 30 * SEC_PER_DAY}`];
+    case "no_outreach_60":
+      return [...base, eq(clients.status, "active"), or(isNull(clients.lastOutreachAt), rawSql`${clients.lastOutreachAt} < ${nowSec - 60 * SEC_PER_DAY}`)];
+    case "birthdays_month": {
+      const m = String(new Date().getMonth() + 1).padStart(2, "0");
+      return [...base, isNotNull(clients.birthday), rawSql`substr(${clients.birthday}, 6, 2) = ${m}`];
+    }
+    case "email_subscribers":
+      return [...base, eq(clients.onEmailList, true), rawSql`${clients.status} != 'unsubscribed'`];
+  }
+}
+
+function buildCustomConds(filters: Record<string, unknown>, nowSec: number, employeeId?: string): (SQL<unknown> | undefined)[] {
+  const conds: (SQL<unknown> | undefined)[] = [
+    notInArray(clients.status, ["banned", "deleted"]),
+    employeeId ? eq(clients.employeeId, employeeId) : undefined,
+  ];
+  const SEC_PER_DAY = 86400;
+  if (filters.heatLevel) conds.push(eq(clients.heatLevel, filters.heatLevel as "hot" | "warm" | "cold"));
+  if (filters.source) conds.push(rawSql`${clients.source} = ${String(filters.source)}`);
+  if (filters.onEmailList) conds.push(eq(clients.onEmailList, true));
+  if (filters.stale) {
+    conds.push(
+      eq(clients.status, "active"),
+      or(
+        and(isNull(clients.lastOutreachAt), isNull(clients.lastPurchaseAt)),
+        rawSql`MAX(COALESCE(${clients.lastOutreachAt}, 0), COALESCE(${clients.lastPurchaseAt}, 0)) < ${nowSec - 90 * SEC_PER_DAY}`,
+      ),
+    );
+  }
+  if (filters.birthdayMonth) {
+    const m = String(filters.birthdayMonth).padStart(2, "0");
+    conds.push(isNotNull(clients.birthday), rawSql`substr(${clients.birthday}, 6, 2) = ${m}`);
+  }
+  const tagValues = filters.tags
+    ? (Array.isArray(filters.tags) ? filters.tags : [filters.tags])
+    : filters.tag ? [filters.tag] : [];
+  for (const tag of tagValues) {
+    conds.push(rawSql`EXISTS (SELECT 1 FROM json_each(${clients.tags}) WHERE value = ${String(tag)})`);
+  }
+  return conds;
+}
+
+export async function getBuiltInListClients(filter: string, employeeId?: string): Promise<ClientListRow[]> {
+  if (!BUILTIN_FILTER_IDS.includes(filter as BuiltInFilter)) return [];
+  const nowSec = Math.floor(Date.now() / 1000);
+  const conds = buildBuiltInConds(filter as BuiltInFilter, nowSec, employeeId);
+  return db.select(clientListProjection).from(clients).where(and(...conds)).orderBy(desc(clients.heatScore)).limit(1000).all();
+}
+
+export async function getCustomListClients(filters: Record<string, unknown>, employeeId?: string): Promise<ClientListRow[]> {
+  const nowSec = Math.floor(Date.now() / 1000);
+  const conds = buildCustomConds(filters, nowSec, employeeId);
+  return db.select(clientListProjection).from(clients).where(and(...conds)).orderBy(desc(clients.heatScore)).limit(1000).all();
+}
+
+export async function getAllSmartListCounts(
+  lists: Awaited<ReturnType<typeof getSmartLists>>,
+  employeeId?: string,
+): Promise<{ builtIn: Record<string, number>; custom: Record<string, number> }> {
+  const nowSec = Math.floor(Date.now() / 1000);
+  const builtIn: Record<string, number> = {};
+  for (const filter of BUILTIN_FILTER_IDS) {
+    const conds = buildBuiltInConds(filter, nowSec, employeeId);
+    const [row] = db.select({ n: rawSql<number>`count(*)` }).from(clients).where(and(...conds)).all();
+    builtIn[filter] = row?.n ?? 0;
+  }
+  const custom: Record<string, number> = {};
+  for (const list of lists) {
+    const conds = buildCustomConds(list.filters as Record<string, unknown>, nowSec, employeeId);
+    const [row] = db.select({ n: rawSql<number>`count(*)` }).from(clients).where(and(...conds)).all();
+    custom[list.id] = row?.n ?? 0;
+  }
+  return { builtIn, custom };
+}
+
 export async function getRecentOutreach(limit = 20, employeeId?: string) {
   const employeeFilter = employeeId ? eq(outreachLogs.employeeId, employeeId) : undefined;
   const rows = db.select({ log: outreachLogs, client: clients, employee: employees }).from(outreachLogs)
