@@ -13,7 +13,7 @@
 | Category | Total | Open | Resolved |
 |----------|-------|------|----------|
 | Silent Bugs — Critical | 4 | 0 | 4 |
-| Silent Bugs — Medium | 12 | 11 | 1 |
+| Silent Bugs — Medium | 12 | 10 | 2 |
 | Dead Code / Unwired | 7 | 7 | 0 |
 | Code Quality — Large Files | 5 | 5 | 0 |
 | Code Quality — Duplication | 6 | 6 | 0 |
@@ -23,7 +23,7 @@
 | Performance | 6 | 6 | 0 |
 | Accessibility | 6 | 6 | 0 |
 | Security | 6 | 6 | 0 |
-| **TOTAL** | **74** | **69** | **5** |
+| **TOTAL** | **74** | **68** | **6** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -326,7 +326,7 @@ Note: `normalizePhone()` already exists as a module-private function in `lib/rvx
 3. If approved: calls `banClient()`, `unsubscribeClient()`, or `deleteClient()` — each with its own internal transaction
 
 If step 3 throws (client not found, FK constraint, concurrent modification), the approval request is permanently marked "approved" with no way to reprocess it — the guard `if (request.status !== "pending") throw new Error("Request already reviewed")` at L548 blocks retry. The client remains in its original state with no audit trail of the failed action.
-- [ ] Fix: Wrap the approval update, activity insert, and downstream action in a single outer transaction. The downstream actions (`banClient`, etc.) use `db.transaction()` internally; flatten their relevant logic into the outer transaction rather than nesting, since SQLite savepoints add complexity. At minimum, move the approval status update to *after* the downstream action succeeds.
+- [x] Fix: Moved downstream action (`banClient`/`unsubscribeClient`/`deleteClient`) to execute *before* the approval status update. If the action throws, the request remains "pending" and is retryable. Status update and activity event are now committed together in a single transaction after the action succeeds.
 
 ### B-16. `graduateProspectIntoExistingClient` logs wrong `eventType`
 **Severity:** MEDIUM
