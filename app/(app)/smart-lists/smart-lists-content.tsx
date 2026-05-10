@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SearchInput } from "@/components/search-input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/empty-state";
 import { PaginationFooter } from "@/components/pagination-footer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -299,12 +300,10 @@ function CreateListDialog({ open, onOpenChange, allClients }: { open: boolean; o
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
+              <Checkbox
                 id="email-list-filter"
                 checked={onEmailList}
-                onChange={(e) => setOnEmailList(e.target.checked)}
-                className="rounded border-slate-600"
+                onCheckedChange={(checked) => setOnEmailList(!!checked)}
               />
               <Label htmlFor="email-list-filter" className="text-sm">On email list only</Label>
             </div>

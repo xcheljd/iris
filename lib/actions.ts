@@ -41,6 +41,8 @@ export async function recalcHeat(clientId: string) {
 
 export async function logOutreach(data: OutreachInput) {
   const parsed = outreachInputSchema.parse(data);
+  // B-5: getSessionUser() intentionally used instead of requireAuth() — outreach can be
+  // logged without attributing it to an employee (employeeId is nullable by design).
   const user = await getSessionUser();
   const id = randomUUID();
   const date = new Date();
