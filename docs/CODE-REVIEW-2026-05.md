@@ -22,8 +22,8 @@
 | Code Quality — Hardcoded Values | 10 | 10 | 0 |
 | Performance | 6 | 6 | 0 |
 | Accessibility | 6 | 6 | 0 |
-| Security | 6 | 2 | 4 |
-| **TOTAL** | **74** | **55** | **19** |
+| Security | 6 | 1 | 5 |
+| **TOTAL** | **74** | **54** | **20** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -641,7 +641,7 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### SC-3. Missing Content-Security-Policy header
 **File:** `next.config.mjs`
 **Description:** No CSP header set. Other security headers (X-Frame-Options, X-Content-Type-Options) are present.
-- [ ] Add CSP header: `default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'`.
+- [x] Fix: Added CSP header — `default-src 'self'`; script/style allow unsafe-inline/eval for Next.js; img/font allow data: and blob:; connect limited to 'self'.
 
 ### SC-4. Backup restore only checks SQLite magic bytes
 **File:** `app/api/backup/restore/route.ts`
