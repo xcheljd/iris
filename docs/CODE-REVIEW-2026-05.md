@@ -15,7 +15,7 @@
 | Silent Bugs — Critical | 4 | 0 | 4 |
 | Silent Bugs — Medium | 12 | 0 | 12 |
 | Dead Code / Unwired | 7 | 1 | 6 |
-| Code Quality — Large Files | 5 | 1 | 4 |
+| Code Quality — Large Files | 5 | 0 | 5 |
 | Code Quality — Duplication | 6 | 1 | 5 |
 | Code Quality — Inconsistency | 4 | 3 | 1 |
 | Code Quality — Missing Error Handling | 8 | 0 | 8 |
@@ -23,7 +23,7 @@
 | Performance | 6 | 0 | 6 |
 | Accessibility | 6 | 0 | 6 |
 | Security | 6 | 0 | 6 |
-| **TOTAL** | **74** | **6** | **68** |
+| **TOTAL** | **74** | **5** | **69** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -396,7 +396,8 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 
 ### Q-LARGE-4. `components/merge-client-dialog.tsx` — 562 lines
 **Description:** Two complete dialogs (`MergeClientDialog` + `MergeFromFormDialog`) plus shared helpers.
-- [ ] Split into `components/merge/merge-client-dialog.tsx`, `components/merge/merge-from-form-dialog.tsx`, `components/merge/resolution-panel.tsx`.
+- [x] Split into `components/merge/merge-client-dialog.tsx`, `components/merge/merge-from-form-dialog.tsx`, `components/merge/resolution-panel.tsx`.
+**Fix:** Shared types (`MergeableClient`, `MergePatch`), utilities (`fmtVal`, `initChoices`, `buildMergePatch`), and `ResolutionPanel` extracted to `components/merge/resolution-panel.tsx`. Each dialog moved to its own file. `components/merge-client-dialog.tsx` is now a 2-line barrel re-export — zero caller changes needed.
 
 ### Q-LARGE-5. `components/client-status-actions.tsx` — 421 lines, 3 near-identical dialogs
 **Description:** `BanCustomerDialog`, `UnsubscribeCustomerDialog`, `DeleteCustomerDialog` share 95% identical structure (session check → manager/associate branch → approval form or direct action).
