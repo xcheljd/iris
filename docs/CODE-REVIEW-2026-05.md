@@ -14,7 +14,7 @@
 |----------|-------|------|----------|
 | Silent Bugs — Critical | 4 | 0 | 4 |
 | Silent Bugs — Medium | 12 | 0 | 12 |
-| Dead Code / Unwired | 7 | 1 | 6 |
+| Dead Code / Unwired | 7 | 0 | 7 |
 | Code Quality — Large Files | 5 | 0 | 5 |
 | Code Quality — Duplication | 6 | 0 | 6 |
 | Code Quality — Inconsistency | 4 | 0 | 4 |
@@ -23,7 +23,7 @@
 | Performance | 6 | 0 | 6 |
 | Accessibility | 6 | 0 | 6 |
 | Security | 6 | 0 | 6 |
-| **TOTAL** | **74** | **1** | **73** |
+| **TOTAL** | **74** | **0** | **74** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -373,7 +373,8 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### DC-7. PNG screenshots tracked in git history despite gitignore
 **Files:** `flow35c-sidebar-contact-info.png`, etc. (18 files, ~1.8MB)
 **Description:** Already excluded from new commits via `.gitignore`. These only appear in git history.
-- [ ] Optional: `git rm --cached` each to fully untrack them from the working tree index.
+- [x] Optional: `git rm --cached` each to fully untrack them from the working tree index.
+  **Fix (2026-05-10):** Verified `git ls-files "*.png"` — only `app/icon.png` remains tracked (intentional). Screenshot files are no longer in the index; they exist only in git history. No action needed.
 
 ---
 
