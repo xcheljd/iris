@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,19 +14,29 @@ import { PaginationFooter } from "@/components/pagination-footer";
 import { Topbar } from "@/components/topbar";
 import { formatPhone, daysAgo } from "@/lib/utils";
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Plus, ChevronUp, ChevronDown, ChevronsUpDown, MoreHorizontal, Eye, Edit, Ban, MailX, Trash2 } from "lucide-react";
 import { BanCustomerDialog, UnsubscribeCustomerDialog } from "@/components/client-status-actions";
 import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { deleteClient } from "@/lib/actions";
 import { toast } from "sonner";
-import { MS_PER_DAY, HEAT_LOOKBACK_DAYS, DEFAULT_PAGE_SIZE } from "@/lib/constants";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 type SortKey = "name" | "heat" | "lastContact" | "owner";
 type SortDir = "asc" | "desc";
+
+interface ClientFilters {
+  q: string;
+  heat: string;
+  owner: string;
+  filter: string;
+  sort: SortKey;
+  sortDir: SortDir;
+  page: number;
+}
 
 interface ClientRow {
   client: {
@@ -60,92 +70,68 @@ function SortableHeader({ label, sortKey, currentSort, currentDir, onSort }: {
   );
 }
 
-export function ClientListContent({ rows, totalClients, currentUserRole }: { rows: ClientRow[]; totalClients: number; currentUserRole?: string }) {
+export function ClientListContent({
+  rows,
+  total,
+  ownerNames,
+  currentFilters,
+  currentUserRole,
+}: {
+  rows: ClientRow[];
+  total: number;
+  ownerNames: string[];
+  currentFilters: ClientFilters;
+  currentUserRole?: string;
+}) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-
-  const [q, setQ] = useState(searchParams.get("q") || "");
-  const [heat, setHeat] = useState(searchParams.get("heat") || "any");
-  const [filter, setFilter] = useState(searchParams.get("filter") || "all");
-  const [owner, setOwner] = useState(searchParams.get("owner") || "any");
-  const [sort, setSort] = useState<SortKey>("name");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
-  const [page, setPage] = useState(1);
+  const [qLocal, setQLocal] = useState(currentFilters.q);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<ClientRow | null>(null);
+  const isFirstRender = useRef(true);
 
-  const owners = useMemo(() => {
-    const set = new Set<string>();
-    rows.forEach((r) => { if (r.employeeName) set.add(r.employeeName); });
-    return Array.from(set).sort();
-  }, [rows]);
+  function navigate(overrides: Partial<ClientFilters>) {
+    const next = { ...currentFilters, ...overrides };
+    const sp = new URLSearchParams();
+    if (next.q) sp.set("q", next.q);
+    if (next.heat !== "any") sp.set("heat", next.heat);
+    if (next.owner !== "any") sp.set("owner", next.owner);
+    if (next.filter !== "all") sp.set("filter", next.filter);
+    if (next.sort !== "heat") sp.set("sort", next.sort);
+    if (next.sortDir !== "desc") sp.set("sortDir", next.sortDir);
+    if (next.page > 1) sp.set("page", String(next.page));
+    const qs = sp.toString();
+    router.replace(`/clients${qs ? `?${qs}` : ""}`);
+  }
 
-  // Filter
-  const filtered = useMemo(() => {
-    let list = rows;
-    if (q) {
-      const ql = q.toLowerCase();
-      list = list.filter((r) =>
-        `${r.client.firstName} ${r.client.lastName ?? ""}`.toLowerCase().includes(ql) ||
-        (r.client.email ?? "").toLowerCase().includes(ql) ||
-        (r.client.phone ?? "").includes(ql)
-      );
+  // Keep ref current so the debounce effect never closes over a stale navigate.
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
+
+  // Debounce the search query so every keystroke doesn't fire a navigation.
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
     }
-    if (heat && heat !== "any") list = list.filter((r) => r.client.heatLevel === heat);
-    if (owner && owner !== "any") {
-      if (owner === "__none__") list = list.filter((r) => !r.employeeName);
-      else list = list.filter((r) => r.employeeName === owner);
-    }
-    if (filter && filter !== "all") {
-      const now = Date.now();
-      switch (filter) {
-        case "hot": list = list.filter((r) => r.client.heatLevel === "hot"); break;
-        case "stale": list = list.filter((r) => !r.client.lastOutreachAt || (now - new Date(r.client.lastOutreachAt).getTime()) > HEAT_LOOKBACK_DAYS * MS_PER_DAY); break;
-        case "email_subscribers": list = list.filter((r) => r.client.tags?.includes("email-only")); break;
-      }
-    }
-    return list;
-  }, [rows, q, heat, owner, filter]);
-
-  // Sort
-  const sorted = useMemo(() => {
-    const copy = [...filtered];
-    const dir = sortDir === "asc" ? 1 : -1;
-    copy.sort((a, b) => {
-      switch (sort) {
-        case "name": return dir * `${a.client.firstName} ${a.client.lastName ?? ""}`.localeCompare(`${b.client.firstName} ${b.client.lastName ?? ""}`);
-        case "heat": return dir * (a.client.heatScore - b.client.heatScore);
-        case "lastContact": {
-          const aT = a.client.lastOutreachAt ? new Date(a.client.lastOutreachAt).getTime() : 0;
-          const bT = b.client.lastOutreachAt ? new Date(b.client.lastOutreachAt).getTime() : 0;
-          return dir * (aT - bT);
-        }
-        case "owner": return dir * (a.employeeName ?? "").localeCompare(b.employeeName ?? "");
-        default: return 0;
-      }
-    });
-    return copy;
-  }, [filtered, sort, sortDir]);
-
-  // Paginate
-  const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
-  const paged = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+    const id = setTimeout(() => navigateRef.current({ q: qLocal, page: 1 }), 300);
+    return () => clearTimeout(id);
+  }, [qLocal]);
 
   const handleSort = (key: SortKey) => {
-    if (sort === key) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    if (currentFilters.sort === key) {
+      navigate({ sortDir: currentFilters.sortDir === "asc" ? "desc" : "asc", page: 1 });
     } else {
-      setSort(key);
-      setSortDir("asc");
+      navigate({ sort: key, sortDir: "asc", page: 1 });
     }
-    setPage(1);
   };
 
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
   const toggleAll = () => {
-    if (selected.size === paged.length) {
+    if (selected.size === rows.length) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(paged.map((r) => r.client.id)));
+      setSelected(new Set(rows.map((r) => r.client.id)));
     }
   };
 
@@ -178,8 +164,8 @@ export function ClientListContent({ rows, totalClients, currentUserRole }: { row
         {/* Filters */}
         <Card className="p-3">
           <div className="flex flex-col md:flex-row gap-2 items-stretch md:items-center">
-            <SearchInput value={q} onChange={(v) => { setQ(v); setPage(1); }} placeholder="Search name, email, phone…" className="flex-1" />
-            <Select value={heat} onValueChange={(v) => { setHeat(v); setPage(1); }}>
+            <SearchInput value={qLocal} onChange={(v) => setQLocal(v)} placeholder="Search name, email, phone…" className="flex-1" />
+            <Select value={currentFilters.heat} onValueChange={(v) => navigate({ heat: v, page: 1 })}>
               <SelectTrigger className="md:w-40"><SelectValue placeholder="Heat" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="any">Any heat</SelectItem>
@@ -188,17 +174,17 @@ export function ClientListContent({ rows, totalClients, currentUserRole }: { row
                 <SelectItem value="cold">Cold</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={owner} onValueChange={(v) => { setOwner(v); setPage(1); }}>
+            <Select value={currentFilters.owner} onValueChange={(v) => navigate({ owner: v, page: 1 })}>
               <SelectTrigger className="md:w-44"><SelectValue placeholder="Owner" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="any">Any owner</SelectItem>
                 <SelectItem value="__none__">Unassigned</SelectItem>
-                {owners.map((name) => (
+                {ownerNames.map((name) => (
                   <SelectItem key={name} value={name}>{name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Select value={filter} onValueChange={(v) => { setFilter(v); setPage(1); }}>
+            <Select value={currentFilters.filter} onValueChange={(v) => navigate({ filter: v, page: 1 })}>
               <SelectTrigger className="md:w-48"><SelectValue placeholder="Filter" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All clients</SelectItem>
@@ -227,26 +213,26 @@ export function ClientListContent({ rows, totalClients, currentUserRole }: { row
                 <TableHead className="w-10">
                   <span className="sr-only">Select all</span>
                   <Checkbox
-                    checked={paged.length > 0 && selected.size === paged.length}
+                    checked={rows.length > 0 && selected.size === rows.length}
                     onCheckedChange={toggleAll}
                     aria-label="Select all clients"
                   />
                 </TableHead>
-                <TableHead><SortableHeader label="Name" sortKey="name" currentSort={sort} currentDir={sortDir} onSort={handleSort} /></TableHead>
+                <TableHead><SortableHeader label="Name" sortKey="name" currentSort={currentFilters.sort} currentDir={currentFilters.sortDir} onSort={handleSort} /></TableHead>
                 <TableHead>Contact</TableHead>
-                <TableHead><SortableHeader label="Heat" sortKey="heat" currentSort={sort} currentDir={sortDir} onSort={handleSort} /></TableHead>
+                <TableHead><SortableHeader label="Heat" sortKey="heat" currentSort={currentFilters.sort} currentDir={currentFilters.sortDir} onSort={handleSort} /></TableHead>
                 <TableHead className="hidden md:table-cell">Tags</TableHead>
-                <TableHead className="hidden md:table-cell"><SortableHeader label="Owner" sortKey="owner" currentSort={sort} currentDir={sortDir} onSort={handleSort} /></TableHead>
-                <TableHead className="hidden md:table-cell"><SortableHeader label="Last contact" sortKey="lastContact" currentSort={sort} currentDir={sortDir} onSort={handleSort} /></TableHead>
+                <TableHead className="hidden md:table-cell"><SortableHeader label="Owner" sortKey="owner" currentSort={currentFilters.sort} currentDir={currentFilters.sortDir} onSort={handleSort} /></TableHead>
+                <TableHead className="hidden md:table-cell"><SortableHeader label="Last contact" sortKey="lastContact" currentSort={currentFilters.sort} currentDir={currentFilters.sortDir} onSort={handleSort} /></TableHead>
                 <TableHead className="w-10"><span className="sr-only">Actions</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paged.length === 0 ? (
+              {rows.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">No clients match.</TableCell>
                 </TableRow>
-              ) : paged.map((r) => {
+              ) : rows.map((r) => {
                 const d = daysAgo(r.client.lastOutreachAt);
                 const isSelected = selected.has(r.client.id);
                 return (
@@ -328,13 +314,12 @@ export function ClientListContent({ rows, totalClients, currentUserRole }: { row
         </Card>
 
         <PaginationFooter
-          currentPage={page}
+          currentPage={currentFilters.page}
           totalPages={totalPages}
-          onPageChange={setPage}
-          totalItems={filtered.length}
+          onPageChange={(p) => navigate({ page: p })}
+          totalItems={total}
           pageSize={PAGE_SIZE}
           itemLabel="clients"
-          extraTotal={filtered.length !== totalClients ? totalClients : undefined}
         />
       </div>
 

@@ -20,7 +20,7 @@
 | Code Quality — Inconsistency | 4 | 3 | 1 |
 | Code Quality — Missing Error Handling | 8 | 0 | 8 |
 | Code Quality — Hardcoded Values | 10 | 0 | 10 |
-| Performance | 6 | 2 | 4 |
+| Performance | 6 | 1 | 5 |
 | Accessibility | 6 | 0 | 6 |
 | Security | 6 | 0 | 6 |
 | **TOTAL** | **74** | **12** | **62** |
@@ -563,7 +563,8 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### P-1. `LIST_QUERY_LIMIT = 10000` — loads up to 10K records at once
 **File:** `lib/queries.ts`
 **Description:** Multiple queries (`getAllClients`, `getClientsWithEmployee`, `getBannedCustomers`) load up to 10,000 records. Will degrade as data grows.
-- [ ] Implement server-side pagination with `LIMIT/OFFSET`.
+- [x] Implement server-side pagination with `LIMIT/OFFSET`.
+**Fix:** Added `getClientsWithEmployeePaginated(employeeId, opts)` with dynamic WHERE, `count(*)` query, and `LIMIT/OFFSET` data query. Added `getClientOwnerNames()` (SELECT DISTINCT). Dashboard replaced `getAllClients` with `getTopHotClients(limit=6)` + `getClientsBirthdayCurrentMonth()`. `app/(app)/clients/page.tsx` reads all filter/sort/page searchParams and feeds them to the paginated query; `clients-content.tsx` uses URL-based navigation (router.replace) instead of client-side state.
 
 ### P-2. Dashboard makes 5 sequential DB queries
 **File:** `app/(app)/page.tsx`
@@ -607,7 +608,7 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### A-3. Native checkbox instead of accessible component
 **File:** `app/(app)/smart-lists/smart-lists-content.tsx`
 **Description:** Uses `<input type="checkbox">` with custom styling instead of `<Checkbox>` from `@/components/ui/checkbox`. May not meet contrast requirements.
-- [ ] Use the Checkbox component for consistency and a11y.
+- [x] Fix: Already resolved — `smart-lists-content.tsx` imports and uses `<Checkbox>` from `@/components/ui/checkbox`; no native `<input type="checkbox">` remains in the file.
 
 ### A-4. Merge resolution buttons lack `aria-pressed` state
 **File:** `components/merge-client-dialog.tsx` (ResolutionPanel)

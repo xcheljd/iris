@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { HeatBadge } from "@/components/heat-badge";
-import { getStats, getOverdueFollowUps, getUpcomingFollowUps, getRecentActivity, getAllClients } from "@/lib/queries";
+import { getStats, getOverdueFollowUps, getUpcomingFollowUps, getRecentActivity, getTopHotClients, getClientsBirthdayCurrentMonth } from "@/lib/queries";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import Link from "next/link";
@@ -28,20 +28,20 @@ async function DashboardContent() {
   const session = await getServerSession(authOptions);
   const isManager = session?.user?.role === "manager";
   const employeeId = !isManager ? (session?.user?.id ?? undefined) : undefined;
-  const [stats, overdue, upcoming, activity, clients] = await Promise.all([
+  const [stats, overdue, upcoming, activity, hot, birthdayClients] = await Promise.all([
     getStats(employeeId),
     getOverdueFollowUps(employeeId),
     getUpcomingFollowUps(employeeId),
     getRecentActivity(20, employeeId),
-    getAllClients(employeeId),
+    getTopHotClients(employeeId, 6),
+    getClientsBirthdayCurrentMonth(employeeId),
   ]);
-  const hot = clients.filter((c) => c.heatLevel === "hot" && c.status === "active").slice(0, 6);
-  const birthdays = clients.filter((c) => {
+  const now14 = Date.now();
+  const birthdays = birthdayClients.filter((c) => {
     if (!c.birthday) return false;
     const [, m, d] = c.birthday.split("-").map(Number);
-    const now = new Date();
-    const bd = new Date(now.getFullYear(), (m || 1) - 1, d || 1);
-    const diff = (bd.getTime() - now.getTime()) / 86400000;
+    const bd = new Date(new Date().getFullYear(), (m || 1) - 1, d || 1);
+    const diff = (bd.getTime() - now14) / 86400000;
     return diff >= -1 && diff <= 14;
   }).slice(0, 5);
 

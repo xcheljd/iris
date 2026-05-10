@@ -1,8 +1,9 @@
 import { db } from "@/lib/db";
 import { clients, outreachLogs, activityEvents, promoWatches, bannedCustomers, unsubscribeList, employees, clientTags, outreachTemplates, smartLists, rvxImportBatches, prospects } from "@/lib/db/schema";
-import { eq, desc, and, or, isNotNull, lte, gte, notInArray, sql as rawSql } from "drizzle-orm";
+import { eq, desc, asc, and, or, isNull, isNotNull, lte, gte, notInArray, sql as rawSql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import { applyClientFilter } from "@/lib/utils";
-import { MS_PER_DAY, FOLLOW_UP_LOOKAHEAD_DAYS } from "@/lib/constants";
+import { MS_PER_DAY, FOLLOW_UP_LOOKAHEAD_DAYS, DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
 const LIST_QUERY_LIMIT = 10000;
 
@@ -36,6 +37,155 @@ export async function getAllClients(employeeId?: string) {
 }
 
 export type ClientListRow = Awaited<ReturnType<typeof getAllClients>>[number];
+
+export async function getTopHotClients(employeeId?: string, limit = 6) {
+  const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
+  return db
+    .select(clientListProjection)
+    .from(clients)
+    .where(and(eq(clients.heatLevel, "hot"), eq(clients.status, "active"), employeeFilter))
+    .orderBy(desc(clients.heatScore))
+    .limit(limit)
+    .all();
+}
+
+export async function getClientsBirthdayCurrentMonth(employeeId?: string) {
+  const month = String(new Date().getMonth() + 1).padStart(2, "0");
+  const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
+  return db
+    .select(clientListProjection)
+    .from(clients)
+    .where(and(eq(clients.status, "active"), isNotNull(clients.birthday), rawSql`substr(${clients.birthday}, 6, 2) = ${month}`, employeeFilter))
+    .orderBy(rawSql`substr(${clients.birthday}, 9, 2)`)
+    .all();
+}
+
+export async function getClientOwnerNames(employeeId?: string): Promise<string[]> {
+  const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
+  const rows = db
+    .selectDistinct({
+      name: rawSql<string>`NULLIF(TRIM(COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, '')), '')`,
+    })
+    .from(clients)
+    .leftJoin(employees, eq(clients.employeeId, employees.id))
+    .where(and(notInArray(clients.status, ["banned", "deleted"]), isNotNull(clients.employeeId), employeeFilter))
+    .all();
+  return rows.map((r) => r.name).filter((n): n is string => Boolean(n)).sort();
+}
+
+export type ClientSortKey = "name" | "heat" | "lastContact" | "owner";
+
+export async function getClientsWithEmployeePaginated(
+  employeeId: string | undefined,
+  opts: {
+    q?: string;
+    heat?: string;
+    owner?: string;
+    filter?: string;
+    sort?: ClientSortKey;
+    sortDir?: "asc" | "desc";
+    page?: number;
+    pageSize?: number;
+  },
+) {
+  const { q, heat, owner, filter, sort = "heat", sortDir = "desc", page = 1, pageSize = DEFAULT_PAGE_SIZE } = opts;
+  const nowSec = Math.floor(Date.now() / 1000);
+  const SEC_PER_DAY = 86400;
+
+  const conds: (SQL<unknown> | undefined)[] = [
+    notInArray(clients.status, ["banned", "deleted"]),
+    employeeId ? eq(clients.employeeId, employeeId) : undefined,
+  ];
+
+  if (q) {
+    const ql = `%${q.toLowerCase()}%`;
+    conds.push(or(
+      rawSql`lower(${clients.firstName} || ' ' || COALESCE(${clients.lastName}, '')) LIKE ${ql}`,
+      rawSql`lower(COALESCE(${clients.email}, '')) LIKE ${ql}`,
+      rawSql`COALESCE(${clients.phone}, '') LIKE ${ql}`,
+    ));
+  }
+
+  if (heat && heat !== "any") conds.push(eq(clients.heatLevel, heat as "hot" | "warm" | "cold"));
+
+  if (owner && owner !== "any") {
+    if (owner === "__none__") {
+      conds.push(isNull(clients.employeeId));
+    } else {
+      conds.push(rawSql`TRIM(COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, '')) = ${owner}`);
+    }
+  }
+
+  if (filter && filter !== "all") {
+    switch (filter) {
+      case "hot":
+        conds.push(eq(clients.heatLevel, "hot"), eq(clients.status, "active"));
+        break;
+      case "stale":
+        conds.push(
+          eq(clients.status, "active"),
+          or(isNull(clients.lastOutreachAt), rawSql`${clients.lastOutreachAt} < ${nowSec - 90 * SEC_PER_DAY}`),
+        );
+        break;
+      case "recent_purchases":
+        conds.push(rawSql`${clients.lastPurchaseAt} > ${nowSec - 30 * SEC_PER_DAY}`);
+        break;
+      case "no_outreach_60":
+        conds.push(
+          eq(clients.status, "active"),
+          or(isNull(clients.lastOutreachAt), rawSql`${clients.lastOutreachAt} < ${nowSec - 60 * SEC_PER_DAY}`),
+        );
+        break;
+      case "birthdays_month": {
+        const bmonth = String(new Date().getMonth() + 1).padStart(2, "0");
+        conds.push(rawSql`substr(${clients.birthday}, 6, 2) = ${bmonth}`);
+        break;
+      }
+      case "email_subscribers":
+        conds.push(eq(clients.onEmailList, true), rawSql`${clients.status} != 'unsubscribed'`);
+        break;
+    }
+  }
+
+  const whereClause = and(...conds);
+  const dirFn = sortDir === "asc" ? asc : desc;
+
+  let orderClauses: SQL<unknown>[];
+  switch (sort) {
+    case "name":
+      orderClauses = [dirFn(clients.firstName) as SQL<unknown>, dirFn(rawSql`COALESCE(${clients.lastName}, '')`) as SQL<unknown>];
+      break;
+    case "lastContact":
+      orderClauses = [dirFn(rawSql`COALESCE(${clients.lastOutreachAt}, 0)`) as SQL<unknown>];
+      break;
+    case "owner":
+      orderClauses = [dirFn(rawSql`TRIM(COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, ''))`) as SQL<unknown>];
+      break;
+    case "heat":
+    default:
+      orderClauses = [dirFn(clients.heatScore) as SQL<unknown>];
+  }
+
+  const baseSelect = db
+    .select({
+      client: clientListProjection,
+      employeeName: rawSql<string | null>`NULLIF(TRIM(COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, '')), '')`,
+    })
+    .from(clients)
+    .leftJoin(employees, eq(clients.employeeId, employees.id))
+    .where(whereClause);
+
+  const [countRow] = db
+    .select({ total: rawSql<number>`count(*)` })
+    .from(clients)
+    .leftJoin(employees, eq(clients.employeeId, employees.id))
+    .where(whereClause)
+    .all();
+
+  const rows = baseSelect.orderBy(...orderClauses).limit(pageSize).offset((page - 1) * pageSize).all();
+
+  return { rows, total: countRow?.total ?? 0 };
+}
 
 export async function getClient(id: string) {
   return db.select().from(clients).where(eq(clients.id, id)).get();

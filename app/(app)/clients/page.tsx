@@ -1,22 +1,57 @@
 import { Suspense } from "react";
-import { getClientsWithEmployee } from "@/lib/queries";
+import { getClientsWithEmployeePaginated, getClientOwnerNames, type ClientSortKey } from "@/lib/queries";
 import { ClientListContent } from "./clients-content";
 import { ClientListSkeleton } from "@/components/skeletons";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-export default function ClientListPage({ searchParams: _searchParams }: { searchParams: Promise<{ q?: string; filter?: string; heat?: string }> }) {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+const VALID_SORT_KEYS: ClientSortKey[] = ["name", "heat", "lastContact", "owner"];
+
+export default function ClientListPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <Suspense fallback={<ClientListSkeleton />}>
-      <ClientListFetcher />
+      <ClientListFetcher searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function ClientListFetcher() {
+async function ClientListFetcher({ searchParams }: { searchParams: SearchParams }) {
+  const sp = await searchParams;
+  const q = typeof sp.q === "string" ? sp.q : undefined;
+  const heat = typeof sp.heat === "string" ? sp.heat : undefined;
+  const owner = typeof sp.owner === "string" ? sp.owner : undefined;
+  const filter = typeof sp.filter === "string" ? sp.filter : undefined;
+  const rawSort = typeof sp.sort === "string" ? sp.sort : undefined;
+  const sort = VALID_SORT_KEYS.includes(rawSort as ClientSortKey) ? (rawSort as ClientSortKey) : undefined;
+  const sortDir = sp.sortDir === "asc" ? "asc" : sp.sortDir === "desc" ? "desc" : undefined;
+  const page = Math.max(1, parseInt(typeof sp.page === "string" ? sp.page : "1") || 1);
+
   const session = await getServerSession(authOptions);
   const isManager = session?.user?.role === "manager";
   const employeeId = !isManager ? (session?.user?.id ?? undefined) : undefined;
-  const rows = await getClientsWithEmployee(employeeId);
-  return <ClientListContent rows={JSON.parse(JSON.stringify(rows))} totalClients={rows.length} currentUserRole={session?.user?.role ?? "associate"} />;
+
+  const [{ rows, total }, ownerNames] = await Promise.all([
+    getClientsWithEmployeePaginated(employeeId, { q, heat, owner, filter, sort, sortDir, page }),
+    getClientOwnerNames(employeeId),
+  ]);
+
+  return (
+    <ClientListContent
+      rows={JSON.parse(JSON.stringify(rows))}
+      total={total}
+      ownerNames={ownerNames}
+      currentFilters={{
+        q: q ?? "",
+        heat: heat ?? "any",
+        owner: owner ?? "any",
+        filter: filter ?? "all",
+        sort: sort ?? "heat",
+        sortDir: sortDir ?? "desc",
+        page,
+      }}
+      currentUserRole={session?.user?.role ?? "associate"}
+    />
+  );
 }
