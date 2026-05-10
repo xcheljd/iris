@@ -247,7 +247,7 @@ function matchPromoToClients(
     const poi = c.productsOfInterest || [];
     if (poi.some((p) => p.toLowerCase() === modelLower)) {
       matches.push({ id: randomUUID(), clientId: c.id, promoId, matchType: "model" });
-    } else if (poi.some((p) => p.toLowerCase().includes(collectionLower))) {
+    } else if (collectionLower && poi.some((p) => p.toLowerCase().includes(collectionLower))) {
       matches.push({ id: randomUUID(), clientId: c.id, promoId, matchType: "collection" });
     }
   }
@@ -258,6 +258,7 @@ function matchPromoToClients(
 
 export async function createPromo(modelNumber: string, collection: string, msrp?: number | null, discountPercent?: number | null, discountPrice?: number | null) {
   await requireManager();
+  if (!modelNumber?.trim() || !collection?.trim()) return { error: "Model number and collection are required" };
   const all = db.select({ id: clients.id, productsOfInterest: clients.productsOfInterest }).from(clients).all();
   const id = randomUUID();
   db.transaction((tx) => {

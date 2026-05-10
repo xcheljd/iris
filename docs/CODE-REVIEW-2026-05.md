@@ -13,7 +13,7 @@
 | Category | Total | Open | Resolved |
 |----------|-------|------|----------|
 | Silent Bugs — Critical | 4 | 0 | 4 |
-| Silent Bugs — Medium | 12 | 9 | 3 |
+| Silent Bugs — Medium | 12 | 7 | 5 |
 | Dead Code / Unwired | 7 | 7 | 0 |
 | Code Quality — Large Files | 5 | 5 | 0 |
 | Code Quality — Duplication | 6 | 6 | 0 |
@@ -23,7 +23,7 @@
 | Performance | 6 | 6 | 0 |
 | Accessibility | 6 | 6 | 0 |
 | Security | 6 | 6 | 0 |
-| **TOTAL** | **74** | **67** | **7** |
+| **TOTAL** | **74** | **65** | **9** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -301,13 +301,13 @@ Residual style note: The condition `if (email && bannedEmails.has(email) || phon
 **Severity:** MEDIUM
 **File:** `lib/actions.ts` (~L252)
 **Description:** `poi.some((p) => p.toLowerCase().includes(collectionLower))` — an empty `collectionLower` matches every string, flooding promo matches.
-- [ ] Fix: Guard with `if (!collection.trim()) return false` before matching.
+- [x] Fix: Added `collectionLower &&` guard before the `.includes()` check — empty collection no longer matches all clients.
 
 ### B-13. `createPromo` doesn't validate non-empty modelNumber/collection
 **Severity:** MEDIUM
 **File:** `lib/actions.ts` (~L259)
 **Description:** `importPromos` checks for empty strings, but `createPromo` inserts directly. Combined with B-12, creates promos that match all clients.
-- [ ] Fix: Add `if (!modelNumber?.trim() || !collection?.trim()) return { error: "..." }`.
+- [x] Fix: Added empty-string guard at the top of `createPromo` — returns `{ error }` before inserting if either field is blank. (`importPromos` already had this guard.)
 
 ### B-14. `graduateProspect` phone normalization inconsistency
 **Severity:** MEDIUM
