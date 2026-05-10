@@ -3,26 +3,13 @@
 import { useState, useMemo, useTransition } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { HeatBadge } from "@/components/heat-badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SearchInput } from "@/components/search-input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/empty-state";
 import { PaginationFooter } from "@/components/pagination-footer";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ListFilter,
   Plus,
@@ -33,24 +20,19 @@ import {
   Mail,
   Star,
   ChevronRight,
-  Trash2,
-  Copy,
-  Pencil,
-  MoreHorizontal,
-  Lock,
-  Globe,
   Sparkles,
   Filter,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { deleteSmartList, duplicateSmartList, renameSmartList, createSmartList } from "@/lib/actions";
+import { deleteSmartList, duplicateSmartList, renameSmartList } from "@/lib/actions";
 import { toast } from "sonner";
 import { Topbar } from "@/components/topbar";
 import type { SmartList } from "@/lib/db/schema";
-import { CLIENT_SOURCE_VALUES } from "@/lib/db/schema";
 import type { ClientListRow } from "@/lib/queries";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
+import { SmartListItem } from "@/components/smart-lists/smart-list-item";
+import { CreateListDialog } from "@/components/smart-lists/create-list-dialog";
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
@@ -90,200 +72,6 @@ function ClientRow({ client }: { client: ClientListRow }) {
       </div>
       <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
     </Link>
-  );
-}
-
-function SmartListItem({
-  id: _id,
-  name,
-  icon,
-  count,
-  isBuiltIn,
-  isShared,
-  isSelected,
-  onSelect,
-  onDelete,
-  onDuplicate,
-  onRename,
-}: {
-  id: string;
-  name: string;
-  icon: React.ReactNode;
-  count: number;
-  isBuiltIn: boolean;
-  isShared: boolean;
-  isSelected: boolean;
-  onSelect: () => void;
-  onDelete: () => void;
-  onDuplicate: () => void;
-  onRename: (name: string) => void;
-}) {
-  const [renameOpen, setRenameOpen] = useState(false);
-  const [newName, setNewName] = useState(name);
-
-  const handleRename = () => {
-    if (newName.trim() && newName !== name) onRename(newName.trim());
-    setRenameOpen(false);
-  };
-
-  return (
-    <>
-      <div
-        className={`group w-full flex items-center justify-between p-2.5 rounded-lg text-left transition-colors ${
-          isSelected ? "bg-accent text-accent-foreground" : "hover:bg-muted/50"
-        }`}
-      >
-        <button className="flex items-center gap-2 min-w-0 flex-1" onClick={onSelect}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="flex items-center gap-2 min-w-0">
-                {isBuiltIn ? icon : isShared
-                  ? <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
-                  : <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
-                }
-                <span className="text-sm truncate">{name}</span>
-              </span>
-            </TooltipTrigger>
-            {name.length > 20 && (
-              <TooltipContent side="right"><p>{name}</p></TooltipContent>
-            )}
-          </Tooltip>
-        </button>
-        <div className="flex items-center gap-1">
-          <Badge variant="secondary" className="text-xs shrink-0">{count}</Badge>
-          {!isBuiltIn && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => e.stopPropagation()}
-                  aria-label="List actions"
-                >
-                  <MoreHorizontal className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => { setNewName(name); setRenameOpen(true); }}>
-                  <Pencil className="h-4 w-4 mr-2" />Rename
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onDuplicate}>
-                  <Copy className="h-4 w-4 mr-2" />Duplicate
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive" onClick={onDelete}>
-                  <Trash2 className="h-4 w-4 mr-2" />Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
-      </div>
-
-      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Rename List</DialogTitle>
-            <DialogDescription>Enter a new name for this list.</DialogDescription>
-          </DialogHeader>
-          <div className="py-2">
-            <Input value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleRename()} />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRenameOpen(false)}>Cancel</Button>
-            <Button onClick={handleRename} disabled={!newName.trim()}>Rename</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-
-function CreateListDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const [name, setName] = useState("");
-  const [heatLevel, setHeatLevel] = useState<string>("__none__");
-  const [source, setSource] = useState<string>("__none__");
-  const [onEmailList, setOnEmailList] = useState(false);
-  const [isPending, startTransition] = useTransition();
-
-  const handleCreate = () => {
-    if (!name.trim()) return;
-    const filters: Record<string, unknown> = {};
-    if (heatLevel !== "__none__") filters.heatLevel = heatLevel;
-    if (source !== "__none__") filters.source = source;
-    if (onEmailList) filters.onEmailList = true;
-
-    startTransition(async () => {
-      await createSmartList(name.trim(), filters);
-      toast.success("Smart list created");
-      setName("");
-      setHeatLevel("__none__");
-      setSource("__none__");
-      setOnEmailList(false);
-      onOpenChange(false);
-    });
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Create Smart List</DialogTitle>
-          <DialogDescription>Define filters to automatically populate your list.</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="space-y-2">
-            <Label htmlFor="list-name">Name</Label>
-            <Input id="list-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. VIP Clients" />
-          </div>
-          <Separator />
-          <div className="space-y-3">
-            <p className="text-sm font-medium">Filters</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>Heat Level</Label>
-                <Select value={heatLevel} onValueChange={setHeatLevel}>
-                  <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Any</SelectItem>
-                    <SelectItem value="hot">Hot</SelectItem>
-                    <SelectItem value="warm">Warm</SelectItem>
-                    <SelectItem value="cold">Cold</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Source</Label>
-                <Select value={source} onValueChange={setSource}>
-                  <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Any</SelectItem>
-                    {CLIENT_SOURCE_VALUES.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="email-list-filter"
-                checked={onEmailList}
-                onCheckedChange={(checked) => setOnEmailList(!!checked)}
-              />
-              <Label htmlFor="email-list-filter" className="text-sm">On email list only</Label>
-            </div>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleCreate} disabled={!name.trim() || isPending}>
-            {isPending ? "Creating..." : "Create List"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 

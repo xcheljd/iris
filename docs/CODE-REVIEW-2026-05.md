@@ -15,7 +15,7 @@
 | Silent Bugs — Critical | 4 | 0 | 4 |
 | Silent Bugs — Medium | 12 | 0 | 12 |
 | Dead Code / Unwired | 7 | 1 | 6 |
-| Code Quality — Large Files | 5 | 2 | 3 |
+| Code Quality — Large Files | 5 | 1 | 4 |
 | Code Quality — Duplication | 6 | 1 | 5 |
 | Code Quality — Inconsistency | 4 | 3 | 1 |
 | Code Quality — Missing Error Handling | 8 | 0 | 8 |
@@ -23,7 +23,7 @@
 | Performance | 6 | 0 | 6 |
 | Accessibility | 6 | 0 | 6 |
 | Security | 6 | 0 | 6 |
-| **TOTAL** | **74** | **7** | **67** |
+| **TOTAL** | **74** | **6** | **68** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -391,7 +391,8 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 
 ### Q-LARGE-3. `app/(app)/smart-lists/smart-lists-content.tsx` — 606 lines
 **Description:** Contains `SmartListItem`, `CreateListDialog`, `ClientRow`, filter helpers, and main content.
-- [ ] Extract `SmartListItem` and `CreateListDialog` to `components/smart-lists/`.
+- [x] Extract `SmartListItem` and `CreateListDialog` to `components/smart-lists/`.
+**Fix:** `SmartListItem` (rename dialog + dropdown menu) extracted to `components/smart-lists/smart-list-item.tsx`; `CreateListDialog` extracted to `components/smart-lists/create-list-dialog.tsx`. Removed now-unused imports from `smart-lists-content.tsx` (`Badge`, `Input`, `Label`, `Separator`-only-in-dialog, `Checkbox`, `DropdownMenu*`, `Dialog*`, `Select*`, `Globe`, `Lock`, `Trash2`, `Copy`, `Pencil`, `MoreHorizontal`, `createSmartList`, `CLIENT_SOURCE_VALUES`).
 
 ### Q-LARGE-4. `components/merge-client-dialog.tsx` — 562 lines
 **Description:** Two complete dialogs (`MergeClientDialog` + `MergeFromFormDialog`) plus shared helpers.
