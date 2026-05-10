@@ -13,7 +13,7 @@
 | Category | Total | Open | Resolved |
 |----------|-------|------|----------|
 | Silent Bugs — Critical | 4 | 0 | 4 |
-| Silent Bugs — Medium | 12 | 5 | 7 |
+| Silent Bugs — Medium | 12 | 3 | 9 |
 | Dead Code / Unwired | 7 | 7 | 0 |
 | Code Quality — Large Files | 5 | 5 | 0 |
 | Code Quality — Duplication | 6 | 6 | 0 |
@@ -23,7 +23,7 @@
 | Performance | 6 | 6 | 0 |
 | Accessibility | 6 | 6 | 0 |
 | Security | 6 | 6 | 0 |
-| **TOTAL** | **74** | **63** | **11** |
+| **TOTAL** | **74** | **61** | **13** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -277,7 +277,7 @@ Residual style note: The condition `if (email && bannedEmails.has(email) || phon
 **Severity:** MEDIUM
 **File:** `app/api/clients/check-duplicates/route.ts`
 **Description:** Two issues: (1) Duplicate check queries all clients without status filter — previously deleted or banned clients match as "duplicates," blocking re-creation. (2) Phone matching uses `eq(clients.phone, phone)` which is exact-match only. A client stored as `(555) 123-4567` won't match a query for `5551234567`. The RVX import's `categorizeRvxRows` (B-1) and `graduateProspect` (B-14) both normalize to digits — this endpoint should do the same.
-- [ ] Fix: Exclude `banned` and `deleted` status from the query. Normalize phone to digits before comparison.
+- [x] Fix: Added `notInArray(clients.status, ["banned", "deleted"])` filter. Phone is now normalized via `normalizePhone()` from `lib/utils.ts` before the `eq()` comparison.
 
 ### B-9. `PUT /api/clients/[id]` logs raw `body` in activity metadata
 **Severity:** MEDIUM
@@ -315,7 +315,7 @@ Residual style note: The condition `if (email && bannedEmails.has(email) || phon
 **Description:** The duplicate check in `graduateProspect` does `c.phone?.replace(/\D/g, "") === phone?.replace(/\D/g, "")` — normalizing the *client* phone for comparison but also normalizing the *prospect* phone with the same `.replace(/\D/g, "")`. This specific instance is actually correct (both sides are normalized). However, if the prospect's phone was stored with formatting from the RVX import (which stores raw phone values at L999/L1037), the `phone` variable (`parsed.phone ?? null`) comes from zod-validated input which may or may not be normalized. The comparison works today but is fragile — any change to how prospects store phone values would break it silently.
 
 Note: `normalizePhone()` already exists as a module-private function in `lib/rvx-parser.ts` (L42). Promoting it to `lib/utils.ts` satisfies the systemic fix for B-8 and B-14.
-- [ ] Fix: Export `normalizePhone(phone: string | null): string | null` from `lib/utils.ts` (the `formatPhone` function already exists but is for display). Use it consistently in B-8 and B-14.
+- [x] Fix: Exported `normalizePhone()` from `lib/utils.ts`. Used in `graduateProspect` for both prospect phone and client phone comparison, replacing the inline `.replace(/\D/g, "")` expressions. Also used in check-duplicates (B-8).
 
 ### B-15. `reviewApprovalRequest` non-transactional — approval recorded before action executes
 **Severity:** MEDIUM

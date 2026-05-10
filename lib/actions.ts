@@ -10,6 +10,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { calcHeatScore } from "@/lib/heat-score";
 import { MS_PER_DAY } from "@/lib/constants";
+import { normalizePhone } from "@/lib/utils";
 import { outreachInputSchema, type OutreachInput } from "@/lib/validation/outreach";
 import { format } from "date-fns";
 import bcrypt from "bcryptjs";
@@ -1077,13 +1078,13 @@ export async function graduateProspect(input: GraduateProspectInput): Promise<
     .all();
 
   const email = parsed.email?.toLowerCase() ?? null;
-  const phone = parsed.phone ?? null;
+  const phone = normalizePhone(parsed.phone ?? null);
 
   const match = allClients.find(
     (c) =>
       c.deletedAt === null &&
       ((email && c.email?.toLowerCase() === email) ||
-        (phone && c.phone?.replace(/\D/g, "") === phone?.replace(/\D/g, ""))),
+        (phone && normalizePhone(c.phone) === phone)),
   );
 
   if (match) {

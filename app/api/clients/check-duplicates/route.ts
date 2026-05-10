@@ -3,7 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { clients } from "@/lib/db/schema";
-import { eq, or, and, sql as rawSql } from "drizzle-orm";
+import { eq, or, and, notInArray, sql as rawSql } from "drizzle-orm";
+import { normalizePhone } from "@/lib/utils";
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
@@ -12,12 +13,14 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const firstName = searchParams.get("firstName")?.trim() ?? "";
   const lastName = searchParams.get("lastName")?.trim() ?? "";
-  const phone = searchParams.get("phone")?.trim() ?? "";
+  const rawPhone = searchParams.get("phone")?.trim() ?? "";
   const email = searchParams.get("email")?.trim() ?? "";
 
-  if (!firstName && !phone && !email) {
+  if (!firstName && !rawPhone && !email) {
     return NextResponse.json({ duplicate: null });
   }
+
+  const phone = normalizePhone(rawPhone);
 
   const conditions = [];
   if (phone) conditions.push(eq(clients.phone, phone));
@@ -41,6 +44,11 @@ export async function GET(request: Request) {
     lastName: clients.lastName,
     phone: clients.phone,
     email: clients.email,
-  }).from(clients).where(or(...conditions)).get();
+  }).from(clients).where(
+    and(
+      notInArray(clients.status, ["banned", "deleted"]),
+      or(...conditions),
+    ),
+  ).get();
   return NextResponse.json({ duplicate: match ?? null });
 }
