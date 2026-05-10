@@ -14,16 +14,16 @@
 |----------|-------|------|----------|
 | Silent Bugs — Critical | 4 | 0 | 4 |
 | Silent Bugs — Medium | 12 | 1 | 11 |
-| Dead Code / Unwired | 7 | 7 | 0 |
+| Dead Code / Unwired | 7 | 1 | 6 |
 | Code Quality — Large Files | 5 | 5 | 0 |
 | Code Quality — Duplication | 6 | 6 | 0 |
 | Code Quality — Inconsistency | 4 | 4 | 0 |
 | Code Quality — Missing Error Handling | 8 | 0 | 8 |
 | Code Quality — Hardcoded Values | 10 | 1 | 9 |
-| Performance | 6 | 6 | 0 |
+| Performance | 6 | 5 | 1 |
 | Accessibility | 6 | 6 | 0 |
 | Security | 6 | 1 | 5 |
-| **TOTAL** | **74** | **37** | **37** |
+| **TOTAL** | **74** | **31** | **43** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -341,39 +341,39 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### DC-1. Unused shadcn form component
 **File:** `components/ui/form.tsx`
 **Description:** Scaffold from `npx shadcn add form` never imported anywhere. Likely pulls in `react-hook-form` and `@hookform/resolvers` as unused dependencies.
-- [ ] Remove file and check if `react-hook-form` / `@hookform/resolvers` can be removed from `package.json`.
+- [x] Fix: Deleted `components/ui/form.tsx`; removed `react-hook-form` and `@hookform/resolvers` from `package.json` (confirmed no other consumers).
 
 ### DC-2. Unused pagination component
 **File:** `components/ui/pagination.tsx`
 **Description:** Never imported. The project uses a custom `components/pagination-footer.tsx` instead.
-- [ ] Remove file.
+- [x] Fix: Not actually dead — `components/pagination-footer.tsx` imports from `@/components/ui/pagination`. Closing as wontfix.
 
 ### DC-3. Dead API route: templates
 **File:** `app/api/templates/route.ts`
 **Description:** Template data is fetched server-side via `lib/queries.ts`. This API route has no consumers.
-- [ ] Remove file.
+- [x] Fix: Deleted `app/api/templates/route.ts`. Removed corresponding tests from `__tests__/api/misc.test.ts`.
 
 ### DC-4. Orphaned `data.db` file in git history
 **File:** `data.db` (project root, 0 bytes)
-**Description:** Runtime database is at `data/iris.db`. This 0-byte file was committed before `*.db` was added to `.gitignore`. It's now excluded from new commits but remains in git history. The `ls` output still shows it because the file exists locally (likely created before gitignore took effect).
-- [ ] Run `git rm --cached data.db` to remove from tracking. The local file can be deleted.
+**Description:** Runtime database is at `data/iris.db`. This 0-byte file was committed before `*.db` was added to `.gitignore`.
+- [x] Fix: File was not tracked in git (already excluded by .gitignore). Deleted local file.
 
 ### DC-5. Unused exported functions
 **Files:** `lib/queries.ts`, `lib/actions.ts`
 **Functions:** `getImportBatches` (queries.ts), `getPromoMatchesForClient` (queries.ts), `getPromoMatchesForPromo` (queries.ts), `getPendingApprovalCount` (actions.ts)
-**Description:** Exported but never imported by any other file in the project. Note: `getProspect` is used internally by `getProspectWithBatch` and `applyClientFilter` is used by smart-lists-content.tsx — both were initially reported as unused but are actually consumed.
-- [ ] Remove or wire. Decide per function whether it's planned for future use or dead.
+**Description:** Exported but never imported by any other file in the project.
+- [x] Fix: Deleted all four functions. Removed orphaned `promoMatches` import from queries.ts.
 
 ### DC-6. Unused type exports from schema
 **File:** `lib/db/schema.ts`
 **Types:** `NewClient` (`$inferInsert`), `RvxImportBatch` (`$inferSelect`), `ApprovalRequest` (`$inferSelect`), `Employee` (`$inferSelect`)
-**Description:** Exported but never imported elsewhere. These are standard Drizzle ORM type inference exports. Keeping them is a valid pattern for library-style API surfaces and test typing, but they currently have no consumers in the app or test code.
-- [ ] Low priority. Keep as public API surface or remove.
+**Description:** Exported but never imported elsewhere. Keeping as public API surface for future test/type usage — low risk, no code smell.
+- [x] Fix: Wontfix — standard Drizzle ORM pattern; kept as typed API surface.
 
 ### DC-7. PNG screenshots tracked in git history despite gitignore
-**Files:** `flow35c-sidebar-contact-info.png`, `flow45b-mobile-375.png`, `flow4a-client-detail-full.png`, `flow4b-mobile-sidebar-collapse-check.png`, `flow6b-edit-dialog.png`, `login-page.png`, `mobile-analytics-375.png`, `mobile-clients-375.png`, `mobile-clients.png`, `mobile-followups-375.png`, `mobile-promos-375.png`, `mobile-settings-375.png`, `tab-interests.png`, `tab-notes.png`, `tab-outreach.png`, `tab-profile.png`, `tab-tags.png`, `tab-timeline.png` (18 files, ~1.8MB)
-**Description:** The `.gitignore` includes `*.png`, so these files are excluded from *new* commits. However, they were committed before the gitignore rule was added, so they remain in git history. They still clutter `git status` output if modified and occupy repo size.
-- [ ] Move to `docs/screenshots/` if still needed as reference. Run `git rm --cached` on each to remove from tracking without deleting the local files.
+**Files:** `flow35c-sidebar-contact-info.png`, etc. (18 files, ~1.8MB)
+**Description:** Already excluded from new commits via `.gitignore`. These only appear in git history.
+- [ ] Optional: `git rm --cached` each to fully untrack them from the working tree index.
 
 ---
 
@@ -568,7 +568,7 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### P-2. Dashboard makes 5 sequential DB queries
 **File:** `app/(app)/page.tsx`
 **Description:** `getStats`, `getOverdueFollowUps`, `getUpcomingFollowUps`, `getRecentActivity`, `getAllClients` run in series.
-- [ ] Use `Promise.all()` for independent queries.
+- [x] Fix: Replaced 5 sequential awaits with a single `Promise.all([...])` destructure.
 
 ### P-3. Smart lists filter entire client dataset client-side
 **File:** `app/(app)/smart-lists/smart-lists-content.tsx`

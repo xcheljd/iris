@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bannedCustomers, unsubscribeList, employees, clientTags, outreachTemplates, smartLists, rvxImportBatches, prospects } from "@/lib/db/schema";
+import { clients, outreachLogs, activityEvents, promoWatches, bannedCustomers, unsubscribeList, employees, clientTags, outreachTemplates, smartLists, rvxImportBatches, prospects } from "@/lib/db/schema";
 import { eq, desc, and, or, isNotNull, lte, gte, notInArray, sql as rawSql } from "drizzle-orm";
 import { applyClientFilter } from "@/lib/utils";
 import { MS_PER_DAY, FOLLOW_UP_LOOKAHEAD_DAYS } from "@/lib/constants";
@@ -129,20 +129,6 @@ export async function getStats(employeeId?: string) {
 
 export async function getPromos() {
   return db.select().from(promoWatches).orderBy(desc(promoWatches.dateAdded)).limit(LIST_QUERY_LIMIT).all();
-}
-
-export async function getPromoMatchesForPromo(promoId: string) {
-  const rows = db.select({ match: promoMatches, client: clients }).from(promoMatches)
-    .leftJoin(clients, eq(promoMatches.clientId, clients.id))
-    .where(eq(promoMatches.promoId, promoId)).all();
-  return rows;
-}
-
-export async function getPromoMatchesForClient(clientId: string) {
-  const rows = db.select({ match: promoMatches, promo: promoWatches }).from(promoMatches)
-    .leftJoin(promoWatches, eq(promoMatches.promoId, promoWatches.id))
-    .where(eq(promoMatches.clientId, clientId)).all();
-  return rows;
 }
 
 export async function getBannedCustomers() {
@@ -305,14 +291,3 @@ export async function getProspectWithBatch(id: string) {
     .get();
 }
 
-export async function getImportBatches() {
-  return db
-    .select({
-      batch: rvxImportBatches,
-      importedByName: rawSql<string>`COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, '')`,
-    })
-    .from(rvxImportBatches)
-    .leftJoin(employees, eq(rvxImportBatches.importedBy, employees.id))
-    .orderBy(desc(rvxImportBatches.createdAt))
-    .all();
-}

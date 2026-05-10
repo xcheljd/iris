@@ -11,7 +11,6 @@ vi.mock("next/cache", () => ({
 
 import { getServerSession } from "next-auth";
 import { GET as GETEmployees } from "@/app/api/employees/route";
-import { GET as GETTemplates } from "@/app/api/templates/route";
 import { GET as GETPromoMatches } from "@/app/api/promos/matches/route";
 
 const managerSession = {
@@ -52,28 +51,6 @@ describe("GET /api/employees", () => {
       expect(emp).toHaveProperty("username");
       expect(emp).toHaveProperty("role");
       expect(emp).toHaveProperty("active");
-    }
-  });
-});
-
-describe("GET /api/templates", () => {
-  it("should return all templates as an array", async () => {
-    const res = await GETTemplates();
-    expect(res.status).toBe(200);
-    const data = await res.json();
-    expect(Array.isArray(data)).toBe(true);
-    if (data.length > 0) {
-      expect(data[0]).toHaveProperty("id");
-      expect(data[0]).toHaveProperty("name");
-      expect(data[0]).toHaveProperty("body");
-    }
-  });
-
-  it("should return templates sorted by name", async () => {
-    const res = await GETTemplates();
-    const data = await res.json();
-    for (let i = 1; i < data.length; i++) {
-      expect(data[i].name.localeCompare(data[i - 1].name)).toBeGreaterThanOrEqual(0);
     }
   });
 });

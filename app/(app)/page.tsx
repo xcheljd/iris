@@ -28,11 +28,13 @@ async function DashboardContent() {
   const session = await getServerSession(authOptions);
   const isManager = session?.user?.role === "manager";
   const employeeId = !isManager ? (session?.user?.id ?? undefined) : undefined;
-  const stats = await getStats(employeeId);
-  const overdue = await getOverdueFollowUps(employeeId);
-  const upcoming = await getUpcomingFollowUps(employeeId);
-  const activity = await getRecentActivity(20, employeeId);
-  const clients = await getAllClients(employeeId);
+  const [stats, overdue, upcoming, activity, clients] = await Promise.all([
+    getStats(employeeId),
+    getOverdueFollowUps(employeeId),
+    getUpcomingFollowUps(employeeId),
+    getRecentActivity(20, employeeId),
+    getAllClients(employeeId),
+  ]);
   const hot = clients.filter((c) => c.heatLevel === "hot" && c.status === "active").slice(0, 6);
   const birthdays = clients.filter((c) => {
     if (!c.birthday) return false;

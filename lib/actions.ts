@@ -621,12 +621,6 @@ export async function reviewApprovalRequest(
   });
 }
 
-export async function getPendingApprovalCount() {
-  await requireManager();
-  const result = db.select({ c: sql<number>`count(*)` }).from(approvalRequests).where(eq(approvalRequests.status, "pending")).get();
-  return result?.c ?? 0;
-}
-
 export async function getPendingApprovalRequests() {
   await requireManager();
   const requests = db.select({
