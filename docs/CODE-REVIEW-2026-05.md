@@ -12,7 +12,7 @@
 
 | Category | Total | Open | Resolved |
 |----------|-------|------|----------|
-| Silent Bugs — Critical | 4 | 2 | 2 |
+| Silent Bugs — Critical | 4 | 1 | 3 |
 | Silent Bugs — Medium | 12 | 12 | 0 |
 | Dead Code / Unwired | 7 | 7 | 0 |
 | Code Quality — Large Files | 5 | 5 | 0 |
@@ -23,7 +23,7 @@
 | Performance | 6 | 6 | 0 |
 | Accessibility | 6 | 6 | 0 |
 | Security | 6 | 6 | 0 |
-| **TOTAL** | **74** | **72** | **2** |
+| **TOTAL** | **74** | **71** | **3** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -241,7 +241,7 @@ Residual style note: The condition `if (email && bannedEmails.has(email) || phon
 **Severity:** CRITICAL
 **File:** `lib/actions.ts` (~L454, `updateEmployee`)
 **Description:** When firstName/lastName change, `employees.name` retains the old value. Activity logs, UI display, and session data show stale names. `createEmployee` correctly sets `name: lastName ? \`${firstName} ${lastName}\` : firstName` (added by commit `6077935`), but `updateEmployee` at L454 builds `updates` with only `firstName`, `lastName`, and `username` — omitting `name`. Bug is confirmed in current code.
-- [ ] Fix: Add `name: data.lastName?.trim() ? \`${data.firstName.trim()} ${data.lastName.trim()}\` : data.firstName.trim()` to the `updates` object in `updateEmployee`.
+- [x] Fix: Added `name` to the `updates` object in `updateEmployee`, using the same pattern as `createEmployee`.
 
 ### B-4. Backup restore `process.exit(0)` may kill response before it reaches client
 **Severity:** CRITICAL

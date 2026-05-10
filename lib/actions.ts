@@ -451,7 +451,14 @@ export async function updateEmployee(employeeId: string, data: { firstName: stri
     if (existing) return { error: "Username already taken" };
   }
 
-  const updates: Record<string, unknown> = { firstName: data.firstName.trim(), lastName: data.lastName.trim() || null, username: data.username.trim() };
+  const firstName = data.firstName.trim();
+  const lastName = data.lastName.trim() || null;
+  const updates: Record<string, unknown> = {
+    firstName,
+    lastName,
+    username: data.username.trim(),
+    name: lastName ? `${firstName} ${lastName}` : firstName,
+  };
   if (isManager && !isSelf) {
     if (data.role) updates.role = data.role;
     if (data.active !== undefined) updates.active = data.active;
