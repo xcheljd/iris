@@ -4,6 +4,7 @@
 
 | Document | Description | Status |
 |----------|-------------|--------|
+| [CODE-REVIEW-2026-05.md](CODE-REVIEW-2026-05.md) | Full codebase review: 74 findings across bugs, dead code, quality, perf, a11y, security — 12 dependency clusters mapped | Complete — 74/74 resolved |
 | [FEATURE-PROPOSALS.md](FEATURE-PROPOSALS.md) | Feature backlog inspired by industry CRM research (BSPK, Endear, Tulip, etc.) | Tracking — 14/20 shipped |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System architecture, data model, auth flow, and key design decisions | Reference |
 
