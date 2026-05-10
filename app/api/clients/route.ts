@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { clients, activityEvents } from "@/lib/db/schema";
-import { eq, desc, or, sql as rawSql } from "drizzle-orm";
+import { eq, desc, or, notInArray, sql as rawSql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { clientCreateSchema, clientPatchSchema } from "@/lib/validation/client";
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     return NextResponse.json(client);
   }
 
-  const all = db.select().from(clients).orderBy(desc(clients.heatScore)).all();
+  const all = db.select().from(clients).where(notInArray(clients.status, ["banned", "deleted"])).orderBy(desc(clients.heatScore)).all();
   return NextResponse.json(all);
 }
 

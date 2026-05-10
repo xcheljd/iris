@@ -13,7 +13,7 @@
 | Category | Total | Open | Resolved |
 |----------|-------|------|----------|
 | Silent Bugs — Critical | 4 | 0 | 4 |
-| Silent Bugs — Medium | 12 | 3 | 9 |
+| Silent Bugs — Medium | 12 | 2 | 10 |
 | Dead Code / Unwired | 7 | 7 | 0 |
 | Code Quality — Large Files | 5 | 5 | 0 |
 | Code Quality — Duplication | 6 | 6 | 0 |
@@ -23,7 +23,7 @@
 | Performance | 6 | 6 | 0 |
 | Accessibility | 6 | 6 | 0 |
 | Security | 6 | 6 | 0 |
-| **TOTAL** | **74** | **61** | **13** |
+| **TOTAL** | **74** | **60** | **14** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -271,7 +271,7 @@ Residual style note: The condition `if (email && bannedEmails.has(email) || phon
 **Severity:** MEDIUM
 **File:** `app/api/clients/route.ts` (L20)
 **Description:** Uses `db.select().from(clients).orderBy(desc(clients.heatScore)).all()` without status filtering. `getAllClients` in `lib/queries.ts` correctly filters, but this route doesn't use it.
-- [ ] Fix: Use `getAllClients()` or add `notInArray(clients.status, ["banned", "deleted"])` filter.
+- [x] Fix: Added `notInArray(clients.status, ["banned", "deleted"])` to the GET /api/clients list query.
 
 ### B-8. `check-duplicates` API matches against deleted/banned clients + no phone normalization
 **Severity:** MEDIUM
