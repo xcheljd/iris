@@ -25,7 +25,143 @@ import { banClient, unsubscribeClient, createApprovalRequest, deleteClient } fro
 import { toast } from "sonner";
 import { Ban, Bell, MailX, Trash2 } from "lucide-react";
 
-/* ── Ban Customer ──────────────────────────────────────────────── */
+interface ApprovalActionDialogProps {
+  clientName: string;
+  children: React.ReactNode;
+  managerIcon: React.ReactNode;
+  managerTitle: string;
+  managerDescription: React.ReactNode;
+  managerBody?: React.ReactNode;
+  managerActionLabel: string;
+  managerPendingLabel: string;
+  onManagerAction: () => Promise<void>;
+  managerSuccessMessage: string;
+  managerErrorMessage?: string;
+  associateTitle: string;
+  associateDescription: string;
+  associateReasonLabel: string;
+  associatePlaceholder: string;
+  onApprovalRequest: (reason: string) => Promise<void>;
+  approvalSuccessMessage: string;
+  approvalErrorMessage?: string;
+}
+
+function ApprovalActionDialog({
+  clientName,
+  children,
+  managerIcon,
+  managerTitle,
+  managerDescription,
+  managerBody,
+  managerActionLabel,
+  managerPendingLabel,
+  onManagerAction,
+  managerSuccessMessage,
+  managerErrorMessage = "Action failed",
+  associateTitle,
+  associateDescription,
+  associateReasonLabel,
+  associatePlaceholder,
+  onApprovalRequest,
+  approvalSuccessMessage,
+  approvalErrorMessage = "Failed to submit request",
+}: ApprovalActionDialogProps) {
+  const { data: session } = useSession();
+  const isManager = session?.user?.role === "manager";
+  const [open, setOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [pending, start] = useTransition();
+
+  const handleManagerAction = () => {
+    start(async () => {
+      try {
+        await onManagerAction();
+        toast.success(managerSuccessMessage);
+        setOpen(false);
+      } catch {
+        toast.error(managerErrorMessage);
+      }
+    });
+  };
+
+  const handleApprovalRequest = () => {
+    start(async () => {
+      try {
+        await onApprovalRequest(reportReason);
+        toast.success(approvalSuccessMessage);
+        setReportReason("");
+        setOpen(false);
+      } catch {
+        toast.error(approvalErrorMessage);
+      }
+    });
+  };
+
+  if (!isManager) {
+    return (
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>{children}</DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5" />
+              {associateTitle}
+            </DialogTitle>
+            <DialogDescription>{associateDescription}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="rounded-lg border p-3 text-sm">
+              <span className="font-medium">{clientName}</span>
+            </div>
+            <div className="space-y-2">
+              <Label>{associateReasonLabel}</Label>
+              <Textarea
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+                placeholder={associatePlaceholder}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={!reportReason.trim() || pending}
+              onClick={handleApprovalRequest}
+            >
+              Submit Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {managerIcon}
+            {managerTitle}
+          </DialogTitle>
+          <DialogDescription>{managerDescription}</DialogDescription>
+        </DialogHeader>
+        {managerBody && <div className="space-y-4 py-2">{managerBody}</div>}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button variant="destructive" disabled={pending} onClick={handleManagerAction}>
+            {pending ? managerPendingLabel : managerActionLabel}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ── Ban Customer ──────────────────────────────────────────────────────── */
 
 export function BanCustomerDialog({
   clientId,
@@ -36,118 +172,29 @@ export function BanCustomerDialog({
   clientName: string;
   children: React.ReactNode;
 }) {
-  const { data: session } = useSession();
-  const isManager = session?.user?.role === "manager";
-  const [open, setOpen] = useState(false);
   const [category, setCategory] = useState<"Reselling" | "Gift Card Fraud" | "Other">("Other");
   const [reason, setReason] = useState("");
-  const [reportReason, setReportReason] = useState("");
-  const [pending, start] = useTransition();
 
-  const handleBan = () => {
-    start(async () => {
-      await banClient(clientId, category, reason);
-      toast.success(`${clientName} has been banned`);
-      setOpen(false);
-      setReason("");
-      setCategory("Other");
-    });
-  };
-
-  // Associates see a "report to manager" dialog
-  if (!isManager) {
-    return (
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          {children}
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              Request Ban Approval
-            </DialogTitle>
-            <DialogDescription>
-              Only managers can ban customers. Describe the issue and your
-              manager will review this request.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="rounded-lg border p-3 text-sm">
-              <span className="font-medium">{clientName}</span>
-            </div>
-            <div className="space-y-2">
-              <Label>Reason for ban request</Label>
-              <Textarea
-                value={reportReason}
-                onChange={(e) => setReportReason(e.target.value)}
-                placeholder="Describe why this customer should be banned…"
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={!reportReason.trim() || pending}
-              onClick={() => {
-                start(async () => {
-                  try {
-                    await createApprovalRequest("ban", clientId, reportReason, { category });
-                    toast.success(`Ban request for ${clientName} sent to your manager`);
-                    setReportReason("");
-                    setOpen(false);
-                  } catch {
-                    toast.error("Failed to submit ban request");
-                  }
-                });
-              }}
-            >
-              Submit Request
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  // Managers see the full ban form
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {children}
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Ban className="h-5 w-5" />
-            Ban Customer
-          </DialogTitle>
-          <DialogDescription>
-            Ban <strong>{clientName}</strong> from doing business with the store.
-            This action will change their status to &quot;banned&quot;.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
+    <ApprovalActionDialog
+      clientName={clientName}
+      managerIcon={<Ban className="h-5 w-5" />}
+      managerTitle="Ban Customer"
+      managerDescription={
+        <>Ban <strong>{clientName}</strong> from doing business with the store. This action will change their status to &quot;banned&quot;.</>
+      }
+      managerBody={
+        <>
           <div className="space-y-2">
             <Label>Category</Label>
             <Select
               value={category}
-              onValueChange={(v) =>
-                setCategory(v as "Reselling" | "Gift Card Fraud" | "Other")
-              }
+              onValueChange={(v) => setCategory(v as "Reselling" | "Gift Card Fraud" | "Other")}
             >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="Reselling">Reselling</SelectItem>
-                <SelectItem value="Gift Card Fraud">
-                  Gift Card Fraud
-                </SelectItem>
+                <SelectItem value="Gift Card Fraud">Gift Card Fraud</SelectItem>
                 <SelectItem value="Other">Other</SelectItem>
               </SelectContent>
             </Select>
@@ -161,25 +208,33 @@ export function BanCustomerDialog({
               rows={3}
             />
           </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-          <Button
-            variant="destructive"
-            disabled={pending}
-            onClick={handleBan}
-          >
-            {pending ? "Banning…" : "Ban Customer"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </>
+      }
+      managerActionLabel="Ban Customer"
+      managerPendingLabel="Banning…"
+      onManagerAction={async () => {
+        await banClient(clientId, category, reason);
+        setReason("");
+        setCategory("Other");
+      }}
+      managerSuccessMessage={`${clientName} has been banned`}
+      managerErrorMessage="Failed to ban customer"
+      associateTitle="Request Ban Approval"
+      associateDescription="Only managers can ban customers. Describe the issue and your manager will review this request."
+      associateReasonLabel="Reason for ban request"
+      associatePlaceholder="Describe why this customer should be banned…"
+      onApprovalRequest={async (r) => {
+        await createApprovalRequest("ban", clientId, r, { category });
+      }}
+      approvalSuccessMessage={`Ban request for ${clientName} sent to your manager`}
+      approvalErrorMessage="Failed to submit ban request"
+    >
+      {children}
+    </ApprovalActionDialog>
   );
 }
 
-/* ── Unsubscribe Customer ──────────────────────────────────────── */
+/* ── Unsubscribe Customer ──────────────────────────────────────────────── */
 
 export function UnsubscribeCustomerDialog({
   clientId,
@@ -190,115 +245,33 @@ export function UnsubscribeCustomerDialog({
   clientName: string;
   children: React.ReactNode;
 }) {
-  const { data: session } = useSession();
-  const isManager = session?.user?.role === "manager";
-  const [open, setOpen] = useState(false);
-  const [reportReason, setReportReason] = useState("");
-  const [pending, start] = useTransition();
-
-  const handleUnsubscribe = () => {
-    start(async () => {
-      await unsubscribeClient(clientId);
-      toast.success(`${clientName} has been unsubscribed`);
-      setOpen(false);
-    });
-  };
-
-  // Associates see a "report to manager" dialog
-  if (!isManager) {
-    return (
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          {children}
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              Request Unsubscribe Approval
-            </DialogTitle>
-            <DialogDescription>
-              Only managers can unsubscribe customers. Describe the issue and
-              your manager will review this request.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="rounded-lg border p-3 text-sm">
-              <span className="font-medium">{clientName}</span>
-            </div>
-            <div className="space-y-2">
-              <Label>Reason for unsubscribe request</Label>
-              <Textarea
-                value={reportReason}
-                onChange={(e) => setReportReason(e.target.value)}
-                placeholder="Describe why this customer should be unsubscribed…"
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={!reportReason.trim() || pending}
-              onClick={() => {
-                start(async () => {
-                  try {
-                    await createApprovalRequest("unsubscribe", clientId, reportReason);
-                    toast.success(`Unsubscribe request for ${clientName} sent to your manager`);
-                    setReportReason("");
-                    setOpen(false);
-                  } catch {
-                    toast.error("Failed to submit unsubscribe request");
-                  }
-                });
-              }}
-            >
-              Submit Request
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  // Managers see a confirmation dialog
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {children}
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <MailX className="h-5 w-5" />
-            Unsubscribe Customer
-          </DialogTitle>
-          <DialogDescription>
-            Remove <strong>{clientName}</strong> from the email list and mark
-            them as unsubscribed. They will no longer receive marketing emails.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-          <Button
-            variant="destructive"
-            disabled={pending}
-            onClick={handleUnsubscribe}
-          >
-            {pending ? "Unsubscribing…" : "Unsubscribe"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ApprovalActionDialog
+      clientName={clientName}
+      managerIcon={<MailX className="h-5 w-5" />}
+      managerTitle="Unsubscribe Customer"
+      managerDescription={
+        <>Remove <strong>{clientName}</strong> from the email list and mark them as unsubscribed. They will no longer receive marketing emails.</>
+      }
+      managerActionLabel="Unsubscribe"
+      managerPendingLabel="Unsubscribing…"
+      onManagerAction={async () => { await unsubscribeClient(clientId); }}
+      managerSuccessMessage={`${clientName} has been unsubscribed`}
+      managerErrorMessage="Failed to unsubscribe customer"
+      associateTitle="Request Unsubscribe Approval"
+      associateDescription="Only managers can unsubscribe customers. Describe the issue and your manager will review this request."
+      associateReasonLabel="Reason for unsubscribe request"
+      associatePlaceholder="Describe why this customer should be unsubscribed…"
+      onApprovalRequest={async (r) => { await createApprovalRequest("unsubscribe", clientId, r); }}
+      approvalSuccessMessage={`Unsubscribe request for ${clientName} sent to your manager`}
+      approvalErrorMessage="Failed to submit unsubscribe request"
+    >
+      {children}
+    </ApprovalActionDialog>
   );
 }
 
-/* ── Delete Customer ──────────────────────────────────────────────── */
+/* ── Delete Customer ───────────────────────────────────────────────────── */
 
 export function DeleteCustomerDialog({
   clientId,
@@ -309,114 +282,31 @@ export function DeleteCustomerDialog({
   clientName: string;
   children: React.ReactNode;
 }) {
-  const { data: session } = useSession();
-  const isManager = session?.user?.role === "manager";
-  const [open, setOpen] = useState(false);
-  const [reportReason, setReportReason] = useState("");
-  const [pending, start] = useTransition();
-
-  // Associates see a "request approval" dialog
-  if (!isManager) {
-    return (
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          {children}
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              Request Delete Approval
-            </DialogTitle>
-            <DialogDescription>
-              Only managers can delete clients. Describe the reason and your
-              manager will review this request.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="rounded-lg border p-3 text-sm">
-              <span className="font-medium">{clientName}</span>
-            </div>
-            <div className="space-y-2">
-              <Label>Reason for deletion request</Label>
-              <Textarea
-                value={reportReason}
-                onChange={(e) => setReportReason(e.target.value)}
-                placeholder="Describe why this client should be deleted…"
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={!reportReason.trim() || pending}
-              onClick={() => {
-                start(async () => {
-                  try {
-                    await createApprovalRequest("delete", clientId, reportReason);
-                    toast.success(`Delete request for ${clientName} sent to your manager`);
-                    setReportReason("");
-                    setOpen(false);
-                  } catch {
-                    toast.error("Failed to submit delete request");
-                  }
-                });
-              }}
-            >
-              Submit Request
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  // Managers see a confirmation dialog
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {children}
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Trash2 className="h-5 w-5" />
-            Delete Client
-          </DialogTitle>
-          <DialogDescription>
-            Are you sure you want to delete <strong>{clientName}</strong>? This
-            hides the client from all views. It can be restored by a manager from
-            Settings.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-          <Button
-            variant="destructive"
-            disabled={pending}
-            onClick={() => {
-              start(async () => {
-                try {
-                  await deleteClient(clientId);
-                  toast.success("Client deleted");
-                  setOpen(false);
-                  window.location.href = "/clients";
-                } catch {
-                  toast.error("Failed to delete client");
-                }
-              });
-            }}
-          >
-            {pending ? "Deleting…" : "Delete"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ApprovalActionDialog
+      clientName={clientName}
+      managerIcon={<Trash2 className="h-5 w-5" />}
+      managerTitle="Delete Client"
+      managerDescription={
+        <>Are you sure you want to delete <strong>{clientName}</strong>? This hides the client from all views. It can be restored by a manager from Settings.</>
+      }
+      managerActionLabel="Delete"
+      managerPendingLabel="Deleting…"
+      onManagerAction={async () => {
+        await deleteClient(clientId);
+        window.location.href = "/clients";
+      }}
+      managerSuccessMessage="Client deleted"
+      managerErrorMessage="Failed to delete client"
+      associateTitle="Request Delete Approval"
+      associateDescription="Only managers can delete clients. Describe the reason and your manager will review this request."
+      associateReasonLabel="Reason for deletion request"
+      associatePlaceholder="Describe why this client should be deleted…"
+      onApprovalRequest={async (r) => { await createApprovalRequest("delete", clientId, r); }}
+      approvalSuccessMessage={`Delete request for ${clientName} sent to your manager`}
+      approvalErrorMessage="Failed to submit delete request"
+    >
+      {children}
+    </ApprovalActionDialog>
   );
 }

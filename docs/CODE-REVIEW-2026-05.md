@@ -15,15 +15,15 @@
 | Silent Bugs — Critical | 4 | 0 | 4 |
 | Silent Bugs — Medium | 12 | 0 | 12 |
 | Dead Code / Unwired | 7 | 1 | 6 |
-| Code Quality — Large Files | 5 | 5 | 0 |
-| Code Quality — Duplication | 6 | 2 | 4 |
+| Code Quality — Large Files | 5 | 4 | 1 |
+| Code Quality — Duplication | 6 | 1 | 5 |
 | Code Quality — Inconsistency | 4 | 3 | 1 |
 | Code Quality — Missing Error Handling | 8 | 0 | 8 |
 | Code Quality — Hardcoded Values | 10 | 0 | 10 |
 | Performance | 6 | 0 | 6 |
 | Accessibility | 6 | 0 | 6 |
 | Security | 6 | 0 | 6 |
-| **TOTAL** | **74** | **11** | **63** |
+| **TOTAL** | **74** | **9** | **65** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -397,7 +397,8 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 
 ### Q-LARGE-5. `components/client-status-actions.tsx` — 421 lines, 3 near-identical dialogs
 **Description:** `BanCustomerDialog`, `UnsubscribeCustomerDialog`, `DeleteCustomerDialog` share 95% identical structure (session check → manager/associate branch → approval form or direct action).
-- [ ] Create generic `ApprovalActionDialog` parameterized by action type, labels, and handler functions. Each variant becomes a thin wrapper.
+- [x] Create generic `ApprovalActionDialog` parameterized by action type, labels, and handler functions. Each variant becomes a thin wrapper.
+**Fix:** Extracted `ApprovalActionDialog` (private) handling `open`/`reportReason`/`pending` state, the associate request path, and the manager direct-action path. `BanCustomerDialog` passes a `managerBody` slot for its category+reason form and keeps local `category`/`reason` state; `onManagerAction` and `onApprovalRequest` close over that state. `UnsubscribeCustomerDialog` and `DeleteCustomerDialog` need no local state. All three become 30–50 line wrappers. Added try/catch to the manager path (previously unguarded for Ban/Unsubscribe).
 
 ---
 
@@ -406,7 +407,7 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### Q-DUP-1. Three near-identical status action dialogs
 **File:** `components/client-status-actions.tsx`
 **Description:** Ban, Unsubscribe, Delete dialogs have identical structure with only labels and action functions differing. See Q-LARGE-5.
-- [ ] Fix: Covered by Q-LARGE-5.
+- [x] Fix: Covered by Q-LARGE-5.
 
 ### Q-DUP-2. Stat cards row pattern duplicated in 5 files
 **Files:** `app/(app)/page.tsx`, `banned-content.tsx`, `unsubscribed-content.tsx`, `promos-content.tsx`, `analytics-overview-tab.tsx`
