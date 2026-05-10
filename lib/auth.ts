@@ -7,10 +7,9 @@ import { eq } from "drizzle-orm";
 import { SESSION_MAX_AGE_SECONDS } from "@/lib/constants";
 import { fullName } from "@/lib/utils";
 
-if (!process.env.NEXTAUTH_SECRET) {
-  throw new Error("NEXTAUTH_SECRET environment variable is not set");
-}
-
+// NEXTAUTH_SECRET must be set in production. Generate with: openssl rand -base64 32
+// The check is deferred to the authorize callback so the module can be imported in
+// contexts that don't trigger auth (migrations, CLI scripts) without crashing.
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -20,6 +19,7 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
+        if (!process.env.NEXTAUTH_SECRET) throw new Error("NEXTAUTH_SECRET is not set — set it in production via environment variable");
         if (!credentials?.username || !credentials?.password) return null;
         const user = db.select().from(employees).where(eq(employees.username, credentials.username)).get();
         if (!user || !user.active) return null;

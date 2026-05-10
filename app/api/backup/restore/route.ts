@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { withManagerAuth } from "@/lib/api-helpers";
 import { writeFileSync, copyFileSync, renameSync, existsSync, unlinkSync } from "fs";
 import { join } from "path";
 import Database from "better-sqlite3";
@@ -7,11 +6,7 @@ import { DATABASE_PATH } from "@/lib/constants";
 
 const SQLITE_MAGIC = Buffer.from("SQLite format 3\0");
 
-export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return Response.json({ error: "Not authenticated" }, { status: 401 });
-  if (session.user.role !== "manager") return Response.json({ error: "Forbidden" }, { status: 403 });
-
+export const POST = withManagerAuth(async (_session, req: Request) => {
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
   if (!file) return Response.json({ error: "No file provided" }, { status: 400 });
@@ -66,4 +61,4 @@ export async function POST(req: Request) {
   });
 
   return new Response(body, { headers: { "Content-Type": "application/json" } });
-}
+});

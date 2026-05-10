@@ -1,6 +1,4 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { withAuth } from "@/lib/api-helpers";
 import { db } from "@/lib/db";
 import { activityEvents, clients } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
@@ -13,15 +11,12 @@ const notePostSchema = z.object({
 });
 const noteDeleteSchema = z.object({ noteId: z.string().uuid() });
 
-export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-
+export const POST = withAuth(async (_session, request: Request) => {
   try {
     const body = await request.json();
     const parsed = notePostSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
+      return Response.json(
         { error: "Invalid request", details: parsed.error.flatten().fieldErrors },
         { status: 400 },
       );
@@ -30,7 +25,7 @@ export async function POST(request: Request) {
 
     const client = db.select().from(clients).where(eq(clients.id, clientId)).get();
     if (!client) {
-      return NextResponse.json({ error: "Client not found" }, { status: 404 });
+      return Response.json({ error: "Client not found" }, { status: 404 });
     }
 
     db.insert(activityEvents).values({
@@ -41,21 +36,18 @@ export async function POST(request: Request) {
       metadata: { notePreview: text.substring(0, 100) },
     }).run();
 
-    return NextResponse.json({ success: true });
+    return Response.json({ success: true });
   } catch (_error) {
-    return NextResponse.json({ error: "Failed to add note" }, { status: 500 });
+    return Response.json({ error: "Failed to add note" }, { status: 500 });
   }
-}
+});
 
-export async function DELETE(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-
+export const DELETE = withAuth(async (session, request: Request) => {
   try {
     const body = await request.json();
     const parsed = noteDeleteSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
+      return Response.json(
         { error: "Invalid request", details: parsed.error.flatten().fieldErrors },
         { status: 400 },
       );
@@ -65,16 +57,16 @@ export async function DELETE(request: Request) {
     const note = db.select().from(activityEvents).where(
       and(eq(activityEvents.id, noteId), eq(activityEvents.eventType, "note_added"))
     ).get();
-    if (!note) return NextResponse.json({ error: "Note not found" }, { status: 404 });
+    if (!note) return Response.json({ error: "Note not found" }, { status: 404 });
 
     if (session.user.role !== "manager" && note.employeeId !== session.user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return Response.json({ error: "Forbidden" }, { status: 403 });
     }
 
     db.delete(activityEvents).where(eq(activityEvents.id, noteId)).run();
 
-    return NextResponse.json({ success: true });
+    return Response.json({ success: true });
   } catch (_error) {
-    return NextResponse.json({ error: "Failed to delete note" }, { status: 500 });
+    return Response.json({ error: "Failed to delete note" }, { status: 500 });
   }
-}
+});

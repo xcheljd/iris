@@ -1,6 +1,4 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { withAuth } from "@/lib/api-helpers";
 import { db } from "@/lib/db";
 import { clients, activityEvents } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -8,43 +6,31 @@ import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { clientPatchSchema } from "@/lib/validation/client";
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-
+export const GET = withAuth(async (_session, request: Request, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
 
   const client = db.select().from(clients).where(eq(clients.id, id)).get();
   if (!client) {
-    return NextResponse.json({ error: "Client not found" }, { status: 404 });
+    return Response.json({ error: "Client not found" }, { status: 404 });
   }
 
-  return NextResponse.json(client);
-}
+  return Response.json(client);
+});
 
-export async function PUT(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-
+export const PUT = withAuth(async (session, request: Request, { params }: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await params;
     const client = db.select().from(clients).where(eq(clients.id, id)).get();
-    if (!client) return NextResponse.json({ error: "Client not found" }, { status: 404 });
+    if (!client) return Response.json({ error: "Client not found" }, { status: 404 });
     if (session.user.role !== "manager" && client.employeeId !== session.user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return Response.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const body = await request.json();
 
     const parsed = clientPatchSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
+      return Response.json(
         { error: "Invalid request", details: parsed.error.flatten().fieldErrors },
         { status: 400 },
       );
@@ -67,8 +53,8 @@ export async function PUT(
 
     revalidatePath(`/clients/${id}`);
     revalidatePath("/clients");
-    return NextResponse.json({ success: true });
+    return Response.json({ success: true });
   } catch (_error) {
-    return NextResponse.json({ error: "Failed to update client" }, { status: 500 });
+    return Response.json({ error: "Failed to update client" }, { status: 500 });
   }
-}
+});

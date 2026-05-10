@@ -1,15 +1,10 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { withAuth } from "@/lib/api-helpers";
 import { db } from "@/lib/db";
 import { clients } from "@/lib/db/schema";
 import { eq, or, and, notInArray, sql as rawSql } from "drizzle-orm";
 import { normalizePhone } from "@/lib/utils";
 
-export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-
+export const GET = withAuth(async (_session, request: Request) => {
   const { searchParams } = new URL(request.url);
   const firstName = searchParams.get("firstName")?.trim() ?? "";
   const lastName = searchParams.get("lastName")?.trim() ?? "";
@@ -17,7 +12,7 @@ export async function GET(request: Request) {
   const email = searchParams.get("email")?.trim() ?? "";
 
   if (!firstName && !rawPhone && !email) {
-    return NextResponse.json({ duplicate: null });
+    return Response.json({ duplicate: null });
   }
 
   const phone = normalizePhone(rawPhone);
@@ -35,7 +30,7 @@ export async function GET(request: Request) {
   }
 
   if (conditions.length === 0) {
-    return NextResponse.json({ duplicate: null });
+    return Response.json({ duplicate: null });
   }
 
   const match = db.select({
@@ -50,5 +45,5 @@ export async function GET(request: Request) {
       or(...conditions),
     ),
   ).get();
-  return NextResponse.json({ duplicate: match ?? null });
-}
+  return Response.json({ duplicate: match ?? null });
+});

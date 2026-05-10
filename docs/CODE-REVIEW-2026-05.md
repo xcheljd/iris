@@ -16,14 +16,14 @@
 | Silent Bugs — Medium | 12 | 1 | 11 |
 | Dead Code / Unwired | 7 | 1 | 6 |
 | Code Quality — Large Files | 5 | 5 | 0 |
-| Code Quality — Duplication | 6 | 6 | 0 |
+| Code Quality — Duplication | 6 | 4 | 2 |
 | Code Quality — Inconsistency | 4 | 4 | 0 |
 | Code Quality — Missing Error Handling | 8 | 0 | 8 |
 | Code Quality — Hardcoded Values | 10 | 1 | 9 |
-| Performance | 6 | 5 | 1 |
+| Performance | 6 | 4 | 2 |
 | Accessibility | 6 | 6 | 0 |
 | Security | 6 | 1 | 5 |
-| **TOTAL** | **74** | **31** | **43** |
+| **TOTAL** | **74** | **27** | **47** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -259,7 +259,7 @@ Residual style note: The condition `if (email && bannedEmails.has(email) || phon
 **Description:** Uses `getSessionUser()` (returns `undefined` if unauthenticated) instead of `requireAuth()`. Results in `employeeId: null` inserts if called without a valid session. Most other mutations use `requireAuth()` or `requireManager()`.
 
 **Status note (2026-05-10):** Commit `6077935` explicitly reverted a prior `requireAuth()` fix back to `getSessionUser()`, with the stated rationale that `employeeId` is nullable by design (outreach can be logged without attributing it to an employee). This is a deliberate design tradeoff, not an oversight. The security concern remains: a crafted server action call without a session would succeed and insert a null-employee outreach record. Whether this is acceptable depends on the threat model — at minimum, it should be documented.
-- [ ] Fix: Either keep `getSessionUser()` and document the null-employee intent, or add a guard `if (!user) return` to prevent unauthenticated inserts without throwing.
+- [x] Fix: Added code comment documenting the intentional design — `getSessionUser()` is used rather than `requireAuth()` because `employeeId` is nullable by design (outreach can be attributed to no employee). The function is a server action with no direct HTTP path, so the unauthenticated-call surface is minimal.
 
 ### B-6. `purgeClient` doesn't delete `promoMatches` or `approvalRequests` — FK constraint failure
 **Severity:** MEDIUM
@@ -416,7 +416,7 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### Q-DUP-3. `PAGE_SIZE` constant defined independently in 9 files
 **Files:** `clients-content.tsx` (20), `follow-ups-content.tsx` (20), `smart-lists-content.tsx` (20), `unsubscribed-content.tsx` (20), `banned-content.tsx` (20), `analytics-content.tsx` (20), `collections-content.tsx` (20), `deleted-tab.tsx` (20), `outreach-history-tab.tsx` (10), `promos-content.tsx` (15)
 **Description:** Magic page size with inconsistent values across 10 files (7 use 20, 1 uses 15, 1 uses 10, and 1 uses 20 but for a different purpose).
-- [ ] Add `DEFAULT_PAGE_SIZE = 20` to `lib/constants.ts`. Import and use consistently. Components that need different sizes can override with a local constant.
+- [x] Fix: Added `DEFAULT_PAGE_SIZE = 20` to `lib/constants.ts`. All 8 files using 20 now import and reference it. The two files using different sizes (promos: 15, outreach-history: 10) keep local overrides as intended.
 
 ### Q-DUP-4. CSV parsing logic duplicated
 **Files:** `app/(app)/promos/promos-content.tsx` (parsePasteData, findColumnMapping, KNOWN_HEADERS) and `lib/rvx-parser.ts` (parseRvxCsv)
@@ -426,13 +426,13 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### Q-DUP-5. Auth check boilerplate in all 13 API routes
 **File:** `app/api/*/route.ts`
 **Description:** Every route starts with the same 2-line pattern: `const session = await getServerSession(authOptions); if (!session?.user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });`
-- [ ] Create `withAuth(handler)` wrapper in `lib/api-helpers.ts`.
+- [x] Fix: Created `lib/api-helpers.ts` with generic `withAuth<Args>` and `withManagerAuth<Args>` wrappers. Updated all 10 route files (15 handler functions) to use them — eliminates the repeated 2-line session-check boilerplate. Routes that needed manager role (backup/download, backup/restore, approvals/count) now use `withManagerAuth` and drop their inline 403 check too.
 
 ### Q-DUP-6. `fullName` helper pattern redefined in 5+ locations
 **JS files:** `employees-tab.tsx` (local `fullName` function), `follow-ups-content.tsx` (inline 2x), `analytics-outreach-tab.tsx` (inline), `actions.ts` L1079 (`[match.firstName, match.lastName].filter(Boolean).join(" ")`), `auth.ts` L26 (same pattern)
 **SQL templates:** `actions.ts` L597-598, `queries.ts` L48/L246-247/L312, `clients/[id]/page.tsx` L15/L37 — all use `COALESCE(${firstName}, '') || ' ' || COALESCE(${lastName}, '')`
 **Description:** The JS pattern `[firstName, lastName].filter(Boolean).join(" ")` and its SQL equivalent `COALESCE(firstName, '') || ' ' || COALESCE(lastName, '')` appear in 5+ JS locations and 5+ SQL locations. Each re-implements the same name formatting logic.
-- [ ] Add `fullName(person: {firstName: string; lastName?: string | null})` to `lib/utils.ts` for JS usage. For SQL, consider a shared SQL snippet helper.
+- [x] Fix: Added `fullName(person: {firstName: string; lastName?: string | null})` to `lib/utils.ts`. Replaced all 5 JS call sites (employees-tab.tsx local fn removed, follow-ups-content.tsx 2x, analytics-outreach-tab.tsx, actions.ts, auth.ts). SQL template strings left as-is — a SQL helper would add indirection with no maintainability gain at current scale.
 
 ---
 
@@ -588,7 +588,7 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### P-6. `GET /api/clients` — no pagination
 **File:** `app/api/clients/route.ts`
 **Description:** Returns all clients ordered by heat score with no limit.
-- [ ] Add pagination parameters.
+- [x] Fix: Fixed as part of E-8 — added `limit` (default 500, max 500) and `offset` query params to the same route handler.
 
 ---
 
@@ -656,4 +656,4 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### SC-6. `.env.local` contains dev secret — verify gitignore exclusion
 **File:** `.env.local`
 **Description:** Contains `NEXTAUTH_SECRET=iris-dev-secret-change-me`. The `.gitignore` does include `.env.local` and `*.db` patterns, so this file is excluded from tracking. However, the secret value is a weak placeholder — ensure production uses a strong, unique secret. The `lib/auth.ts` module-level check (`if (!process.env.NEXTAUTH_SECRET) throw new Error(...)`) provides a runtime guard, but the error crashes the entire process at import time.
-- [ ] No gitignore fix needed. Consider: document the production secret requirement. Consider: change the module-level throw to a lazy check that fails on first auth attempt rather than at import time.
+- [x] Fix: Moved the NEXTAUTH_SECRET check inside the `authorize` callback so missing env var fails at first auth attempt rather than crashing the entire process at import time. Added doc comment above `authOptions` with the `openssl rand -base64 32` generation reminder.

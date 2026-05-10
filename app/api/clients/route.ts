@@ -1,6 +1,4 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { withAuth } from "@/lib/api-helpers";
 import { db } from "@/lib/db";
 import { clients, activityEvents } from "@/lib/db/schema";
 import { eq, desc, or, notInArray, sql as rawSql } from "drizzle-orm";
@@ -9,37 +7,31 @@ import { revalidatePath } from "next/cache";
 import { clientCreateSchema, clientPatchSchema } from "@/lib/validation/client";
 
 // GET /api/clients — list all clients
-export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-
+export const GET = withAuth(async (_session, request: Request) => {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
 
   if (id) {
     const client = db.select().from(clients).where(eq(clients.id, id)).get();
     if (!client) {
-      return NextResponse.json({ error: "Client not found" }, { status: 404 });
+      return Response.json({ error: "Client not found" }, { status: 404 });
     }
-    return NextResponse.json(client);
+    return Response.json(client);
   }
 
   const pageSize = Math.min(parseInt(searchParams.get("limit") ?? "500", 10) || 500, 500);
   const pageOffset = Math.max(parseInt(searchParams.get("offset") ?? "0", 10) || 0, 0);
   const all = db.select().from(clients).where(notInArray(clients.status, ["banned", "deleted"])).orderBy(desc(clients.heatScore)).limit(pageSize).offset(pageOffset).all();
-  return NextResponse.json(all);
-}
+  return Response.json(all);
+});
 
 // POST /api/clients — create a new client
-export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-
+export const POST = withAuth(async (_session, request: Request) => {
   try {
     const body = await request.json();
     const parsed = clientCreateSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
+      return Response.json(
         { error: "Invalid request", details: parsed.error.flatten().fieldErrors },
         { status: 400 },
       );
@@ -55,7 +47,7 @@ export async function POST(request: Request) {
     ).get();
 
     if (existing) {
-      return NextResponse.json({ error: "Duplicate found", duplicate: existing }, { status: 409 });
+      return Response.json({ error: "Duplicate found", duplicate: existing }, { status: 409 });
     }
 
     db.insert(clients).values({
@@ -82,34 +74,31 @@ export async function POST(request: Request) {
     }).run();
 
     revalidatePath("/clients");
-    return NextResponse.json({ id });
+    return Response.json({ id });
   } catch (_error) {
-    return NextResponse.json({ error: "Failed to create client" }, { status: 500 });
+    return Response.json({ error: "Failed to create client" }, { status: 500 });
   }
-}
+});
 
 // PUT /api/clients — update a client
-export async function PUT(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-
+export const PUT = withAuth(async (session, request: Request) => {
   try {
     const body = await request.json();
     const { id, ...rest } = body;
 
     if (!id || typeof id !== "string") {
-      return NextResponse.json({ error: "Client ID is required" }, { status: 400 });
+      return Response.json({ error: "Client ID is required" }, { status: 400 });
     }
 
     const client = db.select().from(clients).where(eq(clients.id, id)).get();
-    if (!client) return NextResponse.json({ error: "Client not found" }, { status: 404 });
+    if (!client) return Response.json({ error: "Client not found" }, { status: 404 });
     if (session.user.role !== "manager" && client.employeeId !== session.user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return Response.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const parsed = clientPatchSchema.safeParse(rest);
     if (!parsed.success) {
-      return NextResponse.json(
+      return Response.json(
         { error: "Invalid request", details: parsed.error.flatten().fieldErrors },
         { status: 400 },
       );
@@ -132,8 +121,8 @@ export async function PUT(request: Request) {
 
     revalidatePath(`/clients/${id}`);
     revalidatePath("/clients");
-    return NextResponse.json({ success: true });
+    return Response.json({ success: true });
   } catch (_error) {
-    return NextResponse.json({ error: "Failed to update client" }, { status: 500 });
+    return Response.json({ error: "Failed to update client" }, { status: 500 });
   }
-}
+});
