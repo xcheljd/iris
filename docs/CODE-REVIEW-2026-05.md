@@ -13,7 +13,7 @@
 | Category | Total | Open | Resolved |
 |----------|-------|------|----------|
 | Silent Bugs — Critical | 4 | 0 | 4 |
-| Silent Bugs — Medium | 12 | 12 | 0 |
+| Silent Bugs — Medium | 12 | 11 | 1 |
 | Dead Code / Unwired | 7 | 7 | 0 |
 | Code Quality — Large Files | 5 | 5 | 0 |
 | Code Quality — Duplication | 6 | 6 | 0 |
@@ -23,7 +23,7 @@
 | Performance | 6 | 6 | 0 |
 | Accessibility | 6 | 6 | 0 |
 | Security | 6 | 6 | 0 |
-| **TOTAL** | **74** | **70** | **4** |
+| **TOTAL** | **74** | **69** | **5** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -265,12 +265,7 @@ Residual style note: The condition `if (email && bannedEmails.has(email) || phon
 **Severity:** MEDIUM
 **File:** `lib/actions.ts` (~L704, `purgeClient`)
 **Description:** Deletes `activityEvents`, `outreachLogs`, then `clients` — but `promoMatches` and `approvalRequests` also reference `clients.id` with FK constraints. With `PRAGMA foreign_keys = ON`, the DELETE throws a constraint error. `purgeClient` silently fails when the client has promo matches or pending/reviewed approval requests. `mergeClients` correctly handles both tables before deleting the loser client (L762-773), showing the fix pattern exists. The `approvalRequests` FK is confirmed as a live constraint now that the approvals feature is shipped.
-- [ ] Fix: Before the client DELETE, add:
-  ```
-  db.delete(promoMatches).where(eq(promoMatches.clientId, clientId)).run();
-  db.delete(approvalRequests).where(eq(approvalRequests.clientId, clientId)).run();
-  ```
-  Also wrap all deletions in a single `db.transaction()` to ensure atomicity.
+- [x] Fix: Wrapped all five deletes (`activityEvents`, `outreachLogs`, `promoMatches`, `approvalRequests`, `clients`) in a single `db.transaction()`. FK constraint failures on purge are now resolved.
 
 ### B-7. `GET /api/clients` returns ALL clients including banned/deleted
 **Severity:** MEDIUM

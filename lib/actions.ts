@@ -708,9 +708,13 @@ export async function purgeClient(clientId: string) {
   const client = db.select().from(clients).where(eq(clients.id, clientId)).get();
   if (!client) throw new Error("Client not found");
 
-  db.delete(activityEvents).where(eq(activityEvents.clientId, clientId)).run();
-  db.delete(outreachLogs).where(eq(outreachLogs.clientId, clientId)).run();
-  db.delete(clients).where(eq(clients.id, clientId)).run();
+  db.transaction((tx) => {
+    tx.delete(activityEvents).where(eq(activityEvents.clientId, clientId)).run();
+    tx.delete(outreachLogs).where(eq(outreachLogs.clientId, clientId)).run();
+    tx.delete(promoMatches).where(eq(promoMatches.clientId, clientId)).run();
+    tx.delete(approvalRequests).where(eq(approvalRequests.clientId, clientId)).run();
+    tx.delete(clients).where(eq(clients.id, clientId)).run();
+  });
 
   revalidatePath("/clients");
   revalidatePath("/settings");
