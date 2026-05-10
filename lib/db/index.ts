@@ -3,8 +3,9 @@ import Database from "better-sqlite3";
 import * as schema from "./schema";
 import path from "path";
 import fs from "fs";
+import { DATABASE_PATH } from "@/lib/constants";
 
-const dbPath = path.join(process.cwd(), "data", "iris.db");
+const dbPath = path.join(process.cwd(), DATABASE_PATH);
 const dataDir = path.dirname(dbPath);
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 

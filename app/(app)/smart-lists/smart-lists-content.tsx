@@ -49,6 +49,7 @@ import { Topbar } from "@/components/topbar";
 import type { SmartList } from "@/lib/db/schema";
 import { CLIENT_SOURCE_VALUES } from "@/lib/db/schema";
 import type { ClientListRow } from "@/lib/queries";
+import { MS_PER_DAY, HEAT_LOOKBACK_DAYS } from "@/lib/constants";
 
 interface SmartListsContentProps {
   lists: SmartList[];
@@ -379,7 +380,7 @@ export function SmartListsContent({ lists, allClients }: SmartListsContentProps)
             c.lastOutreachAt ? new Date(c.lastOutreachAt).getTime() : 0,
             c.lastPurchaseAt ? new Date(c.lastPurchaseAt).getTime() : 0,
           );
-          return !c.lastOutreachAt && !c.lastPurchaseAt ? true : (now - last) > 90 * 86400000;
+          return !c.lastOutreachAt && !c.lastPurchaseAt ? true : (now - last) > HEAT_LOOKBACK_DAYS * MS_PER_DAY;
         });
       }
       if (filters.birthdayMonth) {

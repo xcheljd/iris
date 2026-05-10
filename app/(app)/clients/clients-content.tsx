@@ -21,6 +21,7 @@ import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { deleteClient } from "@/lib/actions";
 import { toast } from "sonner";
+import { MS_PER_DAY, HEAT_LOOKBACK_DAYS } from "@/lib/constants";
 
 const PAGE_SIZE = 20;
 
@@ -96,11 +97,10 @@ export function ClientListContent({ rows, totalClients, currentUserRole }: { row
       else list = list.filter((r) => r.employeeName === owner);
     }
     if (filter && filter !== "all") {
-      const now = Date.now() / 1000;
-      const day = 86400;
+      const now = Date.now();
       switch (filter) {
         case "hot": list = list.filter((r) => r.client.heatLevel === "hot"); break;
-        case "stale": list = list.filter((r) => !r.client.lastOutreachAt || (now - new Date(r.client.lastOutreachAt).getTime() / 1000) > 90 * day); break;
+        case "stale": list = list.filter((r) => !r.client.lastOutreachAt || (now - new Date(r.client.lastOutreachAt).getTime()) > HEAT_LOOKBACK_DAYS * MS_PER_DAY); break;
         case "email_subscribers": list = list.filter((r) => r.client.tags?.includes("email-only")); break;
       }
     }

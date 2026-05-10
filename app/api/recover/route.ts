@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { employees } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
+import { BCRYPT_SALT_ROUNDS } from "@/lib/constants";
 
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const RATE_LIMIT_MAX = 5;
@@ -73,7 +74,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Incorrect answer" }, { status: 401 });
     }
 
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
     db.update(employees).set({ passwordHash }).where(eq(employees.id, employee.id)).run();
 
     return NextResponse.json({ success: true });

@@ -19,11 +19,11 @@
 | Code Quality — Duplication | 6 | 6 | 0 |
 | Code Quality — Inconsistency | 4 | 4 | 0 |
 | Code Quality — Missing Error Handling | 8 | 0 | 8 |
-| Code Quality — Hardcoded Values | 10 | 10 | 0 |
+| Code Quality — Hardcoded Values | 10 | 1 | 9 |
 | Performance | 6 | 6 | 0 |
 | Accessibility | 6 | 6 | 0 |
 | Security | 6 | 1 | 5 |
-| **TOTAL** | **74** | **46** | **28** |
+| **TOTAL** | **74** | **37** | **37** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -509,47 +509,47 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### H-1. Heat score lookback — magic number
 **File:** `lib/actions.ts` (L32)
 **Value:** `90 * MS_PER_DAY`
-- [ ] Extract `HEAT_LOOKBACK_DAYS = 90` to `lib/constants.ts`.
+- [x] Fix: Added `HEAT_LOOKBACK_DAYS = 90` to `lib/constants.ts`; used in `recalcHeat`.
 
 ### H-2. Follow-up lookahead — magic number
 **File:** `lib/actions.ts`, `lib/queries.ts`
 **Value:** `7 * MS_PER_DAY`
-- [ ] Extract `FOLLOW_UP_LOOKAHEAD_DAYS = 7` to `lib/constants.ts`.
+- [x] Fix: Added `FOLLOW_UP_LOOKAHEAD_DAYS = 7` to `lib/constants.ts`; used in `lib/queries.ts`.
 
 ### H-3. Minimum password length — hardcoded
 **File:** `lib/actions.ts` (`createEmployee`)
 **Value:** `password.length < 6`
-- [ ] Extract `MIN_PASSWORD_LENGTH = 6` to `lib/constants.ts`.
+- [x] Fix: Added `MIN_PASSWORD_LENGTH = 6` to `lib/constants.ts`; used in `createEmployee`.
 
 ### H-4. JWT session max age — hardcoded
 **File:** `lib/auth.ts`
 **Value:** `maxAge: 60 * 60 * 24 * 30` (30 days)
-- [ ] Extract `SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30` to `lib/constants.ts`.
+- [x] Fix: Added `SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30` to `lib/constants.ts`; used in `lib/auth.ts`.
 
 ### H-5. Bcrypt salt rounds — hardcoded in multiple files
 **Files:** `lib/auth.ts`, `lib/actions.ts`
 **Value:** `10`
-- [ ] Extract `BCRYPT_SALT_ROUNDS = 10` to `lib/constants.ts`.
+- [x] Fix: Added `BCRYPT_SALT_ROUNDS = 10` to `lib/constants.ts`; used in `lib/actions.ts` and `app/api/recover/route.ts`.
 
 ### H-6. Database path — hardcoded
 **File:** `lib/db/index.ts`
 **Value:** `"data/iris.db"`
-- [ ] Use `process.env.DATABASE_PATH` with `"data/iris.db"` fallback.
+- [x] Fix: Added `DATABASE_PATH = process.env.DATABASE_PATH ?? "data/iris.db"` to `lib/constants.ts`; used in `lib/db/index.ts`.
 
 ### H-7. Backup paths — hardcoded
 **File:** `app/api/backup/download/route.ts`
 **Value:** `"iris.db"`, `"data"`
-- [ ] Share constant with `db/index.ts`.
+- [x] Fix: Both backup routes now use `DATABASE_PATH` from `lib/constants.ts`.
 
 ### H-8. Client-side filter thresholds — hardcoded
 **File:** `app/(app)/clients/clients-content.tsx`
 **Value:** `86400` (seconds per day), `90` (stale threshold)
-- [ ] Import `MS_PER_DAY` from constants.
+- [x] Fix: Replaced `86400` and `90` with `MS_PER_DAY` and `HEAT_LOOKBACK_DAYS` from `lib/constants.ts`. Also fixed units (was seconds-based, now correctly milliseconds-based).
 
 ### H-9. Smart list filter thresholds — re-implemented
 **File:** `app/(app)/smart-lists/smart-lists-content.tsx`
 **Description:** Similar filtering logic to `lib/utils.ts` constants (`STALE_THRESHOLD_DAYS`, `RECENT_PURCHASE_DAYS`, `NO_OUTREACH_DAYS`) but re-implemented inline.
-- [ ] Export thresholds from `lib/constants.ts` and import consistently.
+- [x] Fix: Replaced `90 * 86400000` with `HEAT_LOOKBACK_DAYS * MS_PER_DAY` from `lib/constants.ts`.
 
 ### H-10. Promo CSV header mapping — large inline object
 **File:** `app/(app)/promos/promos-content.tsx`

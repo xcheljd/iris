@@ -3,6 +3,24 @@
 /** Milliseconds in a calendar day. */
 export const MS_PER_DAY = 86_400_000;
 
+/** Days of outreach history used to calculate heat score. */
+export const HEAT_LOOKBACK_DAYS = 90;
+
+/** Days ahead to surface upcoming follow-ups. */
+export const FOLLOW_UP_LOOKAHEAD_DAYS = 7;
+
+/** Minimum password length enforced at account creation and recovery. */
+export const MIN_PASSWORD_LENGTH = 6;
+
+/** NextAuth JWT session lifetime in seconds (30 days). */
+export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+
+/** bcrypt salt rounds for password hashing. */
+export const BCRYPT_SALT_ROUNDS = 10;
+
+/** SQLite database file path (relative to process.cwd()). */
+export const DATABASE_PATH = process.env.DATABASE_PATH ?? "data/iris.db";
+
 /** Full catalog of known client tags. Shown in the client form's tag picker. */
 export const COMMON_TAGS = [
   "VIP", "repeat-buyer", "high-spender", "military", "birthday-this-month",

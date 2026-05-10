@@ -9,7 +9,7 @@ import { randomUUID } from "crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { calcHeatScore } from "@/lib/heat-score";
-import { MS_PER_DAY } from "@/lib/constants";
+import { MS_PER_DAY, HEAT_LOOKBACK_DAYS, MIN_PASSWORD_LENGTH, BCRYPT_SALT_ROUNDS } from "@/lib/constants";
 import { normalizePhone } from "@/lib/utils";
 import { outreachInputSchema, type OutreachInput } from "@/lib/validation/outreach";
 import { format } from "date-fns";
@@ -30,7 +30,7 @@ export async function recalcHeat(clientId: string) {
   try {
     const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
     if (!c) return;
-    const ninetyDaysAgo = new Date(Date.now() - 90 * MS_PER_DAY);
+    const ninetyDaysAgo = new Date(Date.now() - HEAT_LOOKBACK_DAYS * MS_PER_DAY);
     const last90 = db.select({ outcome: outreachLogs.outcome, date: outreachLogs.date }).from(outreachLogs).where(and(eq(outreachLogs.clientId, clientId), gte(outreachLogs.date, ninetyDaysAgo))).all();
     const { score, level } = calcHeatScore(c, last90);
     db.update(clients).set({ heatScore: score, heatLevel: level, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
@@ -436,12 +436,12 @@ export async function createEmployee(data: {
 }) {
   const user = await getSessionUser();
   if (user?.role !== "manager") return { error: "Unauthorized" };
-  if (!data.firstName || !data.username || !data.password || data.password.length < 6) {
+  if (!data.firstName || !data.username || !data.password || data.password.length < MIN_PASSWORD_LENGTH) {
     return { error: "First name, username, and password (min 6 chars) are required" };
   }
   const existing = db.select().from(employees).where(eq(employees.username, data.username)).get();
   if (existing) return { error: "Username already taken" };
-  const passwordHash = await bcrypt.hash(data.password, 10);
+  const passwordHash = await bcrypt.hash(data.password, BCRYPT_SALT_ROUNDS);
   const firstName = data.firstName.trim();
   const lastName = data.lastName?.trim() || null;
   db.insert(employees).values({
@@ -499,7 +499,7 @@ export async function resetEmployeePassword(employeeId: string, newPassword: str
   const user = await getSessionUser();
   if (user?.role !== "manager") return { error: "Unauthorized" };
   if (!newPassword || newPassword.length < 6) return { error: "Password must be at least 6 characters" };
-  const passwordHash = await bcrypt.hash(newPassword, 10);
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
   db.update(employees).set({ passwordHash }).where(eq(employees.id, employeeId)).run();
   return { success: true as const };
 }
@@ -529,7 +529,7 @@ export async function changeOwnPassword(currentPassword: string, newPassword: st
   const valid = await bcrypt.compare(currentPassword, userRecord.passwordHash);
   if (!valid) return { error: "Current password is incorrect" };
   if (!newPassword || newPassword.length < 6) return { error: "New password must be at least 6 characters" };
-  const passwordHash = await bcrypt.hash(newPassword, 10);
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
   db.update(employees).set({ passwordHash }).where(eq(employees.id, user.id)).run();
   return { success: true as const };
 }
@@ -888,7 +888,7 @@ export async function setSecretQuestion(question: string, answer: string) {
   if (!question || !question.trim()) return { error: "Question is required" };
   if (!answer || answer.trim().length < 2) return { error: "Answer must be at least 2 characters" };
   const normalizedAnswer = answer.trim().toLowerCase();
-  const hash = await bcrypt.hash(normalizedAnswer, 10);
+  const hash = await bcrypt.hash(normalizedAnswer, BCRYPT_SALT_ROUNDS);
   db.update(employees)
     .set({ secretQuestion: question.trim(), secretAnswerHash: hash })
     .where(eq(employees.id, user.id))

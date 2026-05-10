@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { writeFileSync, copyFileSync, renameSync, existsSync, unlinkSync } from "fs";
 import { join } from "path";
 import Database from "better-sqlite3";
+import { DATABASE_PATH } from "@/lib/constants";
 
 const SQLITE_MAGIC = Buffer.from("SQLite format 3\0");
 
@@ -21,9 +22,9 @@ export async function POST(req: Request) {
     return Response.json({ error: "Not a valid SQLite database file" }, { status: 422 });
   }
 
-  const dbPath = join(process.cwd(), "data", "iris.db");
-  const bakPath = join(process.cwd(), "data", "iris.db.bak");
-  const tmpPath = join(process.cwd(), "data", "iris.db.new");
+  const dbPath = join(process.cwd(), DATABASE_PATH);
+  const bakPath = join(process.cwd(), `${DATABASE_PATH}.bak`);
+  const tmpPath = join(process.cwd(), `${DATABASE_PATH}.new`);
 
   try {
     writeFileSync(tmpPath, buffer);
