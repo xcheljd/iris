@@ -1,0 +1,346 @@
+"use server";
+import { db } from "@/lib/db";
+import { clients, outreachLogs, activityEvents, promoMatches, bannedCustomers, unsubscribeList, approvalRequests, employees } from "@/lib/db/schema";
+import { eq, and, inArray } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import { randomUUID } from "crypto";
+import { requireAuth, requireManager } from "./_shared";
+import { recalcHeat } from "./outreach";
+
+export async function banClient(clientId: string, category: "Reselling" | "Gift Card Fraud" | "Other", reason: string) {
+  const user = await requireManager();
+  const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
+  if (!c) return;
+  db.transaction((tx) => {
+    tx.update(clients).set({ status: "banned", updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+    tx.insert(bannedCustomers).values({
+      id: randomUUID(),
+      customerId: clientId,
+      firstName: c.firstName,
+      lastName: c.lastName,
+      email: c.email,
+      phone: c.phone,
+      banReasonCategory: category,
+      specificBanReason: reason,
+    }).run();
+    tx.insert(activityEvents).values({
+      id: randomUUID(), clientId, eventType: "status_changed", description: `Banned: ${category} — ${reason}`, metadata: { newStatus: "banned" }, employeeId: user.id,
+    }).run();
+  });
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/banned");
+}
+
+export async function unsubscribeClient(clientId: string) {
+  const user = await requireManager();
+  const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
+  if (!c) return;
+  db.transaction((tx) => {
+    tx.update(clients).set({ status: "unsubscribed", onEmailList: false, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+    if (c.email) {
+      const existing = tx.select().from(unsubscribeList).where(eq(unsubscribeList.email, c.email)).get();
+      if (!existing) tx.insert(unsubscribeList).values({ id: randomUUID(), email: c.email }).run();
+    }
+    tx.insert(activityEvents).values({
+      id: randomUUID(), clientId, eventType: "status_changed", description: "Unsubscribed", metadata: { newStatus: "unsubscribed" }, employeeId: user.id,
+    }).run();
+  });
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/unsubscribed");
+}
+
+export async function unbanClient(clientId: string) {
+  await requireManager();
+  const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
+  if (!c || c.status !== "banned") return;
+  db.transaction((tx) => {
+    tx.update(clients).set({ status: "active", updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+    tx.delete(bannedCustomers).where(eq(bannedCustomers.customerId, clientId)).run();
+    tx.insert(activityEvents).values({
+      id: randomUUID(), clientId, eventType: "status_changed", description: "Unbanned", metadata: { newStatus: "active" }, employeeId: null,
+    }).run();
+  });
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/banned");
+}
+
+export async function addUnsubscribeEmail(email: string) {
+  await requireManager();
+  const existing = db.select().from(unsubscribeList).where(eq(unsubscribeList.email, email)).get();
+  if (existing) throw new Error("Email already exists");
+  const matchingClient = db.select().from(clients).where(eq(clients.email, email)).get();
+  db.transaction((tx) => {
+    tx.insert(unsubscribeList).values({ id: randomUUID(), email }).run();
+    if (matchingClient) {
+      tx.update(clients).set({ status: "unsubscribed", onEmailList: false, updatedAt: new Date() }).where(eq(clients.id, matchingClient.id)).run();
+      tx.insert(activityEvents).values({
+        id: randomUUID(), clientId: matchingClient.id, eventType: "status_changed", description: "Manually added to unsubscribe list", metadata: { newStatus: "unsubscribed" }, employeeId: null,
+      }).run();
+    }
+  });
+  if (matchingClient) revalidatePath(`/clients/${matchingClient.id}`);
+  revalidatePath("/unsubscribed");
+}
+
+export async function resubscribeClient(clientId: string) {
+  await requireManager();
+  const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
+  if (!c) return;
+  db.update(clients).set({ status: "active", onEmailList: true, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+  if (c.email) {
+    db.delete(unsubscribeList).where(eq(unsubscribeList.email, c.email)).run();
+  }
+  db.insert(activityEvents).values({
+    id: randomUUID(), clientId, eventType: "status_changed", description: "Resubscribed", metadata: { newStatus: "active" }, employeeId: null,
+  }).run();
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/unsubscribed");
+}
+
+export async function toggleEmailList(clientId: string) {
+  await requireAuth();
+  const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
+  if (!c) throw new Error("Client not found");
+  if (c.status === "unsubscribed") throw new Error("Cannot toggle email list for unsubscribed client");
+  const newValue = !c.onEmailList;
+  db.update(clients).set({ onEmailList: newValue, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+  db.insert(activityEvents).values({
+    id: randomUUID(), clientId, eventType: "edited", description: newValue ? "Added to email list" : "Removed from email list", metadata: { onEmailList: newValue }, employeeId: null,
+  }).run();
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/clients");
+}
+
+export async function transferClient(clientId: string, newEmployeeId: string) {
+  const user = await requireManager();
+
+  const clientRow = db.select({ employeeId: clients.employeeId }).from(clients).where(eq(clients.id, clientId)).get();
+  if (!clientRow) throw new Error("Client not found");
+
+  const newEmployee = db.select({ firstName: employees.firstName, lastName: employees.lastName }).from(employees).where(eq(employees.id, newEmployeeId)).get();
+  if (!newEmployee) throw new Error("Employee not found");
+
+  const previousEmployee = clientRow.employeeId
+    ? db.select({ firstName: employees.firstName, lastName: employees.lastName }).from(employees).where(eq(employees.id, clientRow.employeeId)).get()
+    : null;
+
+  db.update(clients).set({ employeeId: newEmployeeId, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+
+  const newEmployeeName = `${newEmployee.firstName} ${newEmployee.lastName ?? ""}`.trim();
+  const previousEmployeeName = previousEmployee ? `${previousEmployee.firstName} ${previousEmployee.lastName ?? ""}`.trim() : undefined;
+
+  db.insert(activityEvents).values({
+    id: randomUUID(),
+    clientId,
+    eventType: "transferred",
+    description: `Transferred to ${newEmployeeName}`,
+    employeeId: user.id,
+    metadata: { newEmployeeName, ...(previousEmployeeName ? { previousEmployeeName } : {}) },
+  }).run();
+
+  revalidatePath(`/clients/${clientId}`);
+}
+
+export async function deleteClient(clientId: string) {
+  const user = await requireManager();
+
+  const client = db.select().from(clients).where(eq(clients.id, clientId)).get();
+  if (!client) throw new Error("Client not found");
+  if (client.status === "deleted") throw new Error("Client already deleted");
+
+  db.update(clients).set({
+    status: "deleted",
+    previousStatus: client.status,
+    deletedAt: new Date(),
+    deletedBy: user.id,
+    updatedAt: new Date(),
+  }).where(eq(clients.id, clientId)).run();
+
+  db.insert(activityEvents).values({
+    id: randomUUID(),
+    clientId,
+    eventType: "status_changed",
+    description: `Client deleted by ${user.name}`,
+    employeeId: user.id,
+  }).run();
+
+  revalidatePath("/clients");
+  revalidatePath("/settings");
+}
+
+export async function restoreClient(clientId: string) {
+  const user = await requireManager();
+
+  const client = db.select().from(clients).where(eq(clients.id, clientId)).get();
+  if (!client) throw new Error("Client not found");
+  if (client.status !== "deleted") throw new Error("Client is not deleted");
+
+  db.update(clients).set({
+    status: client.previousStatus ?? "active",
+    previousStatus: null,
+    deletedAt: null,
+    deletedBy: null,
+    updatedAt: new Date(),
+  }).where(eq(clients.id, clientId)).run();
+
+  db.insert(activityEvents).values({
+    id: randomUUID(),
+    clientId,
+    eventType: "status_changed",
+    description: `Client restored to ${client.previousStatus ?? "active"} by ${user.name}`,
+    employeeId: user.id,
+  }).run();
+
+  revalidatePath("/clients");
+  revalidatePath("/settings");
+}
+
+export async function purgeClient(clientId: string) {
+  await requireManager();
+
+  const client = db.select().from(clients).where(eq(clients.id, clientId)).get();
+  if (!client) throw new Error("Client not found");
+
+  db.transaction((tx) => {
+    tx.delete(activityEvents).where(eq(activityEvents.clientId, clientId)).run();
+    tx.delete(outreachLogs).where(eq(outreachLogs.clientId, clientId)).run();
+    tx.delete(promoMatches).where(eq(promoMatches.clientId, clientId)).run();
+    tx.delete(approvalRequests).where(eq(approvalRequests.clientId, clientId)).run();
+    tx.delete(clients).where(eq(clients.id, clientId)).run();
+  });
+
+  revalidatePath("/clients");
+  revalidatePath("/settings");
+}
+
+export async function mergeClients(
+  clientAId: string,
+  clientBId: string,
+  fieldChoices: Record<string, "a" | "b">,
+  finalNotes: string | null,
+): Promise<{ winnerId: string }> {
+  const user = await requireManager();
+
+  const clientA = db.select().from(clients).where(eq(clients.id, clientAId)).get();
+  const clientB = db.select().from(clients).where(eq(clients.id, clientBId)).get();
+  if (!clientA || !clientB) throw new Error("Client not found");
+
+  // Older dateAdded survives
+  const aIsOlder = new Date(clientA.dateAdded).getTime() <= new Date(clientB.dateAdded).getTime();
+  const winner = aIsOlder ? clientA : clientB;
+  const loser = aIsOlder ? clientB : clientA;
+
+  const pick = (key: string): unknown =>
+    fieldChoices[key] === "b"
+      ? (clientB as Record<string, unknown>)[key]
+      : (clientA as Record<string, unknown>)[key];
+
+  const latestOf = (a: Date | null | undefined, b: Date | null | undefined) => {
+    if (!a && !b) return null;
+    if (!a) return b;
+    if (!b) return a;
+    return a.getTime() >= b.getTime() ? a : b;
+  };
+
+  db.update(clients).set({
+    firstName: pick("firstName") as string || winner.firstName,
+    lastName: pick("lastName") as string | null,
+    phone: pick("phone") as string | null,
+    email: pick("email") as string | null,
+    birthday: pick("birthday") as string | null,
+    anniversary: pick("anniversary") as string | null,
+    customerId: pick("customerId") as string | null,
+    source: pick("source") as typeof clients.$inferSelect.source,
+    onEmailList: (clientA.onEmailList || clientB.onEmailList),
+    notes: finalNotes ?? null,
+    productsOfInterest: Array.from(new Set([...(clientA.productsOfInterest || []), ...(clientB.productsOfInterest || [])])),
+    tags: Array.from(new Set([...(clientA.tags || []), ...(clientB.tags || [])])),
+    lastOutreachAt: latestOf(clientA.lastOutreachAt, clientB.lastOutreachAt),
+    lastPurchaseAt: latestOf(clientA.lastPurchaseAt, clientB.lastPurchaseAt),
+    updatedAt: new Date(),
+  }).where(eq(clients.id, winner.id)).run();
+
+  // Migrate FK references from loser to winner
+  db.update(outreachLogs).set({ clientId: winner.id }).where(eq(outreachLogs.clientId, loser.id)).run();
+  db.update(activityEvents).set({ clientId: winner.id }).where(eq(activityEvents.clientId, loser.id)).run();
+  db.update(approvalRequests).set({ clientId: winner.id }).where(eq(approvalRequests.clientId, loser.id)).run();
+
+  // promoMatches: delete loser's entries that conflict with winner's, then migrate the rest
+  const winnerPromoIds = db.select({ promoId: promoMatches.promoId })
+    .from(promoMatches).where(eq(promoMatches.clientId, winner.id)).all()
+    .map((r) => r.promoId);
+  if (winnerPromoIds.length > 0) {
+    db.delete(promoMatches)
+      .where(and(eq(promoMatches.clientId, loser.id), inArray(promoMatches.promoId, winnerPromoIds)))
+      .run();
+  }
+  db.update(promoMatches).set({ clientId: winner.id }).where(eq(promoMatches.clientId, loser.id)).run();
+
+  const loserName = `${loser.firstName} ${loser.lastName ?? ""}`.trim();
+  db.insert(activityEvents).values({
+    id: randomUUID(),
+    clientId: winner.id,
+    eventType: "merged",
+    description: `Merged from ${loserName}`,
+    employeeId: user.id,
+    metadata: { sourceClientId: loser.id, sourceClientName: loserName },
+  }).run();
+
+  db.delete(clients).where(eq(clients.id, loser.id)).run();
+
+  await recalcHeat(winner.id);
+  revalidatePath(`/clients/${winner.id}`);
+  revalidatePath("/clients");
+
+  return { winnerId: winner.id };
+}
+
+export async function patchClientFromFormMerge(
+  existingId: string,
+  patch: {
+    firstName: string;
+    lastName?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    birthday?: string | null;
+    anniversary?: string | null;
+    customerId?: string | null;
+    source?: string;
+    onEmailList?: boolean;
+    notes?: string | null;
+    productsOfInterest?: string[];
+    tags?: string[];
+  },
+): Promise<void> {
+  const user = await requireManager();
+  const existing = db.select().from(clients).where(eq(clients.id, existingId)).get();
+  if (!existing) throw new Error("Client not found");
+
+  db.update(clients).set({
+    firstName: patch.firstName,
+    lastName: patch.lastName ?? null,
+    phone: patch.phone ?? null,
+    email: patch.email ?? null,
+    birthday: patch.birthday ?? null,
+    anniversary: patch.anniversary ?? null,
+    customerId: patch.customerId ?? null,
+    source: (patch.source as typeof clients.$inferSelect.source) ?? existing.source,
+    onEmailList: patch.onEmailList ?? existing.onEmailList,
+    notes: patch.notes ?? null,
+    productsOfInterest: patch.productsOfInterest ?? existing.productsOfInterest,
+    tags: patch.tags ?? existing.tags,
+    updatedAt: new Date(),
+  }).where(eq(clients.id, existingId)).run();
+
+  db.insert(activityEvents).values({
+    id: randomUUID(),
+    clientId: existingId,
+    eventType: "merged",
+    description: "Merged from new client form entry",
+    employeeId: user.id,
+    metadata: { sourceClientName: "new form entry" },
+  }).run();
+
+  await recalcHeat(existingId);
+  revalidatePath(`/clients/${existingId}`);
+}

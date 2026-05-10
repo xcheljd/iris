@@ -15,7 +15,7 @@
 | Silent Bugs — Critical | 4 | 0 | 4 |
 | Silent Bugs — Medium | 12 | 0 | 12 |
 | Dead Code / Unwired | 7 | 1 | 6 |
-| Code Quality — Large Files | 5 | 4 | 1 |
+| Code Quality — Large Files | 5 | 3 | 2 |
 | Code Quality — Duplication | 6 | 1 | 5 |
 | Code Quality — Inconsistency | 4 | 3 | 1 |
 | Code Quality — Missing Error Handling | 8 | 0 | 8 |
@@ -23,7 +23,7 @@
 | Performance | 6 | 0 | 6 |
 | Accessibility | 6 | 0 | 6 |
 | Security | 6 | 0 | 6 |
-| **TOTAL** | **74** | **9** | **65** |
+| **TOTAL** | **74** | **8** | **66** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -381,7 +381,8 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 
 ### Q-LARGE-1. `lib/actions.ts` — 1208 lines, 40+ functions across 8 domains
 **Description:** Monolithic server actions file. Contains outreach, tags, promos, templates, clients, employees, approvals, prospects, RVX import — all in one file.
-- [ ] Split into `lib/actions/{_shared.ts, clients.ts, employees.ts, promos.ts, approvals.ts, prospects.ts, rvx-import.ts, outreach.ts}`. Shared helpers (`requireAuth`, `requireManager`, `getSessionUser`) go in `_shared.ts`.
+- [x] Split into `lib/actions/{_shared.ts, clients.ts, employees.ts, promos.ts, approvals.ts, prospects.ts, rvx-import.ts, outreach.ts}`. Shared helpers (`requireAuth`, `requireManager`, `getSessionUser`) go in `_shared.ts`.
+**Fix:** Extracted all 40+ functions into 9 domain modules under `lib/actions/`. `lib/actions.ts` is now a pure barrel re-export. Auth helpers in `_shared.ts`. Cross-module imports: `approvals.ts` imports `banClient`/`unsubscribeClient`/`deleteClient` from `./clients`; `clients.ts` imports `recalcHeat` from `./outreach`. Also added `templates.ts` for template actions and `smart-lists.ts`/`tags.ts` for their respective domains. Zero caller changes needed — all exports preserved at the same path.
 
 ### Q-LARGE-2. `app/(app)/promos/promos-content.tsx` — 653 lines
 **Description:** Contains a 200+ line `ImportPromoDialog` with CSV parsing logic plus the main `PromosContent` component.
