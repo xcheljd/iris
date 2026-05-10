@@ -16,14 +16,14 @@
 | Silent Bugs — Medium | 12 | 0 | 12 |
 | Dead Code / Unwired | 7 | 1 | 6 |
 | Code Quality — Large Files | 5 | 0 | 5 |
-| Code Quality — Duplication | 6 | 1 | 5 |
+| Code Quality — Duplication | 6 | 0 | 6 |
 | Code Quality — Inconsistency | 4 | 3 | 1 |
 | Code Quality — Missing Error Handling | 8 | 0 | 8 |
 | Code Quality — Hardcoded Values | 10 | 0 | 10 |
 | Performance | 6 | 0 | 6 |
 | Accessibility | 6 | 0 | 6 |
 | Security | 6 | 0 | 6 |
-| **TOTAL** | **74** | **5** | **69** |
+| **TOTAL** | **74** | **4** | **70** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -426,7 +426,7 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### Q-DUP-4. CSV parsing logic duplicated
 **Files:** `app/(app)/promos/promos-content.tsx` (parsePasteData, findColumnMapping, KNOWN_HEADERS) and `lib/rvx-parser.ts` (parseRvxCsv)
 **Description:** Both implement CSV/TSV parsing with separator detection, header matching, and row parsing.
-- [ ] Extract shared `lib/csv-parser.ts` utility with configurable column mappings.
+- [x] Fix: Created `lib/csv-parser.ts` exporting `detectSeparator` and `splitCsvLine` (RFC-4180, separator-parameterized). `lib/rvx-parser.ts` imports `splitCsvLine` (local def removed); `lib/promo-csv-parser.ts` imports both and replaces its inline `detectSeparator` closure and naive `split+replace` with `splitCsvLine`.
 
 ### Q-DUP-5. Auth check boilerplate in all 13 API routes
 **File:** `app/api/*/route.ts`

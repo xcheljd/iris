@@ -1,3 +1,5 @@
+import { detectSeparator, splitCsvLine } from "./csv-parser";
+
 export interface ParsedPromoRow {
   modelNumber: string;
   collection: string;
@@ -34,17 +36,8 @@ export function parsePasteData(raw: string): { rows: ParsedPromoRow[]; mapping: 
   const lines = raw.trim().split(/\r?\n/).filter((l) => l.trim());
   if (lines.length === 0) return { rows: [], mapping: null, headers: [] };
 
-  const detectSeparator = (line: string) => {
-    const tab = (line.match(/\t/g) || []).length;
-    const comma = (line.match(/,/g) || []).length;
-    const pipe = (line.match(/\|/g) || []).length;
-    if (tab >= comma && tab >= pipe) return "\t";
-    if (pipe > comma) return "|";
-    return comma > 0 ? "," : "\t";
-  };
-
   const sep = detectSeparator(lines[0]);
-  const allRows = lines.map((l) => l.split(sep).map((c) => c.trim().replace(/^["']|["']$/g, "")));
+  const allRows = lines.map((l) => splitCsvLine(l, sep));
   const firstRow = allRows[0];
   const isHeader = firstRow.some((cell) => {
     const lower = cell.toLowerCase();
