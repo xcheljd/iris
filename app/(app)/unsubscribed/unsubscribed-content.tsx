@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import { PaginationFooter } from "@/components/pagination-footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatsCard } from "@/components/stats-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -215,28 +216,8 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
 
       {/* Stats + Quick Add */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Unsubscribed</p>
-                <p className="text-2xl font-bold">{list.length}</p>
-              </div>
-              <MailX className="h-8 w-8 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Matched Clients</p>
-                <p className="text-2xl font-bold">{matchCount}</p>
-              </div>
-              <UserX className="h-8 w-8 text-orange-500" />
-            </div>
-          </CardContent>
-        </Card>
+        <StatsCard label="Total Unsubscribed" value={list.length} icon={MailX} />
+        <StatsCard label="Matched Clients" value={matchCount} icon={UserX} iconClassName="text-orange-500" />
         <Card>
           <CardContent className="pt-6">
             {isManager ? (

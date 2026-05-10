@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import { PaginationFooter } from "@/components/pagination-footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatsCard } from "@/components/stats-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -246,43 +247,9 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Banned</p>
-                <p className="text-2xl font-bold text-red-500">{banned.length}</p>
-              </div>
-              <Ban className="h-8 w-8 text-red-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Reselling</p>
-                <p className="text-2xl font-bold">
-                  {banned.filter((r) => r.banned.banReasonCategory === "Reselling").length}
-                </p>
-              </div>
-              <AlertTriangle className="h-8 w-8 text-orange-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Gift Card Fraud</p>
-                <p className="text-2xl font-bold">
-                  {banned.filter((r) => r.banned.banReasonCategory === "Gift Card Fraud").length}
-                </p>
-              </div>
-              <AlertTriangle className="h-8 w-8 text-yellow-500" />
-            </div>
-          </CardContent>
-        </Card>
+        <StatsCard label="Total Banned" value={banned.length} icon={Ban} iconClassName="text-red-500" valueClassName="text-red-500" />
+        <StatsCard label="Reselling" value={banned.filter((r) => r.banned.banReasonCategory === "Reselling").length} icon={AlertTriangle} iconClassName="text-orange-500" />
+        <StatsCard label="Gift Card Fraud" value={banned.filter((r) => r.banned.banReasonCategory === "Gift Card Fraud").length} icon={AlertTriangle} iconClassName="text-yellow-500" />
       </div>
 
       {/* Banned List */}

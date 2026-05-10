@@ -13,17 +13,17 @@
 | Category | Total | Open | Resolved |
 |----------|-------|------|----------|
 | Silent Bugs — Critical | 4 | 0 | 4 |
-| Silent Bugs — Medium | 12 | 1 | 11 |
+| Silent Bugs — Medium | 12 | 0 | 12 |
 | Dead Code / Unwired | 7 | 1 | 6 |
 | Code Quality — Large Files | 5 | 5 | 0 |
-| Code Quality — Duplication | 6 | 4 | 2 |
+| Code Quality — Duplication | 6 | 2 | 4 |
 | Code Quality — Inconsistency | 4 | 4 | 0 |
 | Code Quality — Missing Error Handling | 8 | 0 | 8 |
-| Code Quality — Hardcoded Values | 10 | 1 | 9 |
+| Code Quality — Hardcoded Values | 10 | 0 | 10 |
 | Performance | 6 | 4 | 2 |
-| Accessibility | 6 | 6 | 0 |
-| Security | 6 | 1 | 5 |
-| **TOTAL** | **74** | **27** | **47** |
+| Accessibility | 6 | 5 | 1 |
+| Security | 6 | 0 | 6 |
+| **TOTAL** | **74** | **21** | **53** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -411,7 +411,7 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### Q-DUP-2. Stat cards row pattern duplicated in 5 files
 **Files:** `app/(app)/page.tsx`, `banned-content.tsx`, `unsubscribed-content.tsx`, `promos-content.tsx`, `analytics-overview-tab.tsx`
 **Description:** Same Card + CardContent + icon + label + value structure repeated.
-- [ ] Extract reusable `StatsGrid` component with a `StatItem[]` prop.
+- [x] Fix: Extracted `components/stats-card.tsx` with `StatsCard` component (label, value, icon, optional className overrides). Replaced 8 inline card blocks across `banned-content.tsx` (3), `unsubscribed-content.tsx` (2), and `promos-content.tsx` (3). Dashboard and analytics card variants excluded — different visual layouts (icon-left box, HoverCard wrappers).
 
 ### Q-DUP-3. `PAGE_SIZE` constant defined independently in 9 files
 **Files:** `clients-content.tsx` (20), `follow-ups-content.tsx` (20), `smart-lists-content.tsx` (20), `unsubscribed-content.tsx` (20), `banned-content.tsx` (20), `analytics-content.tsx` (20), `collections-content.tsx` (20), `deleted-tab.tsx` (20), `outreach-history-tab.tsx` (10), `promos-content.tsx` (15)
@@ -554,7 +554,7 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### H-10. Promo CSV header mapping — large inline object
 **File:** `app/(app)/promos/promos-content.tsx`
 **Value:** `KNOWN_HEADERS` mapping object
-- [ ] Move to `lib/promo-csv-parser.ts` or config file.
+- [x] Fix: Extracted `ParsedPromoRow`, `KNOWN_HEADERS`, `findColumnMapping`, and `parsePasteData` into `lib/promo-csv-parser.ts`. `promos-content.tsx` now imports them from the shared module (commit `73abe36`).
 
 ---
 
