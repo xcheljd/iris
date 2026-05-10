@@ -17,13 +17,13 @@
 | Dead Code / Unwired | 7 | 1 | 6 |
 | Code Quality — Large Files | 5 | 0 | 5 |
 | Code Quality — Duplication | 6 | 0 | 6 |
-| Code Quality — Inconsistency | 4 | 2 | 2 |
+| Code Quality — Inconsistency | 4 | 1 | 3 |
 | Code Quality — Missing Error Handling | 8 | 0 | 8 |
 | Code Quality — Hardcoded Values | 10 | 0 | 10 |
 | Performance | 6 | 0 | 6 |
 | Accessibility | 6 | 0 | 6 |
 | Security | 6 | 0 | 6 |
-| **TOTAL** | **74** | **3** | **71** |
+| **TOTAL** | **74** | **2** | **72** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -452,7 +452,8 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### Q-INCON-2. Mixed loading state patterns
 **Files:** Multiple `*-content.tsx` files
 **Description:** Some use `useState + setIsLoading(true/false)`, others use `useTransition + start`. Both work but mixing creates cognitive overhead.
-- [ ] Standardize on `useTransition` for server action calls.
+- [x] Standardize on `useTransition` for server action calls.
+  **Fix (2026-05-10):** `app/(app)/clients/new/page.tsx`, `app/(app)/clients/[id]/edit/edit-client-form.tsx`, and `components/edit-client-dialog.tsx` converted from `useState<boolean> isLoading` + `setIsLoading(true/false)` in try/finally to `useTransition` + `start(async () => {...})` with `isPending` passed to `<ClientForm>`.
 
 ### Q-INCON-3. Mixed data fetching patterns
 **Files:** `app/(app)/*/page.tsx`, various components

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -17,7 +17,7 @@ interface EditClientDialogProps {
 
 export function EditClientDialog({ client, children }: EditClientDialogProps) {
   const [open, setOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isPending, start] = useTransition();
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [duplicateClient, setDuplicateClient] = useState<{ id: string; firstName: string; lastName?: string | null; phone?: string | null; email?: string | null } | null>(null);
   const [formData, setFormData] = useState<ClientFormData>({
@@ -84,37 +84,36 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
     setProductsOfInterest((prev) => prev.filter((p) => p !== product));
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     const validationError = validateClientForm(formData);
     if (validationError) {
       toast.error(validationError);
       return;
     }
-    setIsLoading(true);
-    try {
-      const response = await fetch("/api/clients", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: client.id, ...formData, productsOfInterest }),
-      });
+    start(async () => {
+      try {
+        const response = await fetch("/api/clients", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: client.id, ...formData, productsOfInterest }),
+        });
 
-      if (response.ok) {
-        toast.success("Client updated successfully");
-        setOpen(false);
-      } else if (response.status === 409) {
-        const duplicateData = await response.json();
-        setDuplicateClient(duplicateData);
-        setShowDuplicateWarning(true);
-      } else {
-        toast.error("Failed to update client");
+        if (response.ok) {
+          toast.success("Client updated successfully");
+          setOpen(false);
+        } else if (response.status === 409) {
+          const duplicateData = await response.json();
+          setDuplicateClient(duplicateData);
+          setShowDuplicateWarning(true);
+        } else {
+          toast.error("Failed to update client");
+        }
+      } catch (error) {
+        toast.error("Failed to update client", {
+          description: error instanceof Error ? error.message : "Unknown error",
+        });
       }
-    } catch (error) {
-      toast.error("Failed to update client", {
-        description: error instanceof Error ? error.message : "Unknown error",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    });
   };
 
   return (
@@ -149,7 +148,7 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
             duplicateClient={duplicateClient}
             onDismissDuplicate={() => setShowDuplicateWarning(false)}
             onEditExisting={() => { setOpen(false); window.location.href = `/clients/${duplicateClient!.id}`; }}
-            isLoading={isLoading}
+            isLoading={isPending}
             submitLabel="Save Changes"
             onSubmit={handleSubmit}
             onCancel={() => setOpen(false)}

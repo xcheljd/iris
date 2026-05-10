@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -43,7 +43,7 @@ interface EditClientFormProps {
 
 export function EditClientForm({ initialClient, clientId, employees }: EditClientFormProps) {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isPending, start] = useTransition();
   const [_isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [duplicateClient, setDuplicateClient] = useState<ClientData | null>(null);
@@ -139,39 +139,36 @@ export function EditClientForm({ initialClient, clientId, employees }: EditClien
     setProductsOfInterest(prev => prev.filter(product => product !== productToRemove));
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     const validationError = validateClientForm(formData);
     if (validationError) {
       toast.error(validationError);
       return;
     }
+    start(async () => {
+      try {
+        const response = await fetch(`/api/clients/${clientId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...formData, productsOfInterest }),
+        });
 
-    setIsLoading(true);
-
-    try {
-      const response = await fetch(`/api/clients/${clientId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, productsOfInterest }),
-      });
-
-      if (response.ok) {
-        toast.success("Client updated successfully");
-        router.push(`/clients/${clientId}`);
-      } else if (response.status === 409) {
-        const duplicateData = await response.json();
-        setDuplicateClient(duplicateData);
-        setShowDuplicateWarning(true);
-      } else {
-        toast.error("Failed to update client");
+        if (response.ok) {
+          toast.success("Client updated successfully");
+          router.push(`/clients/${clientId}`);
+        } else if (response.status === 409) {
+          const duplicateData = await response.json();
+          setDuplicateClient(duplicateData);
+          setShowDuplicateWarning(true);
+        } else {
+          toast.error("Failed to update client");
+        }
+      } catch (error) {
+        toast.error("Failed to update client", {
+          description: error instanceof Error ? error.message : "Unknown error",
+        });
       }
-    } catch (error) {
-      toast.error("Failed to update client", {
-        description: error instanceof Error ? error.message : "Unknown error",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    });
   };
 
   const handleEditExisting = () => {
@@ -213,7 +210,7 @@ export function EditClientForm({ initialClient, clientId, employees }: EditClien
             onDismissDuplicate={() => setShowDuplicateWarning(false)}
             onEditExisting={handleEditExisting}
             employees={employees}
-            isLoading={isLoading}
+            isLoading={isPending}
             submitLabel="Save Changes"
             onSubmit={handleSubmit}
             onCancel={() => router.back()}

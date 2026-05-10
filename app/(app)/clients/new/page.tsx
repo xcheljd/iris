@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -12,7 +12,7 @@ import { validateClientForm } from "@/lib/validation/client";
 
 export default function AddClientPage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isPending, start] = useTransition();
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [duplicateClient, setDuplicateClient] = useState<{ id: string; firstName: string; lastName?: string | null; phone?: string | null; email?: string | null } | null>(null);
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
@@ -105,40 +105,37 @@ export default function AddClientPage() {
     setProductsOfInterest(prev => prev.filter(product => product !== productToRemove));
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     const validationError = validateClientForm(formData);
     if (validationError) {
       toast.error(validationError);
       return;
     }
+    start(async () => {
+      try {
+        const response = await fetch("/api/clients", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...formData, productsOfInterest }),
+        });
 
-    setIsLoading(true);
-
-    try {
-      const response = await fetch("/api/clients", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, productsOfInterest }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        toast.success("Client created successfully");
-        router.push(`/clients/${data.id}`);
-      } else if (response.status === 409) {
-        const duplicateData = await response.json();
-        setDuplicateClient(duplicateData);
-        setShowDuplicateWarning(true);
-      } else {
-        toast.error("Failed to create client");
+        if (response.ok) {
+          const data = await response.json();
+          toast.success("Client created successfully");
+          router.push(`/clients/${data.id}`);
+        } else if (response.status === 409) {
+          const duplicateData = await response.json();
+          setDuplicateClient(duplicateData);
+          setShowDuplicateWarning(true);
+        } else {
+          toast.error("Failed to create client");
+        }
+      } catch (error) {
+        toast.error("Failed to create client", {
+          description: error instanceof Error ? error.message : "Unknown error",
+        });
       }
-    } catch (error) {
-      toast.error("Failed to create client", {
-        description: error instanceof Error ? error.message : "Unknown error",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    });
   };
 
   const handleEditExisting = () => {
@@ -185,7 +182,7 @@ export default function AddClientPage() {
             onEditExisting={handleEditExisting}
             onMergeWithDuplicate={duplicateClient ? handleMergeWithDuplicate : undefined}
             showCommonTags
-            isLoading={isLoading}
+            isLoading={isPending}
             submitLabel="Create Client"
             onSubmit={handleSubmit}
             onCancel={() => router.back()}
