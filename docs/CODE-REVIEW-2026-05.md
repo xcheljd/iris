@@ -12,7 +12,7 @@
 
 | Category | Total | Open | Resolved |
 |----------|-------|------|----------|
-| Silent Bugs — Critical | 4 | 1 | 3 |
+| Silent Bugs — Critical | 4 | 0 | 4 |
 | Silent Bugs — Medium | 12 | 12 | 0 |
 | Dead Code / Unwired | 7 | 7 | 0 |
 | Code Quality — Large Files | 5 | 5 | 0 |
@@ -23,7 +23,7 @@
 | Performance | 6 | 6 | 0 |
 | Accessibility | 6 | 6 | 0 |
 | Security | 6 | 6 | 0 |
-| **TOTAL** | **74** | **71** | **3** |
+| **TOTAL** | **74** | **70** | **4** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -247,7 +247,7 @@ Residual style note: The condition `if (email && bannedEmails.has(email) || phon
 **Severity:** CRITICAL
 **File:** `app/api/backup/restore/route.ts` (L28-31)
 **Description:** `setTimeout(() => process.exit(0), 500)` kills the server 500ms after returning `NextResponse.json({ ok: true })`. On slow connections, the response may not flush. Users see a network error, think restore failed, and may retry — overwriting the `.bak` file.
-- [ ] Fix: Flush the response before exiting, or use a different restart mechanism. Consider writing a "restore pending" marker and letting the next server start detect and complete it.
+- [x] Fix: Moved `process.exit` scheduling inside a `ReadableStream` `start()` callback after `controller.close()`. The exit timer now starts only after the body bytes are fully produced, eliminating the race between response flushing and process termination.
 
 ---
 
