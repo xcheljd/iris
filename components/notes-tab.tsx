@@ -169,6 +169,7 @@ export function NotesTab({ client }: NotesTabProps) {
                         size="sm"
                         onClick={() => setDeleteTarget(note.id)}
                         className="h-8 w-8 text-destructive hover:text-destructive"
+                        aria-label="Delete note"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

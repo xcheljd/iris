@@ -148,6 +148,7 @@ function ResolutionPanel({
             <button
               type="button"
               disabled={same}
+              aria-pressed={choices[key] === "a"}
               className={cn(
                 "p-2 rounded border text-left text-sm transition-colors w-full",
                 same
@@ -163,6 +164,7 @@ function ResolutionPanel({
             <button
               type="button"
               disabled={same}
+              aria-pressed={choices[key] === "b"}
               className={cn(
                 "p-2 rounded border text-left text-sm transition-colors w-full",
                 same

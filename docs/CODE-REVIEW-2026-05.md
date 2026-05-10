@@ -21,9 +21,9 @@
 | Code Quality — Missing Error Handling | 8 | 0 | 8 |
 | Code Quality — Hardcoded Values | 10 | 0 | 10 |
 | Performance | 6 | 2 | 4 |
-| Accessibility | 6 | 3 | 3 |
+| Accessibility | 6 | 1 | 5 |
 | Security | 6 | 0 | 6 |
-| **TOTAL** | **74** | **15** | **59** |
+| **TOTAL** | **74** | **13** | **61** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -612,12 +612,12 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### A-4. Merge resolution buttons lack `aria-pressed` state
 **File:** `components/merge-client-dialog.tsx` (ResolutionPanel)
 **Description:** Field choice buttons have no indication of which value is selected for screen readers.
-- [ ] Add `aria-pressed={choices[key] === "a"}` etc.
+- [x] Fix: Added `aria-pressed={choices[key] === "a"}` and `aria-pressed={choices[key] === "b"}` to both choice buttons in `ResolutionPanel`.
 
 ### A-5. Icon-only buttons missing `aria-label` (partial coverage)
 **Files:** Multiple component files
 **Description:** Some icon-only buttons (Trash2, MoreHorizontal) have aria-labels, others don't. Only 14 of 30+ component files have any aria-label usage.
-- [ ] Audit all icon-only buttons for complete aria-label coverage.
+- [x] Fix: Audited all icon-only buttons. Only substantive gap found: delete note button in `components/notes-tab.tsx`. Added `aria-label="Delete note"` to that button. All other icon-only buttons already had `aria-label` or `<span className="sr-only">` coverage.
 
 ### A-6. Heat distribution bar relies solely on color
 **File:** `app/(app)/page.tsx`
