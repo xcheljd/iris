@@ -250,24 +250,57 @@ export async function unsubscribeClient(clientId: string) {
   revalidatePath("/unsubscribed");
 }
 
+interface PromoClientEntry {
+  id: string;
+  poiLower: string[];
+}
+interface PromoClientIndex {
+  modelMap: Map<string, string[]>; // lowercase poi → clientIds (for O(1) exact model lookup)
+  entries: PromoClientEntry[];     // pre-lowercased for collection substring scan
+}
+
+function buildPromoClientIndex(
+  all: Array<{ id: string; productsOfInterest: string[] | null }>,
+): PromoClientIndex {
+  const modelMap = new Map<string, string[]>();
+  const entries: PromoClientEntry[] = [];
+  for (const c of all) {
+    const poiLower = (c.productsOfInterest ?? []).map((p) => p.toLowerCase());
+    entries.push({ id: c.id, poiLower });
+    for (const p of poiLower) {
+      const arr = modelMap.get(p);
+      if (arr) arr.push(c.id);
+      else modelMap.set(p, [c.id]);
+    }
+  }
+  return { modelMap, entries };
+}
+
 function matchPromoToClients(
   tx: Pick<typeof db, "insert">,
   promoId: string,
   modelNumber: string,
   collection: string,
-  allClients: Array<{ id: string; productsOfInterest: string[] | null }>,
+  index: PromoClientIndex,
 ) {
   const modelLower = modelNumber.toLowerCase();
   const collectionLower = collection.toLowerCase();
   const matches: { id: string; clientId: string; promoId: string; matchType: "model" | "collection" }[] = [];
-  for (const c of allClients) {
-    const poi = c.productsOfInterest || [];
-    if (poi.some((p) => p.toLowerCase() === modelLower)) {
-      matches.push({ id: randomUUID(), clientId: c.id, promoId, matchType: "model" });
-    } else if (collectionLower && poi.some((p) => p.toLowerCase().includes(collectionLower))) {
-      matches.push({ id: randomUUID(), clientId: c.id, promoId, matchType: "collection" });
+
+  const modelClientIds = index.modelMap.get(modelLower) ?? [];
+  const modelMatchSet = new Set(modelClientIds);
+  for (const clientId of modelClientIds) {
+    matches.push({ id: randomUUID(), clientId, promoId, matchType: "model" });
+  }
+
+  if (collectionLower) {
+    for (const entry of index.entries) {
+      if (!modelMatchSet.has(entry.id) && entry.poiLower.some((p) => p.includes(collectionLower))) {
+        matches.push({ id: randomUUID(), clientId: entry.id, promoId, matchType: "collection" });
+      }
     }
   }
+
   if (matches.length > 0) {
     tx.insert(promoMatches).values(matches).run();
   }
@@ -278,10 +311,11 @@ export async function createPromo(modelNumber: string, collection: string, msrp?
   if (!modelNumber?.trim() || !collection?.trim()) return { error: "Model number and collection are required" };
   try {
     const all = db.select({ id: clients.id, productsOfInterest: clients.productsOfInterest }).from(clients).all();
+    const index = buildPromoClientIndex(all);
     const id = randomUUID();
     db.transaction((tx) => {
       tx.insert(promoWatches).values({ id, modelNumber, collection, msrp: msrp ?? null, discountPercent: discountPercent ?? null, discountPrice: discountPrice ?? null }).run();
-      matchPromoToClients(tx, id, modelNumber, collection, all);
+      matchPromoToClients(tx, id, modelNumber, collection, index);
     });
     revalidatePath("/promos");
   } catch (_err) {
@@ -293,6 +327,7 @@ export async function importPromos(rows: { modelNumber: string; collection: stri
   await requireManager();
   try {
     const all = db.select({ id: clients.id, productsOfInterest: clients.productsOfInterest }).from(clients).all();
+    const index = buildPromoClientIndex(all);
     let imported = 0;
     db.transaction((tx) => {
       for (const row of rows) {
@@ -310,7 +345,7 @@ export async function importPromos(rows: { modelNumber: string; collection: stri
           promoStart: promoStart ?? null,
           promoEnd: promoEnd ?? null,
         }).run();
-        matchPromoToClients(tx, id, modelNumber, collection, all);
+        matchPromoToClients(tx, id, modelNumber, collection, index);
         imported++;
       }
     });
@@ -979,7 +1014,8 @@ export async function analyzeRvxImport(csvText: string): Promise<RvxAnalysisResu
   const { rows, reportStartDate, reportEndDate, parseErrors } = parseRvxCsv(csvText);
 
   const dupeGroups = findWithinImportDuplicates(rows);
-  const dupeRows: RvxRawRow[] = [];
+  const dupeRowSet = new Set<RvxRawRow>();
+  const dedupedBestSet = new Set<RvxRawRow>();
   const deduped: RvxRawRow[] = [];
 
   for (const row of rows) {
@@ -991,14 +1027,17 @@ export async function analyzeRvxImport(csvText: string): Promise<RvxAnalysisResu
     ].join("|");
     const group = dupeGroups.get(key);
     if (group) {
-      if (!dupeRows.includes(row)) dupeRows.push(...group);
-      if (!deduped.some((r) => r === selectBestRecord(group))) {
-        deduped.push(selectBestRecord(group));
+      for (const r of group) dupeRowSet.add(r);
+      const best = selectBestRecord(group);
+      if (!dedupedBestSet.has(best)) {
+        dedupedBestSet.add(best);
+        deduped.push(best);
       }
     } else {
       deduped.push(row);
     }
   }
+  const dupeRows = Array.from(dupeRowSet);
 
   const { newRows, alreadyClientCount, bannedCount, unsubscribedCount, deletedCount } =
     await categorizeRvxRows(deduped);

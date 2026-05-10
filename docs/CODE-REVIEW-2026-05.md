@@ -17,13 +17,13 @@
 | Dead Code / Unwired | 7 | 1 | 6 |
 | Code Quality — Large Files | 5 | 5 | 0 |
 | Code Quality — Duplication | 6 | 2 | 4 |
-| Code Quality — Inconsistency | 4 | 4 | 0 |
+| Code Quality — Inconsistency | 4 | 3 | 1 |
 | Code Quality — Missing Error Handling | 8 | 0 | 8 |
 | Code Quality — Hardcoded Values | 10 | 0 | 10 |
-| Performance | 6 | 4 | 2 |
+| Performance | 6 | 2 | 4 |
 | Accessibility | 6 | 3 | 3 |
 | Security | 6 | 0 | 6 |
-| **TOTAL** | **74** | **19** | **55** |
+| **TOTAL** | **74** | **15** | **59** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -456,7 +456,7 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### Q-INCON-4. Inconsistent dialog trigger patterns
 **Files:** `client-status-actions.tsx`, `merge-client-dialog.tsx`, `edit-client-dialog.tsx`
 **Description:** Some dialogs use `<DialogTrigger asChild>` with `<Button>`, others use invisible `<div onClick>` wrappers. The invisible div pattern is fragile and inaccessible.
-- [ ] Standardize on `DialogTrigger` with proper button elements. See A-1/A-2 for accessibility fix.
+- [x] Fix: Covered by A-1/A-2 — all `<div onClick>` triggers replaced with `<DialogTrigger asChild>` and `<AlertDialogTrigger asChild>` across all 4 affected files.
 
 ---
 
@@ -578,12 +578,12 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### P-4. `importPromos` O(promos × clients) matching loop
 **File:** `lib/actions.ts`
 **Description:** Loads ALL clients with products of interest, then loops over promos matching each. Quadratic with client count.
-- [ ] Optimize with indexed lookups or batch processing.
+- [x] Fix: Added `buildPromoClientIndex()` that pre-lowercases all client POI strings once and builds a `modelMap: Map<string, clientId[]>` for O(1) exact model lookups. `matchPromoToClients` now accepts a `PromoClientIndex` instead of the raw array. Both `createPromo` and `importPromos` build the index once before their inner loops.
 
 ### P-5. `analyzeRvxImport` O(n²) dedup + full table scans
 **File:** `lib/actions.ts`
 **Description:** Loads all banned/unsubscribed/clients into memory. Dedup loop is quadratic for large imports.
-- [ ] Use indexed lookups instead of full table scans.
+- [x] Fix: Replaced `dupeRows.includes(row)` and `deduped.some(r => r === best)` linear scans with `Set<RvxRawRow>` membership checks. `selectBestRecord(group)` now called once per group (was called twice per row). `categorizeRvxRows` already uses batch-loaded Sets — no change needed there.
 
 ### P-6. `GET /api/clients` — no pagination
 **File:** `app/api/clients/route.ts`
