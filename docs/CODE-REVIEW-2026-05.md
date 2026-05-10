@@ -22,8 +22,8 @@
 | Code Quality — Hardcoded Values | 10 | 10 | 0 |
 | Performance | 6 | 6 | 0 |
 | Accessibility | 6 | 6 | 0 |
-| Security | 6 | 6 | 0 |
-| **TOTAL** | **74** | **59** | **15** |
+| Security | 6 | 2 | 4 |
+| **TOTAL** | **74** | **55** | **19** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -631,12 +631,12 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### SC-1. No rate limiting on password recovery endpoint
 **File:** `app/api/recover/route.ts`
 **Description:** Attackers can brute-force secret answers without throttling.
-- [ ] Add rate limiting (e.g., 5 attempts per username per 15 minutes).
+- [x] Fix: Added in-memory rate limiter — 5 attempts per username per 15-minute window, returns 429 when exceeded.
 
 ### SC-2. Username enumeration via recovery endpoint
 **File:** `app/api/recover/route.ts`
 **Description:** Different error messages for "no account" vs "no recovery options" reveal whether a username exists and its recovery configuration.
-- [ ] Return generic message: "If this account exists and has recovery options, you'll see the next step."
+- [x] Fix: Changed lookup step error to generic "If this account exists and has recovery options configured, you will see the security question."
 
 ### SC-3. Missing Content-Security-Policy header
 **File:** `next.config.mjs`
@@ -646,12 +646,12 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### SC-4. Backup restore only checks SQLite magic bytes
 **File:** `app/api/backup/restore/route.ts`
 **Description:** A crafted file could pass the magic check but contain malicious data.
-- [ ] After writing the file, open it with better-sqlite3 and run `PRAGMA integrity_check` before replacing the live database.
+- [x] Fix: After writing tmp file, open it with better-sqlite3 (readonly) and run `PRAGMA integrity_check`. If result !== "ok" or open throws, delete tmp and return 422.
 
 ### SC-5. Any authenticated user can delete any note
 **File:** `app/api/notes/route.ts` DELETE
 **Description:** No ownership check. Only verifies event type and note ID match.
-- [ ] Add check: only the note author or a manager can delete.
+- [x] Fix: Fetch note first; return 403 if caller is not the note's author (`employeeId`) and not a manager.
 
 ### SC-6. `.env.local` contains dev secret — verify gitignore exclusion
 **File:** `.env.local`

@@ -62,7 +62,16 @@ export async function DELETE(request: Request) {
     }
     const { noteId } = parsed.data;
 
-    db.delete(activityEvents).where(and(eq(activityEvents.id, noteId), eq(activityEvents.eventType, "note_added"))).run();
+    const note = db.select().from(activityEvents).where(
+      and(eq(activityEvents.id, noteId), eq(activityEvents.eventType, "note_added"))
+    ).get();
+    if (!note) return NextResponse.json({ error: "Note not found" }, { status: 404 });
+
+    if (session.user.role !== "manager" && note.employeeId !== session.user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    db.delete(activityEvents).where(eq(activityEvents.id, noteId)).run();
 
     return NextResponse.json({ success: true });
   } catch (_error) {

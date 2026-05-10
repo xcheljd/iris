@@ -1,7 +1,8 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { writeFileSync, copyFileSync, renameSync, existsSync } from "fs";
+import { writeFileSync, copyFileSync, renameSync, existsSync, unlinkSync } from "fs";
 import { join } from "path";
+import Database from "better-sqlite3";
 
 const SQLITE_MAGIC = Buffer.from("SQLite format 3\0");
 
@@ -25,6 +26,20 @@ export async function POST(req: Request) {
   const tmpPath = join(process.cwd(), "data", "iris.db.new");
 
   writeFileSync(tmpPath, buffer);
+
+  try {
+    const tmpDb = new Database(tmpPath, { readonly: true });
+    const result = tmpDb.prepare("PRAGMA integrity_check").get() as { integrity_check: string };
+    tmpDb.close();
+    if (result.integrity_check !== "ok") {
+      unlinkSync(tmpPath);
+      return Response.json({ error: "Database integrity check failed" }, { status: 422 });
+    }
+  } catch {
+    unlinkSync(tmpPath);
+    return Response.json({ error: "Not a valid SQLite database file" }, { status: 422 });
+  }
+
   if (existsSync(dbPath)) copyFileSync(dbPath, bakPath);
   renameSync(tmpPath, dbPath);
 
