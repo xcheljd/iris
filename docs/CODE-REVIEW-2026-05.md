@@ -18,12 +18,12 @@
 | Code Quality — Large Files | 5 | 5 | 0 |
 | Code Quality — Duplication | 6 | 6 | 0 |
 | Code Quality — Inconsistency | 4 | 4 | 0 |
-| Code Quality — Missing Error Handling | 8 | 1 | 7 |
+| Code Quality — Missing Error Handling | 8 | 0 | 8 |
 | Code Quality — Hardcoded Values | 10 | 10 | 0 |
 | Performance | 6 | 6 | 0 |
 | Accessibility | 6 | 6 | 0 |
 | Security | 6 | 1 | 5 |
-| **TOTAL** | **74** | **47** | **27** |
+| **TOTAL** | **74** | **46** | **28** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -500,7 +500,7 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### E-8. `GET /api/clients` — no pagination, potential OOM
 **File:** `app/api/clients/route.ts`
 **Description:** Returns all clients with no limit. Could exhaust memory on large datasets.
-- [ ] Add pagination parameters.
+- [x] Fix: Added `limit` (default 500, max 500) and `offset` query params. Hard cap prevents unbounded loads.
 
 ---
 

@@ -24,7 +24,9 @@ export async function GET(request: Request) {
     return NextResponse.json(client);
   }
 
-  const all = db.select().from(clients).where(notInArray(clients.status, ["banned", "deleted"])).orderBy(desc(clients.heatScore)).all();
+  const pageSize = Math.min(parseInt(searchParams.get("limit") ?? "500", 10) || 500, 500);
+  const pageOffset = Math.max(parseInt(searchParams.get("offset") ?? "0", 10) || 0, 0);
+  const all = db.select().from(clients).where(notInArray(clients.status, ["banned", "deleted"])).orderBy(desc(clients.heatScore)).limit(pageSize).offset(pageOffset).all();
   return NextResponse.json(all);
 }
 
