@@ -15,7 +15,7 @@
 | Silent Bugs — Critical | 4 | 0 | 4 |
 | Silent Bugs — Medium | 12 | 0 | 12 |
 | Dead Code / Unwired | 7 | 1 | 6 |
-| Code Quality — Large Files | 5 | 3 | 2 |
+| Code Quality — Large Files | 5 | 2 | 3 |
 | Code Quality — Duplication | 6 | 1 | 5 |
 | Code Quality — Inconsistency | 4 | 3 | 1 |
 | Code Quality — Missing Error Handling | 8 | 0 | 8 |
@@ -23,7 +23,7 @@
 | Performance | 6 | 0 | 6 |
 | Accessibility | 6 | 0 | 6 |
 | Security | 6 | 0 | 6 |
-| **TOTAL** | **74** | **8** | **66** |
+| **TOTAL** | **74** | **7** | **67** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -386,7 +386,8 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 
 ### Q-LARGE-2. `app/(app)/promos/promos-content.tsx` — 653 lines
 **Description:** Contains a 200+ line `ImportPromoDialog` with CSV parsing logic plus the main `PromosContent` component.
-- [ ] Extract `ImportPromoDialog` to `components/promo/import-promo-dialog.tsx` and CSV parsing to `lib/promo-csv-parser.ts`.
+- [x] Extract `ImportPromoDialog` to `components/promo/import-promo-dialog.tsx` and CSV parsing to `lib/promo-csv-parser.ts`.
+**Fix:** `ImportPromoDialog` extracted to `components/promo/import-promo-dialog.tsx` as a named export with its own `"use client"` directive and all state/handlers co-located. `lib/promo-csv-parser.ts` already existed from the RVX feature. Removed now-unused imports (`Textarea`, `ScrollArea`, `DatePicker`, `importPromos`) from `promos-content.tsx`.
 
 ### Q-LARGE-3. `app/(app)/smart-lists/smart-lists-content.tsx` — 606 lines
 **Description:** Contains `SmartListItem`, `CreateListDialog`, `ClientRow`, filter helpers, and main content.
