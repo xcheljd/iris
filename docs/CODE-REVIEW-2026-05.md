@@ -13,7 +13,7 @@
 | Category | Total | Open | Resolved |
 |----------|-------|------|----------|
 | Silent Bugs — Critical | 4 | 0 | 4 |
-| Silent Bugs — Medium | 12 | 7 | 5 |
+| Silent Bugs — Medium | 12 | 5 | 7 |
 | Dead Code / Unwired | 7 | 7 | 0 |
 | Code Quality — Large Files | 5 | 5 | 0 |
 | Code Quality — Duplication | 6 | 6 | 0 |
@@ -23,7 +23,7 @@
 | Performance | 6 | 6 | 0 |
 | Accessibility | 6 | 6 | 0 |
 | Security | 6 | 6 | 0 |
-| **TOTAL** | **74** | **65** | **9** |
+| **TOTAL** | **74** | **63** | **11** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -289,13 +289,13 @@ Residual style note: The condition `if (email && bannedEmails.has(email) || phon
 **Severity:** MEDIUM
 **File:** `lib/actions.ts` (~L335)
 **Description:** `eq(bannedCustomers.email, c.email)` instead of `eq(bannedCustomers.customerId, clientId)`. Shared emails cause partial unbans; email changes after ban cause orphaned records.
-- [ ] Fix: Use `eq(bannedCustomers.customerId, clientId)` for the lookup.
+- [x] Fix: Replaced email lookup with `eq(bannedCustomers.customerId, clientId)` — direct, stable, and handles email-after-ban changes correctly. Removed intermediate `row` variable.
 
 ### B-11. `addUnsubscribeEmail` is non-transactional
 **Severity:** MEDIUM
 **File:** `lib/actions.ts` (~L376-390)
 **Description:** Unsubscribe list insert and client status update are separate operations. A crash between them leaves inconsistent state.
-- [ ] Fix: Wrap both operations in `db.transaction()`.
+- [x] Fix: Wrapped unsubscribe list insert, client status update, and activity event in a single `db.transaction()`.
 
 ### B-12. Empty `collection` string in `matchPromoToClients` matches everything
 **Severity:** MEDIUM

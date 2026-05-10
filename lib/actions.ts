@@ -344,10 +344,7 @@ export async function unbanClient(clientId: string) {
   if (!c || c.status !== "banned") return;
   db.transaction((tx) => {
     tx.update(clients).set({ status: "active", updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
-    if (c.email) {
-      const row = tx.select().from(bannedCustomers).where(eq(bannedCustomers.email, c.email)).get();
-      if (row) tx.delete(bannedCustomers).where(eq(bannedCustomers.id, row.id)).run();
-    }
+    tx.delete(bannedCustomers).where(eq(bannedCustomers.customerId, clientId)).run();
     tx.insert(activityEvents).values({
       id: randomUUID(), clientId, eventType: "status_changed", description: "Unbanned", metadata: { newStatus: "active" }, employeeId: null,
     }).run();
@@ -360,16 +357,17 @@ export async function addUnsubscribeEmail(email: string) {
   await requireManager();
   const existing = db.select().from(unsubscribeList).where(eq(unsubscribeList.email, email)).get();
   if (existing) throw new Error("Email already exists");
-  db.insert(unsubscribeList).values({ id: randomUUID(), email }).run();
-  // Find matching client by email and update status
   const matchingClient = db.select().from(clients).where(eq(clients.email, email)).get();
-  if (matchingClient) {
-    db.update(clients).set({ status: "unsubscribed", onEmailList: false, updatedAt: new Date() }).where(eq(clients.id, matchingClient.id)).run();
-    db.insert(activityEvents).values({
-      id: randomUUID(), clientId: matchingClient.id, eventType: "status_changed", description: "Manually added to unsubscribe list", metadata: { newStatus: "unsubscribed" }, employeeId: null,
-    }).run();
-    revalidatePath(`/clients/${matchingClient.id}`);
-  }
+  db.transaction((tx) => {
+    tx.insert(unsubscribeList).values({ id: randomUUID(), email }).run();
+    if (matchingClient) {
+      tx.update(clients).set({ status: "unsubscribed", onEmailList: false, updatedAt: new Date() }).where(eq(clients.id, matchingClient.id)).run();
+      tx.insert(activityEvents).values({
+        id: randomUUID(), clientId: matchingClient.id, eventType: "status_changed", description: "Manually added to unsubscribe list", metadata: { newStatus: "unsubscribed" }, employeeId: null,
+      }).run();
+    }
+  });
+  if (matchingClient) revalidatePath(`/clients/${matchingClient.id}`);
   revalidatePath("/unsubscribed");
 }
 
