@@ -9,6 +9,7 @@ import { AnalyticsOverviewTab } from "./analytics-overview-tab";
 import { AnalyticsOutreachTab } from "./analytics-outreach-tab";
 import { AnalyticsHeatTab } from "./analytics-heat-tab";
 import { isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
 interface Stats {
   total: number;
@@ -46,7 +47,7 @@ interface AnalyticsContentProps {
   recentOutreach: OutreachRow[];
 }
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProps) {
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +15,7 @@ import { restoreClient, purgeClient } from "@/lib/actions";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 interface DeletedTabProps {
   deletedClients: { id: string; firstName: string; lastName: string | null; previousStatus: string | null; deletedAt: Date | null }[];

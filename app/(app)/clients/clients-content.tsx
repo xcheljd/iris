@@ -21,9 +21,9 @@ import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { deleteClient } from "@/lib/actions";
 import { toast } from "sonner";
-import { MS_PER_DAY, HEAT_LOOKBACK_DAYS } from "@/lib/constants";
+import { MS_PER_DAY, HEAT_LOOKBACK_DAYS, DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 type SortKey = "name" | "heat" | "lastContact" | "owner";
 type SortDir = "asc" | "desc";

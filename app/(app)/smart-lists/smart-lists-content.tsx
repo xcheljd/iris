@@ -49,7 +49,7 @@ import { Topbar } from "@/components/topbar";
 import type { SmartList } from "@/lib/db/schema";
 import { CLIENT_SOURCE_VALUES } from "@/lib/db/schema";
 import type { ClientListRow } from "@/lib/queries";
-import { MS_PER_DAY, HEAT_LOOKBACK_DAYS } from "@/lib/constants";
+import { MS_PER_DAY, HEAT_LOOKBACK_DAYS, DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
 interface SmartListsContentProps {
   lists: SmartList[];
@@ -324,7 +324,7 @@ function CreateListDialog({ open, onOpenChange, allClients }: { open: boolean; o
   );
 }
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 export function SmartListsContent({ lists, allClients }: SmartListsContentProps) {
   const [selectedList, setSelectedList] = useState<ResolvedList | null>(null);

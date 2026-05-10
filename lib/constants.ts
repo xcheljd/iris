@@ -21,6 +21,9 @@ export const BCRYPT_SALT_ROUNDS = 10;
 /** SQLite database file path (relative to process.cwd()). */
 export const DATABASE_PATH = process.env.DATABASE_PATH ?? "data/iris.db";
 
+/** Default page size for paginated lists (20 rows). Components needing a different size override locally. */
+export const DEFAULT_PAGE_SIZE = 20;
+
 /** Full catalog of known client tags. Shown in the client form's tag picker. */
 export const COMMON_TAGS = [
   "VIP", "repeat-buyer", "high-spender", "military", "birthday-this-month",

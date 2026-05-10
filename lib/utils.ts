@@ -31,6 +31,10 @@ export function daysAgo(d: Date | string | number | null | undefined): number | 
   return Math.floor(ms / MS_PER_DAY);
 }
 
+export function fullName(person: { firstName: string; lastName?: string | null }): string {
+  return [person.firstName, person.lastName].filter(Boolean).join(" ");
+}
+
 export function initials(first: string, last?: string | null): string {
   const f = (first || "").trim()[0] || "";
   const l = (last || "").trim()[0] || "";

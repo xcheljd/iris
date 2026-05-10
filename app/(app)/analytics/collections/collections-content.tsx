@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { HeatBadge } from "@/components/heat-badge";
@@ -16,7 +17,7 @@ import Link from "next/link";
 import { PaginationFooter } from "@/components/pagination-footer";
 import type { ClientListRow } from "@/lib/queries";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 interface CollectionsContentProps {
   clients: ClientListRow[];
