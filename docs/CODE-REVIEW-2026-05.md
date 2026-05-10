@@ -21,9 +21,9 @@
 | Code Quality — Missing Error Handling | 8 | 0 | 8 |
 | Code Quality — Hardcoded Values | 10 | 0 | 10 |
 | Performance | 6 | 4 | 2 |
-| Accessibility | 6 | 5 | 1 |
+| Accessibility | 6 | 3 | 3 |
 | Security | 6 | 0 | 6 |
-| **TOTAL** | **74** | **21** | **53** |
+| **TOTAL** | **74** | **19** | **55** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -597,12 +597,12 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### A-1. Invisible `<div onClick>` dialog trigger — no role, tabindex, or keyboard handler
 **Files:** `components/client-status-actions.tsx` (7 instances), `components/merge-client-dialog.tsx` (1 instance), `components/transfer-client-dialog.tsx` (1 instance), `components/confirm-dialog.tsx` (1 instance)
 **Description:** `<div onClick={() => setOpen(true)} className="contents">` is invisible to screen readers and unreachable via keyboard. This pattern is used in 10+ dialog triggers across 4 component files. The `className="contents"` makes the div invisible in CSS but it's still semantically a non-interactive element.
-- [ ] Replace all instances with `<DialogTrigger asChild><button>` or a properly accessible trigger element. This is a pervasive pattern that should be fixed systematically across all dialog components.
+- [x] Fix: Replaced all 9 instances across 4 files with `<DialogTrigger asChild>` (Dialog-based) or `<AlertDialogTrigger asChild>` (ConfirmDialog). Children (typically `<Button>`) are now the real interactive elements with native keyboard and screen reader support.
 
 ### A-2. Same invisible div trigger pattern in merge dialogs
 **File:** `components/merge-client-dialog.tsx`
 **Description:** Same inaccessible pattern.
-- [ ] Same fix as A-1.
+- [x] Fix: Covered by A-1 — same `<DialogTrigger asChild>` replacement applied.
 
 ### A-3. Native checkbox instead of accessible component
 **File:** `app/(app)/smart-lists/smart-lists-content.tsx`

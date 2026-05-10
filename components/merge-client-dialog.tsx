@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
+  DialogTrigger,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -346,9 +347,9 @@ export function MergeClientDialog({ children }: { children: React.ReactNode }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <div onClick={() => setOpen(true)} className="contents">
+      <DialogTrigger asChild>
         {children}
-      </div>
+      </DialogTrigger>
       <DialogContent className="max-w-2xl flex flex-col max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

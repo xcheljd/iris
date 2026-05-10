@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useSession } from "next-auth/react";
 import {
   Dialog,
+  DialogTrigger,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -57,9 +58,9 @@ export function BanCustomerDialog({
   if (!isManager) {
     return (
       <Dialog open={open} onOpenChange={setOpen}>
-        <div onClick={() => setOpen(true)} className="contents">
+        <DialogTrigger asChild>
           {children}
-        </div>
+        </DialogTrigger>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -116,9 +117,9 @@ export function BanCustomerDialog({
   // Managers see the full ban form
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <div onClick={() => setOpen(true)} className="contents">
+      <DialogTrigger asChild>
         {children}
-      </div>
+      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -207,9 +208,9 @@ export function UnsubscribeCustomerDialog({
   if (!isManager) {
     return (
       <Dialog open={open} onOpenChange={setOpen}>
-        <div onClick={() => setOpen(true)} className="contents">
+        <DialogTrigger asChild>
           {children}
-        </div>
+        </DialogTrigger>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -266,9 +267,9 @@ export function UnsubscribeCustomerDialog({
   // Managers see a confirmation dialog
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <div onClick={() => setOpen(true)} className="contents">
+      <DialogTrigger asChild>
         {children}
-      </div>
+      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -318,9 +319,9 @@ export function DeleteCustomerDialog({
   if (!isManager) {
     return (
       <Dialog open={open} onOpenChange={setOpen}>
-        <div onClick={() => setOpen(true)} className="contents">
+        <DialogTrigger asChild>
           {children}
-        </div>
+        </DialogTrigger>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -377,9 +378,9 @@ export function DeleteCustomerDialog({
   // Managers see a confirmation dialog
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <div onClick={() => setOpen(true)} className="contents">
+      <DialogTrigger asChild>
         {children}
-      </div>
+      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

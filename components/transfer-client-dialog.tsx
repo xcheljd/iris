@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect } from "react";
 import {
   Dialog,
+  DialogTrigger,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -69,9 +70,9 @@ export function TransferClientDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <div onClick={() => setOpen(true)} className="contents">
+      <DialogTrigger asChild>
         {children}
-      </div>
+      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

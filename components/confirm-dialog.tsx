@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import {
   AlertDialog,
+  AlertDialogTrigger,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
@@ -43,9 +44,9 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       {isUncontrolled && (
-        <div onClick={() => setInternalOpen(true)} className="contents">
+        <AlertDialogTrigger asChild>
           {props.children}
-        </div>
+        </AlertDialogTrigger>
       )}
       <AlertDialogContent>
         <AlertDialogHeader>
