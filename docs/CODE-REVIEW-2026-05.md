@@ -18,12 +18,12 @@
 | Code Quality — Large Files | 5 | 5 | 0 |
 | Code Quality — Duplication | 6 | 6 | 0 |
 | Code Quality — Inconsistency | 4 | 4 | 0 |
-| Code Quality — Missing Error Handling | 8 | 4 | 4 |
+| Code Quality — Missing Error Handling | 8 | 1 | 7 |
 | Code Quality — Hardcoded Values | 10 | 10 | 0 |
 | Performance | 6 | 6 | 0 |
 | Accessibility | 6 | 6 | 0 |
 | Security | 6 | 1 | 5 |
-| **TOTAL** | **74** | **50** | **24** |
+| **TOTAL** | **74** | **47** | **27** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -480,17 +480,17 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 ### E-4. Backup restore file operations — no error handling
 **File:** `app/api/backup/restore/route.ts`
 **Description:** `writeFileSync` and `renameSync` can throw. `process.exit(0)` is a fragile restart mechanism.
-- [ ] Add error handling for file ops. Consider async alternatives.
+- [x] Fix: Each file operation (write tmp, copy bak, rename) is now wrapped in its own try/catch with appropriate 422/500 responses; tmp file cleaned up on any failure path.
 
 ### E-5. `merge-client-dialog.tsx` search `useEffect` — errors silently swallowed
 **File:** `components/merge-client-dialog.tsx` (~L265)
 **Description:** `.catch(() => {})` — search failures give no user feedback.
-- [ ] Show a toast or set error state on search failure.
+- [x] Fix: `.catch(() => toast.error("Search failed. Please try again."))`.
 
 ### E-6. `MergeFromFormDialog` fetch `useEffect` — errors silently swallowed
 **File:** `components/merge-client-dialog.tsx` (~L430)
 **Description:** Same `.catch(() => {})` pattern.
-- [ ] Show a toast or set error state.
+- [x] Fix: `.catch(() => toast.error("Failed to load client data. Please try again."))`.
 
 ### E-7. `logOutreach` multi-step operation not in a transaction
 **File:** `lib/actions.ts` (~L39)

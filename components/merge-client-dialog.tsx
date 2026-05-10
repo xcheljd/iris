@@ -307,7 +307,7 @@ export function MergeClientDialog({ children }: { children: React.ReactNode }) {
             }[],
           ) => setResults(data.filter((r) => r.id !== client?.id)),
         )
-        .catch(() => {});
+        .catch(() => toast.error("Search failed. Please try again."));
     }, 300);
     return () => clearTimeout(t);
   }, [query, client?.id]);
@@ -496,7 +496,7 @@ export function MergeFromFormDialog({
         setChoices(initChoices(data, formSnapshot));
         setFinalNotes(data.notes ?? formSnapshot.notes ?? "");
       })
-      .catch(() => {});
+      .catch(() => toast.error("Failed to load client data. Please try again."));
   // formSnapshot is stable for a given open session; only re-fetch on id change
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, existingClientId]);

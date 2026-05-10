@@ -25,7 +25,11 @@ export async function POST(req: Request) {
   const bakPath = join(process.cwd(), "data", "iris.db.bak");
   const tmpPath = join(process.cwd(), "data", "iris.db.new");
 
-  writeFileSync(tmpPath, buffer);
+  try {
+    writeFileSync(tmpPath, buffer);
+  } catch {
+    return Response.json({ error: "Failed to write temporary file" }, { status: 500 });
+  }
 
   try {
     const tmpDb = new Database(tmpPath, { readonly: true });
@@ -36,12 +40,17 @@ export async function POST(req: Request) {
       return Response.json({ error: "Database integrity check failed" }, { status: 422 });
     }
   } catch {
-    unlinkSync(tmpPath);
+    try { unlinkSync(tmpPath); } catch { /* best effort */ }
     return Response.json({ error: "Not a valid SQLite database file" }, { status: 422 });
   }
 
-  if (existsSync(dbPath)) copyFileSync(dbPath, bakPath);
-  renameSync(tmpPath, dbPath);
+  try {
+    if (existsSync(dbPath)) copyFileSync(dbPath, bakPath);
+    renameSync(tmpPath, dbPath);
+  } catch {
+    try { unlinkSync(tmpPath); } catch { /* best effort */ }
+    return Response.json({ error: "Failed to replace database file" }, { status: 500 });
+  }
 
   // Stream the response body, then exit once the stream is closed.
   // Scheduling exit inside start() ensures the body bytes are fully produced
