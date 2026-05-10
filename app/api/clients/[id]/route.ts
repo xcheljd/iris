@@ -62,7 +62,7 @@ export async function PUT(
       clientId: id,
       eventType: "edited",
       description: "Profile updated",
-      metadata: { fieldChanges: body },
+      metadata: { fieldChanges: parsed.data },
     }).run();
 
     revalidatePath(`/clients/${id}`);

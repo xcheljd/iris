@@ -13,7 +13,7 @@
 | Category | Total | Open | Resolved |
 |----------|-------|------|----------|
 | Silent Bugs — Critical | 4 | 0 | 4 |
-| Silent Bugs — Medium | 12 | 2 | 10 |
+| Silent Bugs — Medium | 12 | 1 | 11 |
 | Dead Code / Unwired | 7 | 7 | 0 |
 | Code Quality — Large Files | 5 | 5 | 0 |
 | Code Quality — Duplication | 6 | 6 | 0 |
@@ -23,7 +23,7 @@
 | Performance | 6 | 6 | 0 |
 | Accessibility | 6 | 6 | 0 |
 | Security | 6 | 6 | 0 |
-| **TOTAL** | **74** | **60** | **14** |
+| **TOTAL** | **74** | **59** | **15** |
 
 > **How to use:** When an issue is fixed, change its status marker from `[ ]` to `[x]` and update the Tracking Summary counts above. Add the fix date and commit reference in a `**Fix:**` line below the issue description.
 
@@ -283,7 +283,7 @@ Residual style note: The condition `if (email && bannedEmails.has(email) || phon
 **Severity:** MEDIUM
 **File:** `app/api/clients/[id]/route.ts` (L63)
 **Description:** `metadata: { fieldChanges: body }` persists the raw unvalidated JSON. Should use the zod-parsed `parsed.data` to avoid storing arbitrary client-sent fields. Note: the flat `app/api/clients/route.ts` PUT handler has the same route but correctly uses `parsed.data` — this bug is only in the `[id]` variant.
-- [ ] Fix: Replace `body` with `parsed.data` in the metadata object in `app/api/clients/[id]/route.ts`.
+- [x] Fix: Replaced `body` with `parsed.data` in the metadata object in `app/api/clients/[id]/route.ts`.
 
 ### B-10. `unbanClient` looks up by email instead of customerId
 **Severity:** MEDIUM
