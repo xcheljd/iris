@@ -24,6 +24,7 @@ import {
 import Link from "next/link";
 import { getMethodIcon, getOutcomeColor } from "@/lib/outreach-helpers";
 import { format } from "date-fns";
+import { fullName } from "@/lib/utils";
 
 const METHOD_COLORS = ["#3b82f6", "#22c55e", "#a855f7", "#f97316"];
 
@@ -246,7 +247,7 @@ export function AnalyticsOutreachTab({
                     </p>
                     {row.employee && (
                       <Badge variant="secondary" className="text-[10px]">
-                        {row.employee ? [row.employee.firstName, row.employee.lastName].filter(Boolean).join(" ") : ""}
+                        {row.employee ? fullName(row.employee) : ""}
                       </Badge>
                     )}
                   </div>

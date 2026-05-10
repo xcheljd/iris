@@ -31,6 +31,7 @@ import { markFollowUpComplete, rescheduleFollowUp } from "@/lib/actions";
 import { toast } from "sonner";
 import { format, differenceInDays } from "date-fns";
 import { Topbar } from "@/components/topbar";
+import { fullName } from "@/lib/utils";
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
@@ -175,7 +176,7 @@ function FollowUpCard({ row, isOverdue, onDetail }: { row: FollowUpRow; isOverdu
                   </span>
                 )}
                 {row.employee && (
-                  <span>via {row.employee ? [row.employee.firstName, row.employee.lastName].filter(Boolean).join(" ") : ""}</span>
+                  <span>via {row.employee ? fullName(row.employee) : ""}</span>
                 )}
               </div>
             </div>
@@ -308,7 +309,7 @@ function FollowUpDetailSheet({ row, open, onOpenChange }: { row: FollowUpRow | n
             {row.employee && (
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Assigned To</p>
-                <p className="text-sm">{row.employee ? [row.employee.firstName, row.employee.lastName].filter(Boolean).join(" ") : ""}</p>
+                <p className="text-sm">{row.employee ? fullName(row.employee) : ""}</p>
               </div>
             )}
             <div>

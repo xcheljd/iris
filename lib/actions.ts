@@ -10,7 +10,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { calcHeatScore } from "@/lib/heat-score";
 import { MS_PER_DAY, HEAT_LOOKBACK_DAYS, MIN_PASSWORD_LENGTH, BCRYPT_SALT_ROUNDS } from "@/lib/constants";
-import { normalizePhone } from "@/lib/utils";
+import { normalizePhone, fullName } from "@/lib/utils";
 import { outreachInputSchema, type OutreachInput } from "@/lib/validation/outreach";
 import { format } from "date-fns";
 import bcrypt from "bcryptjs";
@@ -1111,7 +1111,7 @@ export async function graduateProspect(input: GraduateProspectInput): Promise<
     return {
       type: "duplicate",
       existingClientId: match.id,
-      existingClientName: [match.firstName, match.lastName].filter(Boolean).join(" "),
+      existingClientName: fullName(match),
     };
   }
 

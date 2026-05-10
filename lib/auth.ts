@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { employees } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { SESSION_MAX_AGE_SECONDS } from "@/lib/constants";
+import { fullName } from "@/lib/utils";
 
 if (!process.env.NEXTAUTH_SECRET) {
   throw new Error("NEXTAUTH_SECRET environment variable is not set");
@@ -24,7 +25,7 @@ export const authOptions: NextAuthOptions = {
         if (!user || !user.active) return null;
         const ok = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!ok) return null;
-        return { id: user.id, name: [user.firstName, user.lastName].filter(Boolean).join(" "), email: user.username, role: user.role, firstName: user.firstName, lastName: user.lastName };
+        return { id: user.id, name: fullName(user), email: user.username, role: user.role, firstName: user.firstName, lastName: user.lastName };
       },
     }),
   ],

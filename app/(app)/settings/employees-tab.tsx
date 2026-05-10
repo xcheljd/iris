@@ -32,9 +32,7 @@ import {
 } from "lucide-react";
 import { createEmployee, resetEmployeePassword, updateEmployeeRole, toggleEmployeeActive, updateEmployee } from "@/lib/actions";
 import { toast } from "sonner";
-
-const fullName = (e: { firstName: string; lastName: string | null }) =>
-  [e.firstName, e.lastName].filter(Boolean).join(" ");
+import { fullName } from "@/lib/utils";
 
 interface EmployeesTabProps {
   employees: { id: string; firstName: string; lastName: string | null; username: string; role: string; active: boolean }[];
