@@ -304,7 +304,7 @@ describe("GET /api/clients/check-duplicates", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         firstName: "PhoneCheck",
-        phone: "555-PHONECHECK",
+        phone: "5550001234",
       }),
     });
     const createRes = await POST(createReq);
@@ -312,13 +312,13 @@ describe("GET /api/clients/check-duplicates", () => {
     createdIds.push(createData.id);
 
     const checkReq = new Request(
-      "http://localhost:3000/api/clients/check-duplicates?phone=555-PHONECHECK"
+      "http://localhost:3000/api/clients/check-duplicates?phone=5550001234"
     );
     const checkRes = await GETDuplicates(checkReq);
     expect(checkRes.status).toBe(200);
     const data = await checkRes.json();
     expect(data.duplicate).not.toBeNull();
-    expect(data.duplicate.phone).toBe("555-PHONECHECK");
+    expect(data.duplicate.phone).toBe("5550001234");
   });
 
   it("should find duplicate by first name", async () => {

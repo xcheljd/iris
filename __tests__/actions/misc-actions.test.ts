@@ -146,7 +146,8 @@ describe("Misc Actions", () => {
       const entry = db.select().from(unsubscribeList).where(eq(unsubscribeList.email, testEmail)).get();
       if (entry) cleanupUnsubIds.push(entry.id);
 
-      await expect(addUnsubscribeEmail(testEmail)).rejects.toThrow("Email already exists");
+      const result = await addUnsubscribeEmail(testEmail);
+      expect((result as any)?.error).toBe("Email already exists");
     });
   });
 

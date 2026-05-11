@@ -167,15 +167,13 @@ describe("DELETE /api/notes", () => {
     expect(data.error).toBe("Invalid request");
   });
 
-  it("should succeed even for non-existent noteId (idempotent delete)", async () => {
+  it("should return 404 for non-existent noteId", async () => {
     const req = new Request("http://localhost:3000/api/notes", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ noteId: "00000000-0000-0000-0000-000000000000" }),
     });
     const res = await DELETE(req);
-    expect(res.status).toBe(200);
-    const data = await res.json();
-    expect(data.success).toBe(true);
+    expect(res.status).toBe(404);
   });
 });

@@ -22,9 +22,14 @@ import { outreachTemplates, smartLists } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
 const MANAGER_ID = "e09564a0-2ef8-4470-a149-fc8fcf695636";
+const ASSOCIATE_ID = "85d655c4-4196-43ed-82d5-34474d22c782";
 
 const managerSession = {
   user: { id: MANAGER_ID, name: "Marcus", role: "manager" },
+};
+
+const associateSession = {
+  user: { id: ASSOCIATE_ID, name: "Jordan", role: "associate" },
 };
 
 describe("Template & Smart List Actions", () => {
@@ -146,6 +151,25 @@ describe("Template & Smart List Actions", () => {
       expect(copy).toBeDefined();
       expect(copy!.filters).toEqual({ status: "active" });
       expect(copy!.ownerId).toBe(MANAGER_ID);
+      if (copy) createdListIds.push(copy.id);
+    });
+
+    it("copy is owned by the duplicating user, not the original owner", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      await createSmartList("Manager's List", { heatLevel: "hot" });
+      const original = db.select().from(smartLists)
+        .where(eq(smartLists.name, "Manager's List"))
+        .get();
+      if (original) createdListIds.push(original.id);
+
+      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      await duplicateSmartList(original!.id);
+
+      const copy = db.select().from(smartLists)
+        .where(eq(smartLists.name, "Manager's List (Copy)"))
+        .get();
+      expect(copy).toBeDefined();
+      expect(copy!.ownerId).toBe(ASSOCIATE_ID);
       if (copy) createdListIds.push(copy.id);
     });
   });

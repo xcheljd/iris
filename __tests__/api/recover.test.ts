@@ -44,7 +44,7 @@ describe("POST /api/recover - lookup step", () => {
     const res = await POST(req as any);
     expect(res.status).toBe(404);
     const data = await res.json();
-    expect(data.error).toBe("No recovery options available for this account");
+    expect(data.error).toBe("If this account exists and has recovery options configured, you will see the security question.");
   });
 });
 

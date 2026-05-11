@@ -10,8 +10,19 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
+vi.mock("@/lib/actions/clients", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/actions/clients")>();
+  return {
+    ...actual,
+    banClient: vi.fn().mockImplementation(actual.banClient),
+    unsubscribeClient: vi.fn().mockImplementation(actual.unsubscribeClient),
+    deleteClient: vi.fn().mockImplementation(actual.deleteClient),
+  };
+});
+
 import { getServerSession } from "next-auth";
 import { createApprovalRequest, reviewApprovalRequest } from "@/lib/actions";
+import { banClient } from "@/lib/actions/clients";
 import { db } from "@/lib/db";
 import {
   approvalRequests,
@@ -239,6 +250,17 @@ describe("reviewApprovalRequest", () => {
 
     vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
     await expect(reviewApprovalRequest(requestId, true)).rejects.toThrow();
+  });
+
+  it("returns error and leaves request pending when the downstream action fails", async () => {
+    vi.mocked(banClient).mockResolvedValueOnce({ error: "Simulated ban failure" });
+
+    const requestId = await createPendingRequest("ban");
+    const result = await reviewApprovalRequest(requestId, true);
+
+    expect(result?.error).toBeDefined();
+    const row = db.select().from(approvalRequests).where(eq(approvalRequests.id, requestId)).get();
+    expect(row!.status).toBe("pending");
   });
 
   it("logs a review activity event on approval", async () => {

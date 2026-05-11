@@ -106,18 +106,16 @@ describe("transferClient", () => {
     expect((event!.metadata as any)?.newEmployeeName).toBeTruthy();
   });
 
-  it("throws when client does not exist", async () => {
+  it("returns an error when client does not exist", async () => {
     vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
-    await expect(
-      transferClient("00000000-0000-0000-0000-000000000000", ASSOCIATE_ID)
-    ).rejects.toThrow("Client not found");
+    const result = await transferClient("00000000-0000-0000-0000-000000000000", ASSOCIATE_ID);
+    expect((result as any)?.error).toBe("Client not found");
   });
 
-  it("throws when new employee does not exist", async () => {
+  it("returns an error when new employee does not exist", async () => {
     vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
-    await expect(
-      transferClient(FIRST_CLIENT_ID, "00000000-0000-0000-0000-000000000000")
-    ).rejects.toThrow("Employee not found");
+    const result = await transferClient(FIRST_CLIENT_ID, "00000000-0000-0000-0000-000000000000");
+    expect((result as any)?.error).toBe("Employee not found");
   });
 
   it("throws when associate calls it", async () => {
@@ -242,5 +240,31 @@ describe("mergeClients", () => {
     createdClientIds.push(aId, bId);
 
     await expect(mergeClients(aId, bId, {}, null)).rejects.toThrow();
+  });
+
+  it("rolls back both clients when the transaction fails mid-merge", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    const aId = createTestClient({ firstName: "TxWinner", dateAdded: new Date("2019-01-01") });
+    const bId = createTestClient({ firstName: "TxLoser", dateAdded: new Date("2022-01-01") });
+    createdClientIds.push(aId, bId);
+
+    // Spy on db.transaction: run the real callback (so all updates execute),
+    // then throw after it returns — better-sqlite3 rolls back the whole transaction.
+    const realTransaction = (db.transaction as Function).bind(db);
+    vi.spyOn(db, "transaction").mockImplementationOnce((fn: unknown) => {
+      return realTransaction((tx: unknown) => {
+        (fn as Function)(tx);
+        throw new Error("Simulated post-callback failure");
+      });
+    });
+
+    // Choosing firstName from B makes the update visible; rollback must revert it.
+    await expect(mergeClients(aId, bId, { firstName: "b" }, null)).rejects.toThrow("Simulated post-callback failure");
+
+    const a = db.select().from(clients).where(eq(clients.id, aId)).get();
+    const b = db.select().from(clients).where(eq(clients.id, bId)).get();
+    expect(a).toBeDefined();
+    expect(b).toBeDefined();
+    expect(a!.firstName).toBe("TxWinner"); // winner's profile was not permanently changed
   });
 });

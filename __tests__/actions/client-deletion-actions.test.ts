@@ -89,20 +89,22 @@ describe("Client Deletion Actions", () => {
       await expect(deleteClient(FIRST_CLIENT_ID)).rejects.toThrow("Not authenticated");
     });
 
-    it("should throw for already-deleted client", async () => {
+    it("should return an error for already-deleted client", async () => {
       vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
 
       // First delete
       await deleteClient(FIRST_CLIENT_ID);
 
-      // Second delete should throw
-      await expect(deleteClient(FIRST_CLIENT_ID)).rejects.toThrow("Client already deleted");
+      // Second delete should return { error }
+      const result = await deleteClient(FIRST_CLIENT_ID);
+      expect((result as any)?.error).toBe("Client already deleted");
     });
 
-    it("should throw for nonexistent client", async () => {
+    it("should return an error for nonexistent client", async () => {
       vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
 
-      await expect(deleteClient("nonexistent-id-12345")).rejects.toThrow("Client not found");
+      const result = await deleteClient("nonexistent-id-12345");
+      expect((result as any)?.error).toBe("Client not found");
     });
   });
 
@@ -156,10 +158,11 @@ describe("Client Deletion Actions", () => {
       expect(restoreEvent!.eventType).toBe("status_changed");
     });
 
-    it("should throw for non-deleted client", async () => {
+    it("should return an error for non-deleted client", async () => {
       vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
 
-      await expect(restoreClient(FIRST_CLIENT_ID)).rejects.toThrow("Client is not deleted");
+      const result = await restoreClient(FIRST_CLIENT_ID);
+      expect((result as any)?.error).toBe("Client is not deleted");
     });
 
     it("should throw for non-manager session", async () => {
@@ -201,10 +204,11 @@ describe("Client Deletion Actions", () => {
       await expect(purgeClient("some-id")).rejects.toThrow("Manager access required");
     });
 
-    it("should throw for nonexistent client", async () => {
+    it("should return an error for nonexistent client", async () => {
       vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
 
-      await expect(purgeClient("nonexistent-id-99999")).rejects.toThrow("Client not found");
+      const result = await purgeClient("nonexistent-id-99999");
+      expect((result as any)?.error).toBe("Client not found");
     });
   });
 });

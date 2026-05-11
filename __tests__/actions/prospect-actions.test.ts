@@ -367,18 +367,17 @@ describe("graduateProspect", () => {
     expect(result.type).toBe("duplicate");
   });
 
-  it("throws when prospect does not exist", async () => {
+  it("returns error when prospect does not exist", async () => {
     vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
-    await expect(
-      graduateProspect({
-        prospectId: "00000000-0000-0000-0000-000000000000",
-        firstName: "Ghost",
-        productsOfInterest: [],
-      })
-    ).rejects.toThrow("Prospect not found");
+    const result = await graduateProspect({
+      prospectId: "00000000-0000-0000-0000-000000000000",
+      firstName: "Ghost",
+      productsOfInterest: [],
+    });
+    expect(result).toEqual({ type: "error", error: "Prospect not found" });
   });
 
-  it("throws when prospect is not active", async () => {
+  it("returns error when prospect is not active", async () => {
     vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
     const { prospectId, batchId } = insertProspect({ firstName: "Rejected" });
     createdProspectIds.push(prospectId);
@@ -388,9 +387,8 @@ describe("graduateProspect", () => {
     const result = await graduateProspect({ prospectId, firstName: "Rejected", productsOfInterest: [] });
     if (result.type === "created") createdClientIds.push(result.clientId);
 
-    await expect(
-      graduateProspect({ prospectId, firstName: "Rejected", productsOfInterest: [] })
-    ).rejects.toThrow("Prospect is not active");
+    const result2 = await graduateProspect({ prospectId, firstName: "Rejected", productsOfInterest: [] });
+    expect(result2).toEqual({ type: "error", error: "Prospect is not active" });
   });
 
   it("associates can graduate prospects", async () => {
@@ -521,16 +519,15 @@ describe("graduateProspectIntoExistingClient", () => {
       .where(eq(activityEvents.clientId, existingClientId))
       .all();
     const event = events.find(
-      (e) => e.eventType === "created" && (e.metadata as any)?.source === "prospect_graduation"
+      (e) => e.eventType === "edited" && (e.metadata as any)?.source === "prospect_graduation"
     );
     expect(event).toBeDefined();
   });
 
-  it("throws when prospect does not exist", async () => {
+  it("returns an error when prospect does not exist", async () => {
     vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
-    await expect(
-      graduateProspectIntoExistingClient("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000001", {})
-    ).rejects.toThrow("Prospect not found");
+    const result = await graduateProspectIntoExistingClient("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000001", {});
+    expect((result as any)?.error).toBe("Prospect not found");
   });
 });
 
@@ -678,10 +675,9 @@ describe("unsubscribeProspect", () => {
     expect(prospect!.status).toBe("unsubscribed");
   });
 
-  it("throws when prospect does not exist", async () => {
+  it("returns an error when prospect does not exist", async () => {
     vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
-    await expect(
-      unsubscribeProspect("00000000-0000-0000-0000-000000000000")
-    ).rejects.toThrow("Prospect not found");
+    const result = await unsubscribeProspect("00000000-0000-0000-0000-000000000000");
+    expect((result as any)?.error).toBe("Prospect not found");
   });
 });
