@@ -1,4 +1,3 @@
-"use server";
 export * from "./actions/outreach";
 export * from "./actions/smart-lists";
 export * from "./actions/tags";
