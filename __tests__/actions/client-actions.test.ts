@@ -22,9 +22,9 @@ import { clients, activityEvents, bannedCustomers, unsubscribeList } from "@/lib
 import { eq } from "drizzle-orm";
 
 // Real IDs from seed data
-const MANAGER_ID = "e09564a0-2ef8-4470-a149-fc8fcf695636"; // Marcus (manager)
-const ASSOCIATE_ID = "85d655c4-4196-43ed-82d5-34474d22c782"; // Jordan (associate)
-const FIRST_CLIENT_ID = "5aff9797-ad89-4661-906c-cde72c306181"; // Michael White
+const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206"; // Marcus (manager)
+const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23"; // Jordan (associate)
+const FIRST_CLIENT_ID = "e18e3ba8-b3b1-4bc1-b0f2-f13a219dd30b"; // Michael White
 
 const managerSession = {
   user: { id: MANAGER_ID, name: "Marcus", role: "manager" },

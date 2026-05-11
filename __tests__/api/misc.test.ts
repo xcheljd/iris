@@ -14,7 +14,7 @@ import { GET as GETEmployees } from "@/app/api/employees/route";
 import { GET as GETPromoMatches } from "@/app/api/promos/matches/route";
 
 const managerSession = {
-  user: { id: "e09564a0-2ef8-4470-a149-fc8fcf695636", name: "Marcus", role: "manager" },
+  user: { id: "2d7a352d-53a0-4544-b515-902e7dd59206", name: "Marcus", role: "manager" },
 };
 
 beforeEach(() => {

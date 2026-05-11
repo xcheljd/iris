@@ -11,7 +11,7 @@ vi.mock("next/cache", () => ({
 import { getServerSession } from "next-auth";
 import { importPromos, clearAllPromos, createPromo } from "@/lib/actions";
 
-const MANAGER_ID = "e09564a0-2ef8-4470-a149-fc8fcf695636";
+const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
 const managerSession = { user: { id: MANAGER_ID, name: "Marcus", role: "manager" } };
 import { db } from "@/lib/db";
 import { promoWatches, promoMatches } from "@/lib/db/schema";

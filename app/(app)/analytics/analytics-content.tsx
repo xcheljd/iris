@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/date-picker";
 import { Topbar } from "@/components/topbar";
 import { AnalyticsOverviewTab } from "./analytics-overview-tab";
@@ -42,14 +44,23 @@ interface OutreachRow {
   } | null;
 }
 
+interface EmployeeRow {
+  id: string;
+  firstName: string;
+  lastName: string | null;
+}
+
 interface AnalyticsContentProps {
   stats: Stats;
   recentOutreach: OutreachRow[];
+  employees?: EmployeeRow[];
+  selectedEmployeeId?: string;
 }
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
-export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProps) {
+export function AnalyticsContent({ stats, recentOutreach, employees, selectedEmployeeId }: AnalyticsContentProps) {
+  const router = useRouter();
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [outreachPage, setOutreachPage] = useState(1);
@@ -103,6 +114,11 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
     setOutreachPage(1);
   };
 
+  const handleEmployeeChange = (value: string) => {
+    const params = value === "all" ? "" : `?employee=${value}`;
+    router.push(`/analytics${params}`);
+  };
+
   return (
     <>
       <Topbar title="Analytics" />
@@ -115,6 +131,21 @@ export function AnalyticsContent({ stats, recentOutreach }: AnalyticsContentProp
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            {employees && (
+              <Select value={selectedEmployeeId ?? "all"} onValueChange={handleEmployeeChange}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="All Employees" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Employees</SelectItem>
+                  {employees.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.firstName}{e.lastName ? ` ${e.lastName}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <DatePicker
               date={dateFrom}
               onSelect={(d) => { setDateFrom(d); setOutreachPage(1); }}

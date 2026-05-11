@@ -14,8 +14,8 @@ import { db } from "@/lib/db";
 import { clients, clientTags, activityEvents } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
-const MANAGER_ID = "e09564a0-2ef8-4470-a149-fc8fcf695636"; // Marcus (manager)
-const FIRST_CLIENT_ID = "5aff9797-ad89-4661-906c-cde72c306181"; // Michael White
+const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206"; // Marcus (manager)
+const FIRST_CLIENT_ID = "e18e3ba8-b3b1-4bc1-b0f2-f13a219dd30b"; // Michael White
 
 const managerSession = {
   user: { id: MANAGER_ID, name: "Marcus", role: "manager" },
@@ -84,6 +84,10 @@ describe("Tag Actions", () => {
 
       const clientBefore = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
       const originalTags = [...(clientBefore!.tags || [])];
+
+      // Ensure VIP is not already on this client so addTag will actually run
+      const tagsWithoutVip = originalTags.filter((t: string) => t !== "VIP");
+      db.update(clients).set({ tags: tagsWithoutVip, updatedAt: new Date() }).where(eq(clients.id, FIRST_CLIENT_ID)).run();
 
       // VIP is a seed tag
       const vipTag = db.select().from(clientTags).where(eq(clientTags.name, "VIP")).get();

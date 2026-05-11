@@ -14,7 +14,7 @@ import { db } from "@/lib/db";
 import { promoWatches, promoMatches } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
-const MANAGER_ID = "e09564a0-2ef8-4470-a149-fc8fcf695636"; // Marcus (manager)
+const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206"; // Marcus (manager)
 
 const managerSession = {
   user: { id: MANAGER_ID, name: "Marcus", role: "manager" },

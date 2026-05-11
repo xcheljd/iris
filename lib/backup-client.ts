@@ -34,7 +34,7 @@ export async function downloadBackup(): Promise<void> {
   const filename = `iris-backup-${date}.db`;
 
   if ("showSaveFilePicker" in window) {
-    const handle = await (window as any).showSaveFilePicker({
+    const handle = await (window as Window & { showSaveFilePicker: (opts: object) => Promise<{ createWritable: () => Promise<{ write: (b: Blob) => Promise<void>; close: () => Promise<void> }> }> }).showSaveFilePicker({
       suggestedName: filename,
       types: [{ description: "SQLite Database", accept: { "application/x-sqlite3": [".db"] } }],
     });
