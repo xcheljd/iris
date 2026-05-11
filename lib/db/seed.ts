@@ -3,11 +3,12 @@ import { sqlite } from "./index";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 
-// Clean all tables
+// Clean all tables (children before parents to satisfy FK constraints)
 const tables = [
   "activity_events", "promo_matches", "outreach_logs", "promo_watches",
-  "outreach_templates", "smart_lists", "client_tags", "clients",
-  "banned_customers", "unsubscribe_list", "employees",
+  "outreach_templates", "smart_lists", "client_tags",
+  "approval_requests", "prospects", "clients",
+  "banned_customers", "unsubscribe_list", "rvx_import_batches", "employees",
 ];
 for (const t of tables) sqlite.exec(`DELETE FROM ${t}`);
 
@@ -23,10 +24,11 @@ const employees = [
   { id: randomUUID(), firstName: "Morgan", lastName: null, username: "Morgan", role: "associate", pw: "meridian" },
 ];
 const insEmp = sqlite.prepare(
-  "INSERT INTO employees (id,first_name,last_name,username,password_hash,role,active,created_at) VALUES (?,?,?,?,?,?,1,?)",
+  "INSERT INTO employees (id,name,first_name,last_name,username,password_hash,role,active,created_at) VALUES (?,?,?,?,?,?,?,1,?)",
 );
 for (const e of employees) {
-  insEmp.run(e.id, e.firstName, e.lastName, e.username, bcrypt.hashSync(e.pw, 10), e.role, now - 365 * day);
+  const name = e.lastName ? `${e.firstName} ${e.lastName}` : e.firstName;
+  insEmp.run(e.id, name, e.firstName, e.lastName, e.username, bcrypt.hashSync(e.pw, 10), e.role, now - 365 * day);
 }
 
 // After the insEmp loop, update Marcus with a secret question
