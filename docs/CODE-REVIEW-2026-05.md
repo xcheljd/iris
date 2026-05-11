@@ -1,7 +1,7 @@
 # Iris Code Review — May 2026
 
 **Date**: 2026-05-07
-**Last updated**: 2026-05-10
+**Last updated**: 2026-05-10 (residual fixes: 2026-05-10)
 **Scope**: Full codebase (`app/`, `components/`, `lib/`, `middleware.ts`, config files)
 **Excluded**: `node_modules/`, `.next/`, `components/ui/` (shadcn primitives)
 **Total Source**: ~18,600+ lines across ~90 files
@@ -668,3 +668,39 @@ If step 3 throws (client not found, FK constraint, concurrent modification), the
 **File:** `.env.local`
 **Description:** Contains `NEXTAUTH_SECRET=iris-dev-secret-change-me`. The `.gitignore` does include `.env.local` and `*.db` patterns, so this file is excluded from tracking. However, the secret value is a weak placeholder — ensure production uses a strong, unique secret. The `lib/auth.ts` module-level check (`if (!process.env.NEXTAUTH_SECRET) throw new Error(...)`) provides a runtime guard, but the error crashes the entire process at import time.
 - [x] Fix: Moved the NEXTAUTH_SECRET check inside the `authorize` callback so missing env var fails at first auth attempt rather than crashing the entire process at import time. Added doc comment above `authOptions` with the `openssl rand -base64 32` generation reminder.
+
+---
+
+## Post-Review Residual Fixes
+
+Found by secondary review after all 74 items were resolved. All pre-existing patterns — not regressions from the review fixes.
+
+**Commits:** `f6006fa`, `db0e776`
+
+### R-1. `resubscribeClient` — no transaction
+**File:** `lib/actions/clients.ts`
+Three DB writes (update clients, delete unsubscribeList, insert activityEvents) ran independently. Partial failure would leave client status changed but no activity record. Wrapped in `db.transaction()`.
+
+### R-2. `toggleEmailList` — no transaction
+**File:** `lib/actions/clients.ts`
+Two DB writes (update clients, insert activityEvents) ran independently. Wrapped in `db.transaction()`.
+
+### R-3. `transferClient` — no transaction
+**File:** `lib/actions/clients.ts`
+Two DB writes (update clients, insert activityEvents) ran independently. Wrapped in `db.transaction()`.
+
+### R-4. Missed `fullName()` uses in `clients.ts`
+**File:** `lib/actions/clients.ts`
+Two inline `` `${firstName} ${lastName ?? ""}`.trim() `` template literals remained in `transferClient` and `mergeClients`. Replaced with `fullName()` from `@/lib/utils` (imported alongside the fix).
+
+### R-5. `smart-lists.ts` — no try/catch on DB operations
+**File:** `lib/actions/smart-lists.ts`
+All four functions (`deleteSmartList`, `duplicateSmartList`, `renameSmartList`, `createSmartList`) performed DB writes without try/catch. `duplicateSmartList` and `createSmartList` also returned `void`, giving callers no way to surface failures. Added try/catch returning `{ error: string }` to all four; updated callers in `smart-lists-content.tsx` and `create-list-dialog.tsx`.
+
+### R-6. `rvx-import.ts` — no try/catch on DB operations
+**File:** `lib/actions/rvx-import.ts`
+`analyzeRvxImport` and `importProspectsFromRvx` had no error handling around `categorizeRvxRows` and the transaction block. Added try/catch; initially threw errors (callers already used try/catch), then converted to `{ error: string }` return pattern for consistency with project standard (Q-INCON-1). Updated callers in `rvx-import-dialog.tsx` and the test file to narrow the union type.
+
+### R-7. `rvx-import.ts` — throw vs `{ error }` inconsistency
+**File:** `lib/actions/rvx-import.ts`, `components/rvx-import-dialog.tsx`
+After R-6, rvx-import actions threw while all other actions returned typed `{ error }`. Converted to `{ error: string } | result` union return type (Q-INCON-1 standard). Callers updated from try/catch to `"error" in result` narrowing guards.
