@@ -83,10 +83,12 @@ export function GraduateProspectDialog({
         if (result.type === "created") {
           toast.success("Prospect graduated to client");
           handleClose();
-        } else {
+        } else if (result.type === "duplicate") {
           setDuplicateClientId(result.existingClientId);
           setDuplicateClientName(result.existingClientName);
           setStep("duplicate");
+        } else {
+          toast.error(result.error);
         }
       } catch {
         toast.error("Failed to graduate prospect");

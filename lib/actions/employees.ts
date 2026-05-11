@@ -60,7 +60,7 @@ export async function updateEmployee(employeeId: string, data: { firstName: stri
 
   const firstName = data.firstName.trim();
   const lastName = data.lastName.trim() || null;
-  const updates: Record<string, unknown> = {
+  const updates: Partial<typeof employees.$inferInsert> = {
     firstName,
     lastName,
     username: data.username.trim(),

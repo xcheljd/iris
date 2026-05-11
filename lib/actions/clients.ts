@@ -8,10 +8,27 @@ import { requireAuth, requireManager } from "./_shared";
 import { recalcHeat } from "./outreach";
 import { fullName } from "@/lib/utils";
 
-export async function banClient(clientId: string, category: "Reselling" | "Gift Card Fraud" | "Other", reason: string) {
+export async function applyClientPatch(clientId: string, data: Record<string, unknown>): Promise<void> {
+  const patch: Record<string, unknown> = { updatedAt: new Date() };
+  for (const [k, v] of Object.entries(data)) {
+    if (v !== undefined) patch[k] = v;
+  }
+  db.update(clients).set(patch).where(eq(clients.id, clientId)).run();
+  db.insert(activityEvents).values({
+    id: randomUUID(),
+    clientId,
+    eventType: "edited",
+    description: "Profile updated",
+    metadata: { fieldChanges: data },
+  }).run();
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/clients");
+}
+
+export async function banClient(clientId: string, category: "Reselling" | "Gift Card Fraud" | "Other", reason: string): Promise<{ error: string } | undefined> {
   const user = await requireManager();
   const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
-  if (!c) return;
+  if (!c) return { error: "Client not found" };
   db.transaction((tx) => {
     tx.update(clients).set({ status: "banned", updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
     tx.insert(bannedCustomers).values({
@@ -32,10 +49,10 @@ export async function banClient(clientId: string, category: "Reselling" | "Gift 
   revalidatePath("/banned");
 }
 
-export async function unsubscribeClient(clientId: string) {
+export async function unsubscribeClient(clientId: string): Promise<{ error: string } | undefined> {
   const user = await requireManager();
   const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
-  if (!c) return;
+  if (!c) return { error: "Client not found" };
   db.transaction((tx) => {
     tx.update(clients).set({ status: "unsubscribed", onEmailList: false, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
     if (c.email) {
@@ -154,21 +171,23 @@ export async function deleteClient(clientId: string): Promise<{ error: string } 
   if (!client) return { error: "Client not found" };
   if (client.status === "deleted") return { error: "Client already deleted" };
 
-  db.update(clients).set({
-    status: "deleted",
-    previousStatus: client.status,
-    deletedAt: new Date(),
-    deletedBy: user.id,
-    updatedAt: new Date(),
-  }).where(eq(clients.id, clientId)).run();
+  db.transaction((tx) => {
+    tx.update(clients).set({
+      status: "deleted",
+      previousStatus: client.status as "active" | "inactive" | "banned" | "unsubscribed",
+      deletedAt: new Date(),
+      deletedBy: user.id,
+      updatedAt: new Date(),
+    }).where(eq(clients.id, clientId)).run();
 
-  db.insert(activityEvents).values({
-    id: randomUUID(),
-    clientId,
-    eventType: "status_changed",
-    description: `Client deleted by ${user.name}`,
-    employeeId: user.id,
-  }).run();
+    tx.insert(activityEvents).values({
+      id: randomUUID(),
+      clientId,
+      eventType: "status_changed",
+      description: `Client deleted by ${user.name}`,
+      employeeId: user.id,
+    }).run();
+  });
 
   revalidatePath("/clients");
   revalidatePath("/settings");
@@ -181,21 +200,23 @@ export async function restoreClient(clientId: string): Promise<{ error: string }
   if (!client) return { error: "Client not found" };
   if (client.status !== "deleted") return { error: "Client is not deleted" };
 
-  db.update(clients).set({
-    status: client.previousStatus ?? "active",
-    previousStatus: null,
-    deletedAt: null,
-    deletedBy: null,
-    updatedAt: new Date(),
-  }).where(eq(clients.id, clientId)).run();
+  db.transaction((tx) => {
+    tx.update(clients).set({
+      status: client.previousStatus ?? "active",
+      previousStatus: null,
+      deletedAt: null,
+      deletedBy: null,
+      updatedAt: new Date(),
+    }).where(eq(clients.id, clientId)).run();
 
-  db.insert(activityEvents).values({
-    id: randomUUID(),
-    clientId,
-    eventType: "status_changed",
-    description: `Client restored to ${client.previousStatus ?? "active"} by ${user.name}`,
-    employeeId: user.id,
-  }).run();
+    tx.insert(activityEvents).values({
+      id: randomUUID(),
+      clientId,
+      eventType: "status_changed",
+      description: `Client restored to ${client.previousStatus ?? "active"} by ${user.name}`,
+      employeeId: user.id,
+    }).run();
+  });
 
   revalidatePath("/clients");
   revalidatePath("/settings");
@@ -248,51 +269,53 @@ export async function mergeClients(
     return a.getTime() >= b.getTime() ? a : b;
   };
 
-  db.update(clients).set({
-    firstName: pick("firstName") as string || winner.firstName,
-    lastName: pick("lastName") as string | null,
-    phone: pick("phone") as string | null,
-    email: pick("email") as string | null,
-    birthday: pick("birthday") as string | null,
-    anniversary: pick("anniversary") as string | null,
-    customerId: pick("customerId") as string | null,
-    source: pick("source") as typeof clients.$inferSelect.source,
-    onEmailList: (clientA.onEmailList || clientB.onEmailList),
-    notes: finalNotes ?? null,
-    productsOfInterest: Array.from(new Set([...(clientA.productsOfInterest || []), ...(clientB.productsOfInterest || [])])),
-    tags: Array.from(new Set([...(clientA.tags || []), ...(clientB.tags || [])])),
-    lastOutreachAt: latestOf(clientA.lastOutreachAt, clientB.lastOutreachAt),
-    lastPurchaseAt: latestOf(clientA.lastPurchaseAt, clientB.lastPurchaseAt),
-    updatedAt: new Date(),
-  }).where(eq(clients.id, winner.id)).run();
+  db.transaction((tx) => {
+    tx.update(clients).set({
+      firstName: pick("firstName") as string || winner.firstName,
+      lastName: pick("lastName") as string | null,
+      phone: pick("phone") as string | null,
+      email: pick("email") as string | null,
+      birthday: pick("birthday") as string | null,
+      anniversary: pick("anniversary") as string | null,
+      customerId: pick("customerId") as string | null,
+      source: pick("source") as typeof clients.$inferSelect.source,
+      onEmailList: (clientA.onEmailList || clientB.onEmailList),
+      notes: finalNotes ?? null,
+      productsOfInterest: Array.from(new Set([...(clientA.productsOfInterest || []), ...(clientB.productsOfInterest || [])])),
+      tags: Array.from(new Set([...(clientA.tags || []), ...(clientB.tags || [])])),
+      lastOutreachAt: latestOf(clientA.lastOutreachAt, clientB.lastOutreachAt),
+      lastPurchaseAt: latestOf(clientA.lastPurchaseAt, clientB.lastPurchaseAt),
+      updatedAt: new Date(),
+    }).where(eq(clients.id, winner.id)).run();
 
-  // Migrate FK references from loser to winner
-  db.update(outreachLogs).set({ clientId: winner.id }).where(eq(outreachLogs.clientId, loser.id)).run();
-  db.update(activityEvents).set({ clientId: winner.id }).where(eq(activityEvents.clientId, loser.id)).run();
-  db.update(approvalRequests).set({ clientId: winner.id }).where(eq(approvalRequests.clientId, loser.id)).run();
+    // Migrate FK references from loser to winner
+    tx.update(outreachLogs).set({ clientId: winner.id }).where(eq(outreachLogs.clientId, loser.id)).run();
+    tx.update(activityEvents).set({ clientId: winner.id }).where(eq(activityEvents.clientId, loser.id)).run();
+    tx.update(approvalRequests).set({ clientId: winner.id }).where(eq(approvalRequests.clientId, loser.id)).run();
 
-  // promoMatches: delete loser's entries that conflict with winner's, then migrate the rest
-  const winnerPromoIds = db.select({ promoId: promoMatches.promoId })
-    .from(promoMatches).where(eq(promoMatches.clientId, winner.id)).all()
-    .map((r) => r.promoId);
-  if (winnerPromoIds.length > 0) {
-    db.delete(promoMatches)
-      .where(and(eq(promoMatches.clientId, loser.id), inArray(promoMatches.promoId, winnerPromoIds)))
-      .run();
-  }
-  db.update(promoMatches).set({ clientId: winner.id }).where(eq(promoMatches.clientId, loser.id)).run();
+    // promoMatches: delete loser's entries that conflict with winner's, then migrate the rest
+    const winnerPromoIds = tx.select({ promoId: promoMatches.promoId })
+      .from(promoMatches).where(eq(promoMatches.clientId, winner.id)).all()
+      .map((r) => r.promoId);
+    if (winnerPromoIds.length > 0) {
+      tx.delete(promoMatches)
+        .where(and(eq(promoMatches.clientId, loser.id), inArray(promoMatches.promoId, winnerPromoIds)))
+        .run();
+    }
+    tx.update(promoMatches).set({ clientId: winner.id }).where(eq(promoMatches.clientId, loser.id)).run();
 
-  const loserName = fullName(loser);
-  db.insert(activityEvents).values({
-    id: randomUUID(),
-    clientId: winner.id,
-    eventType: "merged",
-    description: `Merged from ${loserName}`,
-    employeeId: user.id,
-    metadata: { sourceClientId: loser.id, sourceClientName: loserName },
-  }).run();
+    const loserName = fullName(loser);
+    tx.insert(activityEvents).values({
+      id: randomUUID(),
+      clientId: winner.id,
+      eventType: "merged",
+      description: `Merged from ${loserName}`,
+      employeeId: user.id,
+      metadata: { sourceClientId: loser.id, sourceClientName: loserName },
+    }).run();
 
-  db.delete(clients).where(eq(clients.id, loser.id)).run();
+    tx.delete(clients).where(eq(clients.id, loser.id)).run();
+  });
 
   await recalcHeat(winner.id);
   revalidatePath(`/clients/${winner.id}`);
@@ -322,30 +345,32 @@ export async function patchClientFromFormMerge(
   const existing = db.select().from(clients).where(eq(clients.id, existingId)).get();
   if (!existing) return { error: "Client not found" };
 
-  db.update(clients).set({
-    firstName: patch.firstName,
-    lastName: patch.lastName ?? null,
-    phone: patch.phone ?? null,
-    email: patch.email ?? null,
-    birthday: patch.birthday ?? null,
-    anniversary: patch.anniversary ?? null,
-    customerId: patch.customerId ?? null,
-    source: (patch.source as typeof clients.$inferSelect.source) ?? existing.source,
-    onEmailList: patch.onEmailList ?? existing.onEmailList,
-    notes: patch.notes ?? null,
-    productsOfInterest: patch.productsOfInterest ?? existing.productsOfInterest,
-    tags: patch.tags ?? existing.tags,
-    updatedAt: new Date(),
-  }).where(eq(clients.id, existingId)).run();
+  db.transaction((tx) => {
+    tx.update(clients).set({
+      firstName: patch.firstName,
+      lastName: patch.lastName ?? null,
+      phone: patch.phone ?? null,
+      email: patch.email ?? null,
+      birthday: patch.birthday ?? null,
+      anniversary: patch.anniversary ?? null,
+      customerId: patch.customerId ?? null,
+      source: (patch.source as typeof clients.$inferSelect.source) ?? existing.source,
+      onEmailList: patch.onEmailList ?? existing.onEmailList,
+      notes: patch.notes ?? null,
+      productsOfInterest: patch.productsOfInterest ?? existing.productsOfInterest,
+      tags: patch.tags ?? existing.tags,
+      updatedAt: new Date(),
+    }).where(eq(clients.id, existingId)).run();
 
-  db.insert(activityEvents).values({
-    id: randomUUID(),
-    clientId: existingId,
-    eventType: "merged",
-    description: "Merged from new client form entry",
-    employeeId: user.id,
-    metadata: { sourceClientName: "new form entry" },
-  }).run();
+    tx.insert(activityEvents).values({
+      id: randomUUID(),
+      clientId: existingId,
+      eventType: "merged",
+      description: "Merged from new client form entry",
+      employeeId: user.id,
+      metadata: { sourceClientName: "new form entry" },
+    }).run();
+  });
 
   await recalcHeat(existingId);
   revalidatePath(`/clients/${existingId}`);

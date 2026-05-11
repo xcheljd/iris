@@ -3,9 +3,7 @@ import { clients, outreachLogs, activityEvents, promoWatches, bannedCustomers, u
 import { eq, desc, asc, and, or, isNull, isNotNull, lte, gte, notInArray, sql as rawSql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { applyClientFilter } from "@/lib/utils";
-import { MS_PER_DAY, FOLLOW_UP_LOOKAHEAD_DAYS, DEFAULT_PAGE_SIZE } from "@/lib/constants";
-
-const LIST_QUERY_LIMIT = 10000;
+import { MS_PER_DAY, SEC_PER_DAY, LIST_QUERY_LIMIT, FOLLOW_UP_LOOKAHEAD_DAYS, DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
 const clientListProjection = {
   id: clients.id,
@@ -90,7 +88,6 @@ export async function getClientsWithEmployeePaginated(
 ) {
   const { q, heat, owner, filter, sort = "heat", sortDir = "desc", page = 1, pageSize = DEFAULT_PAGE_SIZE } = opts;
   const nowSec = Math.floor(Date.now() / 1000);
-  const SEC_PER_DAY = 86400;
 
   const conds: (SQL<unknown> | undefined)[] = [
     notInArray(clients.status, ["banned", "deleted"]),
@@ -124,7 +121,10 @@ export async function getClientsWithEmployeePaginated(
       case "stale":
         conds.push(
           eq(clients.status, "active"),
-          or(isNull(clients.lastOutreachAt), rawSql`${clients.lastOutreachAt} < ${nowSec - 90 * SEC_PER_DAY}`),
+          or(
+            and(isNull(clients.lastOutreachAt), isNull(clients.lastPurchaseAt)),
+            rawSql`MAX(COALESCE(${clients.lastOutreachAt}, 0), COALESCE(${clients.lastPurchaseAt}, 0)) < ${nowSec - 90 * SEC_PER_DAY}`,
+          ),
         );
         break;
       case "recent_purchases":
@@ -200,11 +200,9 @@ export async function getClientsWithEmployee(employeeId?: string) {
   return rows;
 }
 
-export async function getUpcomingFollowUps(employeeId?: string) {
-  const now = Date.now();
-  const in7d = now + FOLLOW_UP_LOOKAHEAD_DAYS * MS_PER_DAY;
+function queryFollowUps(from: Date | null, to: Date, employeeId?: string) {
   const employeeFilter = employeeId ? eq(outreachLogs.employeeId, employeeId) : undefined;
-  const rows = db.select({
+  return db.select({
     log: outreachLogs,
     client: clients,
     employee: employees,
@@ -214,33 +212,22 @@ export async function getUpcomingFollowUps(employeeId?: string) {
     .where(and(
       isNotNull(outreachLogs.followUpDate),
       eq(outreachLogs.completed, false),
-      lte(outreachLogs.followUpDate, new Date(in7d)),
+      from ? gte(outreachLogs.followUpDate, from) : undefined,
+      lte(outreachLogs.followUpDate, to),
       employeeFilter,
     ))
     .orderBy(outreachLogs.followUpDate)
     .all();
-  return rows;
+}
+
+export async function getUpcomingFollowUps(employeeId?: string) {
+  const now = new Date();
+  const in7d = new Date(Date.now() + FOLLOW_UP_LOOKAHEAD_DAYS * MS_PER_DAY);
+  return queryFollowUps(now, in7d, employeeId);
 }
 
 export async function getOverdueFollowUps(employeeId?: string) {
-  const now = new Date();
-  const employeeFilter = employeeId ? eq(outreachLogs.employeeId, employeeId) : undefined;
-  const rows = db.select({
-    log: outreachLogs,
-    client: clients,
-    employee: employees,
-  }).from(outreachLogs)
-    .leftJoin(clients, eq(outreachLogs.clientId, clients.id))
-    .leftJoin(employees, eq(outreachLogs.employeeId, employees.id))
-    .where(and(
-      isNotNull(outreachLogs.followUpDate),
-      eq(outreachLogs.completed, false),
-      lte(outreachLogs.followUpDate, now),
-      employeeFilter,
-    ))
-    .orderBy(outreachLogs.followUpDate)
-    .all();
-  return rows;
+  return queryFollowUps(null, new Date(), employeeId);
 }
 
 export async function getStats(employeeId?: string) {
@@ -352,12 +339,14 @@ function buildBuiltInConds(filter: BuiltInFilter, nowSec: number, employeeId?: s
     notInArray(clients.status, ["banned", "deleted"]),
     employeeId ? eq(clients.employeeId, employeeId) : undefined,
   ];
-  const SEC_PER_DAY = 86400;
   switch (filter) {
     case "hot":
       return [...base, eq(clients.heatLevel, "hot"), eq(clients.status, "active")];
     case "stale":
-      return [...base, eq(clients.status, "active"), or(isNull(clients.lastOutreachAt), rawSql`${clients.lastOutreachAt} < ${nowSec - 90 * SEC_PER_DAY}`)];
+      return [...base, eq(clients.status, "active"), or(
+        and(isNull(clients.lastOutreachAt), isNull(clients.lastPurchaseAt)),
+        rawSql`MAX(COALESCE(${clients.lastOutreachAt}, 0), COALESCE(${clients.lastPurchaseAt}, 0)) < ${nowSec - 90 * SEC_PER_DAY}`,
+      )];
     case "recent_purchases":
       return [...base, rawSql`${clients.lastPurchaseAt} > ${nowSec - 30 * SEC_PER_DAY}`];
     case "no_outreach_60":
@@ -376,7 +365,6 @@ function buildCustomConds(filters: Record<string, unknown>, nowSec: number, empl
     notInArray(clients.status, ["banned", "deleted"]),
     employeeId ? eq(clients.employeeId, employeeId) : undefined,
   ];
-  const SEC_PER_DAY = 86400;
   if (filters.heatLevel) conds.push(eq(clients.heatLevel, filters.heatLevel as "hot" | "warm" | "cold"));
   if (filters.source) conds.push(rawSql`${clients.source} = ${String(filters.source)}`);
   if (filters.onEmailList) conds.push(eq(clients.onEmailList, true));
@@ -415,22 +403,56 @@ export async function getCustomListClients(filters: Record<string, unknown>, emp
   return db.select(clientListProjection).from(clients).where(and(...conds)).orderBy(desc(clients.heatScore)).limit(1000).all();
 }
 
+function countCustomFilter(all: ClientListRow[], filters: Record<string, unknown>): number {
+  const now = Date.now();
+  const staleMs = 90 * MS_PER_DAY;
+  let result = all;
+  if (filters.heatLevel) result = result.filter((c) => c.heatLevel === String(filters.heatLevel));
+  if (filters.source) result = result.filter((c) => c.source === String(filters.source));
+  if (filters.onEmailList) result = result.filter((c) => c.onEmailList);
+  if (filters.stale) {
+    result = result.filter((c) => {
+      if (c.status !== "active") return false;
+      if (!c.lastOutreachAt && !c.lastPurchaseAt) return true;
+      const last = Math.max(
+        c.lastOutreachAt ? new Date(c.lastOutreachAt).getTime() : 0,
+        c.lastPurchaseAt ? new Date(c.lastPurchaseAt).getTime() : 0,
+      );
+      return last < now - staleMs;
+    });
+  }
+  if (filters.birthdayMonth) {
+    const m = String(filters.birthdayMonth).padStart(2, "0");
+    result = result.filter((c) => c.birthday?.split("-")[1] === m);
+  }
+  const tagValues = filters.tags
+    ? (Array.isArray(filters.tags) ? filters.tags : [filters.tags])
+    : filters.tag ? [filters.tag] : [];
+  for (const tag of tagValues) {
+    result = result.filter((c) => Array.isArray(c.tags) && (c.tags as string[]).includes(String(tag)));
+  }
+  return result.length;
+}
+
 export async function getAllSmartListCounts(
   lists: Awaited<ReturnType<typeof getSmartLists>>,
   employeeId?: string,
 ): Promise<{ builtIn: Record<string, number>; custom: Record<string, number> }> {
-  const nowSec = Math.floor(Date.now() / 1000);
+  const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
+  const allClients = db
+    .select(clientListProjection)
+    .from(clients)
+    .where(and(notInArray(clients.status, ["banned", "deleted"]), employeeFilter))
+    .all();
+
   const builtIn: Record<string, number> = {};
   for (const filter of BUILTIN_FILTER_IDS) {
-    const conds = buildBuiltInConds(filter, nowSec, employeeId);
-    const [row] = db.select({ n: rawSql<number>`count(*)` }).from(clients).where(and(...conds)).all();
-    builtIn[filter] = row?.n ?? 0;
+    builtIn[filter] = applyClientFilter(allClients, filter).length;
   }
+
   const custom: Record<string, number> = {};
   for (const list of lists) {
-    const conds = buildCustomConds(list.filters as Record<string, unknown>, nowSec, employeeId);
-    const [row] = db.select({ n: rawSql<number>`count(*)` }).from(clients).where(and(...conds)).all();
-    custom[list.id] = row?.n ?? 0;
+    custom[list.id] = countCustomFilter(allClients, list.filters as Record<string, unknown>);
   }
   return { builtIn, custom };
 }

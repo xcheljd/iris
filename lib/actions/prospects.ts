@@ -11,13 +11,14 @@ import { requireAuth } from "./_shared";
 export async function graduateProspect(input: GraduateProspectInput): Promise<
   | { type: "created"; clientId: string }
   | { type: "duplicate"; existingClientId: string; existingClientName: string }
+  | { type: "error"; error: string }
 > {
   const user = await requireAuth();
   const parsed = graduateProspectSchema.parse(input);
 
   const prospect = db.select().from(prospects).where(eq(prospects.id, parsed.prospectId)).get();
-  if (!prospect) throw new Error("Prospect not found");
-  if (prospect.status !== "active") throw new Error("Prospect is not active");
+  if (!prospect) return { type: "error", error: "Prospect not found" };
+  if (prospect.status !== "active") return { type: "error", error: "Prospect is not active" };
 
   // Duplicate check against live clients
   const allClients = db
@@ -45,8 +46,8 @@ export async function graduateProspect(input: GraduateProspectInput): Promise<
 
   const newClientId = randomUUID();
 
-  db.transaction(() => {
-    db.insert(clients).values({
+  db.transaction((tx) => {
+    tx.insert(clients).values({
       id: newClientId,
       firstName: parsed.firstName,
       lastName: parsed.lastName ?? null,
@@ -61,12 +62,12 @@ export async function graduateProspect(input: GraduateProspectInput): Promise<
       employeeId: user.role === "associate" ? user.id : undefined,
     }).run();
 
-    db.update(prospects)
+    tx.update(prospects)
       .set({ status: "graduated", graduatedToClientId: newClientId, updatedAt: new Date() })
       .where(eq(prospects.id, parsed.prospectId))
       .run();
 
-    db.insert(activityEvents).values({
+    tx.insert(activityEvents).values({
       id: randomUUID(),
       clientId: newClientId,
       eventType: "created",
@@ -109,15 +110,15 @@ export async function graduateProspectIntoExistingClient(
     patch.productsOfInterest = enrichment.productsOfInterest;
   }
 
-  db.transaction(() => {
-    db.update(clients).set(patch).where(eq(clients.id, existingClientId)).run();
+  db.transaction((tx) => {
+    tx.update(clients).set(patch).where(eq(clients.id, existingClientId)).run();
 
-    db.update(prospects)
+    tx.update(prospects)
       .set({ status: "graduated", graduatedToClientId: existingClientId, updatedAt: new Date() })
       .where(eq(prospects.id, prospectId))
       .run();
 
-    db.insert(activityEvents).values({
+    tx.insert(activityEvents).values({
       id: randomUUID(),
       clientId: existingClientId,
       eventType: "edited",
@@ -146,20 +147,20 @@ export async function unsubscribeProspect(prospectId: string): Promise<{ error: 
   const prospect = db.select().from(prospects).where(eq(prospects.id, prospectId)).get();
   if (!prospect) return { error: "Prospect not found" };
 
-  db.transaction(() => {
-    db.update(prospects)
+  db.transaction((tx) => {
+    tx.update(prospects)
       .set({ status: "unsubscribed", updatedAt: new Date() })
       .where(eq(prospects.id, prospectId))
       .run();
 
     if (prospect.email) {
-      const alreadyUnsub = db
+      const alreadyUnsub = tx
         .select({ id: unsubscribeList.id })
         .from(unsubscribeList)
         .where(eq(unsubscribeList.email, prospect.email))
         .get();
       if (!alreadyUnsub) {
-        db.insert(unsubscribeList).values({
+        tx.insert(unsubscribeList).values({
           id: randomUUID(),
           email: prospect.email,
         }).run();

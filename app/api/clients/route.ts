@@ -5,6 +5,7 @@ import { eq, desc, or, notInArray, sql as rawSql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { clientCreateSchema, clientPatchSchema } from "@/lib/validation/client";
+import { applyClientPatch } from "@/lib/actions/clients";
 
 // GET /api/clients — list all clients
 export const GET = withAuth(async (_session, request: Request) => {
@@ -104,23 +105,7 @@ export const PUT = withAuth(async (session, request: Request) => {
       );
     }
 
-    const patch: Record<string, unknown> = { updatedAt: new Date() };
-    for (const [k, v] of Object.entries(parsed.data)) {
-      if (v !== undefined) patch[k] = v;
-    }
-
-    db.update(clients).set(patch).where(eq(clients.id, id)).run();
-
-    db.insert(activityEvents).values({
-      id: randomUUID(),
-      clientId: id,
-      eventType: "edited",
-      description: `Profile updated`,
-      metadata: { fieldChanges: parsed.data },
-    }).run();
-
-    revalidatePath(`/clients/${id}`);
-    revalidatePath("/clients");
+    await applyClientPatch(id, parsed.data as Record<string, unknown>);
     return Response.json({ success: true });
   } catch (_error) {
     return Response.json({ error: "Failed to update client" }, { status: 500 });

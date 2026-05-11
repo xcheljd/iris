@@ -57,12 +57,16 @@ export async function reviewApprovalRequest(
   // Previously the status was committed before the action, making failures unrecoverable.
   if (approved) {
     switch (request.type) {
-      case "ban":
-        await banClient(request.clientId, "Other", request.reason);
+      case "ban": {
+        const r = await banClient(request.clientId, "Other", request.reason);
+        if (r?.error) return { error: r.error };
         break;
-      case "unsubscribe":
-        await unsubscribeClient(request.clientId);
+      }
+      case "unsubscribe": {
+        const r = await unsubscribeClient(request.clientId);
+        if (r?.error) return { error: r.error };
         break;
+      }
       case "delete": {
         const r = await deleteClient(request.clientId);
         if (r?.error) return { error: r.error };

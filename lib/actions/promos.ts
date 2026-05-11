@@ -74,7 +74,8 @@ export async function createPromo(modelNumber: string, collection: string, msrp?
       matchPromoToClients(tx, id, modelNumber, collection, index);
     });
     revalidatePath("/promos");
-  } catch (_err) {
+  } catch (err) {
+    console.error("createPromo failed:", err);
     return { error: "Failed to create promo" };
   }
 }
@@ -107,7 +108,8 @@ export async function importPromos(rows: { modelNumber: string; collection: stri
     });
     revalidatePath("/promos");
     return { imported };
-  } catch (_err) {
+  } catch (err) {
+    console.error("importPromos failed:", err);
     return { error: "Failed to import promos" };
   }
 }
@@ -120,7 +122,8 @@ export async function clearAllPromos() {
       tx.delete(promoWatches).run();
     });
     revalidatePath("/promos");
-  } catch (_err) {
+  } catch (err) {
+    console.error("clearAllPromos failed:", err);
     return { error: "Failed to clear promos" };
   }
 }

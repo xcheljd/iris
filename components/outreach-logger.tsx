@@ -50,7 +50,7 @@ export function OutreachLogger({ clientId, clientName, trigger, templates = [] }
 
   function submit() {
     start(async () => {
-      await logOutreach({
+      const result = await logOutreach({
         clientId,
         method,
         outcome: outcome as "no_answer" | "voicemail" | "voicemail_full" | "responded" | "not_interested" | "wants_to_come_in" | "purchased",
@@ -59,6 +59,7 @@ export function OutreachLogger({ clientId, clientName, trigger, templates = [] }
         followUpDate: followUp ? followUp.toISOString().split("T")[0] : null,
         templateId: templateId || undefined,
       });
+      if (result?.error) { toast.error(result.error); return; }
       toast.success("Outreach logged");
       reset();
       setOpen(false);

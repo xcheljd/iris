@@ -85,14 +85,12 @@ async function categorizeRvxRows(rows: RvxRawRow[]): Promise<{
   return { newRows, alreadyClientCount, bannedCount, unsubscribedCount, deletedCount };
 }
 
-export async function analyzeRvxImport(csvText: string): Promise<RvxAnalysisResult | { error: string }> {
-  await requireManager();
-
-  const { rows, reportStartDate, reportEndDate, parseErrors } = parseRvxCsv(csvText);
-
-  const dupeGroups = findWithinImportDuplicates(rows);
+function deduplicateRvxRows(
+  rows: RvxRawRow[],
+  dupeGroups: Map<string, RvxRawRow[]>,
+): { deduped: RvxRawRow[]; dupeRows: RvxRawRow[] } {
   const dupeRowSet = new Set<RvxRawRow>();
-  const dedupedBestSet = new Set<RvxRawRow>();
+  const seen = new Set<RvxRawRow>();
   const deduped: RvxRawRow[] = [];
 
   for (const row of rows) {
@@ -106,15 +104,24 @@ export async function analyzeRvxImport(csvText: string): Promise<RvxAnalysisResu
     if (group) {
       for (const r of group) dupeRowSet.add(r);
       const best = selectBestRecord(group);
-      if (!dedupedBestSet.has(best)) {
-        dedupedBestSet.add(best);
+      if (!seen.has(best)) {
+        seen.add(best);
         deduped.push(best);
       }
     } else {
       deduped.push(row);
     }
   }
-  const dupeRows = Array.from(dupeRowSet);
+
+  return { deduped, dupeRows: Array.from(dupeRowSet) };
+}
+
+export async function analyzeRvxImport(csvText: string): Promise<RvxAnalysisResult | { error: string }> {
+  await requireManager();
+
+  const { rows, reportStartDate, reportEndDate, parseErrors } = parseRvxCsv(csvText);
+
+  const { deduped, dupeRows } = deduplicateRvxRows(rows, findWithinImportDuplicates(rows));
 
   try {
     const { newRows, alreadyClientCount, bannedCount, unsubscribedCount, deletedCount } =
@@ -133,7 +140,8 @@ export async function analyzeRvxImport(csvText: string): Promise<RvxAnalysisResu
       reportEndDate,
       parseErrors,
     };
-  } catch {
+  } catch (err) {
+    console.error("analyzeRvxImport failed:", err);
     return { error: "Failed to analyze import file. Please try again." };
   }
 }
@@ -145,36 +153,15 @@ export async function importProspectsFromRvx(
 
   const { rows, reportStartDate, reportEndDate } = parseRvxCsv(csvText);
 
-  const dupeGroups = findWithinImportDuplicates(rows);
-  const deduped: RvxRawRow[] = [];
-  const seen = new Set<RvxRawRow>();
-
-  for (const row of rows) {
-    const key = [
-      row.firstName.toLowerCase(),
-      row.lastName?.toLowerCase() ?? "",
-      row.phone ?? "",
-      row.email?.toLowerCase() ?? "",
-    ].join("|");
-    const group = dupeGroups.get(key);
-    if (group) {
-      const best = selectBestRecord(group);
-      if (!seen.has(best)) {
-        seen.add(best);
-        deduped.push(best);
-      }
-    } else {
-      deduped.push(row);
-    }
-  }
+  const { deduped } = deduplicateRvxRows(rows, findWithinImportDuplicates(rows));
 
   try {
     const { newRows } = await categorizeRvxRows(deduped);
 
     const batchId = randomUUID();
 
-    db.transaction(() => {
-      db.insert(rvxImportBatches).values({
+    db.transaction((tx) => {
+      tx.insert(rvxImportBatches).values({
         id: batchId,
         reportStartDate,
         reportEndDate,
@@ -184,7 +171,7 @@ export async function importProspectsFromRvx(
       }).run();
 
       for (const row of newRows) {
-        db.insert(prospects).values({
+        tx.insert(prospects).values({
           id: randomUUID(),
           rvxCustomerId: row.customerId,
           rvxStoreId: row.storeId,
@@ -201,7 +188,8 @@ export async function importProspectsFromRvx(
 
     revalidatePath("/prospects");
     return { importedCount: newRows.length };
-  } catch {
+  } catch (err) {
+    console.error("importProspectsFromRvx failed:", err);
     return { error: "Import failed. Please try again." };
   }
 }
