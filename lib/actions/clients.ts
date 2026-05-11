@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireAuth, requireManager } from "./_shared";
 import { recalcHeat } from "./outreach";
+import { fullName } from "@/lib/utils";
 
 export async function banClient(clientId: string, category: "Reselling" | "Gift Card Fraud" | "Other", reason: string) {
   const user = await requireManager();
@@ -86,13 +87,15 @@ export async function resubscribeClient(clientId: string) {
   await requireManager();
   const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
   if (!c) return;
-  db.update(clients).set({ status: "active", onEmailList: true, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
-  if (c.email) {
-    db.delete(unsubscribeList).where(eq(unsubscribeList.email, c.email)).run();
-  }
-  db.insert(activityEvents).values({
-    id: randomUUID(), clientId, eventType: "status_changed", description: "Resubscribed", metadata: { newStatus: "active" }, employeeId: null,
-  }).run();
+  db.transaction((tx) => {
+    tx.update(clients).set({ status: "active", onEmailList: true, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+    if (c.email) {
+      tx.delete(unsubscribeList).where(eq(unsubscribeList.email, c.email)).run();
+    }
+    tx.insert(activityEvents).values({
+      id: randomUUID(), clientId, eventType: "status_changed", description: "Resubscribed", metadata: { newStatus: "active" }, employeeId: null,
+    }).run();
+  });
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/unsubscribed");
 }
@@ -103,10 +106,12 @@ export async function toggleEmailList(clientId: string): Promise<{ error: string
   if (!c) return { error: "Client not found" };
   if (c.status === "unsubscribed") return { error: "Cannot toggle email list for unsubscribed client" };
   const newValue = !c.onEmailList;
-  db.update(clients).set({ onEmailList: newValue, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
-  db.insert(activityEvents).values({
-    id: randomUUID(), clientId, eventType: "edited", description: newValue ? "Added to email list" : "Removed from email list", metadata: { onEmailList: newValue }, employeeId: null,
-  }).run();
+  db.transaction((tx) => {
+    tx.update(clients).set({ onEmailList: newValue, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+    tx.insert(activityEvents).values({
+      id: randomUUID(), clientId, eventType: "edited", description: newValue ? "Added to email list" : "Removed from email list", metadata: { onEmailList: newValue }, employeeId: null,
+    }).run();
+  });
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/clients");
 }
@@ -124,19 +129,20 @@ export async function transferClient(clientId: string, newEmployeeId: string): P
     ? db.select({ firstName: employees.firstName, lastName: employees.lastName }).from(employees).where(eq(employees.id, clientRow.employeeId)).get()
     : null;
 
-  db.update(clients).set({ employeeId: newEmployeeId, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+  const newEmployeeName = fullName(newEmployee);
+  const previousEmployeeName = previousEmployee ? fullName(previousEmployee) : undefined;
 
-  const newEmployeeName = `${newEmployee.firstName} ${newEmployee.lastName ?? ""}`.trim();
-  const previousEmployeeName = previousEmployee ? `${previousEmployee.firstName} ${previousEmployee.lastName ?? ""}`.trim() : undefined;
-
-  db.insert(activityEvents).values({
-    id: randomUUID(),
-    clientId,
-    eventType: "transferred",
-    description: `Transferred to ${newEmployeeName}`,
-    employeeId: user.id,
-    metadata: { newEmployeeName, ...(previousEmployeeName ? { previousEmployeeName } : {}) },
-  }).run();
+  db.transaction((tx) => {
+    tx.update(clients).set({ employeeId: newEmployeeId, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+    tx.insert(activityEvents).values({
+      id: randomUUID(),
+      clientId,
+      eventType: "transferred",
+      description: `Transferred to ${newEmployeeName}`,
+      employeeId: user.id,
+      metadata: { newEmployeeName, ...(previousEmployeeName ? { previousEmployeeName } : {}) },
+    }).run();
+  });
 
   revalidatePath(`/clients/${clientId}`);
 }
@@ -276,7 +282,7 @@ export async function mergeClients(
   }
   db.update(promoMatches).set({ clientId: winner.id }).where(eq(promoMatches.clientId, loser.id)).run();
 
-  const loserName = `${loser.firstName} ${loser.lastName ?? ""}`.trim();
+  const loserName = fullName(loser);
   db.insert(activityEvents).values({
     id: randomUUID(),
     clientId: winner.id,

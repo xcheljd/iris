@@ -32,13 +32,17 @@ export function CreateListDialog({ open, onOpenChange }: CreateListDialogProps) 
     if (onEmailList) filters.onEmailList = true;
 
     startTransition(async () => {
-      await createSmartList(name.trim(), filters);
-      toast.success("Smart list created");
-      setName("");
-      setHeatLevel("__none__");
-      setSource("__none__");
-      setOnEmailList(false);
-      onOpenChange(false);
+      const result = await createSmartList(name.trim(), filters);
+      if (result?.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Smart list created");
+        setName("");
+        setHeatLevel("__none__");
+        setSource("__none__");
+        setOnEmailList(false);
+        onOpenChange(false);
+      }
     });
   };
 

@@ -133,8 +133,12 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
 
   const handleDuplicate = (list: SmartList) => {
     startTransition(async () => {
-      await duplicateSmartList(list.id);
-      toast.success("Smart list duplicated");
+      const result = await duplicateSmartList(list.id);
+      if (result?.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Smart list duplicated");
+      }
     });
   };
 

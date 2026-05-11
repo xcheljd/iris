@@ -11,23 +11,31 @@ export async function deleteSmartList(listId: string): Promise<{ error: string }
   const list = db.select().from(smartLists).where(eq(smartLists.id, listId)).get();
   if (!list) return { error: "Smart list not found" };
   if (user.role !== "manager" && list.ownerId !== user.id) return { error: "Not authorized to delete this smart list" };
-  db.delete(smartLists).where(eq(smartLists.id, listId)).run();
-  revalidatePath("/smart-lists");
+  try {
+    db.delete(smartLists).where(eq(smartLists.id, listId)).run();
+    revalidatePath("/smart-lists");
+  } catch {
+    return { error: "Failed to delete smart list" };
+  }
 }
 
-export async function duplicateSmartList(listId: string) {
+export async function duplicateSmartList(listId: string): Promise<{ error: string } | undefined> {
   await requireAuth();
   const original = db.select().from(smartLists).where(eq(smartLists.id, listId)).get();
-  if (!original) return;
-  db.insert(smartLists).values({
-    id: randomUUID(),
-    name: `${original.name} (Copy)`,
-    ownerId: original.ownerId,
-    filters: original.filters,
-    sort: original.sort,
-    isShared: original.isShared,
-  }).run();
-  revalidatePath("/smart-lists");
+  if (!original) return { error: "Smart list not found" };
+  try {
+    db.insert(smartLists).values({
+      id: randomUUID(),
+      name: `${original.name} (Copy)`,
+      ownerId: original.ownerId,
+      filters: original.filters,
+      sort: original.sort,
+      isShared: original.isShared,
+    }).run();
+    revalidatePath("/smart-lists");
+  } catch {
+    return { error: "Failed to duplicate smart list" };
+  }
 }
 
 export async function renameSmartList(listId: string, newName: string): Promise<{ error: string } | undefined> {
@@ -35,17 +43,25 @@ export async function renameSmartList(listId: string, newName: string): Promise<
   const list = db.select().from(smartLists).where(eq(smartLists.id, listId)).get();
   if (!list) return { error: "Smart list not found" };
   if (user.role !== "manager" && list.ownerId !== user.id) return { error: "Not authorized to rename this smart list" };
-  db.update(smartLists).set({ name: newName }).where(eq(smartLists.id, listId)).run();
-  revalidatePath("/smart-lists");
+  try {
+    db.update(smartLists).set({ name: newName }).where(eq(smartLists.id, listId)).run();
+    revalidatePath("/smart-lists");
+  } catch {
+    return { error: "Failed to rename smart list" };
+  }
 }
 
-export async function createSmartList(name: string, filters: Record<string, unknown>) {
+export async function createSmartList(name: string, filters: Record<string, unknown>): Promise<{ error: string } | undefined> {
   const user = await requireAuth();
-  db.insert(smartLists).values({
-    id: randomUUID(),
-    name,
-    ownerId: user.id,
-    filters,
-  }).run();
-  revalidatePath("/smart-lists");
+  try {
+    db.insert(smartLists).values({
+      id: randomUUID(),
+      name,
+      ownerId: user.id,
+      filters,
+    }).run();
+    revalidatePath("/smart-lists");
+  } catch {
+    return { error: "Failed to create smart list" };
+  }
 }

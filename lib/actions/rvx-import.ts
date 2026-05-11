@@ -116,22 +116,26 @@ export async function analyzeRvxImport(csvText: string): Promise<RvxAnalysisResu
   }
   const dupeRows = Array.from(dupeRowSet);
 
-  const { newRows, alreadyClientCount, bannedCount, unsubscribedCount, deletedCount } =
-    await categorizeRvxRows(deduped);
+  try {
+    const { newRows, alreadyClientCount, bannedCount, unsubscribedCount, deletedCount } =
+      await categorizeRvxRows(deduped);
 
-  return {
-    newCount: newRows.length,
-    alreadyClientCount,
-    bannedCount,
-    unsubscribedCount,
-    deletedCount,
-    duplicateCount: dupeRows.length,
-    duplicateCsv: serializeDuplicatesToCsv(dupeRows),
-    readyToImport: newRows,
-    reportStartDate,
-    reportEndDate,
-    parseErrors,
-  };
+    return {
+      newCount: newRows.length,
+      alreadyClientCount,
+      bannedCount,
+      unsubscribedCount,
+      deletedCount,
+      duplicateCount: dupeRows.length,
+      duplicateCsv: serializeDuplicatesToCsv(dupeRows),
+      readyToImport: newRows,
+      reportStartDate,
+      reportEndDate,
+      parseErrors,
+    };
+  } catch {
+    throw new Error("Failed to analyze import file. Please try again.");
+  }
 }
 
 export async function importProspectsFromRvx(
@@ -164,36 +168,40 @@ export async function importProspectsFromRvx(
     }
   }
 
-  const { newRows } = await categorizeRvxRows(deduped);
+  try {
+    const { newRows } = await categorizeRvxRows(deduped);
 
-  const batchId = randomUUID();
+    const batchId = randomUUID();
 
-  db.transaction(() => {
-    db.insert(rvxImportBatches).values({
-      id: batchId,
-      reportStartDate,
-      reportEndDate,
-      totalRows: rows.length,
-      importedCount: newRows.length,
-      importedBy: user.id,
-    }).run();
-
-    for (const row of newRows) {
-      db.insert(prospects).values({
-        id: randomUUID(),
-        rvxCustomerId: row.customerId,
-        rvxStoreId: row.storeId,
-        rvxSpend: row.spend,
-        importBatchId: batchId,
-        firstName: row.firstName,
-        lastName: row.lastName,
-        phone: row.phone,
-        email: row.email,
-        productsOfInterest: [],
+    db.transaction(() => {
+      db.insert(rvxImportBatches).values({
+        id: batchId,
+        reportStartDate,
+        reportEndDate,
+        totalRows: rows.length,
+        importedCount: newRows.length,
+        importedBy: user.id,
       }).run();
-    }
-  });
 
-  revalidatePath("/prospects");
-  return { importedCount: newRows.length };
+      for (const row of newRows) {
+        db.insert(prospects).values({
+          id: randomUUID(),
+          rvxCustomerId: row.customerId,
+          rvxStoreId: row.storeId,
+          rvxSpend: row.spend,
+          importBatchId: batchId,
+          firstName: row.firstName,
+          lastName: row.lastName,
+          phone: row.phone,
+          email: row.email,
+          productsOfInterest: [],
+        }).run();
+      }
+    });
+
+    revalidatePath("/prospects");
+    return { importedCount: newRows.length };
+  } catch {
+    throw new Error("Import failed. Please try again.");
+  }
 }
