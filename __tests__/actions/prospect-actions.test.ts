@@ -138,8 +138,9 @@ describe("importProspectsFromRvx", () => {
       `100,RVX-${suffix}-1,RetCount,One,,,`,
       `100,RVX-${suffix}-2,RetCount,Two,,,`,
     ]);
-    const { importedCount } = await importProspectsFromRvx(csv);
-    expect(importedCount).toBe(2);
+    const result1 = await importProspectsFromRvx(csv);
+    if ("error" in result1) throw new Error(result1.error);
+    expect(result1.importedCount).toBe(2);
 
     const batches = db
       .select()
@@ -157,8 +158,9 @@ describe("importProspectsFromRvx", () => {
       `100,RVX-${suffix}-1,Dedupe,Test,5559999${suffix.slice(0,4)},dedupe-${suffix}@example.com,100.00`,
       `100,RVX-${suffix}-2,dedupe,test,5559999${suffix.slice(0,4)},dedupe-${suffix}@example.com,50.00`,
     ]);
-    const { importedCount } = await importProspectsFromRvx(csv);
-    expect(importedCount).toBe(1);
+    const result2 = await importProspectsFromRvx(csv);
+    if ("error" in result2) throw new Error(result2.error);
+    expect(result2.importedCount).toBe(1);
 
     const batches = db
       .select()
@@ -183,10 +185,11 @@ describe("analyzeRvxImport", () => {
       `100,RVX-ANA-${suffix},AnalyzeTest,One,,,`,
       `100,RVX-ANA-${suffix}B,AnalyzeTest,Two,,,`,
     ]);
-    const result = await analyzeRvxImport(csv);
-    expect(result.newCount).toBeGreaterThanOrEqual(2);
-    expect(result.duplicateCount).toBe(0);
-    expect(result.parseErrors).toHaveLength(0);
+    const result3 = await analyzeRvxImport(csv);
+    if ("error" in result3) throw new Error(result3.error);
+    expect(result3.newCount).toBeGreaterThanOrEqual(2);
+    expect(result3.duplicateCount).toBe(0);
+    expect(result3.parseErrors).toHaveLength(0);
   });
 
   it("reports duplicate count for within-import duplicates", async () => {
@@ -196,9 +199,10 @@ describe("analyzeRvxImport", () => {
       `100,RVX-DUP1-${suffix},DupAnalyze,Test,555${suffix.slice(0,7)},dup-${suffix}@example.com,100.00`,
       `100,RVX-DUP2-${suffix},dupanalyze,test,555${suffix.slice(0,7)},dup-${suffix}@example.com,50.00`,
     ]);
-    const result = await analyzeRvxImport(csv);
-    expect(result.duplicateCount).toBe(2);
-    expect(result.newCount).toBe(1); // best record selected
+    const result4 = await analyzeRvxImport(csv);
+    if ("error" in result4) throw new Error(result4.error);
+    expect(result4.duplicateCount).toBe(2);
+    expect(result4.newCount).toBe(1); // best record selected
   });
 
   it("throws when associate calls it", async () => {

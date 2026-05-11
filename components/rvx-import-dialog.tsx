@@ -51,16 +51,16 @@ export function RvxImportDialog({ open, onOpenChange }: RvxImportDialogProps) {
   const handleAnalyze = () => {
     if (!csvText) return;
     startTransition(async () => {
-      try {
-        const result = await analyzeRvxImport(csvText);
-        if (result.parseErrors.length > 0) {
-          toast.error(`Parse errors: ${result.parseErrors[0]}`);
-        }
-        setAnalysis(result);
-        setStep("preview");
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to analyze file");
+      const result = await analyzeRvxImport(csvText);
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
       }
+      if (result.parseErrors.length > 0) {
+        toast.error(`Parse errors: ${result.parseErrors[0]}`);
+      }
+      setAnalysis(result);
+      setStep("preview");
     });
   };
 
@@ -79,14 +79,14 @@ export function RvxImportDialog({ open, onOpenChange }: RvxImportDialogProps) {
     if (!csvText) return;
     setStep("importing");
     startTransition(async () => {
-      try {
-        const result = await importProspectsFromRvx(csvText);
-        setImportedCount(result.importedCount);
-        setStep("done");
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Import failed");
+      const result = await importProspectsFromRvx(csvText);
+      if ("error" in result) {
+        toast.error(result.error);
         setStep("preview");
+        return;
       }
+      setImportedCount(result.importedCount);
+      setStep("done");
     });
   };
 

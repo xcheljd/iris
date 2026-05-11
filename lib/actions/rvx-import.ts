@@ -85,7 +85,7 @@ async function categorizeRvxRows(rows: RvxRawRow[]): Promise<{
   return { newRows, alreadyClientCount, bannedCount, unsubscribedCount, deletedCount };
 }
 
-export async function analyzeRvxImport(csvText: string): Promise<RvxAnalysisResult> {
+export async function analyzeRvxImport(csvText: string): Promise<RvxAnalysisResult | { error: string }> {
   await requireManager();
 
   const { rows, reportStartDate, reportEndDate, parseErrors } = parseRvxCsv(csvText);
@@ -134,13 +134,13 @@ export async function analyzeRvxImport(csvText: string): Promise<RvxAnalysisResu
       parseErrors,
     };
   } catch {
-    throw new Error("Failed to analyze import file. Please try again.");
+    return { error: "Failed to analyze import file. Please try again." };
   }
 }
 
 export async function importProspectsFromRvx(
   csvText: string,
-): Promise<{ importedCount: number }> {
+): Promise<{ importedCount: number } | { error: string }> {
   const user = await requireManager();
 
   const { rows, reportStartDate, reportEndDate } = parseRvxCsv(csvText);
@@ -202,6 +202,6 @@ export async function importProspectsFromRvx(
     revalidatePath("/prospects");
     return { importedCount: newRows.length };
   } catch {
-    throw new Error("Import failed. Please try again.");
+    return { error: "Import failed. Please try again." };
   }
 }
