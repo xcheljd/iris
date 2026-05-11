@@ -33,6 +33,7 @@ export const employees = sqliteTable("employees", {
   active: integer("active", { mode: "boolean" }).notNull().default(true),
   secretQuestion: text("secret_question"),
   secretAnswerHash: text("secret_answer_hash"),
+  onboardingState: text("onboarding_state"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
