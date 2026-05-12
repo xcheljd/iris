@@ -356,7 +356,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
   return (
     <>
       <Topbar title="Follow-Ups" />
-      <div className="flex-1 p-4 md:p-6">
+      <div className="flex-1 p-4 md:p-6" data-tour="follow-ups">
       <div className="mb-6">
         <h1 className="sr-only">Follow-Ups</h1>
         <p className="text-muted-foreground">

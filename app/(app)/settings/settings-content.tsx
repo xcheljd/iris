@@ -46,13 +46,13 @@ export function SettingsContent({ employees, tags, templates, deletedClients, cu
               Profile
             </TabsTrigger>
             {isManager && (
-              <TabsTrigger value="employees" className="gap-1">
+              <TabsTrigger value="employees" className="gap-1" data-tour="employee-management">
                 <Users className="h-4 w-4" />
                 Employees
               </TabsTrigger>
             )}
             {isManager && (
-              <TabsTrigger value="backup" className="gap-1">
+              <TabsTrigger value="backup" className="gap-1" data-tour="backup">
                 <DatabaseBackup className="h-4 w-4" />
                 Backup
               </TabsTrigger>

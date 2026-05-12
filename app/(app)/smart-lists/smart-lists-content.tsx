@@ -156,7 +156,7 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
   return (
     <>
       <Topbar title="Smart Lists" />
-      <div className="flex-1 p-4 md:p-6">
+      <div className="flex-1 p-4 md:p-6" data-tour="smart-lists">
         <div className="mb-6">
           <h1 className="sr-only">Smart Lists</h1>
           <p className="text-muted-foreground mt-1">Saved filter combinations for quick access</p>

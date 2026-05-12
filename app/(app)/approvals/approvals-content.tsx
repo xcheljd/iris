@@ -102,7 +102,7 @@ export function ApprovalsContent({ requests: initialRequests }: ApprovalsContent
   return (
     <>
       <Topbar title="Approvals" />
-      <div className="flex-1 p-4 md:p-6">
+      <div className="flex-1 p-4 md:p-6" data-tour="approvals">
         <div className="mb-6">
           <h1 className="sr-only">Approvals</h1>
           <p className="text-muted-foreground">

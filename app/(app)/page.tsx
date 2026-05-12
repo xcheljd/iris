@@ -53,7 +53,7 @@ async function DashboardContent() {
       <Topbar title="Dashboard" />
       <div className="flex-1 p-4 md:p-6 space-y-6">
         {/* Stat Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-tour="dashboard-stats">
           <StatCard icon={Users} label="Total Clients" value={stats.total} sublabel={`${stats.active} active`} />
           <StatCard icon={Flame} label="Hot Leads" value={stats.hot} accent />
           <StatCard icon={Phone} label="Outreach (7d)" value={stats.outreachWeek} />

@@ -160,7 +160,7 @@ export function ClientListContent({
           <Link href="/clients/new"><Plus className="h-4 w-4 mr-1" /> Add Client</Link>
         </Button>
       </Topbar>
-      <div className="flex-1 p-4 md:p-6 space-y-4 max-w-full overflow-hidden">
+      <div className="flex-1 p-4 md:p-6 space-y-4 max-w-full overflow-hidden" data-tour="client-list">
         {/* Filters */}
         <Card className="p-3">
           <div className="flex flex-col md:flex-row gap-2 items-stretch md:items-center">

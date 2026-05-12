@@ -122,7 +122,7 @@ export function AnalyticsContent({ stats, recentOutreach, employees, selectedEmp
   return (
     <>
       <Topbar title="Analytics" />
-      <div className="flex-1 p-4 md:p-6">
+      <div className="flex-1 p-4 md:p-6" data-tour="analytics">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
           <div>
             <h1 className="sr-only">Analytics</h1>

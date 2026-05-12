@@ -55,7 +55,7 @@ export function AppSidebar() {
   }, [isManager, pathname]);
 
   return (
-    <Sidebar>
+    <Sidebar data-tour="sidebar">
       <SidebarHeader className="border-b border-sidebar-border">
         <Link href="/" className={cn("flex items-center gap-2 py-1.5", collapsed ? "justify-center px-0" : "px-2")} aria-label="Iris Dashboard">
           <IrisIcon size={32} className="shrink-0" />

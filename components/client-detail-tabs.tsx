@@ -32,7 +32,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
   if (!client) return null;
 
   return (
-    <div className="p-4 md:p-6">
+    <div className="p-4 md:p-6" data-tour="client-detail-tabs">
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
         <Avatar className="h-14 w-14 text-lg">
           <AvatarFallback className="bg-primary/10 text-primary font-semibold">

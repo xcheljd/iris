@@ -22,7 +22,7 @@ export function Topbar({ title, children }: { title?: string; children?: React.R
       {title && <h1 className="text-sm font-medium">{title}</h1>}
       {children}
       <div className="flex-1" />
-      <Button variant="outline" size="sm" className="gap-2 text-muted-foreground h-8" onClick={() => setPaletteOpen(true)}>
+      <Button variant="outline" size="sm" className="gap-2 text-muted-foreground h-8" onClick={() => setPaletteOpen(true)} data-tour="command-palette-trigger">
         <Search className="h-3.5 w-3.5" />
         <span className="hidden sm:inline">Search</span>
         <Kbd>⌘K</Kbd>
