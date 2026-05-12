@@ -156,7 +156,7 @@ export function ClientListContent({
   return (
     <>
       <Topbar title="Clients">
-        <Button asChild variant="gold" size="sm">
+        <Button asChild variant="gold" size="sm" data-hint="add-client">
           <Link href="/clients/new"><Plus className="h-4 w-4 mr-1" /> Add Client</Link>
         </Button>
       </Topbar>

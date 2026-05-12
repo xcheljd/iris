@@ -2,5 +2,8 @@ export { OnboardingProvider, useOnboarding } from "./onboarding-provider";
 export { TourOverlay, ResumeTourButton } from "./tour-overlay";
 export { TourTooltip } from "./tour-tooltip";
 export { TourErrorBoundary } from "./tour-error-boundary";
+export { HintManager } from "./hint-manager";
 export type { TourStep } from "./tour-steps";
 export { getStepsForRole, getTotalSteps, getStepIdForIndex, getValidStepIds } from "./tour-steps";
+export type { HintDefinition } from "./hint-definitions";
+export { HINT_DEFINITIONS, getHintsForPath, getShortcutText, getValidHintIds } from "./hint-definitions";

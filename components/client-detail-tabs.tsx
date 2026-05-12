@@ -59,7 +59,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
         <div className="sm:ml-auto">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Actions">
+              <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Actions" data-hint="edit-client">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -73,7 +73,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                 clientId={client.id}
                 clientName={`${client.firstName} ${client.lastName}`}
                 trigger={
-                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()} data-hint="log-outreach">
                     <Calendar className="h-4 w-4 mr-2" /> Log Outreach
                   </DropdownMenuItem>
                 }

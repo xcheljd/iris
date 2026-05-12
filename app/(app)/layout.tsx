@@ -3,7 +3,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { CommandPalette, CommandPaletteProvider } from "@/components/command-palette";
 import { MobileNav } from "@/components/mobile-nav";
 import { BackupReminderDialog } from "@/components/backup-reminder-dialog";
-import { OnboardingProvider, TourOverlay, TourTooltip, TourErrorBoundary, ResumeTourButton } from "@/components/onboarding";
+import { OnboardingProvider, TourOverlay, TourTooltip, TourErrorBoundary, ResumeTourButton, HintManager } from "@/components/onboarding";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
@@ -28,6 +28,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <TourOverlay />
             <TourTooltip />
             <ResumeTourButton />
+            <HintManager />
           </TourErrorBoundary>
         </OnboardingProvider>
       </CommandPaletteProvider>
