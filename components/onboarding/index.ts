@@ -3,6 +3,7 @@ export { TourOverlay, ResumeTourButton } from "./tour-overlay";
 export { TourTooltip } from "./tour-tooltip";
 export { TourErrorBoundary } from "./tour-error-boundary";
 export { HintManager } from "./hint-manager";
+export { OnboardingSettingsTab } from "./onboarding-settings-tab";
 export type { TourStep } from "./tour-steps";
 export { getStepsForRole, getTotalSteps, getStepIdForIndex, getValidStepIds } from "./tour-steps";
 export type { HintDefinition } from "./hint-definitions";

@@ -2,7 +2,7 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Users, Tag, FileText, Trash2, UserCircle, DatabaseBackup } from "lucide-react";
+import { Users, Tag, FileText, Trash2, UserCircle, DatabaseBackup, GraduationCap } from "lucide-react";
 import { Topbar } from "@/components/topbar";
 import { ProfileTab } from "./profile-tab";
 import { EmployeesTab } from "./employees-tab";
@@ -10,6 +10,7 @@ import { SettingsTagsTab } from "./tags-tab";
 import { TemplatesTab } from "./templates-tab";
 import { DeletedTab } from "./deleted-tab";
 import { BackupTab } from "./backup-tab";
+import { OnboardingSettingsTab } from "@/components/onboarding/onboarding-settings-tab";
 import type { SafeEmployeeRow } from "@/lib/queries";
 import type { ClientTag } from "@/lib/db/schema";
 import type { OutreachTemplate } from "@/lib/db/schema";
@@ -69,6 +70,10 @@ export function SettingsContent({ employees, tags, templates, deletedClients, cu
               <Trash2 className="h-4 w-4" />
               Deleted
             </TabsTrigger>
+            <TabsTrigger value="onboarding" className="gap-1">
+              <GraduationCap className="h-4 w-4" />
+              Onboarding
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="profile">
@@ -101,6 +106,10 @@ export function SettingsContent({ employees, tags, templates, deletedClients, cu
 
           <TabsContent value="deleted">
             <DeletedTab deletedClients={deletedClients} isManager={isManager} />
+          </TabsContent>
+
+          <TabsContent value="onboarding">
+            <OnboardingSettingsTab />
           </TabsContent>
         </Tabs>
       </div>
