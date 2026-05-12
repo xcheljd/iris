@@ -305,13 +305,56 @@ describe("OnboardingSettingsTab", () => {
       expect.objectContaining({
         tourCompleted: false,
         completedSteps: [],
-        currentStep: 0,
+        // currentStep is omitted to avoid Zod .min(1) validation error;
+        // the server action preserves the existing value when not provided.
         hintsDismissed: ["add-client", "edit-client"],
+        tourSkipped: false,
       }),
     );
 
     // Should have called startTour to begin from step 1
     expect(mockStartTour).toHaveBeenCalledWith(1);
+  });
+
+  it("replay does NOT send currentStep in the payload (avoids Zod .min(1) error)", async () => {
+    const user = userEvent.setup();
+    mockOnboardingContext.onboardingState = {
+      tourCompleted: true,
+      currentStep: 8,
+      completedSteps: getStepsForRole("associate").map((s) => s.id),
+      hintsDismissed: [],
+      tourSkipped: true,
+    };
+    renderTab();
+
+    await user.click(screen.getByRole("button", { name: /start tour/i }));
+    await user.click(screen.getByRole("button", { name: /confirm/i }));
+
+    // Verify currentStep is NOT in the payload (it would fail Zod .min(1) validation)
+    const callArgs = mockUpdateOnboardingState.mock.calls[0][0];
+    expect(callArgs).not.toHaveProperty("currentStep");
+  });
+
+  it("replay resets tourSkipped to false", async () => {
+    const user = userEvent.setup();
+    mockOnboardingContext.onboardingState = {
+      tourCompleted: true,
+      currentStep: 0,
+      completedSteps: ["welcome"],
+      hintsDismissed: [],
+      tourSkipped: true,
+    };
+    renderTab();
+
+    await user.click(screen.getByRole("button", { name: /start tour/i }));
+    await user.click(screen.getByRole("button", { name: /confirm/i }));
+
+    // tourSkipped should be reset to false
+    expect(mockUpdateOnboardingState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tourSkipped: false,
+      }),
+    );
   });
 
   // ─── VAL-REPLAY-008: Loading state during reset ──────────────────────
@@ -418,8 +461,9 @@ describe("OnboardingSettingsTab", () => {
       expect.objectContaining({
         tourCompleted: false,
         completedSteps: [],
-        currentStep: 0,
+        // currentStep omitted to avoid Zod .min(1) validation error
         hintsDismissed: ["add-client"],
+        tourSkipped: false,
       }),
     );
   });

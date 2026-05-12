@@ -64,8 +64,10 @@ export function OnboardingSettingsTab() {
       await updateOnboardingState({
         tourCompleted: false,
         completedSteps: [],
-        currentStep: 0,
+        // Omit currentStep — the server action defaults to current value when not provided.
+        // Sending currentStep: 0 would violate the Zod schema (.min(1)).
         hintsDismissed: hints as ("add-client" | "edit-client" | "log-outreach" | "command-palette")[],
+        tourSkipped: false,
       });
       setConfirmOpen(false);
       // Tour starts immediately from step 1

@@ -54,8 +54,8 @@ export const HINT_DEFINITIONS: HintDefinition[] = [
     id: "log-outreach",
     title: "Log an Outreach",
     description:
-      "Record calls, texts, emails, and other interactions with this client to keep your history up to date.",
-    targetSelector: "[data-hint='log-outreach']",
+      "Record calls, texts, emails, and other interactions with this client to keep your history up to date. Click the Actions button to find the Log Outreach option.",
+    targetSelector: "[data-hint='edit-client']",
     pageScope: "/clients/",
     allowMultiple: true,
   },

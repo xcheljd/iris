@@ -73,7 +73,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                 clientId={client.id}
                 clientName={`${client.firstName} ${client.lastName}`}
                 trigger={
-                  <DropdownMenuItem onSelect={(e) => e.preventDefault()} data-hint="log-outreach">
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                     <Calendar className="h-4 w-4 mr-2" /> Log Outreach
                   </DropdownMenuItem>
                 }
