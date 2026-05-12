@@ -38,8 +38,8 @@ const mockUpdateOnboardingState = vi.fn(async (updates: any) => {
 });
 
 vi.mock("@/lib/actions/onboarding", () => ({
-  getOnboardingState: (...args: any[]) => mockGetOnboardingState(...args),
-  updateOnboardingState: (...args: any[]) => mockUpdateOnboardingState(...args),
+  getOnboardingState: () => mockGetOnboardingState(),
+  updateOnboardingState: (updates: any) => mockUpdateOnboardingState(updates),
 }));
 
 // Mock the OnboardingProvider and useOnboarding
