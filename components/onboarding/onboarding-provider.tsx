@@ -108,6 +108,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const isMobile = useIsMobile();
 
   const role = session?.user?.role ?? "associate";
+  const userId = session?.user?.id ?? "";
 
   const steps = useMemo(() => getStepsForRole(role), [role]);
   const totalSteps = steps.length;
@@ -183,8 +184,112 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       const idx = Math.max(1, Math.min(fromStep, totalSteps));
       setCurrentStepIndex(idx);
       setTourStatus("active");
+      // Prepare side effects for the starting step
+      prepareStepSideEffects(idx);
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [isMobile, totalSteps],
+  );
+
+  /* ---- step side effects (sidebar expand, client nav, etc.) ---- */
+
+  /**
+   * Prepare side effects before spotlighting a step:
+   * - Step 3 (sidebar): Expand sidebar if collapsed
+   * - Step 5 (client-detail): Navigate to a client owned by the current user
+   * - Step 7 (command-palette): Prevent palette from opening on spotlight
+   */
+  const prepareStepSideEffects = useCallback(
+    (stepIndex: number) => {
+      const stepDef = steps[stepIndex - 1];
+      if (!stepDef) return;
+
+      switch (stepDef.id) {
+        case "sidebar": {
+          // Expand sidebar if collapsed so navigation items are visible
+          const sidebarEl = document.querySelector("[data-sidebar]");
+          if (sidebarEl) {
+            const collapsed = sidebarEl.getAttribute("data-sidebar") === "collapsed"
+              || sidebarEl.closest("[data-state='collapsed']");
+            if (collapsed) {
+              // Use the SidebarProvider's toggle mechanism
+              // Dispatch a custom event that the SidebarTrigger listens to,
+              // or directly toggle via localStorage + state
+              const sidebarToggle = document.querySelector("[data-sidebar-trigger]");
+              if (sidebarToggle instanceof HTMLElement) {
+                sidebarToggle.click();
+              }
+            }
+          }
+          // Alternative: check for data-sidebar="collapsed" on the sidebar container
+          try {
+            const stored = localStorage.getItem("sidebar:collapsed");
+            if (stored === "true") {
+              localStorage.setItem("sidebar:collapsed", "false");
+              // Force a state update by toggling the sidebar trigger
+              const trigger = document.querySelector("[data-slot='sidebar-trigger']") as HTMLElement | null
+                || document.querySelector("button[data-sidebar-trigger]") as HTMLElement | null;
+              if (trigger) trigger.click();
+            }
+          } catch {
+            // localStorage not available
+          }
+          break;
+        }
+        case "client-detail": {
+          // Find a client owned by the current user to navigate to
+          fetch("/api/clients?limit=1&myClients=true")
+            .then((r) => (r.ok ? r.json() : { clients: [] }))
+            .then((data) => {
+              const clients = data.clients ?? data;
+              if (Array.isArray(clients) && clients.length > 0) {
+                const clientId = clients[0].id;
+                // Update the step's page to include the specific client ID
+                const clientStep = steps[stepIndex - 1];
+                if (clientStep) {
+                  clientStep.page = `/clients/${clientId}`;
+                }
+                // Navigate if not already on the client page
+                if (!pathname.startsWith(`/clients/${clientId}`)) {
+                  router.replace(`/clients/${clientId}`);
+                }
+              } else {
+                // No clients found — update step description to informational message
+                const clientStep = steps[stepIndex - 1];
+                if (clientStep) {
+                  clientStep.description = "Client details will appear here once you've added your first client. Use the 'Add Client' button to get started!";
+                  clientStep.page = "/clients";
+                }
+              }
+            })
+            .catch(() => {
+              // On error, just navigate to clients list
+              const clientStep = steps[stepIndex - 1];
+              if (clientStep) {
+                clientStep.page = "/clients";
+              }
+            });
+          break;
+        }
+        case "command-palette": {
+          // Step 7 must NOT trigger the command palette.
+          // We add a temporary CSS class that prevents pointer events from
+          // reaching the trigger's onClick handler.
+          // The TourOverlay already blocks clicks on non-highlighted elements,
+          // so the palette won't open. No extra action needed here,
+          // but we add a data attribute to signal the spotlight.
+          const trigger = document.querySelector("[data-tour='command-palette-trigger']");
+          if (trigger) {
+            trigger.setAttribute("data-tour-prevent-click", "true");
+          }
+          break;
+        }
+        default:
+          break;
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [steps, pathname, router, userId],
   );
 
   const persistStep = useCallback(
@@ -217,6 +322,10 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const nextStep = useCallback(async () => {
     if (tourStatus !== "active") return;
 
+    // Clean up command-palette prevent-click attribute from previous step
+    const prevTrigger = document.querySelector("[data-tour-prevent-click]");
+    if (prevTrigger) prevTrigger.removeAttribute("data-tour-prevent-click");
+
     if (currentStepIndex >= totalSteps) {
       // Already on last step → complete
       setTourStatus("completed");
@@ -238,20 +347,30 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     const nextIdx = currentStepIndex + 1;
     setCurrentStepIndex(nextIdx);
 
+    // Prepare side effects for the new step (sidebar expansion, client nav, etc.)
+    prepareStepSideEffects(nextIdx);
+
     const nextStepDef = steps[nextIdx - 1];
     if (nextStepDef && nextStepDef.page !== "current" && nextStepDef.page !== pathname) {
       router.replace(nextStepDef.page);
     }
 
     persistStep(nextIdx);
-  }, [tourStatus, currentStepIndex, totalSteps, steps, pathname, router, persistStep]);
+  }, [tourStatus, currentStepIndex, totalSteps, steps, pathname, router, persistStep, prepareStepSideEffects]);
 
   const prevStep = useCallback(() => {
     if (tourStatus !== "active") return;
     if (currentStepIndex <= 1) return;
 
+    // Clean up command-palette prevent-click attribute from previous step
+    const prevTrigger = document.querySelector("[data-tour-prevent-click]");
+    if (prevTrigger) prevTrigger.removeAttribute("data-tour-prevent-click");
+
     const prevIdx = currentStepIndex - 1;
     setCurrentStepIndex(prevIdx);
+
+    // Prepare side effects for the step we're going back to
+    prepareStepSideEffects(prevIdx);
 
     const prevStepDef = steps[prevIdx - 1];
     if (prevStepDef && prevStepDef.page !== "current" && prevStepDef.page !== pathname) {
@@ -259,9 +378,13 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     }
 
     persistStep(prevIdx);
-  }, [tourStatus, currentStepIndex, steps, pathname, router, persistStep]);
+  }, [tourStatus, currentStepIndex, steps, pathname, router, persistStep, prepareStepSideEffects]);
 
   const skipTour = useCallback(async () => {
+    // Clean up command-palette prevent-click attribute
+    const prevTrigger = document.querySelector("[data-tour-prevent-click]");
+    if (prevTrigger) prevTrigger.removeAttribute("data-tour-prevent-click");
+
     setTourStatus("idle");
     setCurrentStepIndex(0);
 

@@ -52,7 +52,7 @@ export function TourOverlay() {
   const updateRect = useCallback(() => {
     if (!currentStep?.targetSelector) {
       setTargetRect(null);
-      return;
+      return false;
     }
 
     // Scroll target into view first
@@ -63,17 +63,44 @@ export function TourOverlay() {
 
     const rect = getElementRect(currentStep.targetSelector);
     setTargetRect(rect);
+    return rect !== null;
   }, [currentStep?.targetSelector, reducedMotion]);
 
   useEffect(() => {
     if (tourStatus !== "active" || isMobile) return;
 
+    let observer: MutationObserver | null = null;
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
+
     // Initial measurement with a slight delay to allow DOM to settle after navigation
     const timer = setTimeout(() => {
-      updateRect();
+      const found = updateRect();
+
+      // If element not found immediately, start polling with MutationObserver
+      if (!found && currentStep?.targetSelector) {
+        const startTime = Date.now();
+        const TIMEOUT = 2000;
+
+        observer = new MutationObserver(() => {
+          if (updateRect()) {
+            if (observer) { observer.disconnect(); observer = null; }
+            if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+          }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+
+        const poll = () => {
+          if (updateRect()) {
+            if (observer) { observer.disconnect(); observer = null; }
+          } else if (Date.now() - startTime < TIMEOUT) {
+            pollTimer = setTimeout(poll, 100);
+          }
+        };
+        pollTimer = setTimeout(poll, 100);
+      }
     }, 100);
 
-    // Continuously track via rAF
+    // Continuously track via rAF (for position changes, resize, etc.)
     const loop = () => {
       updateRect();
       rafRef.current = requestAnimationFrame(loop);
@@ -85,10 +112,12 @@ export function TourOverlay() {
 
     return () => {
       clearTimeout(timer);
+      if (pollTimer) clearTimeout(pollTimer);
+      if (observer) observer.disconnect();
       cancelAnimationFrame(rafRef.current);
       window.removeEventListener("resize", onResize);
     };
-  }, [tourStatus, isMobile, currentStepIndex, updateRect]);
+  }, [tourStatus, isMobile, currentStepIndex, updateRect, currentStep?.targetSelector]);
 
   /* ---- don't render if conditions not met ---- */
   if (tourStatus !== "active" || isMobile || currentStepIndex === 0) {

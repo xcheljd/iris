@@ -145,15 +145,20 @@ function SpotlightTooltip({
 }: TooltipProps) {
   const [anchorPos, setAnchorPos] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const [side, setSide] = useState<"top" | "bottom">("bottom");
+  const [waitingForElement, setWaitingForElement] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
   /* ---- measure target element ---- */
   useEffect(() => {
     if (!step.targetSelector) return;
 
+    let cancelled = false;
+    let observer: MutationObserver | null = null;
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
+
     function measure() {
       const el = document.querySelector(step.targetSelector!);
-      if (!el) return;
+      if (!el) return false;
       const rect = el.getBoundingClientRect();
 
       // Determine which side has more space
@@ -163,23 +168,107 @@ function SpotlightTooltip({
 
       setAnchorPos({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
       setSide(newSide);
+      return true;
     }
 
-    // Initial measurement
-    const timer = setTimeout(measure, 120);
+    function cleanup() {
+      if (observer) {
+        observer.disconnect();
+        observer = null;
+      }
+      if (pollTimer) {
+        clearTimeout(pollTimer);
+        pollTimer = null;
+      }
+    }
+
+    function startPolling() {
+      // Try immediate measurement first
+      if (measure()) {
+        setWaitingForElement(false);
+        return;
+      }
+
+      // Element not in DOM yet — start MutationObserver-based polling
+      setWaitingForElement(true);
+
+      const timeout = 2000; // 2s max wait
+      const startTime = Date.now();
+
+      observer = new MutationObserver(() => {
+        if (cancelled) return;
+        if (measure()) {
+          setWaitingForElement(false);
+          cleanup();
+        } else if (Date.now() - startTime >= timeout) {
+          // Timed out — skip this step
+          setWaitingForElement(false);
+          cleanup();
+          // Element not found after 2s — skip step with console warning
+          // eslint-disable-next-line no-console
+          console.warn(`[Tour] Target element "${step.targetSelector}" not found after 2s — skipping step`);
+          onSkip();
+        }
+      });
+
+      observer.observe(document.body, { childList: true, subtree: true });
+
+      // Also poll periodically as a fallback (MutationObserver may miss some cases)
+      const poll = () => {
+        if (cancelled) return;
+        if (measure()) {
+          setWaitingForElement(false);
+          cleanup();
+        } else if (Date.now() - startTime >= timeout) {
+          setWaitingForElement(false);
+          cleanup();
+          // eslint-disable-next-line no-console
+          console.warn(`[Tour] Target element "${step.targetSelector}" not found after 2s — skipping step`);
+          onSkip();
+        } else {
+          pollTimer = setTimeout(poll, 100);
+        }
+      };
+      pollTimer = setTimeout(poll, 100);
+    }
+
+    // Initial measurement with slight delay to allow DOM to settle after navigation
+    const timer = setTimeout(() => {
+      if (!cancelled) startPolling();
+    }, 120);
 
     // Re-measure on resize and scroll
     window.addEventListener("resize", measure);
     window.addEventListener("scroll", measure, true);
 
     return () => {
+      cancelled = true;
       clearTimeout(timer);
+      cleanup();
       window.removeEventListener("resize", measure);
       window.removeEventListener("scroll", measure, true);
     };
-  }, [step.targetSelector, stepIndex]);
+  }, [step.targetSelector, stepIndex, onSkip]);
 
-  if (!anchorPos) return null;
+  if (!anchorPos) {
+    // While waiting for the target element to appear, show a loading indicator
+    // This prevents the tooltip from returning null during page transitions
+    if (waitingForElement) {
+      return (
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Loading tour step..."
+        >
+          <div className="rounded-lg border bg-background p-4 shadow-lg">
+            <p className="text-sm text-muted-foreground">Loading step...</p>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  }
 
   const tooltipTop = side === "bottom"
     ? anchorPos.top + anchorPos.height + 12

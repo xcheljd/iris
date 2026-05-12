@@ -124,4 +124,121 @@ describe("tour-steps", () => {
       expect(ids).toContain("analytics");
     });
   });
+
+  describe("step ordering matches validation contract", () => {
+    it("associate steps match the contract: welcome, dashboard, sidebar, client-list, client-detail, follow-ups, command-palette, smart-lists", () => {
+      const steps = getStepsForRole("associate");
+      const ids = steps.map((s) => s.id);
+      expect(ids).toEqual([
+        "welcome",
+        "dashboard",
+        "sidebar",
+        "client-list",
+        "client-detail",
+        "follow-ups",
+        "command-palette",
+        "smart-lists",
+      ]);
+    });
+
+    it("manager steps include 4 extras after base: approvals, employee-management, backup, analytics", () => {
+      const steps = getStepsForRole("manager");
+      const ids = steps.map((s) => s.id);
+      // First 8 match associate
+      expect(ids.slice(0, 8)).toEqual([
+        "welcome",
+        "dashboard",
+        "sidebar",
+        "client-list",
+        "client-detail",
+        "follow-ups",
+        "command-palette",
+        "smart-lists",
+      ]);
+      // Last 4 are manager-only
+      expect(ids.slice(8)).toEqual([
+        "approvals",
+        "employee-management",
+        "backup",
+        "analytics",
+      ]);
+    });
+  });
+
+  describe("manager step targets match validation contract (VAL-TOUR-020)", () => {
+    const managerSteps = getStepsForRole("manager");
+
+    it("step 9 (approvals) spotlights Approvals Queue nav item in sidebar", () => {
+      const step = managerSteps[8]; // 0-based index for step 9
+      expect(step.id).toBe("approvals");
+      expect(step.targetSelector).toBe("[data-tour='approvals']");
+      expect(step.page).toBe("/approvals");
+      expect(step.description).toContain("request");
+    });
+
+    it("step 10 (employee-management) navigates to Settings and spotlights Employee Management tab", () => {
+      const step = managerSteps[9]; // 0-based index for step 10
+      expect(step.id).toBe("employee-management");
+      expect(step.targetSelector).toBe("[data-tour='employee-management']");
+      expect(step.page).toBe("/settings");
+      expect(step.description).toContain("Employee");
+    });
+
+    it("step 11 (backup) spotlights Backup tab within Settings", () => {
+      const step = managerSteps[10]; // 0-based index for step 11
+      expect(step.id).toBe("backup");
+      expect(step.targetSelector).toBe("[data-tour='backup']");
+      expect(step.page).toBe("/settings");
+      expect(step.description).toContain("Backup");
+    });
+
+    it("step 12 (analytics) navigates to and spotlights Analytics page area", () => {
+      const step = managerSteps[11]; // 0-based index for step 12
+      expect(step.id).toBe("analytics");
+      expect(step.targetSelector).toBe("[data-tour='analytics']");
+      expect(step.page).toBe("/analytics");
+      expect(step.title).toContain("Analytics");
+    });
+  });
+
+  describe("base step targets match validation contract", () => {
+    const baseSteps = getStepsForRole("associate");
+
+    it("step 3 (sidebar) targets sidebar component with data-tour attribute", () => {
+      const step = baseSteps[2]; // 0-based index for step 3
+      expect(step.id).toBe("sidebar");
+      expect(step.targetSelector).toBe("[data-tour='sidebar']");
+    });
+
+    it("step 5 (client-detail) targets client-detail-tabs", () => {
+      const step = baseSteps[4]; // 0-based index for step 5
+      expect(step.id).toBe("client-detail");
+      expect(step.targetSelector).toBe("[data-tour='client-detail-tabs']");
+    });
+
+    it("step 7 (command-palette) targets the Cmd+K trigger", () => {
+      const step = baseSteps[6]; // 0-based index for step 7
+      expect(step.id).toBe("command-palette");
+      expect(step.targetSelector).toBe("[data-tour='command-palette-trigger']");
+      expect(step.description).toContain("⌘K");
+    });
+
+    it("step 7 uses page='current' to stay on the current page", () => {
+      const step = baseSteps[6];
+      expect(step.page).toBe("current");
+    });
+  });
+
+  describe("page navigation steps", () => {
+    it("steps that change pages have correct page routes", () => {
+      const steps = getStepsForRole("manager");
+      const pageChangingSteps = steps.filter(
+        (s) => s.page !== "current" && s.page !== "/",
+      );
+      // client-list -> /clients, client-detail -> /clients (dynamic), follow-ups -> /follow-ups,
+      // smart-lists -> /smart-lists, approvals -> /approvals, employee-management -> /settings,
+      // backup -> /settings, analytics -> /analytics
+      expect(pageChangingSteps.length).toBeGreaterThanOrEqual(6);
+    });
+  });
 });
