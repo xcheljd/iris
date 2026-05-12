@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, act } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, act, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 
@@ -8,7 +8,7 @@ import React from "react";
 // Mock next-auth/react
 const mockSession = {
   data: {
-    user: { id: "test-user-id", name: "Test User", role: "associate" as const, firstName: "Test", lastName: "User" },
+    user: { id: "test-user-id", name: "Test User", role: "associate" as "associate" | "manager", firstName: "Test", lastName: "User" },
   },
   status: "authenticated" as const,
 };
@@ -379,5 +379,119 @@ describe("OnboardingProvider", () => {
     });
 
     expect(mockReplace).toHaveBeenCalledWith("/clients");
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* VAL-TOUR-032 partial: Escape checks Command Palette state                  */
+/* -------------------------------------------------------------------------- */
+
+describe("Escape handler and Command Palette priority (VAL-TOUR-032)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockOnboardingState = null;
+    mockPathname = "/";
+    mockSession.data.user.role = "associate";
+    mockSession.status = "authenticated";
+    Object.defineProperty(window, "innerWidth", { value: 1024, writable: true, configurable: true });
+  });
+
+  afterEach(() => {
+    // Clean up any command palette DOM elements
+    document.querySelectorAll("[data-command-dialog], [cmdk-root], [data-command-root]").forEach((el) => el.remove());
+  });
+
+  it("Escape pauses tour when Command Palette is NOT open", async () => {
+    renderWithProvider();
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 1200));
+    });
+
+    expect(screen.getByTestId("status").textContent).toBe("active");
+
+    // Press Escape — no command palette is open
+    await act(async () => {
+      fireEvent.keyDown(document, { key: "Escape" });
+    });
+
+    expect(screen.getByTestId("status").textContent).toBe("paused");
+  });
+
+  it("Escape does NOT pause tour when Command Palette is open (data-command-dialog)", async () => {
+    renderWithProvider();
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 1200));
+    });
+
+    expect(screen.getByTestId("status").textContent).toBe("active");
+
+    // Simulate command palette being open
+    const paletteEl = document.createElement("div");
+    paletteEl.setAttribute("data-command-dialog", "");
+    document.body.appendChild(paletteEl);
+
+    // Press Escape — command palette is open, tour should NOT pause
+    await act(async () => {
+      fireEvent.keyDown(document, { key: "Escape" });
+    });
+
+    expect(screen.getByTestId("status").textContent).toBe("active");
+
+    document.body.removeChild(paletteEl);
+  });
+
+  it("Escape does NOT pause tour when Command Palette is open (cmdk-root)", async () => {
+    renderWithProvider();
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 1200));
+    });
+
+    expect(screen.getByTestId("status").textContent).toBe("active");
+
+    // Simulate command palette using cmdk-root selector
+    const paletteEl = document.createElement("div");
+    paletteEl.setAttribute("cmdk-root", "");
+    document.body.appendChild(paletteEl);
+
+    await act(async () => {
+      fireEvent.keyDown(document, { key: "Escape" });
+    });
+
+    expect(screen.getByTestId("status").textContent).toBe("active");
+
+    document.body.removeChild(paletteEl);
+  });
+
+  it("Escape pauses tour after Command Palette is closed", async () => {
+    renderWithProvider();
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 1200));
+    });
+
+    expect(screen.getByTestId("status").textContent).toBe("active");
+
+    // Open palette
+    const paletteEl = document.createElement("div");
+    paletteEl.setAttribute("data-command-dialog", "");
+    document.body.appendChild(paletteEl);
+
+    // Escape with palette open — should NOT pause
+    await act(async () => {
+      fireEvent.keyDown(document, { key: "Escape" });
+    });
+    expect(screen.getByTestId("status").textContent).toBe("active");
+
+    // Close palette
+    document.body.removeChild(paletteEl);
+
+    // Escape without palette — should pause
+    await act(async () => {
+      fireEvent.keyDown(document, { key: "Escape" });
+    });
+    expect(screen.getByTestId("status").textContent).toBe("paused");
   });
 });

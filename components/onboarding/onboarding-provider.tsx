@@ -433,6 +433,14 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
         e.preventDefault();
+        // Check if Command Palette is open — it gets priority over tour pause
+        const commandDialog = document.querySelector("[data-command-dialog]");
+        const commandRadixOpen = document.querySelector('[role="dialog"][data-state="open"][data-command-root]');
+        const commandOverlay = document.querySelector("[cmdk-root]");
+        if (commandDialog || commandRadixOpen || commandOverlay) {
+          // Let the command palette handle Escape — don't pause tour
+          return;
+        }
         pauseTour();
       }
     }

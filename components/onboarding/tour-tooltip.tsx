@@ -93,7 +93,7 @@ function WelcomeDialog({
 
         <StepCounter current={stepIndex} total={totalSteps} className="mt-3" />
 
-        <div className="mt-4 flex items-center justify-between">
+        <div className="mt-4 flex items-center justify-between" data-tour-tooltip-controls>
           <button
             type="button"
             className="text-sm text-muted-foreground hover:text-foreground underline"
@@ -303,7 +303,7 @@ function SpotlightTooltip({
 
         <StepCounter current={stepIndex} total={totalSteps} className="mt-2" />
 
-        <div className="mt-3 flex items-center justify-between">
+        <div className="mt-3 flex items-center justify-between" data-tour-tooltip-controls>
           <button
             type="button"
             className="text-xs text-muted-foreground hover:text-foreground underline"

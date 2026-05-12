@@ -6,7 +6,7 @@ import React from "react";
 
 const mockSession = {
   data: {
-    user: { id: "test-user-id", name: "Test User", role: "associate" as const, firstName: "Test", lastName: "User" },
+    user: { id: "test-user-id", name: "Test User", role: "associate" as "associate" | "manager", firstName: "Test", lastName: "User" },
   },
   status: "authenticated" as const,
 };
@@ -177,6 +177,7 @@ describe("TourTooltip", () => {
     // Mock getBoundingClientRect and scrollIntoView
     targetEl.getBoundingClientRect = () => ({
       top: 100, left: 100, width: 100, height: 100, right: 200, bottom: 200, x: 100, y: 100,
+      toJSON: () => ({}),
     });
     targetEl.scrollIntoView = vi.fn();
 
@@ -213,6 +214,7 @@ describe("TourTooltip", () => {
     document.body.appendChild(targetEl);
     targetEl.getBoundingClientRect = () => ({
       top: 100, left: 100, width: 100, height: 100, right: 200, bottom: 200, x: 100, y: 100,
+      toJSON: () => ({}),
     });
     targetEl.scrollIntoView = vi.fn();
 
@@ -244,6 +246,7 @@ describe("TourTooltip", () => {
     document.body.appendChild(targetEl);
     targetEl.getBoundingClientRect = () => ({
       top: 100, left: 100, width: 100, height: 100, right: 200, bottom: 200, x: 100, y: 100,
+      toJSON: () => ({}),
     });
     targetEl.scrollIntoView = vi.fn();
 

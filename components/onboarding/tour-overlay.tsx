@@ -24,6 +24,112 @@ function getElementRect(selector: string | null): Rect | null {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Focus trap hook                                                             */
+/*                                                                            */
+/* Traps Tab/Shift+Tab within tour tooltip controls and the spotlight element */
+/* during active spotlight steps.                                              */
+/* -------------------------------------------------------------------------- */
+
+function useFocusTrap(isActive: boolean, isSpotlightStep: boolean) {
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!isActive || !isSpotlightStep) return;
+
+    // Save the currently focused element to restore later
+    previouslyFocusedRef.current = document.activeElement as HTMLElement;
+
+    // Focus the first focusable tour element after a brief delay to let tooltip render
+    const focusTimer = setTimeout(() => {
+      const firstFocusable = getFocusableElements()[0];
+      if (firstFocusable) {
+        firstFocusable.focus();
+      }
+    }, 200);
+
+    function getFocusableElements(): HTMLElement[] {
+      const elements: HTMLElement[] = [];
+      // Tour tooltip controls (buttons and skip link)
+      const tooltipContainer = document.querySelector("[data-tour-tooltip-controls]");
+      if (tooltipContainer) {
+        const focusable = tooltipContainer.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        );
+        focusable.forEach((el) => elements.push(el));
+      }
+      // Spotlight element (the clickable highlighted area)
+      const spotlight = document.querySelector("[data-tour-spotlight]");
+      if (spotlight instanceof HTMLElement) {
+        // Make spotlight focusable for the duration of the step
+        if (spotlight.getAttribute("tabindex") === null) {
+          spotlight.setAttribute("tabindex", "0");
+        }
+        elements.push(spotlight);
+      }
+      return elements;
+    }
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Tab") return;
+
+      const focusable = getFocusableElements();
+      if (focusable.length === 0) return;
+
+      e.preventDefault();
+
+      const activeElement = document.activeElement;
+      const currentIndex = focusable.indexOf(activeElement as HTMLElement);
+      const isShift = e.shiftKey;
+
+      let nextIndex: number;
+      if (currentIndex === -1) {
+        // Not currently on a focusable element — go to first or last
+        nextIndex = isShift ? focusable.length - 1 : 0;
+      } else if (isShift) {
+        // Shift+Tab: go backwards, wrapping to last
+        nextIndex = currentIndex > 0 ? currentIndex - 1 : focusable.length - 1;
+      } else {
+        // Tab: go forwards, wrapping to first
+        nextIndex = currentIndex < focusable.length - 1 ? currentIndex + 1 : 0;
+      }
+
+      focusable[nextIndex].focus();
+    }
+
+    document.addEventListener("keydown", handleKeyDown, true);
+
+    return () => {
+      clearTimeout(focusTimer);
+      document.removeEventListener("keydown", handleKeyDown, true);
+      // Restore tabindex on spotlight element
+      const spotlight = document.querySelector("[data-tour-spotlight]");
+      if (spotlight instanceof HTMLElement) {
+        spotlight.removeAttribute("tabindex");
+      }
+    };
+  }, [isActive, isSpotlightStep]);
+
+  // Restore focus when the tour step dismisses
+  useEffect(() => {
+    if (!isActive && previouslyFocusedRef.current) {
+      // Use requestAnimationFrame to avoid React batching issues
+      const el = previouslyFocusedRef.current;
+      const raf = requestAnimationFrame(() => {
+        if (el && el.isConnected) {
+          el.focus();
+        } else {
+          // Fallback: focus the body or the main content area
+          const mainContent = document.querySelector("main") || document.body;
+          mainContent.focus();
+        }
+        previouslyFocusedRef.current = null;
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [isActive]);
+}
+
+/* -------------------------------------------------------------------------- */
 /* TourOverlay                                                                 */
 /* -------------------------------------------------------------------------- */
 
@@ -38,6 +144,11 @@ export function TourOverlay() {
   const [targetRect, setTargetRect] = useState<Rect | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
   const rafRef = useRef<number>(0);
+
+  const isSpotlightStep = tourStatus === "active" && currentStepIndex > 0 && currentStep?.targetSelector !== null;
+
+  // Activate focus trap during spotlight steps
+  useFocusTrap(tourStatus === "active", isSpotlightStep);
 
   /* ---- reduced motion detection ---- */
   useEffect(() => {
@@ -162,6 +273,7 @@ function Spotlight({
   reducedMotion: boolean;
   step: TourStep | null;
 }) {
+  const { nextStep } = useOnboarding();
   const padding = 8;
 
   const style: React.CSSProperties = useMemo(() => {
@@ -183,6 +295,17 @@ function Spotlight({
     };
   }, [rect, reducedMotion]);
 
+  const handleClick = useCallback(
+    (e: React.MouseEvent) => {
+      // Prevent the click from reaching the underlying element
+      e.preventDefault();
+      e.stopPropagation();
+      // Advance to the next tour step
+      nextStep();
+    },
+    [nextStep],
+  );
+
   return (
     <>
       {/* Inject keyframes once */}
@@ -192,6 +315,7 @@ function Spotlight({
         role="presentation"
         aria-hidden="true"
         data-tour-spotlight={step?.id ?? "unknown"}
+        onClick={handleClick}
       />
     </>
   );

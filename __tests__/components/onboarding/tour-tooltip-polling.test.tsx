@@ -97,6 +97,7 @@ describe("TourTooltip MutationObserver polling", () => {
       targetEl.setAttribute("data-tour", "dashboard-stats");
       targetEl.getBoundingClientRect = () => ({
         top: 100, left: 100, width: 200, height: 50, right: 300, bottom: 150, x: 100, y: 100,
+        toJSON: () => ({}),
       });
       targetEl.scrollIntoView = vi.fn();
       document.body.appendChild(targetEl);
@@ -183,6 +184,7 @@ describe("TourTooltip MutationObserver polling", () => {
       targetEl.setAttribute("data-tour", "client-list");
       targetEl.getBoundingClientRect = () => ({
         top: 200, left: 50, width: 400, height: 300, right: 450, bottom: 500, x: 50, y: 200,
+        toJSON: () => ({}),
       });
       targetEl.scrollIntoView = vi.fn();
       document.body.appendChild(targetEl);
