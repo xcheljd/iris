@@ -112,7 +112,7 @@ describe("TourTooltip MutationObserver polling", () => {
     expect(screen.queryByText("Loading step...")).toBeFalsy();
   });
 
-  it("advances step after 2s timeout if target element never appears (does NOT skip tour)", async () => {
+  it("advances step after 5s timeout if target element never appears (does NOT skip tour)", async () => {
     const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     mockOnboardingState = {
@@ -130,9 +130,9 @@ describe("TourTooltip MutationObserver polling", () => {
       expect(screen.queryByText("Loading step...")).toBeTruthy();
     }, { timeout: 2000 });
 
-    // Wait for the 2s timeout to elapse (2s polling + buffer)
+    // Wait for the 5s timeout to elapse (5s polling + buffer)
     await act(async () => {
-      await new Promise((r) => setTimeout(r, 2500));
+      await new Promise((r) => setTimeout(r, 5500));
     });
 
     // Should have logged a warning about advancing (not skipping)

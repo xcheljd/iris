@@ -542,6 +542,142 @@ describe("Focus trapping (VAL-TOUR-030)", () => {
     document.body.removeChild(target);
     document.body.removeChild(tooltipControls);
   });
+
+  /* -------------------------------------------------------------------------- */
+  /* VAL-TOUR-030: Focus trap excludes sidebar-wrapper and non-tour elements     */
+  /* -------------------------------------------------------------------------- */
+
+  it("focus does not escape to sidebar-wrapper element with tabindex=0 (VAL-TOUR-030)", async () => {
+    mockOnboardingState = {
+      tourCompleted: false,
+      currentStep: 2,
+      completedSteps: ["welcome"],
+      hintsDismissed: [],
+      tourSkipped: false,
+    };
+
+    // Create a sidebar-wrapper div with tabindex=0 (this was the reported leak)
+    const sidebarWrapper = document.createElement("div");
+    sidebarWrapper.setAttribute("class", "sidebar-wrapper");
+    sidebarWrapper.setAttribute("tabindex", "0");
+    sidebarWrapper.setAttribute("data-testid", "sidebar-wrapper");
+    sidebarWrapper.textContent = "Sidebar";
+    document.body.appendChild(sidebarWrapper);
+
+    const target = document.createElement("div");
+    target.setAttribute("data-tour", "dashboard-stats");
+    target.getBoundingClientRect = () => ({
+      top: 100, left: 100, width: 100, height: 100, right: 200, bottom: 200, x: 100, y: 100,
+      toJSON: () => ({}),
+    });
+    target.scrollIntoView = vi.fn();
+    document.body.appendChild(target);
+
+    const tooltipControls = document.createElement("div");
+    tooltipControls.setAttribute("data-tour-tooltip-controls", "");
+    const skipBtn = document.createElement("button");
+    skipBtn.textContent = "Skip Tour";
+    const nextBtn = document.createElement("button");
+    nextBtn.textContent = "Next";
+    tooltipControls.appendChild(skipBtn);
+    tooltipControls.appendChild(nextBtn);
+    document.body.appendChild(tooltipControls);
+
+    render(
+      <OnboardingProvider>
+        <TourOverlay />
+      </OnboardingProvider>,
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 800));
+    });
+
+    const spotlight = document.querySelector("[data-tour-spotlight]");
+    if (spotlight) {
+      // Try to focus the sidebar-wrapper directly
+      sidebarWrapper.focus();
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 50));
+      });
+
+      // The focusin handler should snap focus back to a tour element
+      // sidebar-wrapper should NOT retain focus
+      expect(document.activeElement).not.toBe(sidebarWrapper);
+    }
+
+    document.body.removeChild(target);
+    document.body.removeChild(tooltipControls);
+    document.body.removeChild(sidebarWrapper);
+  });
+
+  it("focus trap focusin handler returns focus from any non-tour element (VAL-TOUR-030)", async () => {
+    mockOnboardingState = {
+      tourCompleted: false,
+      currentStep: 2,
+      completedSteps: ["welcome"],
+      hintsDismissed: [],
+      tourSkipped: false,
+    };
+
+    const target = document.createElement("div");
+    target.setAttribute("data-tour", "dashboard-stats");
+    target.getBoundingClientRect = () => ({
+      top: 100, left: 100, width: 100, height: 100, right: 200, bottom: 200, x: 100, y: 100,
+      toJSON: () => ({}),
+    });
+    target.scrollIntoView = vi.fn();
+    document.body.appendChild(target);
+
+    const tooltipControls = document.createElement("div");
+    tooltipControls.setAttribute("data-tour-tooltip-controls", "");
+    const skipBtn = document.createElement("button");
+    skipBtn.textContent = "Skip Tour";
+    tooltipControls.appendChild(skipBtn);
+    document.body.appendChild(tooltipControls);
+
+    // Create multiple non-tour focusable elements
+    const randomBtn1 = document.createElement("button");
+    randomBtn1.textContent = "Random Button 1";
+    document.body.appendChild(randomBtn1);
+
+    const divWithTabindex = document.createElement("div");
+    divWithTabindex.setAttribute("tabindex", "0");
+    divWithTabindex.textContent = "Focusable div";
+    document.body.appendChild(divWithTabindex);
+
+    render(
+      <OnboardingProvider>
+        <TourOverlay />
+      </OnboardingProvider>,
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 800));
+    });
+
+    const spotlight = document.querySelector("[data-tour-spotlight]");
+    if (spotlight) {
+      // Focus a random page element
+      randomBtn1.focus();
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 50));
+      });
+      expect(document.activeElement).not.toBe(randomBtn1);
+
+      // Focus a div with tabindex
+      divWithTabindex.focus();
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 50));
+      });
+      expect(document.activeElement).not.toBe(divWithTabindex);
+    }
+
+    document.body.removeChild(target);
+    document.body.removeChild(tooltipControls);
+    document.body.removeChild(randomBtn1);
+    document.body.removeChild(divWithTabindex);
+  });
 });
 
 /* -------------------------------------------------------------------------- */

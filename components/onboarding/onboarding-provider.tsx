@@ -121,6 +121,10 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
   const initialisedRef = useRef(false);
   const persistingRef = useRef(false);
+  const routerRef = useRef(router);
+  routerRef.current = router;
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
 
   /* ---- current step object ---- */
   const currentStep = useMemo(
@@ -158,7 +162,11 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
               }
             }, 800);
           } else if (!state.tourCompleted && !state.tourSkipped && state.currentStep > 0) {
-            // Resume from persisted step
+            // Resume from persisted step — navigate to the step's target page first
+            const resumeStep = getStepsForRole(role)[state.currentStep - 1];
+            if (resumeStep && resumeStep.page !== "current" && resumeStep.page !== pathnameRef.current) {
+              routerRef.current.replace(resumeStep.page);
+            }
             setCurrentStepIndex(state.currentStep);
             setTourStatus("active");
           }

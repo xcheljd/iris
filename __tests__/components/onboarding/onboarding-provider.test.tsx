@@ -380,6 +380,108 @@ describe("OnboardingProvider", () => {
 
     expect(mockReplace).toHaveBeenCalledWith("/clients");
   });
+
+  /* -------------------------------------------------------------------------- */
+  /* VAL-TOUR-016: Tour resume navigates to persisted step's target page         */
+  /* -------------------------------------------------------------------------- */
+
+  it("navigates to the persisted step's target page on resume (VAL-TOUR-016)", async () => {
+    // User was on step 4 (client-list, page=/clients) when they closed the browser
+    // They're now on "/" — tour should navigate to "/clients" before activating
+    mockPathname = "/";
+    mockOnboardingState = {
+      tourCompleted: false,
+      currentStep: 4,
+      completedSteps: ["welcome", "dashboard", "sidebar"],
+      hintsDismissed: [],
+      tourSkipped: false,
+    };
+
+    renderWithProvider();
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 200));
+    });
+
+    // Tour should have resumed at step 4
+    expect(screen.getByTestId("status").textContent).toBe("active");
+    expect(screen.getByTestId("step-index").textContent).toBe("4");
+    // Router should have navigated to the step's target page
+    expect(mockReplace).toHaveBeenCalledWith("/clients");
+  });
+
+  it("does not navigate on resume when already on the step's page (VAL-TOUR-016)", async () => {
+    // User was on step 4 (client-list, page=/clients) and is already on /clients
+    mockPathname = "/clients";
+    mockOnboardingState = {
+      tourCompleted: false,
+      currentStep: 4,
+      completedSteps: ["welcome", "dashboard", "sidebar"],
+      hintsDismissed: [],
+      tourSkipped: false,
+    };
+
+    renderWithProvider();
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 200));
+    });
+
+    // Tour should have resumed at step 4
+    expect(screen.getByTestId("status").textContent).toBe("active");
+    expect(screen.getByTestId("step-index").textContent).toBe("4");
+    // Router should NOT have been called — already on correct page
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it("navigates to manager step page on resume (VAL-TOUR-016)", async () => {
+    // Manager was on step 9 (approvals, page=/approvals) when they closed the browser
+    mockSession.data.user.role = "manager";
+    mockPathname = "/";
+    mockOnboardingState = {
+      tourCompleted: false,
+      currentStep: 9,
+      completedSteps: ["welcome", "dashboard", "sidebar", "client-list", "client-detail", "follow-ups", "command-palette", "smart-lists"],
+      hintsDismissed: [],
+      tourSkipped: false,
+    };
+
+    renderWithProvider();
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 200));
+    });
+
+    // Tour should have resumed at step 9
+    expect(screen.getByTestId("status").textContent).toBe("active");
+    expect(screen.getByTestId("step-index").textContent).toBe("9");
+    // Router should have navigated to the approvals page
+    expect(mockReplace).toHaveBeenCalledWith("/approvals");
+  });
+
+  it("does not navigate on resume for steps on 'current' page (VAL-TOUR-016)", async () => {
+    // Step 7 (command-palette) has page="current" — no navigation needed
+    mockPathname = "/follow-ups";
+    mockOnboardingState = {
+      tourCompleted: false,
+      currentStep: 7,
+      completedSteps: ["welcome", "dashboard", "sidebar", "client-list", "client-detail", "follow-ups"],
+      hintsDismissed: [],
+      tourSkipped: false,
+    };
+
+    renderWithProvider();
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 200));
+    });
+
+    // Tour should have resumed at step 7
+    expect(screen.getByTestId("status").textContent).toBe("active");
+    expect(screen.getByTestId("step-index").textContent).toBe("7");
+    // Router should NOT have been called — step uses "current" page
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
 });
 
 /* -------------------------------------------------------------------------- */

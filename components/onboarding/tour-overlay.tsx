@@ -69,6 +69,17 @@ function useFocusTrap(isActive: boolean, isSpotlightStep: boolean) {
       return elements;
     }
 
+    /** Check if an element belongs to the tour UI (not the underlying page). */
+    function isTourElement(el: HTMLElement): boolean {
+      // Elements inside the tooltip controls container
+      if (el.closest("[data-tour-tooltip-controls]")) return true;
+      // The spotlight element itself
+      if (el.hasAttribute("data-tour-spotlight") || el.closest("[data-tour-spotlight]")) return true;
+      // Elements inside the dark backdrop (but the backdrop itself is aria-hidden)
+      if (el.closest("[data-tour-backdrop]")) return false;
+      return false;
+    }
+
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key !== "Tab") return;
 
@@ -106,13 +117,11 @@ function useFocusTrap(isActive: boolean, isSpotlightStep: boolean) {
       if (focusable.length === 0) return;
 
       const target = e.target as HTMLElement;
-      // Check if focus landed on a tour element
-      const isTourElement = focusable.includes(target)
-        || target.closest("[data-tour-tooltip-controls]")
-        || target.closest("[data-tour-spotlight]");
+      // Check if focus landed on a tour element using the helper
+      const isTourTarget = isTourElement(target);
 
-      if (!isTourElement) {
-        // Focus escaped — snap it back to the first focusable tour element
+      if (!isTourTarget) {
+        // Focus escaped to a non-tour element (e.g., sidebar-wrapper with tabindex=0) — snap it back
         e.preventDefault();
         e.stopPropagation();
         focusable[0].focus();
@@ -217,7 +226,7 @@ export function TourOverlay() {
       // If element not found immediately, start polling with MutationObserver
       if (!found && currentStep?.targetSelector) {
         const startTime = Date.now();
-        const TIMEOUT = 2000;
+        const TIMEOUT = 5000;
 
         observer = new MutationObserver(() => {
           if (updateRect()) {

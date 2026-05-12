@@ -197,7 +197,7 @@ function SpotlightTooltip({
       // Element not in DOM yet — start MutationObserver-based polling
       setWaitingForElement(true);
 
-      const timeout = 2000; // 2s max wait
+      const timeout = 5000; // 5s max wait for page transitions
       const startTime = Date.now();
 
       observer = new MutationObserver(() => {
@@ -211,7 +211,7 @@ function SpotlightTooltip({
           cleanup();
           // Element not found after 2s — advance step with console warning
           // eslint-disable-next-line no-console
-          console.warn(`[Tour] Target element "${step.targetSelector}" not found after 2s — advancing to next step`);
+          console.warn(`[Tour] Target element "${step.targetSelector}" not found after 5s — advancing to next step`);
           onNext();
         }
       });
@@ -228,7 +228,7 @@ function SpotlightTooltip({
           setWaitingForElement(false);
           cleanup();
           // eslint-disable-next-line no-console
-          console.warn(`[Tour] Target element "${step.targetSelector}" not found after 2s — advancing to next step`);
+          console.warn(`[Tour] Target element "${step.targetSelector}" not found after 5s — advancing to next step`);
           onNext();
         } else {
           pollTimer = setTimeout(poll, 100);
