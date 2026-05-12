@@ -41,9 +41,9 @@ function useFocusTrap(isActive: boolean, isSpotlightStep: boolean) {
 
     // Focus the first focusable tour element after a brief delay to let tooltip render
     const focusTimer = setTimeout(() => {
-      const firstFocusable = getFocusableElements()[0];
-      if (firstFocusable) {
-        firstFocusable.focus();
+      const focusable = getFocusableElements();
+      if (focusable.length > 0) {
+        focusable[0].focus();
       }
     }, 200);
 
@@ -75,7 +75,11 @@ function useFocusTrap(isActive: boolean, isSpotlightStep: boolean) {
       const focusable = getFocusableElements();
       if (focusable.length === 0) return;
 
+      // Always prevent default to stop Tab from escaping to underlying page elements
       e.preventDefault();
+      e.stopPropagation();
+      // Stop immediate propagation to prevent any other handlers from processing this Tab
+      e.stopImmediatePropagation();
 
       const activeElement = document.activeElement;
       const currentIndex = focusable.indexOf(activeElement as HTMLElement);
@@ -96,11 +100,34 @@ function useFocusTrap(isActive: boolean, isSpotlightStep: boolean) {
       focusable[nextIndex].focus();
     }
 
+    // Focusin handler: if focus escapes to a non-tour element, snap it back
+    function handleFocusIn(e: FocusEvent) {
+      const focusable = getFocusableElements();
+      if (focusable.length === 0) return;
+
+      const target = e.target as HTMLElement;
+      // Check if focus landed on a tour element
+      const isTourElement = focusable.includes(target)
+        || target.closest("[data-tour-tooltip-controls]")
+        || target.closest("[data-tour-spotlight]");
+
+      if (!isTourElement) {
+        // Focus escaped — snap it back to the first focusable tour element
+        e.preventDefault();
+        e.stopPropagation();
+        focusable[0].focus();
+      }
+    }
+
+    // Use capture phase to intercept Tab before any other handler
     document.addEventListener("keydown", handleKeyDown, true);
+    // Also catch focusin to handle cases where focus escapes via other means (mouse, etc.)
+    document.addEventListener("focusin", handleFocusIn, true);
 
     return () => {
       clearTimeout(focusTimer);
       document.removeEventListener("keydown", handleKeyDown, true);
+      document.removeEventListener("focusin", handleFocusIn, true);
       // Restore tabindex on spotlight element
       const spotlight = document.querySelector("[data-tour-spotlight]");
       if (spotlight instanceof HTMLElement) {
@@ -350,4 +377,46 @@ function PulseKeyframes() {
   }, []);
 
   return null;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Resume Tour Button                                                          */
+/*                                                                            */
+/* Floating button that appears when the tour is paused via Escape.           */
+/* VAL-TOUR-032: Escape pauses tour, this provides a visible UI to resume.    */
+/* -------------------------------------------------------------------------- */
+
+export function ResumeTourButton() {
+  const { tourStatus, resumeTour, isMobile } = useOnboarding();
+
+  // Only show when paused and not on mobile
+  if (tourStatus !== "paused" || isMobile) {
+    return null;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={resumeTour}
+      className="fixed bottom-6 right-6 z-[10002] flex items-center gap-2 rounded-full border bg-background px-4 py-2.5 shadow-lg transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      aria-label="Resume Tour"
+      style={{ minHeight: 44, minWidth: 44 }}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="shrink-0"
+      >
+        <polygon points="6 3 20 12 6 21 6 3" />
+      </svg>
+      <span className="text-sm font-medium">Resume Tour</span>
+    </button>
+  );
 }

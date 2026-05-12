@@ -18,6 +18,7 @@ export function TourTooltip() {
     nextStep,
     prevStep,
     skipTour,
+    resumeTour,
     isMobile,
   } = useOnboarding();
 
@@ -55,6 +56,7 @@ export function TourTooltip() {
       onNext={nextStep}
       onPrev={prevStep}
       onSkip={skipTour}
+      onResume={resumeTour}
     />
   );
 }
@@ -98,17 +100,18 @@ function WelcomeDialog({
             type="button"
             className="text-sm text-muted-foreground hover:text-foreground underline"
             onClick={onSkip}
+            style={{ minHeight: 44, minWidth: 44, display: "inline-flex", alignItems: "center" }}
           >
             Skip Tour
           </button>
 
           <div className="flex gap-2">
             {!isFirstStep && (
-              <Button variant="outline" size="sm" onClick={onPrev}>
+              <Button variant="outline" size="sm" onClick={onPrev} style={{ minHeight: 44, minWidth: 44 }}>
                 Back
               </Button>
             )}
-            <Button size="sm" onClick={onNext}>
+            <Button size="sm" onClick={onNext} style={{ minHeight: 44, minWidth: 44 }}>
               {isLastStep ? "Done" : "Next"}
             </Button>
           </div>
@@ -131,6 +134,7 @@ interface TooltipProps {
   onNext: () => void;
   onPrev: () => void;
   onSkip: () => void;
+  onResume?: () => void;
 }
 
 function SpotlightTooltip({
@@ -142,6 +146,7 @@ function SpotlightTooltip({
   onNext,
   onPrev,
   onSkip,
+  onResume: _onResume,
 }: TooltipProps) {
   const [anchorPos, setAnchorPos] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const [side, setSide] = useState<"top" | "bottom">("bottom");
@@ -201,13 +206,13 @@ function SpotlightTooltip({
           setWaitingForElement(false);
           cleanup();
         } else if (Date.now() - startTime >= timeout) {
-          // Timed out — skip this step
+          // Timed out — advance to the next step (don't skip the entire tour)
           setWaitingForElement(false);
           cleanup();
-          // Element not found after 2s — skip step with console warning
+          // Element not found after 2s — advance step with console warning
           // eslint-disable-next-line no-console
-          console.warn(`[Tour] Target element "${step.targetSelector}" not found after 2s — skipping step`);
-          onSkip();
+          console.warn(`[Tour] Target element "${step.targetSelector}" not found after 2s — advancing to next step`);
+          onNext();
         }
       });
 
@@ -223,8 +228,8 @@ function SpotlightTooltip({
           setWaitingForElement(false);
           cleanup();
           // eslint-disable-next-line no-console
-          console.warn(`[Tour] Target element "${step.targetSelector}" not found after 2s — skipping step`);
-          onSkip();
+          console.warn(`[Tour] Target element "${step.targetSelector}" not found after 2s — advancing to next step`);
+          onNext();
         } else {
           pollTimer = setTimeout(poll, 100);
         }
@@ -248,7 +253,7 @@ function SpotlightTooltip({
       window.removeEventListener("resize", measure);
       window.removeEventListener("scroll", measure, true);
     };
-  }, [step.targetSelector, stepIndex, onSkip]);
+  }, [step.targetSelector, stepIndex, onNext]);
 
   if (!anchorPos) {
     // While waiting for the target element to appear, show a loading indicator
@@ -308,17 +313,18 @@ function SpotlightTooltip({
             type="button"
             className="text-xs text-muted-foreground hover:text-foreground underline"
             onClick={onSkip}
+            style={{ minHeight: 44, minWidth: 44, display: "inline-flex", alignItems: "center" }}
           >
             Skip Tour
           </button>
 
           <div className="flex gap-2">
             {!isFirstStep && (
-              <Button variant="outline" size="sm" onClick={onPrev}>
+              <Button variant="outline" size="sm" onClick={onPrev} style={{ minHeight: 44, minWidth: 44 }}>
                 Back
               </Button>
             )}
-            <Button size="sm" onClick={onNext}>
+            <Button size="sm" onClick={onNext} style={{ minHeight: 44, minWidth: 44 }}>
               {isLastStep ? "Done" : "Next"}
             </Button>
           </div>

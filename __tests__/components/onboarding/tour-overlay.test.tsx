@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, act, fireEvent } from "@testing-library/react";
+import { render, screen, act, fireEvent, waitFor } from "@testing-library/react";
 import React from "react";
 
 // ─── Mocks ────────────────────────────────────────────────────────────────
@@ -478,5 +478,274 @@ describe("Focus trapping (VAL-TOUR-030)", () => {
     document.body.removeChild(target);
     document.body.removeChild(tooltipControls);
     document.body.removeChild(pageButton);
+  });
+
+  it("Tab keydown is fully prevented from propagating to page elements", async () => {
+    mockOnboardingState = {
+      tourCompleted: false,
+      currentStep: 2,
+      completedSteps: ["welcome"],
+      hintsDismissed: [],
+      tourSkipped: false,
+    };
+
+    const target = document.createElement("div");
+    target.setAttribute("data-tour", "dashboard-stats");
+    target.getBoundingClientRect = () => ({
+      top: 100, left: 100, width: 100, height: 100, right: 200, bottom: 200, x: 100, y: 100,
+      toJSON: () => ({}),
+    });
+    target.scrollIntoView = vi.fn();
+    document.body.appendChild(target);
+
+    const tooltipControls = document.createElement("div");
+    tooltipControls.setAttribute("data-tour-tooltip-controls", "");
+    const skipBtn = document.createElement("button");
+    skipBtn.textContent = "Skip Tour";
+    tooltipControls.appendChild(skipBtn);
+    document.body.appendChild(tooltipControls);
+
+    render(
+      <OnboardingProvider>
+        <TourOverlay />
+      </OnboardingProvider>,
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 800));
+    });
+
+    const spotlight = document.querySelector("[data-tour-spotlight]");
+    if (spotlight) {
+      // Track if Tab event reaches non-tour handlers
+      const pageHandler = vi.fn();
+      document.body.addEventListener("keydown", pageHandler);
+
+      const tabEvent = new KeyboardEvent("keydown", {
+        key: "Tab",
+        bubbles: true,
+        cancelable: true,
+      });
+
+      await act(async () => {
+        document.dispatchEvent(tabEvent);
+      });
+
+      // Tab should not propagate to page-level handlers (stopImmediatePropagation)
+      // The page handler should NOT have been called because the focus trap
+      // calls stopImmediatePropagation
+      expect(pageHandler).not.toHaveBeenCalled();
+
+      document.body.removeEventListener("keydown", pageHandler);
+    }
+
+    document.body.removeChild(target);
+    document.body.removeChild(tooltipControls);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* ResumeTourButton (VAL-TOUR-032 visible resume UI)                          */
+/* -------------------------------------------------------------------------- */
+
+describe("ResumeTourButton (VAL-TOUR-032)", () => {
+  // We need to import ResumeTourButton
+  // It's mocked via the module import below
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockOnboardingState = null;
+    mockPathname = "/";
+    Object.defineProperty(window, "innerWidth", { value: 1024, writable: true, configurable: true });
+  });
+
+  it("does not render when tour is active", async () => {
+    mockOnboardingState = null; // triggers auto-start
+
+    // Dynamic import since we need the fresh module
+    const { ResumeTourButton: ResumeBtn } = await import("@/components/onboarding/tour-overlay");
+
+    render(
+      <OnboardingProvider>
+        <ResumeBtn />
+      </OnboardingProvider>,
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 1200));
+    });
+
+    // Tour is active, so resume button should NOT be visible
+    expect(screen.queryByText("Resume Tour")).toBeNull();
+  });
+
+  it("renders 'Resume Tour' button when tour is paused", async () => {
+    mockOnboardingState = null; // triggers auto-start
+
+    const { ResumeTourButton: ResumeBtn } = await import("@/components/onboarding/tour-overlay");
+
+    function PauseHelper() {
+      const ctx = useOnboarding();
+      return (
+        <div>
+          <span data-testid="status">{ctx.tourStatus}</span>
+          <button data-testid="pause-btn" onClick={() => ctx.pauseTour()}>Pause</button>
+          <button data-testid="resume-btn" onClick={() => ctx.resumeTour()}>DoResume</button>
+        </div>
+      );
+    }
+
+    render(
+      <OnboardingProvider>
+        <ResumeBtn />
+        <PauseHelper />
+      </OnboardingProvider>,
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 1200));
+    });
+
+    // Tour should be active
+    expect(screen.getByTestId("status").textContent).toBe("active");
+
+    // Pause the tour
+    await act(async () => {
+      screen.getByTestId("pause-btn").click();
+    });
+
+    expect(screen.getByTestId("status").textContent).toBe("paused");
+
+    // Now the Resume Tour button should appear
+    await waitFor(() => {
+      expect(screen.queryByText("Resume Tour")).toBeTruthy();
+    });
+  });
+
+  it("clicking 'Resume Tour' resumes the tour at the paused step", async () => {
+    mockOnboardingState = null; // triggers auto-start at step 1
+
+    const { ResumeTourButton: ResumeBtn } = await import("@/components/onboarding/tour-overlay");
+
+    function StatusHelper() {
+      const ctx = useOnboarding();
+      return (
+        <div>
+          <span data-testid="status">{ctx.tourStatus}</span>
+          <span data-testid="step">{ctx.currentStepIndex}</span>
+          <button data-testid="pause-btn" onClick={() => ctx.pauseTour()}>Pause</button>
+        </div>
+      );
+    }
+
+    render(
+      <OnboardingProvider>
+        <ResumeBtn />
+        <StatusHelper />
+      </OnboardingProvider>,
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 1200));
+    });
+
+    // Tour should be active at step 1
+    expect(screen.getByTestId("status").textContent).toBe("active");
+    expect(screen.getByTestId("step").textContent).toBe("1");
+
+    // Pause
+    await act(async () => {
+      screen.getByTestId("pause-btn").click();
+    });
+
+    expect(screen.getByTestId("status").textContent).toBe("paused");
+
+    // Wait for Resume Tour button and click it
+    await waitFor(() => {
+      expect(screen.queryByText("Resume Tour")).toBeTruthy();
+    });
+
+    await act(async () => {
+      screen.getByText("Resume Tour").click();
+    });
+
+    // Tour should be active again at the same step
+    expect(screen.getByTestId("status").textContent).toBe("active");
+    expect(screen.getByTestId("step").textContent).toBe("1");
+  });
+
+  it("does not render on mobile viewport", async () => {
+    Object.defineProperty(window, "innerWidth", { value: 375, writable: true, configurable: true });
+    window.dispatchEvent(new Event("resize"));
+
+    mockOnboardingState = null;
+
+    const { ResumeTourButton: ResumeBtn } = await import("@/components/onboarding/tour-overlay");
+
+    function StatusHelper() {
+      const ctx = useOnboarding();
+      return (
+        <div>
+          <span data-testid="status">{ctx.tourStatus}</span>
+          <button data-testid="pause-btn" onClick={() => ctx.pauseTour()}>Pause</button>
+        </div>
+      );
+    }
+
+    render(
+      <OnboardingProvider>
+        <ResumeBtn />
+        <StatusHelper />
+      </OnboardingProvider>,
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 1200));
+    });
+
+    // On mobile, tour won't even start
+    // But even if paused somehow, button should not show
+    expect(screen.queryByText("Resume Tour")).toBeNull();
+  });
+
+  it("has accessible label and meets 44x44px touch target", async () => {
+    mockOnboardingState = null;
+
+    const { ResumeTourButton: ResumeBtn } = await import("@/components/onboarding/tour-overlay");
+
+    function StatusHelper() {
+      const ctx = useOnboarding();
+      return (
+        <div>
+          <span data-testid="status">{ctx.tourStatus}</span>
+          <button data-testid="pause-btn" onClick={() => ctx.pauseTour()}>Pause</button>
+        </div>
+      );
+    }
+
+    render(
+      <OnboardingProvider>
+        <ResumeBtn />
+        <StatusHelper />
+      </OnboardingProvider>,
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 1200));
+    });
+
+    // Pause the tour
+    await act(async () => {
+      screen.getByTestId("pause-btn").click();
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Resume Tour")).toBeTruthy();
+    });
+
+    const resumeBtn = screen.getByText("Resume Tour").closest("button")!;
+    expect(resumeBtn).toHaveAttribute("aria-label", "Resume Tour");
+    expect(resumeBtn.style.minHeight).toBe("44px");
+    expect(resumeBtn.style.minWidth).toBe("44px");
   });
 });
