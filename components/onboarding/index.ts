@@ -6,5 +6,5 @@ export { HintManager } from "./hint-manager";
 export { OnboardingSettingsTab } from "./onboarding-settings-tab";
 export type { TourStep } from "./tour-steps";
 export { getStepsForRole, getTotalSteps, getStepIdForIndex, getValidStepIds } from "./tour-steps";
-export type { HintDefinition } from "./hint-definitions";
+export type { HintDefinition, HintId } from "./hint-definitions";
 export { HINT_DEFINITIONS, getHintsForPath, getShortcutText, getValidHintIds } from "./hint-definitions";

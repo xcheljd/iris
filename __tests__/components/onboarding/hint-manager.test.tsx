@@ -364,8 +364,9 @@ describe("HintManager", () => {
       tourSkipped: false,
     };
     mockPathname = "/clients/abc-123";
-    // Both edit-client and log-outreach now target the same always-visible Actions button
+    // edit-client targets the Actions button, log-outreach targets the Outreach tab
     createTargetElement("edit-client", "Actions");
+    createTargetElement("log-outreach", "Outreach");
 
     render(
       <OnboardingProvider>
@@ -414,8 +415,9 @@ describe("HintManager", () => {
       tourSkipped: false,
     };
     mockPathname = "/clients/abc-123";
-    // Both hints target the same always-visible element (the Actions button)
+    // edit-client targets the Actions button, log-outreach targets the Outreach tab
     createTargetElement("edit-client", "Actions");
+    createTargetElement("log-outreach", "Outreach");
 
     render(
       <OnboardingProvider>
@@ -516,8 +518,9 @@ describe("HintManager", () => {
     };
     // Simulate viewing a different client (client B) after dismissing on client A
     mockPathname = "/clients/client-b-id";
-    // Both hints target the same always-visible element (the Actions button)
+    // edit-client targets Actions button, log-outreach targets Outreach tab
     createTargetElement("edit-client", "Actions");
+    createTargetElement("log-outreach", "Outreach");
 
     render(
       <OnboardingProvider>
@@ -715,15 +718,22 @@ describe("hint-definitions", () => {
 
   it("hint target selectors use data-hint attributes", () => {
     for (const hint of HINT_DEFINITIONS) {
-      // All hints use data-hint selectors (log-outreach shares edit-client's target)
       expect(hint.targetSelector).toMatch(/^\[data-hint='[^']+'\]$/);
     }
   });
 
-  it("log-outreach and edit-client share the same always-visible target element", () => {
+  it("log-outreach and edit-client target different DOM elements", () => {
     const editClient = HINT_DEFINITIONS.find((h) => h.id === "edit-client")!;
     const logOutreach = HINT_DEFINITIONS.find((h) => h.id === "log-outreach")!;
-    // Both hints now point to the same always-visible Actions button
-    expect(logOutreach.targetSelector).toBe(editClient.targetSelector);
+    // edit-client targets the Actions button, log-outreach targets the Outreach tab
+    expect(editClient.targetSelector).toBe("[data-hint='edit-client']");
+    expect(logOutreach.targetSelector).toBe("[data-hint='log-outreach']");
+    expect(logOutreach.targetSelector).not.toBe(editClient.targetSelector);
+  });
+
+  it("no hint definition has an allowMultiple field", () => {
+    for (const hint of HINT_DEFINITIONS) {
+      expect((hint as any).allowMultiple).toBeUndefined();
+    }
   });
 });

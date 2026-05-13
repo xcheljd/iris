@@ -185,7 +185,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
             <Gift className="h-4 w-4" />
             Interests
           </TabsTrigger>
-          <TabsTrigger value="outreach" className="flex items-center gap-2 shrink-0">
+          <TabsTrigger value="outreach" className="flex items-center gap-2 shrink-0" data-hint="log-outreach">
             <Calendar className="h-4 w-4" />
             Outreach
           </TabsTrigger>

@@ -136,10 +136,12 @@ const MANAGER_STEPS: TourStep[] = [
 /* -------------------------------------------------------------------------- */
 
 export function getStepsForRole(role: string): TourStep[] {
-  if (role === "manager") {
-    return [...BASE_STEPS, ...MANAGER_STEPS];
-  }
-  return [...BASE_STEPS];
+  const sources = role === "manager"
+    ? [...BASE_STEPS, ...MANAGER_STEPS]
+    : [...BASE_STEPS];
+  // Deep-clone each step to prevent callers from mutating the module-level
+  // BASE_STEPS / MANAGER_STEPS constants (e.g. prepareStepSideEffects).
+  return sources.map((step) => ({ ...step }));
 }
 
 export function getTotalSteps(role: string): number {

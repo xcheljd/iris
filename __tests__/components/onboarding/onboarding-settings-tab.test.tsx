@@ -16,6 +16,10 @@ vi.mock("next-auth/react", () => ({
   useSession: () => mockSession,
 }));
 
+vi.mock("sonner", () => ({
+  toast: { error: vi.fn(), success: vi.fn() },
+}));
+
 // Mock server actions
 let mockOnboardingState: any = null;
 const mockGetOnboardingState = vi.fn(() => Promise.resolve(mockOnboardingState));
@@ -314,6 +318,29 @@ describe("OnboardingSettingsTab", () => {
 
     // Should have called startTour to begin from step 1
     expect(mockStartTour).toHaveBeenCalledWith(1);
+  });
+
+  it("does NOT start tour when server reset fails — shows error toast instead", async () => {
+    const user = userEvent.setup();
+    mockUpdateOnboardingState.mockRejectedValueOnce(new Error("Server error"));
+    mockOnboardingContext.onboardingState = {
+      tourCompleted: true,
+      currentStep: 8,
+      completedSteps: getStepsForRole("associate").map((s) => s.id),
+      hintsDismissed: [],
+      tourSkipped: false,
+    };
+    renderTab();
+
+    await user.click(screen.getByRole("button", { name: /replay tour/i }));
+    await user.click(screen.getByRole("button", { name: /confirm/i }));
+
+    // startTour should NOT have been called — server reset failed
+    expect(mockStartTour).not.toHaveBeenCalled();
+
+    // Verify that the toast error was shown
+    const { toast } = await import("sonner");
+    expect(toast.error).toHaveBeenCalledWith("Failed to reset tour. Please try again.");
   });
 
   it("replay does NOT send currentStep in the payload (avoids Zod .min(1) error)", async () => {

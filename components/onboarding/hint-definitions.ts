@@ -6,9 +6,11 @@
  * style as the tour (spotlight + positioned popover).
  */
 
+export type HintId = "add-client" | "edit-client" | "log-outreach" | "command-palette";
+
 export interface HintDefinition {
   /** Unique hint ID — must match server action's VALID_HINT_IDS. */
-  id: "add-client" | "edit-client" | "log-outreach" | "command-palette";
+  id: HintId;
   /** Title shown in the hint popover. */
   title: string;
   /** Description shown in the hint popover. */
@@ -21,11 +23,6 @@ export interface HintDefinition {
    * Use an exact path prefix like "/clients" for page-scoped hints.
    */
   pageScope: string;
-  /**
-   * If true, this hint can coexist with other hints on the same page.
-   * Each hint renders and dismisses independently.
-   */
-  allowMultiple?: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -48,16 +45,14 @@ export const HINT_DEFINITIONS: HintDefinition[] = [
       "Click here to edit this client's information, update contact details, or change their status.",
     targetSelector: "[data-hint='edit-client']",
     pageScope: "/clients/",
-    allowMultiple: true,
   },
   {
     id: "log-outreach",
     title: "Log an Outreach",
     description:
-      "Record calls, texts, emails, and other interactions with this client to keep your history up to date. Click the Actions button to find the Log Outreach option.",
-    targetSelector: "[data-hint='edit-client']",
+      "Record calls, texts, emails, and other interactions with this client to keep your history up to date. Click the Outreach tab to log and view outreach history.",
+    targetSelector: "[data-hint='log-outreach']",
     pageScope: "/clients/",
-    allowMultiple: true,
   },
   {
     id: "command-palette",

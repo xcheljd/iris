@@ -18,15 +18,13 @@ import {
 } from "@/lib/actions/onboarding";
 import type { TourStep } from "./tour-steps";
 import { getStepsForRole } from "./tour-steps";
+import type { HintId } from "./hint-definitions";
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                       */
 /* -------------------------------------------------------------------------- */
 
 export type TourStatus = "idle" | "active" | "paused" | "completed";
-
-/** Hint IDs matching the server action's Zod schema. */
-type HintId = "add-client" | "edit-client" | "log-outreach" | "command-palette";
 
 /** Subset of OnboardingState fields that are safe to send as updates. */
 interface OnboardingUpdate {

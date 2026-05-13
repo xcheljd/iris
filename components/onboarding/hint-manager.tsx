@@ -3,14 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useOnboarding } from "./onboarding-provider";
-import { getShortcutText, getHintsForPath, type HintDefinition } from "./hint-definitions";
+import { getShortcutText, getHintsForPath, type HintDefinition, type HintId } from "./hint-definitions";
 import { updateOnboardingState } from "@/lib/actions/onboarding";
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                       */
 /* -------------------------------------------------------------------------- */
-
-type HintId = "add-client" | "edit-client" | "log-outreach" | "command-palette";
 
 interface Rect {
   top: number;

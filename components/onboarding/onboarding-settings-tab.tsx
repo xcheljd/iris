@@ -15,12 +15,14 @@ import {
 import { updateOnboardingState } from "@/lib/actions/onboarding";
 import { useOnboarding } from "./onboarding-provider";
 import { getStepsForRole } from "./tour-steps";
+import type { HintId } from "./hint-definitions";
+import { toast } from "sonner";
 
 /* -------------------------------------------------------------------------- */
 /* OnboardingSettingsTab                                                       */
 /*                                                                            */
-/* VAL-REPLAY-001..017: Onboarding tab in Settings page showing tour status,  */
-/* step progress, and Replay/Start Tour button with confirmation dialog.      */
+/* Onboarding tab in Settings page showing tour status, step progress, and    */
+/* Replay/Start Tour button with confirmation dialog.                         */
 /* -------------------------------------------------------------------------- */
 
 export function OnboardingSettingsTab() {
@@ -41,22 +43,14 @@ export function OnboardingSettingsTab() {
   const tourSkipped = onboardingState?.tourSkipped ?? false;
   const completedSteps: string[] = onboardingState?.completedSteps ?? [];
 
-  // VAL-REPLAY-004: Button text adapts to state
+  // Button text adapts to state:
   // "Start Tour" if never completed or skipped, "Replay Tour" if completed
   const showReplay = tourCompleted && !tourSkipped;
   const buttonText = showReplay ? "Replay Tour" : "Start Tour";
 
   /* ---- handlers ---- */
 
-  const handleButtonClick = useCallback(() => {
-    setConfirmOpen(true);
-  }, []);
-
-  const handleCancel = useCallback(() => {
-    setConfirmOpen(false);
-  }, []);
-
-  // VAL-REPLAY-006: Confirming resets tour state but preserves hintsDismissed
+  // Confirming resets tour state but preserves hintsDismissed
   const handleConfirm = useCallback(async () => {
     setResetting(true);
     try {
@@ -66,16 +60,19 @@ export function OnboardingSettingsTab() {
         completedSteps: [],
         // Omit currentStep — the server action defaults to current value when not provided.
         // Sending currentStep: 0 would violate the Zod schema (.min(1)).
-        hintsDismissed: hints as ("add-client" | "edit-client" | "log-outreach" | "command-palette")[],
+        hintsDismissed: hints as HintId[],
         tourSkipped: false,
       });
       setConfirmOpen(false);
       // Tour starts immediately from step 1
       startTour(1);
     } catch {
-      // On failure, still close dialog and try to start tour
+      // Server reset failed — do NOT start tour to avoid client/server state desync.
+      // Show an error message and close the dialog without starting the tour.
       setConfirmOpen(false);
-      startTour(1);
+      setResetting(false);
+      toast.error("Failed to reset tour. Please try again.");
+      return;
     } finally {
       setResetting(false);
     }
@@ -149,7 +146,7 @@ export function OnboardingSettingsTab() {
             Tour in Progress
           </Button>
         ) : (
-          <Button onClick={handleButtonClick} className="gap-2">
+          <Button onClick={() => setConfirmOpen(true)} className="gap-2">
             <GraduationCap className="h-4 w-4" />
             {buttonText}
           </Button>
@@ -175,7 +172,7 @@ export function OnboardingSettingsTab() {
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="outline"
-              onClick={handleCancel}
+              onClick={() => setConfirmOpen(false)}
               disabled={resetting}
             >
               Cancel

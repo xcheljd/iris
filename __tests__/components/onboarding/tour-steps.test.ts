@@ -83,6 +83,34 @@ describe("tour-steps", () => {
         expect(step.managerOnly).toBeFalsy();
       });
     });
+
+    it("returns deep-cloned step objects — mutations do not affect subsequent calls", () => {
+      // First call — get steps and mutate a step
+      const steps1 = getStepsForRole("associate");
+      const originalPage = steps1[4].page;
+      const originalDescription = steps1[4].description;
+      // Mutate the returned step
+      steps1[4].page = "/mutated/page";
+      steps1[4].description = "mutated description";
+
+      // Second call — should return fresh copies with original values
+      const steps2 = getStepsForRole("associate");
+      expect(steps2[4].page).toBe(originalPage);
+      expect(steps2[4].description).toBe(originalDescription);
+
+      // Also verify the manager path returns clean copies
+      const steps3 = getStepsForRole("manager");
+      expect(steps3[4].page).toBe(originalPage);
+      expect(steps3[4].description).toBe(originalDescription);
+    });
+
+    it("returns new arrays on each call — not the same reference", () => {
+      const steps1 = getStepsForRole("associate");
+      const steps2 = getStepsForRole("associate");
+      expect(steps1).not.toBe(steps2);
+      // Individual step objects should also be different references
+      expect(steps1[0]).not.toBe(steps2[0]);
+    });
   });
 
   describe("getTotalSteps", () => {
