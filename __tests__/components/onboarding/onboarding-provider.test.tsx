@@ -597,3 +597,100 @@ describe("Escape handler and Command Palette priority (VAL-TOUR-032)", () => {
     expect(screen.getByTestId("status").textContent).toBe("paused");
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* Error logging in catch blocks                                               */
+/* -------------------------------------------------------------------------- */
+
+describe("Error logging in catch blocks", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockOnboardingState = null;
+    mockPathname = "/";
+    mockSession.data.user.role = "associate";
+    mockSession.status = "authenticated";
+    Object.defineProperty(window, "innerWidth", { value: 1024, writable: true, configurable: true });
+  });
+
+  it("logs error when initial state load fails", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    // Override getOnboardingState to reject
+    const { getOnboardingState } = await import("@/lib/actions/onboarding");
+    vi.mocked(getOnboardingState).mockRejectedValueOnce(new Error("Load failed"));
+
+    renderWithProvider();
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 200));
+    });
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "[OnboardingProvider] Failed to load onboarding state:",
+      expect.any(Error),
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("logs error when skip tour persist fails", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    // Default getOnboardingState returns null (triggers tour), but update fails on skip
+    mockUpdateFn.mockRejectedValue(new Error("Skip persist failed"));
+
+    renderWithProvider();
+
+    // Wait for auto-trigger
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 1200));
+    });
+
+    // Skip tour
+    await act(async () => {
+      screen.getByTestId("btn-skip").click();
+    });
+
+    // Wait for async skip to complete
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 200));
+    });
+
+    // Find a call matching the skip tour prefix
+    const skipCalls = consoleErrorSpy.mock.calls.filter(
+      (call: any[]) => call[0]?.includes?.("Failed to persist skip tour:")
+    );
+    expect(skipCalls.length).toBeGreaterThanOrEqual(1);
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("logs error when step persist fails", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    // All updates fail
+    mockUpdateFn.mockRejectedValue(new Error("Step persist failed"));
+
+    renderWithProvider();
+
+    // Wait for auto-trigger
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 1200));
+    });
+
+    // Advance to next step (which triggers persist)
+    await act(async () => {
+      screen.getByTestId("btn-next").click();
+    });
+
+    // Wait for async persist
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 200));
+    });
+
+    // The error log should have been called for step persist failure
+    const errorCalls = consoleErrorSpy.mock.calls.filter(
+      (call: any[]) => call[0]?.includes?.("Failed to persist step:")
+    );
+    expect(errorCalls.length).toBeGreaterThanOrEqual(1);
+
+    consoleErrorSpy.mockRestore();
+  });
+});

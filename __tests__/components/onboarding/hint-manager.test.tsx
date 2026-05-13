@@ -737,3 +737,160 @@ describe("hint-definitions", () => {
     }
   });
 });
+
+// ── Simplification tests ──
+
+describe("HintManager simplifications", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockOnboardingState = {
+      tourCompleted: true,
+      currentStep: 8,
+      completedSteps: [],
+      hintsDismissed: [],
+      tourSkipped: false,
+    };
+    mockPathname = "/clients";
+    mockUpdateFn.mockResolvedValue({
+      tourCompleted: true,
+      currentStep: 8,
+      completedSteps: [],
+      hintsDismissed: [],
+      tourSkipped: false,
+    });
+    Object.defineProperty(window, "innerWidth", { value: 1024, writable: true, configurable: true });
+    window.dispatchEvent(new Event("resize"));
+    cleanupTargetElements();
+    // Clear any leftover style elements from previous tests
+    document.querySelectorAll("style").forEach((s) => {
+      if (s.textContent?.includes("hint-pulse")) s.remove();
+    });
+  });
+
+  afterEach(() => {
+    cleanupTargetElements();
+  });
+
+  it("pulse keyframes style is injected when hint appears and removed when dismissed", async () => {
+    createTargetElement("add-client", "Add Client");
+
+    render(
+      <OnboardingProvider>
+        <HintManager />
+      </OnboardingProvider>,
+    );
+
+    await waitForHints();
+
+    // Hint should be visible
+    expect(screen.getByText("Add a New Client")).toBeTruthy();
+
+    // Pulse keyframes style should be injected
+    const styles = document.querySelectorAll("style");
+    const pulseStyle = Array.from(styles).find((s) => s.textContent?.includes("hint-pulse"));
+    expect(pulseStyle).toBeTruthy();
+
+    // Dismiss the hint
+    const backdrop = document.querySelector('[style*="rgba(0, 0, 0, 0.3)"]');
+    await act(async () => {
+      fireEvent.click(backdrop!);
+    });
+
+    // After dismissal, pulse style should be cleaned up (ref count goes to 0)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    const stylesAfter = document.querySelectorAll("style");
+    const pulseStyleAfter = Array.from(stylesAfter).find((s) => s.textContent?.includes("hint-pulse"));
+    expect(pulseStyleAfter).toBeFalsy();
+  });
+
+  it("pulse keyframes ref-count handles multiple simultaneous hints", async () => {
+    mockPathname = "/clients/abc-123";
+    createTargetElement("edit-client", "Actions");
+    createTargetElement("log-outreach", "Outreach");
+
+    render(
+      <OnboardingProvider>
+        <HintManager />
+      </OnboardingProvider>,
+    );
+
+    await waitForHints();
+
+    // Both hints should be visible
+    expect(screen.getByText("Edit Client Details")).toBeTruthy();
+    expect(screen.getByText("Log an Outreach")).toBeTruthy();
+
+    // Only one pulse style element should exist (ref-counted, not duplicated)
+    const styles = document.querySelectorAll("style");
+    const pulseStyles = Array.from(styles).filter((s) => s.textContent?.includes("hint-pulse"));
+    expect(pulseStyles.length).toBe(1);
+
+    // Dismiss one hint — style should still remain (ref count = 1)
+    const editSpotlight = document.querySelector("[data-hint-spotlight='edit-client']");
+    await act(async () => {
+      fireEvent.click(editSpotlight!);
+    });
+
+    const stylesAfterFirst = document.querySelectorAll("style");
+    const pulseStylesAfterFirst = Array.from(stylesAfterFirst).filter((s) => s.textContent?.includes("hint-pulse"));
+    expect(pulseStylesAfterFirst.length).toBe(1);
+
+    // Dismiss the other — style should be removed (ref count = 0)
+    const outreachSpotlight = document.querySelector("[data-hint-spotlight='log-outreach']");
+    await act(async () => {
+      fireEvent.click(outreachSpotlight!);
+    });
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    const stylesAfterSecond = document.querySelectorAll("style");
+    const pulseStylesAfterSecond = Array.from(stylesAfterSecond).filter((s) => s.textContent?.includes("hint-pulse"));
+    expect(pulseStylesAfterSecond.length).toBe(0);
+  });
+
+  it("no HintRenderer component exists — logic inlined into HintManager", async () => {
+    // This test verifies the architectural simplification: HintRenderer was inlined.
+    // The hint-manager module should NOT export a HintRenderer function.
+    // We verify this by checking the module exports.
+    const hintManagerModule = await import("@/components/onboarding/hint-manager");
+    expect((hintManagerModule as any).HintRenderer).toBeUndefined();
+    expect(typeof hintManagerModule.HintManager).toBe("function");
+  });
+
+  it("logs error to console when hint dismissal server action fails", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockUpdateFn.mockRejectedValueOnce(new Error("Server error"));
+
+    createTargetElement("add-client", "Add Client");
+
+    render(
+      <OnboardingProvider>
+        <HintManager />
+      </OnboardingProvider>,
+    );
+
+    await waitForHints();
+
+    // Dismiss the hint
+    const backdrop = document.querySelector('[style*="rgba(0, 0, 0, 0.3)"]');
+    await act(async () => {
+      fireEvent.click(backdrop!);
+    });
+
+    // Wait for async dismissal
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 100));
+    });
+
+    // Console error should have been called with the prefix
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "[HintManager] Failed to persist hint dismissal:",
+      expect.any(Error),
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+});

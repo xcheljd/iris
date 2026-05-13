@@ -119,10 +119,6 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
   const initialisedRef = useRef(false);
   const persistingRef = useRef(false);
-  const routerRef = useRef(router);
-  routerRef.current = router;
-  const pathnameRef = useRef(pathname);
-  pathnameRef.current = pathname;
 
   /* ---- current step object ---- */
   const currentStep = useMemo(
@@ -162,15 +158,16 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
           } else if (!state.tourCompleted && !state.tourSkipped && state.currentStep > 0) {
             // Resume from persisted step — navigate to the step's target page first
             const resumeStep = getStepsForRole(role)[state.currentStep - 1];
-            if (resumeStep && resumeStep.page !== "current" && resumeStep.page !== pathnameRef.current) {
-              routerRef.current.replace(resumeStep.page);
+            if (resumeStep && resumeStep.page !== "current" && resumeStep.page !== pathname) {
+              router.replace(resumeStep.page);
             }
             setCurrentStepIndex(state.currentStep);
             setTourStatus("active");
           }
         }
-      } catch {
+      } catch (err) {
         // Server action failure — continue without tour
+        console.error("[OnboardingProvider] Failed to load onboarding state:", err);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -316,8 +313,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
           ...extra,
         } as Parameters<typeof updateOnboardingState>[0]);
         setOnboardingState(updated);
-      } catch {
-        // Silently continue on server failure
+      } catch (err) {
+        // Silently continue on server failure, but log for development
+        console.error("[OnboardingProvider] Failed to persist step:", err);
       } finally {
         persistingRef.current = false;
       }
@@ -344,8 +342,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
           completedSteps: steps.map((s) => s.id),
         });
         setOnboardingState(updated);
-      } catch {
-        // continue locally
+      } catch (err) {
+        // continue locally, but log for development
+        console.error("[OnboardingProvider] Failed to persist tour completion on last step:", err);
       }
       return;
     }
@@ -401,8 +400,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         currentStep: currentStepIndex || 1,
       });
       setOnboardingState(updated);
-    } catch {
-      // continue locally
+    } catch (err) {
+      // continue locally, but log for development
+      console.error("[OnboardingProvider] Failed to persist skip tour:", err);
     }
   }, [currentStepIndex]);
 
@@ -427,8 +427,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         completedSteps: steps.map((s) => s.id),
       });
       setOnboardingState(updated);
-    } catch {
-      // continue locally
+    } catch (err) {
+      // continue locally, but log for development
+      console.error("[OnboardingProvider] Failed to persist tour completion:", err);
     }
   }, [steps, totalSteps]);
 

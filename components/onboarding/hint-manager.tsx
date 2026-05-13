@@ -18,6 +18,43 @@ interface Rect {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Pulse keyframes ref-count injection                                         */
+/*                                                                            */
+/* Uses a ref-count pattern so the <style> tag is added when the first         */
+/* HintSpotlight mounts and removed when the last one unmounts — not tied     */
+/* to individual hint mount/unmount lifecycle.                                 */
+/* -------------------------------------------------------------------------- */
+
+let pulseRefCount = 0;
+let pulseStyleElement: HTMLStyleElement | null = null;
+
+function refCountInject() {
+  pulseRefCount++;
+  if (pulseRefCount === 1 && !pulseStyleElement) {
+    pulseStyleElement = document.createElement("style");
+    pulseStyleElement.textContent = `
+      @keyframes hint-pulse {
+        0%, 100% {
+          box-shadow: 0 0 0 2px hsl(var(--primary)), 0 0 0 9999px rgba(0, 0, 0, 0.3);
+        }
+        50% {
+          box-shadow: 0 0 0 4px hsl(var(--primary)), 0 0 0 9999px rgba(0, 0, 0, 0.3);
+        }
+      }
+    `;
+    document.head.appendChild(pulseStyleElement);
+  }
+}
+
+function refCountRelease() {
+  pulseRefCount = Math.max(0, pulseRefCount - 1);
+  if (pulseRefCount === 0 && pulseStyleElement) {
+    document.head.removeChild(pulseStyleElement);
+    pulseStyleElement = null;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /* HintManager                                                                 */
 /*                                                                            */
 /* Renders contextual hints as spotlight + popover overlays after tour         */
@@ -33,22 +70,15 @@ export function HintManager() {
   const tourCompleted = onboardingState?.tourCompleted === true;
   const shouldRender = !isMobile && tourCompleted && tourStatus !== "active" && tourStatus !== "paused";
 
-  if (!shouldRender) return null;
-
-  return <HintRenderer pathname={pathname} hintsDismissed={onboardingState?.hintsDismissed ?? []} />;
-}
-
-/* -------------------------------------------------------------------------- */
-/* HintRenderer — manages which hints to show for the current page             */
-/* -------------------------------------------------------------------------- */
-
-function HintRenderer({ pathname, hintsDismissed }: { pathname: string; hintsDismissed: string[] }) {
+  // Inline HintRenderer logic — compute active hints directly
   const activeHints = useMemo(() => {
+    if (!shouldRender) return [];
     const pageHints = getHintsForPath(pathname);
+    const hintsDismissed = onboardingState?.hintsDismissed ?? [];
     return pageHints.filter((h) => !hintsDismissed.includes(h.id));
-  }, [pathname, hintsDismissed]);
+  }, [shouldRender, pathname, onboardingState?.hintsDismissed]);
 
-  if (activeHints.length === 0) return null;
+  if (!shouldRender || activeHints.length === 0) return null;
 
   return (
     <>
@@ -61,15 +91,21 @@ function HintRenderer({ pathname, hintsDismissed }: { pathname: string; hintsDis
 
 /* -------------------------------------------------------------------------- */
 /* Single Hint Overlay — spotlight + popover for one hint                      */
+/*                                                                            */
+/* Uses a selective approach: only subscribes to hintsDismissed from context   */
+/* (not the full context), and uses a single MutationObserver for target       */
+/* element tracking instead of triple-tracking.                                */
 /* -------------------------------------------------------------------------- */
 
 function HintOverlay({ hint }: { hint: HintDefinition }) {
+  // Selective context subscription: only read hintsDismissed for dismissal check
   const { onboardingState } = useOnboarding();
   const [dismissed, setDismissed] = useState(false);
   const [targetRect, setTargetRect] = useState<Rect | null>(null);
   const [side, setSide] = useState<"top" | "bottom">("bottom");
   const [reducedMotion, setReducedMotion] = useState(false);
   const dismissedRef = useRef(false);
+  const measureRef = useRef<() => void>(() => {});
 
   /* ---- reduced motion detection ---- */
   useEffect(() => {
@@ -80,8 +116,9 @@ function HintOverlay({ hint }: { hint: HintDefinition }) {
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  /* ---- track target element ---- */
+  /* ---- track target element via single MutationObserver ---- */
   const measureTarget = useCallback(() => {
+    if (dismissedRef.current) return false;
     const el = document.querySelector(hint.targetSelector);
     if (!el) return false;
     const rect = el.getBoundingClientRect();
@@ -94,43 +131,28 @@ function HintOverlay({ hint }: { hint: HintDefinition }) {
     return true;
   }, [hint.targetSelector]);
 
+  // Keep measureRef current so the observer and resize callbacks always call latest
+  measureRef.current = measureTarget;
+
   useEffect(() => {
     if (dismissed) return;
 
-    let observer: MutationObserver | null = null;
-    let intervalId: ReturnType<typeof setInterval> | null = null;
+    // Initial measurement attempt
+    measureTarget();
 
-    // Try to find the target element
-    const tryMeasure = () => {
-      if (dismissedRef.current) return;
-      measureTarget();
-    };
-
-    // Initial measurement — try immediately and after a short delay
-    tryMeasure();
-
-    // Set up delayed initial measurement
-    const timer = setTimeout(() => {
-      tryMeasure();
-    }, 50);
-
-    // Set up MutationObserver for DOM changes
-    observer = new MutationObserver(() => {
-      tryMeasure();
+    // Single MutationObserver watches for DOM changes (covers dynamic content, animations, etc.)
+    const observer = new MutationObserver(() => {
+      measureRef.current();
     });
     observer.observe(document.body, { childList: true, subtree: true });
 
-    // Periodic re-measurement to track position changes (replaces rAF for testability)
-    intervalId = setInterval(tryMeasure, 200);
-
-    // Re-measure on resize
-    window.addEventListener("resize", tryMeasure);
+    // Resize handler for viewport changes
+    const handleResize = () => measureRef.current();
+    window.addEventListener("resize", handleResize);
 
     return () => {
-      clearTimeout(timer);
-      if (observer) observer.disconnect();
-      if (intervalId) clearInterval(intervalId);
-      window.removeEventListener("resize", tryMeasure);
+      observer.disconnect();
+      window.removeEventListener("resize", handleResize);
     };
   }, [dismissed, measureTarget, hint.targetSelector]);
 
@@ -148,8 +170,9 @@ function HintOverlay({ hint }: { hint: HintDefinition }) {
           hintsDismissed: [...existing, hint.id] as HintId[],
         });
       }
-    } catch {
-      // Optimistic dismissal — visual state already updated
+    } catch (err) {
+      // Optimistic dismissal — visual state already updated, but log for development
+      console.error("[HintManager] Failed to persist hint dismissal:", err);
     }
   }, [hint.id, onboardingState?.hintsDismissed]);
 
@@ -251,6 +274,13 @@ function HintSpotlight({
   onDismiss: () => void;
   hintId: string;
 }) {
+  // Ref-count the pulse keyframes injection — inject on mount, release on unmount
+  useEffect(() => {
+    if (reducedMotion) return;
+    refCountInject();
+    return () => refCountRelease();
+  }, [reducedMotion]);
+
   const style: React.CSSProperties = useMemo(() => ({
     position: "fixed",
     top: rect.top - padding,
@@ -274,16 +304,13 @@ function HintSpotlight({
   }, [onDismiss]);
 
   return (
-    <>
-      {!reducedMotion && <HintPulseKeyframes />}
-      <div
-        style={style}
-        role="presentation"
-        aria-hidden="true"
-        data-hint-spotlight={hintId}
-        onClick={handleClick}
-      />
-    </>
+    <div
+      style={style}
+      role="presentation"
+      aria-hidden="true"
+      data-hint-spotlight={hintId}
+      onClick={handleClick}
+    />
   );
 }
 
@@ -346,33 +373,4 @@ function HintPopover({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Pulse keyframes for hint spotlight                                          */
-/* -------------------------------------------------------------------------- */
 
-let hintKeyframesInjected = false;
-
-function HintPulseKeyframes() {
-  useEffect(() => {
-    if (hintKeyframesInjected) return;
-    hintKeyframesInjected = true;
-    const sheet = document.createElement("style");
-    sheet.textContent = `
-      @keyframes hint-pulse {
-        0%, 100% {
-          box-shadow: 0 0 0 2px hsl(var(--primary)), 0 0 0 9999px rgba(0, 0, 0, 0.3);
-        }
-        50% {
-          box-shadow: 0 0 0 4px hsl(var(--primary)), 0 0 0 9999px rgba(0, 0, 0, 0.3);
-        }
-      }
-    `;
-    document.head.appendChild(sheet);
-    return () => {
-      hintKeyframesInjected = false;
-      document.head.removeChild(sheet);
-    };
-  }, []);
-
-  return null;
-}
