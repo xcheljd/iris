@@ -45,6 +45,8 @@ This limits:
 | POST | `/api/recover` | Password recovery |
 | GET/POST | `/api/auth/[...nextauth]` | Authentication |
 
+> **Note on coverage:** These endpoints cover several *features* but most implement their own DB logic directly. Only ~1 of the 47 defined server action functions (`applyClientPatch`) is actually imported and called by an existing route handler. The remaining 46 actions have no REST exposure.
+
 ### Resources With Zero API Coverage
 
 | Resource | Server Actions | Gap |
@@ -57,7 +59,7 @@ This limits:
 | Smart Lists | `createSmartList`, `deleteSmartList`, `renameSmartList`, `duplicateSmartList` | No endpoints at all |
 | Prospects | `graduateProspect`, `rejectProspect`, `unsubscribeProspect`, `graduateProspectIntoExistingClient` | No endpoints at all |
 | Client Status | `banClient`, `unbanClient`, `unsubscribeClient`, `resubscribeClient`, `transferClient`, `restoreClient`, `purgeClient` | No status mutation endpoints |
-| Employees (write) | `createEmployee`, `updateEmployee`, `resetEmployeePassword`, `updateEmployeeRole`, `toggleEmployeeActive` | Only GET exists |
+| Employees (write) | `createEmployee`, `updateEmployee`, `resetEmployeePassword`, `updateEmployeeRole`, `toggleEmployeeActive`, `changeOwnPassword` | Only GET exists |
 
 ---
 
@@ -117,9 +119,10 @@ Full CRUD for resource types that currently have partial or no API coverage.
 | PUT | `/api/employees/[id]` | `updateEmployee` | Update name, username |
 | PATCH | `/api/employees/[id]/role` | `updateEmployeeRole` | Toggle manager/associate role |
 | PATCH | `/api/employees/[id]/active` | `toggleEmployeeActive` | Activate/deactivate employee |
-| POST | `/api/employees/[id]/reset-password` | `resetEmployeePassword` | Reset employee password |
+| POST | `/api/employees/[id]/reset-password` | `resetEmployeePassword` | Reset employee password (manager only) |
+| PATCH | `/api/employees/me/password` | `changeOwnPassword` | Change own password while authenticated |
 
-**Rationale:** Employee management is manager-only and admin-focused. API access enables scripted onboarding/offboarding.
+**Rationale:** Employee management is manager-only and admin-focused. `changeOwnPassword` is associate-facing; it requires a valid session and current password — distinct from the unauthenticated `/api/recover` flow.
 
 #### 2B. Prospects — `app/api/prospects/route.ts`
 
@@ -127,7 +130,8 @@ Full CRUD for resource types that currently have partial or no API coverage.
 |--------|------|-----------------|-------------|
 | GET | `/api/prospects` | *(new query)* | List prospects with tab filters (active, graduated, rejected, unsubscribed) |
 | GET | `/api/prospects/[id]` | *(new query)* | Get prospect detail |
-| POST | `/api/prospects/[id]/graduate` | `graduateProspect` | Graduate prospect to client |
+| POST | `/api/prospects/[id]/graduate` | `graduateProspect` | Graduate prospect to a new client |
+| POST | `/api/prospects/[id]/graduate-into/[clientId]` | `graduateProspectIntoExistingClient` | Merge prospect into an existing client record |
 | POST | `/api/prospects/[id]/reject` | `rejectProspect` | Reject a prospect |
 | POST | `/api/prospects/[id]/unsubscribe` | `unsubscribeProspect` | Unsubscribe a prospect |
 
@@ -140,10 +144,10 @@ Full CRUD for resource types that currently have partial or no API coverage.
 | GET | `/api/promos` | *(new query)* | List promo watches |
 | POST | `/api/promos` | `createPromo` | Add a promo watch |
 | DELETE | `/api/promos/[id]` | `deletePromo` | Remove a promo watch |
-| DELETE | `/api/promos` | `clearAllPromos` | Remove all promo watches |
+| POST | `/api/promos/clear` | `clearAllPromos` | Remove all promo watches |
 | POST | `/api/promos/import` | `importPromos` | Batch import promos from CSV |
 
-**Rationale:** Promo management is a key feature for retail CRM. External inventory systems could sync promos automatically.
+**Rationale:** Promo management is a key feature for retail CRM. External inventory systems could sync promos automatically. `clearAllPromos` uses `POST /api/promos/clear` rather than `DELETE /api/promos` to avoid collision with the collection endpoint and to prevent accidental mass deletion.
 
 #### 2D. Tags — `app/api/tags/route.ts`
 
@@ -191,7 +195,7 @@ Complex or bulk operations useful for scripting but less critical for real-time 
 | PATCH | `/api/clients/[id]/email-list` | `toggleEmailList` | Toggle email list membership |
 | POST | `/api/unsubscribe` | `addUnsubscribeEmail` | Add email to unsubscribe list directly |
 | POST | `/api/rvx/import` | `importProspectsFromRvx` | Batch import prospects from RVX CSV |
-| GET | `/api/rvx/analyze` | `analyzeRvxImport` | Preview RVX CSV import results |
+| POST | `/api/rvx/analyze` | `analyzeRvxImport` | Preview RVX CSV import results (takes CSV body — must be POST) |
 
 ---
 
@@ -203,7 +207,6 @@ These actions are UI-only or internal helpers:
 |--------|----------|
 | `recalcHeat` | Internal side-effect of other operations, not a standalone action |
 | `patchClientFromFormMerge` | UI-specific merge path used only in new-client duplicate flow |
-| `changeOwnPassword` | Already covered by `/api/recover` and NextAuth session flow |
 | `setSecretQuestion` | UI-only account setup, no external use case |
 
 ---
@@ -232,9 +235,9 @@ This means minimal new logic — the action functions already contain all valida
 | Metric | Count |
 |--------|-------|
 | Total server actions | 47 |
-| Already covered by API | ~1 |
-| Proposed new endpoints | ~40 |
-| Skip (UI-only) | ~5 |
+| Already covered by API (wrapping an action function) | ~1 |
+| Proposed new endpoints | ~44 |
+| Skip (UI-only) | ~3 |
 | New route files needed | ~9 |
 | Existing routes to extend | ~3 |
 
@@ -242,9 +245,9 @@ This means minimal new logic — the action functions already contain all valida
 
 | Priority | New Routes | Extended Routes | Effort |
 |----------|-----------|-----------------|--------|
-| Priority 1 | 3 (outreach, approvals, client status) | 1 (clients) | ~1 day |
-| Priority 2 | 6 (prospects, promos, tags, templates, smart-lists) | 1 (employees) | ~1 day |
-| Priority 3 | 2 (merge, rvx-import) | 0 | ~0.5 day |
-| **Total** | **11** | **2** | **~2.5 days** |
+| Priority 1 | 2 (outreach, approvals) | 1 (clients/[id]) | ~1 day |
+| Priority 2 | 5 (prospects, promos, tags, templates, smart-lists) | 1 (employees) | ~1 day |
+| Priority 3 | 2 (unsubscribe, rvx) | 1 (clients, clients/[id]) | ~0.5 day |
+| **Total** | **9** | **3** | **~2.5 days** |
 
 Each endpoint is a thin wrapper around an existing action function. The heavy lifting (validation, auth, DB ops) is already done.

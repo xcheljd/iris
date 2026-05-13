@@ -96,6 +96,48 @@ The Settings → Backup tab (managers only) provides:
 
 The restore endpoint calls `process.exit(0)` after a short delay so that PM2 or systemd restarts the process automatically with the new database in place.
 
+## Onboarding
+
+The app includes a built-in onboarding system (no external tour libraries) that guides new users through key features on first login.
+
+### Guided Tour
+
+- Auto-triggers on first login with a step-by-step spotlight walkthrough
+- **8 base steps** for associates, **12 for managers** (4 extra: Approvals, Employee Management, Backup, Analytics)
+- Supports Next / Back / Skip navigation
+- Tour progress is persisted in the database (`onboarding_state` JSON column on the `employees` table via Drizzle ORM) so it resumes across browsers and sessions
+- Replayable at any time from **Settings → Onboarding**
+
+### Contextual Hints
+
+After completing the tour, one-time hints appear for four secondary features:
+
+| Hint | Trigger Page |
+|------|-------------|
+| Add Client | `/clients` |
+| Edit Client | `/clients/[id]` |
+| Log Outreach | `/clients/[id]` |
+| Command Palette | Any page |
+
+Hints are dismissed permanently on first interaction.
+
+### Settings Onboarding Tab
+
+A new **Onboarding** tab in Settings shows:
+
+- Tour completion status
+- Per-step progress breakdown
+- **Replay Tour** button to restart the walkthrough
+
+### Architecture
+
+Built entirely with shadcn/ui primitives:
+
+- **OnboardingProvider** — React context that manages tour and hint state
+- **TourOverlay** — full-screen backdrop with a spotlight cutout around the target element
+- **TourTooltip** — positioned tooltip with step content and navigation controls
+- **HintManager** — renders contextual hints based on the current route
+
 ## Documentation
 
 See [docs/README.md](docs/README.md) for the full documentation index.
