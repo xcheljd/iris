@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,10 +14,11 @@ import { Topbar } from "@/components/topbar";
 import { formatPhone, daysAgo } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, ChevronUp, ChevronDown, ChevronsUpDown, MoreHorizontal, Eye, Edit, Ban, MailX, Trash2, Flame, User } from "lucide-react";
+import { Plus, ChevronUp, ChevronDown, ChevronsUpDown, MoreHorizontal, Eye, Edit, Ban, MailX, Trash2, Flame, User, Mail } from "lucide-react";
 import { BanCustomerDialog, UnsubscribeCustomerDialog } from "@/components/client-status-actions";
 import { ClientsTagFilter } from "@/components/clients-tag-filter";
 import { FilterSelect } from "@/components/filter-select";
+import { EmailRecipientsDialog } from "@/components/email-recipients-dialog";
 import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { deleteClient } from "@/lib/actions";
@@ -91,7 +92,23 @@ export function ClientListContent({
   const [qLocal, setQLocal] = useState(currentFilters.q);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<ClientRow | null>(null);
+  const [emailRecipientsOpen, setEmailRecipientsOpen] = useState(false);
   const isFirstRender = useRef(true);
+
+  // Stable filter object for the EmailRecipientsDialog — prevents refetch
+  // on every parent re-render. Joining tags keeps the dep primitive.
+  const tagsKey = currentFilters.tags.join(",");
+  const emailRecipientFilters = useMemo(
+    () => ({
+      q: currentFilters.q,
+      heat: currentFilters.heat,
+      owner: currentFilters.owner,
+      tags: currentFilters.tags,
+      tagMode: currentFilters.tagMode,
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [currentFilters.q, currentFilters.heat, currentFilters.owner, tagsKey, currentFilters.tagMode],
+  );
 
   function navigate(overrides: Partial<ClientFilters>) {
     const next = { ...currentFilters, ...overrides };
@@ -161,6 +178,10 @@ export function ClientListContent({
   return (
     <>
       <Topbar title="Clients">
+        <Button onClick={() => setEmailRecipientsOpen(true)} variant="outline" size="sm">
+          <Mail className="h-4 w-4 mr-2" />
+          Email Recipients
+        </Button>
         <Button asChild variant="gold" size="sm" data-hint="add-client">
           <Link href="/clients/new"><Plus className="h-4 w-4 mr-1" /> Add Client</Link>
         </Button>
@@ -340,6 +361,12 @@ export function ClientListContent({
         confirmLabel="Delete"
         variant="destructive"
         onConfirm={handleDelete}
+      />
+
+      <EmailRecipientsDialog
+        open={emailRecipientsOpen}
+        onOpenChange={setEmailRecipientsOpen}
+        filters={emailRecipientFilters}
       />
     </>
   );
