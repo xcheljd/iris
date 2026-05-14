@@ -295,6 +295,9 @@ export async function getUnsubscribeList() {
 }
 
 export async function getEmployees() {
+  // Order by manual sortOrder (set via the Employees settings tab), then
+  // firstName for ties. Each row carries an `activeClientCount` so the UI
+  // can preview impact when deactivating without a second round trip.
   return db.select({
     id: employees.id,
     firstName: employees.firstName,
@@ -302,8 +305,14 @@ export async function getEmployees() {
     username: employees.username,
     role: employees.role,
     active: employees.active,
+    sortOrder: employees.sortOrder,
     createdAt: employees.createdAt,
-  }).from(employees).orderBy(employees.firstName).all();
+    activeClientCount: rawSql<number>`(
+      SELECT count(*) FROM clients
+      WHERE clients.employee_id = ${employees.id}
+        AND clients.status NOT IN ('deleted', 'banned')
+    )`.as("active_client_count"),
+  }).from(employees).orderBy(employees.sortOrder, employees.firstName).all();
 }
 
 export async function getEmployee(id: string) {
@@ -314,7 +323,13 @@ export async function getEmployee(id: string) {
     username: employees.username,
     role: employees.role,
     active: employees.active,
+    sortOrder: employees.sortOrder,
     createdAt: employees.createdAt,
+    activeClientCount: rawSql<number>`(
+      SELECT count(*) FROM clients
+      WHERE clients.employee_id = ${employees.id}
+        AND clients.status NOT IN ('deleted', 'banned')
+    )`.as("active_client_count"),
   }).from(employees).where(eq(employees.id, id)).get();
 }
 

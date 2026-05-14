@@ -1,7 +1,7 @@
 "use server";
 import { db } from "@/lib/db";
-import { employees } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { employees, clients, activityEvents } from "@/lib/db/schema";
+import { eq, asc, and, notInArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { MIN_PASSWORD_LENGTH, BCRYPT_SALT_ROUNDS } from "@/lib/constants";
@@ -127,4 +127,129 @@ export async function setSecretQuestion(question: string, answer: string) {
     .where(eq(employees.id, user.id))
     .run();
   return { success: true as const };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Reorder employees                                                           */
+/*                                                                            */
+/* Swaps an employee's sortOrder with their immediate neighbor in the given   */
+/* direction. The Employees settings tab uses arrow buttons; the data layer    */
+/* doesn't care whether the UI is buttons or drag-drop.                       */
+/* -------------------------------------------------------------------------- */
+
+export async function reorderEmployee(employeeId: string, direction: "up" | "down") {
+  const user = await getSessionUser();
+  if (user?.role !== "manager") return { error: "Unauthorized" };
+
+  const all = db.select({ id: employees.id, sortOrder: employees.sortOrder, firstName: employees.firstName })
+    .from(employees)
+    .orderBy(asc(employees.sortOrder), asc(employees.firstName))
+    .all();
+
+  const idx = all.findIndex((e) => e.id === employeeId);
+  if (idx === -1) return { error: "Employee not found" };
+  const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+  if (swapIdx < 0 || swapIdx >= all.length) return { success: true as const }; // already at edge — no-op
+
+  // Some installations start with sortOrder=0 for everyone. Normalize first
+  // so swaps produce distinct values.
+  const needsNormalize = all.some((e, i) => i > 0 && e.sortOrder === all[i - 1].sortOrder);
+  if (needsNormalize) {
+    db.transaction((tx) => {
+      all.forEach((e, i) => {
+        tx.update(employees).set({ sortOrder: i }).where(eq(employees.id, e.id)).run();
+      });
+    });
+    all.forEach((e, i) => { e.sortOrder = i; });
+  }
+
+  const a = all[idx];
+  const b = all[swapIdx];
+  db.transaction((tx) => {
+    tx.update(employees).set({ sortOrder: b.sortOrder }).where(eq(employees.id, a.id)).run();
+    tx.update(employees).set({ sortOrder: a.sortOrder }).where(eq(employees.id, b.id)).run();
+  });
+  revalidatePath("/settings");
+  return { success: true as const };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Deactivate employee + handle their clients atomically                       */
+/*                                                                            */
+/* Three modes for the client handling:                                       */
+/*   keep:     leave clients on this (now-inactive) employee                  */
+/*   reassign: move all to `reassignToId`                                     */
+/*   unassign: set employeeId = NULL                                          */
+/*                                                                            */
+/* Each affected client gets a transferred activity event so the audit trail  */
+/* shows what happened.                                                       */
+/* -------------------------------------------------------------------------- */
+
+export async function deactivateEmployee(
+  employeeId: string,
+  options: { clientHandling: "keep" | "reassign" | "unassign"; reassignToId?: string },
+) {
+  const user = await getSessionUser();
+  if (user?.role !== "manager") return { error: "Unauthorized" };
+  if (user.id === employeeId) return { error: "Cannot deactivate your own account" };
+
+  const target = db.select().from(employees).where(eq(employees.id, employeeId)).get();
+  if (!target) return { error: "Employee not found" };
+
+  let reassignTarget: { id: string; firstName: string; lastName: string | null } | undefined;
+  if (options.clientHandling === "reassign") {
+    if (!options.reassignToId) return { error: "Pick an employee to reassign to" };
+    if (options.reassignToId === employeeId) return { error: "Can't reassign to the same employee" };
+    const t = db
+      .select({ id: employees.id, firstName: employees.firstName, lastName: employees.lastName, active: employees.active })
+      .from(employees)
+      .where(eq(employees.id, options.reassignToId))
+      .get();
+    if (!t) return { error: "Reassign target not found" };
+    if (!t.active) return { error: "Reassign target is inactive" };
+    reassignTarget = t;
+  }
+
+  try {
+    db.transaction((tx) => {
+      // Collect impacted clients first so we can log per-client activity
+      const impacted = tx
+        .select({ id: clients.id })
+        .from(clients)
+        .where(and(eq(clients.employeeId, employeeId), notInArray(clients.status, ["deleted", "banned"])))
+        .all();
+
+      const newOwner = options.clientHandling === "reassign" ? options.reassignToId! : null;
+      const shouldUpdate = options.clientHandling !== "keep";
+
+      if (shouldUpdate && impacted.length > 0) {
+        tx.update(clients)
+          .set({ employeeId: newOwner, updatedAt: new Date() })
+          .where(eq(clients.employeeId, employeeId))
+          .run();
+
+        const description = options.clientHandling === "reassign"
+          ? `Owner reassigned to ${reassignTarget!.firstName}${reassignTarget!.lastName ? " " + reassignTarget!.lastName : ""} on deactivation of ${target.firstName}`
+          : `Owner unassigned on deactivation of ${target.firstName}`;
+        for (const c of impacted) {
+          tx.insert(activityEvents).values({
+            id: randomUUID(),
+            clientId: c.id,
+            eventType: "transferred",
+            description,
+            employeeId: user.id,
+            metadata: { newEmployeeId: newOwner, reason: "employee_deactivated", deactivatedEmployeeId: employeeId },
+          }).run();
+        }
+      }
+
+      tx.update(employees).set({ active: false }).where(eq(employees.id, employeeId)).run();
+    });
+
+    revalidatePath("/settings");
+    revalidatePath("/clients");
+    return { success: true as const, clientsAffected: target ? undefined : 0 };
+  } catch {
+    return { error: "Failed to deactivate employee" };
+  }
 }

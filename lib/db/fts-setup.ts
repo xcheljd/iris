@@ -21,7 +21,7 @@
 import type Database from "better-sqlite3";
 
 export function setupClientsFts(sqlite: Database.Database) {
-  // Self-healing column add: ensures clients.last_viewed_at exists even when
+  // Self-healing column adds: ensure columns the app expects exist even when
   // the user hasn't run `npm run db:push` after pulling. SQLite's
   // pragma_table_info is queried first because ALTER TABLE ADD COLUMN throws
   // if the column already exists.
@@ -30,6 +30,12 @@ export function setupClientsFts(sqlite: Database.Database) {
     .get();
   if (!hasLastViewed) {
     sqlite.exec("ALTER TABLE clients ADD COLUMN last_viewed_at INTEGER");
+  }
+  const hasEmployeeSortOrder = sqlite
+    .prepare("SELECT 1 FROM pragma_table_info('employees') WHERE name = 'sort_order'")
+    .get();
+  if (!hasEmployeeSortOrder) {
+    sqlite.exec("ALTER TABLE employees ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
   }
 
   // Schema migration: if clients_fts exists but lacks the `promos` column

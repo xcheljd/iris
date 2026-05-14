@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SearchInput } from "@/components/search-input";
 import {
   DropdownMenu,
@@ -28,18 +27,31 @@ import {
   Eye,
   EyeOff,
   Pencil,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
-import { createEmployee, resetEmployeePassword, updateEmployeeRole, toggleEmployeeActive, updateEmployee } from "@/lib/actions";
+import { createEmployee, resetEmployeePassword, updateEmployeeRole, toggleEmployeeActive, updateEmployee, deactivateEmployee, reorderEmployee } from "@/lib/actions";
 import { toast } from "sonner";
 import { fullName } from "@/lib/utils";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface EmployeesTabProps {
-  employees: { id: string; firstName: string; lastName: string | null; username: string; role: string; active: boolean }[];
+  employees: {
+    id: string;
+    firstName: string;
+    lastName: string | null;
+    username: string;
+    role: string;
+    active: boolean;
+    sortOrder: number;
+    activeClientCount: number;
+  }[];
 }
 
 export function EmployeesTab({ employees }: EmployeesTabProps) {
   const router = useRouter();
   const [employeeSearch, setEmployeeSearch] = useState("");
+  const [showInactive, setShowInactive] = useState(false);
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newEmployee, setNewEmployee] = useState({ firstName: "", lastName: "", username: "", password: "", role: "associate" as "associate" | "manager" });
@@ -48,16 +60,32 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
   const [showEmpPw, setShowEmpPw] = useState(false);
   const [showResetPw, setShowResetPw] = useState(false);
   const [deactivateTarget, setDeactivateTarget] = useState<(typeof employees)[number] | null>(null);
+  const [deactivateMode, setDeactivateMode] = useState<"keep" | "reassign" | "unassign">("keep");
+  const [reassignToId, setReassignToId] = useState<string>("");
+  const [deactivating, setDeactivating] = useState(false);
   const [editEmployeeTarget, setEditEmployeeTarget] = useState<(typeof employees)[number] | null>(null);
   const [editEmployee, setEditEmployee] = useState({ firstName: "", lastName: "", username: "", role: "associate" as "associate" | "manager", active: true });
 
   const filteredEmployees = useMemo(() => {
-    if (!employeeSearch) return employees;
+    let list = employees;
+    if (!showInactive) list = list.filter((e) => e.active);
+    if (!employeeSearch) return list;
     const q = employeeSearch.toLowerCase();
-    return employees.filter((e) =>
+    return list.filter((e) =>
       e.firstName.toLowerCase().includes(q) || (e.lastName ?? "").toLowerCase().includes(q) || e.username.toLowerCase().includes(q)
     );
-  }, [employees, employeeSearch]);
+  }, [employees, employeeSearch, showInactive]);
+
+  // Reorder is only meaningful with the natural list order — disable when
+  // a search is active so the up/down buttons don't operate on a filtered
+  // view that doesn't reflect persistent neighbor positions.
+  const canReorder = !employeeSearch;
+
+  /** Active employees other than this one — candidates for reassign. */
+  const reassignCandidates = useMemo(
+    () => employees.filter((e) => e.active && e.id !== deactivateTarget?.id),
+    [employees, deactivateTarget?.id],
+  );
 
   const handleCreateEmployee = async () => {
     if (!newEmployee.firstName.trim() || !newEmployee.username.trim() || !newEmployee.password.trim()) {
@@ -117,18 +145,64 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
     }
   };
 
-  const handleToggleActive = async (employee: (typeof employees)[number]) => {
+  // Activation is a simple flip — only deactivate uses the richer dialog.
+  const handleActivate = async (employee: (typeof employees)[number]) => {
     try {
-      const result = await toggleEmployeeActive(employee.id, !employee.active);
+      const result = await toggleEmployeeActive(employee.id, true);
       if (result?.error) {
         toast.error(result.error);
         return;
       }
-      toast.success(`${fullName(employee)} ${employee.active ? "deactivated" : "activated"}`);
-      setDeactivateTarget(null);
+      toast.success(`${fullName(employee)} activated`);
       router.refresh();
     } catch {
       toast.error("Failed to update status");
+    }
+  };
+
+  const handleConfirmDeactivate = async () => {
+    if (!deactivateTarget) return;
+    if (deactivateMode === "reassign" && !reassignToId) {
+      toast.error("Pick an employee to reassign clients to");
+      return;
+    }
+    setDeactivating(true);
+    try {
+      const result = await deactivateEmployee(deactivateTarget.id, {
+        clientHandling: deactivateMode,
+        reassignToId: deactivateMode === "reassign" ? reassignToId : undefined,
+      });
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      const n = deactivateTarget.activeClientCount;
+      const suffix =
+        deactivateMode === "keep" || n === 0 ? ""
+        : deactivateMode === "reassign" ? ` and reassigned ${n} client${n === 1 ? "" : "s"}`
+        : ` and unassigned ${n} client${n === 1 ? "" : "s"}`;
+      toast.success(`${fullName(deactivateTarget)} deactivated${suffix}`);
+      setDeactivateTarget(null);
+      setDeactivateMode("keep");
+      setReassignToId("");
+      router.refresh();
+    } catch {
+      toast.error("Failed to deactivate employee");
+    } finally {
+      setDeactivating(false);
+    }
+  };
+
+  const handleReorder = async (employeeId: string, direction: "up" | "down") => {
+    try {
+      const result = await reorderEmployee(employeeId, direction);
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      router.refresh();
+    } catch {
+      toast.error("Failed to reorder");
     }
   };
 
@@ -220,13 +294,17 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
               </DialogContent>
             </Dialog>
           </div>
-          <div className="mt-3">
+          <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-3">
             <SearchInput
               placeholder="Search employees..."
               value={employeeSearch}
               onChange={setEmployeeSearch}
-              className="max-w-sm"
+              className="max-w-sm flex-1"
             />
+            <label className="flex items-center gap-2 text-sm whitespace-nowrap">
+              <Switch checked={showInactive} onCheckedChange={setShowInactive} />
+              Show inactive
+            </label>
           </div>
         </CardHeader>
         <CardContent>
@@ -234,6 +312,7 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
           <Table>
             <TableHeader>
               <TableRow>
+                {canReorder && <TableHead className="w-10"><span className="sr-only">Reorder</span></TableHead>}
                 <TableHead>Name</TableHead>
                 <TableHead className="hidden sm:table-cell">Username</TableHead>
                 <TableHead>Role</TableHead>
@@ -242,9 +321,38 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredEmployees.map((employee) => (
+              {filteredEmployees.map((employee, idx) => (
                 <TableRow key={employee.id}>
-                  <TableCell className="font-medium">{fullName(employee)}</TableCell>
+                  {canReorder && (
+                    <TableCell className="w-10 px-1">
+                      <div className="flex flex-col">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-5 w-5 p-0"
+                          aria-label={`Move ${fullName(employee)} up`}
+                          disabled={idx === 0}
+                          onClick={() => handleReorder(employee.id, "up")}
+                        >
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-5 w-5 p-0"
+                          aria-label={`Move ${fullName(employee)} down`}
+                          disabled={idx === filteredEmployees.length - 1}
+                          onClick={() => handleReorder(employee.id, "down")}
+                        >
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  )}
+                  <TableCell className="font-medium">
+                    {fullName(employee)}
+                    {!employee.active && <span className="ml-2 text-xs text-muted-foreground">(inactive)</span>}
+                  </TableCell>
                   <TableCell className="hidden sm:table-cell text-muted-foreground">{employee.username}</TableCell>
                   <TableCell>
                     <Badge variant="secondary">{employee.role}</Badge>
@@ -257,7 +365,7 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
                           if (employee.active) {
                             setDeactivateTarget(employee);
                           } else {
-                            handleToggleActive(employee);
+                            handleActivate(employee);
                           }
                         }}
                         disabled={employee.username === "__self__"}
@@ -298,7 +406,7 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
                             if (employee.active) {
                               setDeactivateTarget(employee);
                             } else {
-                              handleToggleActive(employee);
+                              handleActivate(employee);
                             }
                           }}
                         >
@@ -311,7 +419,7 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
               ))}
               {filteredEmployees.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={canReorder ? 6 : 5} className="text-center py-8 text-muted-foreground">
                     No employees match your search
                   </TableCell>
                 </TableRow>
@@ -346,21 +454,91 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Deactivate Confirmation */}
-      <ConfirmDialog
+      {/* Deactivate dialog — asks how to handle the employee's assigned clients */}
+      <Dialog
         open={!!deactivateTarget}
-        onOpenChange={(open) => !open && setDeactivateTarget(null)}
-        title={<>{deactivateTarget?.active ? "Deactivate" : "Activate"} Employee</>}
-        description={
-          <>
-            Are you sure you want to {deactivateTarget?.active ? "deactivate" : "activate"}{" "}
-            <strong>{deactivateTarget ? fullName(deactivateTarget) : ""}</strong>?
-            {deactivateTarget?.active && " They will no longer be able to log in."}
-          </>
-        }
-        confirmLabel={deactivateTarget?.active ? "Deactivate" : "Activate"}
-        onConfirm={() => deactivateTarget && handleToggleActive(deactivateTarget)}
-      />
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeactivateTarget(null);
+            setDeactivateMode("keep");
+            setReassignToId("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Deactivate {deactivateTarget ? fullName(deactivateTarget) : "Employee"}</DialogTitle>
+            <DialogDescription>
+              {deactivateTarget ? fullName(deactivateTarget) : "They"} will no longer be able to log in.
+              {deactivateTarget && deactivateTarget.activeClientCount > 0 && (
+                <> They currently own <strong>{deactivateTarget.activeClientCount}</strong>{" "}
+                client{deactivateTarget.activeClientCount === 1 ? "" : "s"}.</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {deactivateTarget && deactivateTarget.activeClientCount > 0 ? (
+            <div className="space-y-3 py-2">
+              <Label className="text-sm font-medium">What about their clients?</Label>
+              <RadioGroup value={deactivateMode} onValueChange={(v) => setDeactivateMode(v as "keep" | "reassign" | "unassign")}>
+                <div className="flex items-start gap-2">
+                  <RadioGroupItem value="keep" id="deactivate-keep" className="mt-1" />
+                  <div className="flex-1">
+                    <Label htmlFor="deactivate-keep" className="font-normal cursor-pointer">Keep with this employee</Label>
+                    <p className="text-xs text-muted-foreground">Clients stay assigned. Useful if they may return.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <RadioGroupItem value="reassign" id="deactivate-reassign" className="mt-1" />
+                  <div className="flex-1 space-y-2">
+                    <Label htmlFor="deactivate-reassign" className="font-normal cursor-pointer">Reassign to another employee</Label>
+                    {deactivateMode === "reassign" && (
+                      <Select value={reassignToId} onValueChange={setReassignToId}>
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Pick an employee…" /></SelectTrigger>
+                        <SelectContent>
+                          {reassignCandidates.length === 0 ? (
+                            <SelectItem value="__none__" disabled>No active employees available</SelectItem>
+                          ) : (
+                            reassignCandidates.map((e) => (
+                              <SelectItem key={e.id} value={e.id}>{fullName(e)}</SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <RadioGroupItem value="unassign" id="deactivate-unassign" className="mt-1" />
+                  <div className="flex-1">
+                    <Label htmlFor="deactivate-unassign" className="font-normal cursor-pointer">Unassign for later</Label>
+                    <p className="text-xs text-muted-foreground">Clients become unowned — reassign manually from the Clients page.</p>
+                  </div>
+                </div>
+              </RadioGroup>
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeactivateTarget(null);
+                setDeactivateMode("keep");
+                setReassignToId("");
+              }}
+              disabled={deactivating}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDeactivate}
+              disabled={deactivating || (deactivateMode === "reassign" && !reassignToId)}
+            >
+              {deactivating ? "Deactivating…" : "Deactivate"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Employee Dialog */}
       <Dialog open={!!editEmployeeTarget} onOpenChange={(open) => { if (!open) setEditEmployeeTarget(null); }}>

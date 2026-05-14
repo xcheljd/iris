@@ -34,6 +34,8 @@ export const employees = sqliteTable("employees", {
   secretQuestion: text("secret_question"),
   secretAnswerHash: text("secret_answer_hash"),
   onboardingState: text("onboarding_state"),
+  /** Manual sort order for the Employees settings tab — lower comes first. */
+  sortOrder: integer("sort_order").notNull().default(0),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
