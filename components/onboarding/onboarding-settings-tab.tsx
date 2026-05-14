@@ -4,14 +4,8 @@ import { useCallback, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { CheckCircle2, Circle, GraduationCap, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { updateOnboardingState } from "@/lib/actions/onboarding";
 import { useOnboarding } from "./onboarding-provider";
 import { getStepsForRole } from "./tour-steps";
@@ -88,105 +82,93 @@ export function OnboardingSettingsTab() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Tour completion status */}
-      <div>
-        <h3 className="text-sm font-medium text-muted-foreground mb-2">Tour Status</h3>
-        <div className="flex items-center gap-2">
-          {tourCompleted && !tourSkipped ? (
-            <>
-              <CheckCircle2 className="h-5 w-5 text-green-500" />
-              <span className="text-sm font-medium">Completed</span>
-            </>
+    <div className="space-y-4">
+      {/* Tour overview — status + action */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <GraduationCap className="h-5 w-5" />
+            Guided Tour
+          </CardTitle>
+          <CardDescription>
+            A step-by-step walkthrough of the key features in Iris.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-2">
+            {tourCompleted && !tourSkipped ? (
+              <>
+                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                <span className="text-sm font-medium">Completed</span>
+              </>
+            ) : (
+              <>
+                <Circle className="h-5 w-5 text-muted-foreground" />
+                <span className="text-sm font-medium">Not Completed</span>
+              </>
+            )}
+          </div>
+          {isTourActive ? (
+            <Button disabled variant="outline" className="gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Tour in Progress
+            </Button>
           ) : (
-            <>
-              <Circle className="h-5 w-5 text-muted-foreground" />
-              <span className="text-sm font-medium">Not Completed</span>
-            </>
+            <Button onClick={() => setConfirmOpen(true)} className="gap-2">
+              <GraduationCap className="h-4 w-4" />
+              {buttonText}
+            </Button>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      {/* Individual step progress */}
-      <div>
-        <h3 className="text-sm font-medium text-muted-foreground mb-3">
-          Step Progress ({steps.length} steps)
-        </h3>
-        <ul className="space-y-2">
-          {steps.map((step) => {
-            const isCompleted = completedSteps.includes(step.id);
-            return (
-              <li key={step.id} className="flex items-center gap-3 text-sm">
-                <span
-                  data-testid={`step-indicator-${step.id}`}
-                  data-completed={isCompleted ? "true" : "false"}
-                  className="shrink-0"
-                >
-                  {isCompleted ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <Circle className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </span>
-                <span className={isCompleted ? "text-foreground" : "text-muted-foreground"}>
-                  {step.title}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-
-      {/* Action button */}
-      <div>
-        {isTourActive ? (
-          <Button disabled variant="outline" className="gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Tour in Progress
-          </Button>
-        ) : (
-          <Button onClick={() => setConfirmOpen(true)} className="gap-2">
-            <GraduationCap className="h-4 w-4" />
-            {buttonText}
-          </Button>
-        )}
-      </div>
+      {/* Step progress */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Step Progress</CardTitle>
+          <CardDescription>{steps.length} steps total</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ul className="space-y-2">
+            {steps.map((step) => {
+              const isCompleted = completedSteps.includes(step.id);
+              return (
+                <li key={step.id} className="flex items-center gap-3 text-sm">
+                  <span
+                    data-testid={`step-indicator-${step.id}`}
+                    data-completed={isCompleted ? "true" : "false"}
+                    className="shrink-0"
+                  >
+                    {isCompleted ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <Circle className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </span>
+                  <span className={isCompleted ? "text-foreground" : "text-muted-foreground"}>
+                    {step.title}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </CardContent>
+      </Card>
 
       {/* Confirmation dialog */}
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent
-          className="sm:max-w-[425px]"
-          onPointerDownOutside={(e) => e.preventDefault()}
-        >
-          <DialogHeader>
-            <DialogTitle>
-              {showReplay ? "Replay Tour?" : "Start Tour?"}
-            </DialogTitle>
-            <DialogDescription>
-              {showReplay
-                ? "This will reset your tour progress and guide you through the app again from the beginning. Your current progress will be lost."
-                : "This will start a guided tour of the app from the beginning."}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => setConfirmOpen(false)}
-              disabled={resetting}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleConfirm}
-              disabled={resetting}
-              className="gap-2"
-            >
-              {resetting && <Loader2 className="h-4 w-4 animate-spin" />}
-              Confirm
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={showReplay ? "Replay Tour?" : "Start Tour?"}
+        description={
+          showReplay
+            ? "This will reset your tour progress and guide you through the app again from the beginning. Your current progress will be lost."
+            : "This will start a guided tour of the app from the beginning."
+        }
+        confirmLabel={showReplay ? "Replay" : "Start"}
+        onConfirm={handleConfirm}
+        disabled={resetting}
+      />
     </div>
   );
 }
