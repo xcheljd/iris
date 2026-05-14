@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, act, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
+import { SidebarProvider } from "@/components/ui/sidebar";
 
 // ─── Mocks ────────────────────────────────────────────────────────────────
 
@@ -69,9 +70,11 @@ function TestConsumer() {
 
 function renderWithProvider() {
   return render(
-    <OnboardingProvider>
-      <TestConsumer />
-    </OnboardingProvider>,
+    <SidebarProvider>
+      <OnboardingProvider>
+        <TestConsumer />
+      </OnboardingProvider>
+    </SidebarProvider>,
   );
 }
 

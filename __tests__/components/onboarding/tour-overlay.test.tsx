@@ -32,8 +32,18 @@ vi.mock("@/lib/actions/onboarding", () => ({
 
 // ─── Import after mocks ───────────────────────────────────────────────────
 
-import { OnboardingProvider, useOnboarding } from "@/components/onboarding/onboarding-provider";
+import { OnboardingProvider as _OnboardingProvider, useOnboarding } from "@/components/onboarding/onboarding-provider";
 import { TourOverlay } from "@/components/onboarding/tour-overlay";
+import { SidebarProvider } from "@/components/ui/sidebar";
+
+// OnboardingProvider now depends on useSidebar() — wrap every render.
+function OnboardingProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <SidebarProvider>
+      <_OnboardingProvider>{children}</_OnboardingProvider>
+    </SidebarProvider>
+  );
+}
 
 // Helper consumer to expose context for testing
 function ContextConsumer() {

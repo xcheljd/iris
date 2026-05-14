@@ -26,11 +26,8 @@ beforeEach(() => {
 
 describe("POST /api/notes", () => {
   it("should add a note to an existing client", async () => {
-    // Get an existing client
-    const allReq = new Request("http://localhost:3000/api/clients");
-    const allRes = await GET(allReq);
-    const allData = await allRes.json();
-    const clientId = allData[0].id;
+    // Use the global test fixture client (see __tests__/setup.ts)
+    const clientId = "e18e3ba8-b3b1-4bc1-b0f2-f13a219dd30b";
 
     const req = new Request("http://localhost:3000/api/notes", {
       method: "POST",
@@ -110,11 +107,8 @@ describe("POST /api/notes", () => {
 
 describe("DELETE /api/notes", () => {
   it("should delete a note by noteId", async () => {
-    // First add a note to get a noteId
-    const allReq = new Request("http://localhost:3000/api/clients");
-    const allRes = await GET(allReq);
-    const allData = await allRes.json();
-    const clientId = allData[0].id;
+    // Use the global test fixture client (see __tests__/setup.ts)
+    const clientId = "e18e3ba8-b3b1-4bc1-b0f2-f13a219dd30b";
 
     // Create a note
     const addReq = new Request("http://localhost:3000/api/notes", {

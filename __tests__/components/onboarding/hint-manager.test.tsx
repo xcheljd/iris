@@ -44,7 +44,18 @@ vi.mock("@/lib/actions/onboarding", () => ({
 
 // ─── Import after mocks ───────────────────────────────────────────────────
 
-import { OnboardingProvider, useOnboarding } from "@/components/onboarding/onboarding-provider";
+import { OnboardingProvider as _OnboardingProvider, useOnboarding } from "@/components/onboarding/onboarding-provider";
+import { SidebarProvider } from "@/components/ui/sidebar";
+
+// OnboardingProvider now depends on useSidebar(), so every test render needs
+// a SidebarProvider ancestor. Wrap once at the test-file boundary.
+function OnboardingProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <SidebarProvider>
+      <_OnboardingProvider>{children}</_OnboardingProvider>
+    </SidebarProvider>
+  );
+}
 import { HintManager } from "@/components/onboarding/hint-manager";
 import { HINT_DEFINITIONS, getHintsForPath, getShortcutText, getValidHintIds } from "@/components/onboarding/hint-definitions";
 

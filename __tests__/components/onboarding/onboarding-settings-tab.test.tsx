@@ -261,9 +261,9 @@ describe("OnboardingSettingsTab", () => {
     await user.click(screen.getByRole("button", { name: /replay tour/i }));
 
     // Dialog should show with title, description, and action buttons
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /confirm/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^replay$|^start$/i })).toBeInTheDocument();
   });
 
   it("cancels without changing state", async () => {
@@ -279,11 +279,11 @@ describe("OnboardingSettingsTab", () => {
 
     await user.click(screen.getByRole("button", { name: /replay tour/i }));
     // Dialog should be open
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /cancel/i }));
 
     // Dialog should be gone
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     // State should be unchanged — startTour not called
     expect(mockStartTour).not.toHaveBeenCalled();
   });
@@ -302,7 +302,7 @@ describe("OnboardingSettingsTab", () => {
     renderTab();
 
     await user.click(screen.getByRole("button", { name: /replay tour/i }));
-    await user.click(screen.getByRole("button", { name: /confirm/i }));
+    await user.click(screen.getByRole("button", { name: /^replay$|^start$/i }));
 
     // Should have called updateOnboardingState to reset tour fields
     expect(mockUpdateOnboardingState).toHaveBeenCalledWith(
@@ -333,7 +333,7 @@ describe("OnboardingSettingsTab", () => {
     renderTab();
 
     await user.click(screen.getByRole("button", { name: /replay tour/i }));
-    await user.click(screen.getByRole("button", { name: /confirm/i }));
+    await user.click(screen.getByRole("button", { name: /^replay$|^start$/i }));
 
     // startTour should NOT have been called — server reset failed
     expect(mockStartTour).not.toHaveBeenCalled();
@@ -355,7 +355,7 @@ describe("OnboardingSettingsTab", () => {
     renderTab();
 
     await user.click(screen.getByRole("button", { name: /start tour/i }));
-    await user.click(screen.getByRole("button", { name: /confirm/i }));
+    await user.click(screen.getByRole("button", { name: /^replay$|^start$/i }));
 
     // Verify currentStep is NOT in the payload (it would fail Zod .min(1) validation)
     const callArgs = mockUpdateOnboardingState.mock.calls[0][0];
@@ -374,7 +374,7 @@ describe("OnboardingSettingsTab", () => {
     renderTab();
 
     await user.click(screen.getByRole("button", { name: /start tour/i }));
-    await user.click(screen.getByRole("button", { name: /confirm/i }));
+    await user.click(screen.getByRole("button", { name: /^replay$|^start$/i }));
 
     // tourSkipped should be reset to false
     expect(mockUpdateOnboardingState).toHaveBeenCalledWith(
@@ -404,10 +404,10 @@ describe("OnboardingSettingsTab", () => {
     renderTab();
 
     await user.click(screen.getByRole("button", { name: /replay tour/i }));
-    await user.click(screen.getByRole("button", { name: /confirm/i }));
+    await user.click(screen.getByRole("button", { name: /^replay$|^start$/i }));
 
     // Confirm button should be disabled during loading
-    const confirmBtn = screen.getByRole("button", { name: /confirm/i });
+    const confirmBtn = screen.getByRole("button", { name: /^replay$|^start$/i });
     expect(confirmBtn).toBeDisabled();
 
     // Resolve the promise
@@ -460,7 +460,7 @@ describe("OnboardingSettingsTab", () => {
     const { unmount } = renderTab();
 
     await user.click(screen.getByRole("button", { name: /replay tour/i }));
-    await user.click(screen.getByRole("button", { name: /confirm/i }));
+    await user.click(screen.getByRole("button", { name: /^replay$|^start$/i }));
 
     expect(mockUpdateOnboardingState).toHaveBeenCalledTimes(1);
     expect(mockStartTour).toHaveBeenCalledTimes(1);
@@ -479,7 +479,7 @@ describe("OnboardingSettingsTab", () => {
     renderTab();
 
     await user.click(screen.getByRole("button", { name: /replay tour/i }));
-    await user.click(screen.getByRole("button", { name: /confirm/i }));
+    await user.click(screen.getByRole("button", { name: /^replay$|^start$/i }));
 
     expect(mockUpdateOnboardingState).toHaveBeenCalledTimes(1);
     expect(mockStartTour).toHaveBeenCalledTimes(1);
@@ -565,7 +565,7 @@ describe("OnboardingSettingsTab", () => {
     await user.click(screen.getByRole("button", { name: /replay tour/i }));
 
     // Dialog should have proper ARIA attributes
-    const dialog = screen.getByRole("dialog");
+    const dialog = screen.getByRole("alertdialog");
     expect(dialog).toBeInTheDocument();
     // Radix Dialog sets aria-describedby on the content and uses
     // aria-labelledby for the title
@@ -584,13 +584,13 @@ describe("OnboardingSettingsTab", () => {
     renderTab();
 
     await user.click(screen.getByRole("button", { name: /replay tour/i }));
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
 
     // Press Escape to close dialog
     await user.keyboard("{Escape}");
 
     // Dialog should be gone
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     expect(mockStartTour).not.toHaveBeenCalled();
   });
 
