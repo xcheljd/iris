@@ -395,14 +395,33 @@ function buildCustomConds(filters: Record<string, unknown>, nowSec: number, empl
   return conds;
 }
 
-export async function getBuiltInListClients(filter: string, employeeId?: string): Promise<ClientListRow[]> {
-  if (!BUILTIN_FILTER_IDS.includes(filter as BuiltInFilter)) return [];
-  const nowSec = Math.floor(Date.now() / 1000);
-  const conds = buildBuiltInConds(filter as BuiltInFilter, nowSec, employeeId);
-  return db.select(clientListProjection).from(clients).where(and(...conds)).orderBy(desc(clients.heatScore)).limit(1000).all();
+export interface SmartListClientsResult {
+  rows: ClientListRow[];
+  /** True when the underlying query had more matches than LIST_QUERY_LIMIT and was truncated. */
+  truncated: boolean;
 }
 
-export async function getCustomListClients(filters: Record<string, unknown>, employeeId?: string): Promise<ClientListRow[]> {
+/**
+ * Detects truncation via the LIMIT+1 trick: query one row beyond the cap;
+ * if we got that extra row, the real result set was larger. Returns the
+ * capped rows so the caller can render them unchanged.
+ */
+function capRowsWithTruncationFlag(rows: ClientListRow[]): SmartListClientsResult {
+  if (rows.length > LIST_QUERY_LIMIT) {
+    return { rows: rows.slice(0, LIST_QUERY_LIMIT), truncated: true };
+  }
+  return { rows, truncated: false };
+}
+
+export async function getBuiltInListClients(filter: string, employeeId?: string): Promise<SmartListClientsResult> {
+  if (!BUILTIN_FILTER_IDS.includes(filter as BuiltInFilter)) return { rows: [], truncated: false };
+  const nowSec = Math.floor(Date.now() / 1000);
+  const conds = buildBuiltInConds(filter as BuiltInFilter, nowSec, employeeId);
+  const rows = db.select(clientListProjection).from(clients).where(and(...conds)).orderBy(desc(clients.heatScore)).limit(LIST_QUERY_LIMIT + 1).all();
+  return capRowsWithTruncationFlag(rows);
+}
+
+export async function getCustomListClients(filters: Record<string, unknown>, employeeId?: string): Promise<SmartListClientsResult> {
   const nowSec = Math.floor(Date.now() / 1000);
   const conds = buildCustomConds(filters, nowSec, employeeId);
   // Owner-name filter references employees.firstName/lastName — join when needed
@@ -412,7 +431,8 @@ export async function getCustomListClients(filters: Record<string, unknown>, emp
   const q = needsEmployeeJoin
     ? base.leftJoin(employees, eq(clients.employeeId, employees.id))
     : base;
-  return q.where(and(...conds)).orderBy(desc(clients.heatScore)).limit(1000).all();
+  const rows = q.where(and(...conds)).orderBy(desc(clients.heatScore)).limit(LIST_QUERY_LIMIT + 1).all();
+  return capRowsWithTruncationFlag(rows);
 }
 
 function countCustomFilter(all: ClientListRow[], filters: Record<string, unknown>): number {

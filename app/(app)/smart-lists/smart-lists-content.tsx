@@ -10,6 +10,8 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SearchInput } from "@/components/search-input";
 import { EmptyState } from "@/components/empty-state";
 import { PaginationFooter } from "@/components/pagination-footer";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { LIST_QUERY_LIMIT } from "@/lib/constants";
 import {
   ListFilter,
   Plus,
@@ -22,6 +24,7 @@ import {
   ChevronRight,
   Sparkles,
   Filter,
+  AlertTriangle,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -45,6 +48,8 @@ interface SmartListsContentProps {
   counts: { builtIn: Record<string, number>; custom: Record<string, number> };
   selectedListId: string | null;
   selectedClients: ClientListRow[] | null;
+  /** True when the underlying query hit LIST_QUERY_LIMIT — caller surfaces a banner. */
+  selectedListTruncated: boolean;
 }
 
 const BUILTIN_FILTERS = [
@@ -79,7 +84,7 @@ function ClientRow({ client }: { client: ClientListRow }) {
   );
 }
 
-export function SmartListsContent({ lists, counts, selectedListId, selectedClients }: SmartListsContentProps) {
+export function SmartListsContent({ lists, counts, selectedListId, selectedClients, selectedListTruncated }: SmartListsContentProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [clientPage, setClientPage] = useState(1);
@@ -275,6 +280,16 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
             <CardContent>
               {selectedClients !== null ? (
                 <div className="space-y-3">
+                  {selectedListTruncated && (
+                    <Alert variant="default" className="border-amber-300/60 bg-amber-50/50 dark:bg-amber-950/20">
+                      <AlertTriangle className="h-4 w-4 text-amber-600" />
+                      <AlertDescription className="text-amber-900 dark:text-amber-200">
+                        Showing the first {LIST_QUERY_LIMIT.toLocaleString()} matches.
+                        Your filter has more clients than the display cap — tighten the criteria for a complete view.
+                        Email Recipients exports are unbounded and will include every match.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   <SearchInput
                     placeholder="Search within list..."
                     value={searchQuery}

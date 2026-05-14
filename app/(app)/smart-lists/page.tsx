@@ -34,16 +34,21 @@ async function SmartListsFetcher({ searchParams }: { searchParams: SearchParams 
   const counts = await getAllSmartListCounts(lists, employeeId);
 
   let selectedClients: ClientListRow[] | null = null;
+  let selectedListTruncated = false;
   let selectedListId: string | null = null;
 
   if (selectedParam) {
     if ((BUILTIN_FILTER_IDS as readonly string[]).includes(selectedParam)) {
-      selectedClients = await getBuiltInListClients(selectedParam, employeeId);
+      const result = await getBuiltInListClients(selectedParam, employeeId);
+      selectedClients = result.rows;
+      selectedListTruncated = result.truncated;
       selectedListId = `builtin-${selectedParam}`;
     } else {
       const customList = lists.find((l) => l.id === selectedParam);
       if (customList) {
-        selectedClients = await getCustomListClients(customList.filters as Record<string, unknown>, employeeId);
+        const result = await getCustomListClients(customList.filters as Record<string, unknown>, employeeId);
+        selectedClients = result.rows;
+        selectedListTruncated = result.truncated;
         selectedListId = customList.id;
       }
     }
@@ -55,6 +60,7 @@ async function SmartListsFetcher({ searchParams }: { searchParams: SearchParams 
       counts={counts}
       selectedListId={selectedListId}
       selectedClients={selectedClients ? JSON.parse(JSON.stringify(selectedClients)) : null}
+      selectedListTruncated={selectedListTruncated}
     />
   );
 }
