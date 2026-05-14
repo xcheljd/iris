@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { CheckCircle2, Circle, GraduationCap, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { updateOnboardingState } from "@/lib/actions/onboarding";
 import { useOnboarding } from "./onboarding-provider";
@@ -74,9 +75,36 @@ export function OnboardingSettingsTab() {
   /* ---- render ---- */
 
   if (loading) {
+    // Mirror the two-Card layout below so the skeleton occupies the same
+    // shape as the loaded state — no layout shift on hydrate.
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="space-y-4">
+        <Card>
+          <CardHeader className="space-y-2">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-4 w-72" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-9 w-32" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="space-y-2">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-4 w-24" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="h-4 w-4 rounded-full" />
+                  <Skeleton className="h-4 w-56" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }

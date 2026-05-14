@@ -1,7 +1,6 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 import { Users, Tag, FileText, Trash2, UserCircle, DatabaseBackup, GraduationCap } from "lucide-react";
 import { Topbar } from "@/components/topbar";
 import { ProfileTab } from "./profile-tab";
@@ -92,13 +91,9 @@ export function SettingsContent({ employees, tags, templates, deletedClients, cu
           </TabsContent>
           )}
 
-          <Separator />
-
           <TabsContent value="tags">
             <SettingsTagsTab tags={tags} isManager={isManager} />
           </TabsContent>
-
-          <Separator />
 
           <TabsContent value="templates">
             <TemplatesTab templates={templates} isManager={isManager} />
