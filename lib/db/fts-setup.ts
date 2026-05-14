@@ -72,133 +72,12 @@ export function setupClientsFts(sqlite: Database.Database) {
     );
   `);
 
-  // Triggers fire only on changes to indexed columns. Each one deletes the
-  // old FTS row (if any) and re-inserts the freshly-projected fields.
-  // The `promos` field is computed via a sub-select against promo_matches +
-  // promo_watches so any change to that join surface refreshes the row.
-  sqlite.exec(`
-    CREATE TRIGGER IF NOT EXISTS clients_fts_after_insert
-    AFTER INSERT ON clients
-    BEGIN
-      INSERT INTO clients_fts (client_id, name, email, phone, notes, products, promos)
-      VALUES (
-        NEW.id,
-        TRIM(NEW.first_name || ' ' || COALESCE(NEW.last_name, '')),
-        COALESCE(NEW.email, ''),
-        COALESCE(NEW.phone, ''),
-        COALESCE(NEW.notes, ''),
-        COALESCE((SELECT group_concat(value, ' ') FROM json_each(NEW.products_of_interest)), ''),
-        COALESCE((SELECT group_concat(pw.model_number || ' ' || pw.collection, ' ')
-                  FROM promo_matches pm
-                  JOIN promo_watches pw ON pw.id = pm.promo_id
-                  WHERE pm.client_id = NEW.id), '')
-      );
-    END;
-  `);
-
-  sqlite.exec(`
-    CREATE TRIGGER IF NOT EXISTS clients_fts_after_update
-    AFTER UPDATE OF first_name, last_name, email, phone, notes, products_of_interest ON clients
-    BEGIN
-      DELETE FROM clients_fts WHERE client_id = NEW.id;
-      INSERT INTO clients_fts (client_id, name, email, phone, notes, products, promos)
-      VALUES (
-        NEW.id,
-        TRIM(NEW.first_name || ' ' || COALESCE(NEW.last_name, '')),
-        COALESCE(NEW.email, ''),
-        COALESCE(NEW.phone, ''),
-        COALESCE(NEW.notes, ''),
-        COALESCE((SELECT group_concat(value, ' ') FROM json_each(NEW.products_of_interest)), ''),
-        COALESCE((SELECT group_concat(pw.model_number || ' ' || pw.collection, ' ')
-                  FROM promo_matches pm
-                  JOIN promo_watches pw ON pw.id = pm.promo_id
-                  WHERE pm.client_id = NEW.id), '')
-      );
-    END;
-  `);
-
-  sqlite.exec(`
-    CREATE TRIGGER IF NOT EXISTS clients_fts_after_delete
-    AFTER DELETE ON clients
-    BEGIN
-      DELETE FROM clients_fts WHERE client_id = OLD.id;
-    END;
-  `);
-
-  // Promo-side triggers: when a client→promo link is added or removed, or
-  // when a promo's model_number/collection text changes, recompute the FTS
-  // row(s) for the affected clients. Without these, "DEEPSTONE" search
-  // would stop matching clients after they're linked to/from a promo.
-  sqlite.exec(`
-    CREATE TRIGGER IF NOT EXISTS promo_matches_after_insert
-    AFTER INSERT ON promo_matches
-    BEGIN
-      DELETE FROM clients_fts WHERE client_id = NEW.client_id;
-      INSERT INTO clients_fts (client_id, name, email, phone, notes, products, promos)
-      SELECT
-        c.id,
-        TRIM(c.first_name || ' ' || COALESCE(c.last_name, '')),
-        COALESCE(c.email, ''),
-        COALESCE(c.phone, ''),
-        COALESCE(c.notes, ''),
-        COALESCE((SELECT group_concat(value, ' ') FROM json_each(c.products_of_interest)), ''),
-        COALESCE((SELECT group_concat(pw.model_number || ' ' || pw.collection, ' ')
-                  FROM promo_matches pm
-                  JOIN promo_watches pw ON pw.id = pm.promo_id
-                  WHERE pm.client_id = c.id), '')
-      FROM clients c
-      WHERE c.id = NEW.client_id;
-    END;
-  `);
-
-  sqlite.exec(`
-    CREATE TRIGGER IF NOT EXISTS promo_matches_after_delete
-    AFTER DELETE ON promo_matches
-    BEGIN
-      DELETE FROM clients_fts WHERE client_id = OLD.client_id;
-      INSERT INTO clients_fts (client_id, name, email, phone, notes, products, promos)
-      SELECT
-        c.id,
-        TRIM(c.first_name || ' ' || COALESCE(c.last_name, '')),
-        COALESCE(c.email, ''),
-        COALESCE(c.phone, ''),
-        COALESCE(c.notes, ''),
-        COALESCE((SELECT group_concat(value, ' ') FROM json_each(c.products_of_interest)), ''),
-        COALESCE((SELECT group_concat(pw.model_number || ' ' || pw.collection, ' ')
-                  FROM promo_matches pm
-                  JOIN promo_watches pw ON pw.id = pm.promo_id
-                  WHERE pm.client_id = c.id), '')
-      FROM clients c
-      WHERE c.id = OLD.client_id;
-    END;
-  `);
-
-  // When a promo's text changes, refresh every linked client.
-  sqlite.exec(`
-    CREATE TRIGGER IF NOT EXISTS promo_watches_fts_after_update
-    AFTER UPDATE OF model_number, collection ON promo_watches
-    BEGIN
-      DELETE FROM clients_fts WHERE client_id IN (SELECT client_id FROM promo_matches WHERE promo_id = NEW.id);
-      INSERT INTO clients_fts (client_id, name, email, phone, notes, products, promos)
-      SELECT
-        c.id,
-        TRIM(c.first_name || ' ' || COALESCE(c.last_name, '')),
-        COALESCE(c.email, ''),
-        COALESCE(c.phone, ''),
-        COALESCE(c.notes, ''),
-        COALESCE((SELECT group_concat(value, ' ') FROM json_each(c.products_of_interest)), ''),
-        COALESCE((SELECT group_concat(pw.model_number || ' ' || pw.collection, ' ')
-                  FROM promo_matches pm
-                  JOIN promo_watches pw ON pw.id = pm.promo_id
-                  WHERE pm.client_id = c.id), '')
-      FROM clients c
-      WHERE c.id IN (SELECT client_id FROM promo_matches WHERE promo_id = NEW.id);
-    END;
-  `);
-
-  // One-time backfill — only inserts rows that aren't in the FTS table yet.
-  // The triggers handle everything after this.
-  sqlite.exec(`
+  // Build the FTS row-projection SQL from one template so the seven
+  // places that need it (5 triggers + backfill + the delete-only trigger)
+  // can't drift apart when a column is added or a join is changed.
+  // `clientIdPredicate` is the predicate suffix attached to `c.id` —
+  // either `= NEW.id`, `= OLD.client_id`, or `IN (SELECT …)`.
+  const insertProjection = (clientIdPredicate: string) => `
     INSERT INTO clients_fts (client_id, name, email, phone, notes, products, promos)
     SELECT
       c.id,
@@ -212,6 +91,70 @@ export function setupClientsFts(sqlite: Database.Database) {
                 JOIN promo_watches pw ON pw.id = pm.promo_id
                 WHERE pm.client_id = c.id), '')
     FROM clients c
-    WHERE c.id NOT IN (SELECT client_id FROM clients_fts);
+    WHERE c.id ${clientIdPredicate}
+  `;
+  const deletePredicate = (clientIdPredicate: string) =>
+    `DELETE FROM clients_fts WHERE client_id ${clientIdPredicate}`;
+
+  // Triggers fire only on changes to indexed columns. Each one deletes the
+  // old FTS row (if any) and re-inserts the freshly-projected fields.
+  sqlite.exec(`
+    CREATE TRIGGER IF NOT EXISTS clients_fts_after_insert
+    AFTER INSERT ON clients
+    BEGIN
+      ${insertProjection("= NEW.id")};
+    END;
   `);
+
+  sqlite.exec(`
+    CREATE TRIGGER IF NOT EXISTS clients_fts_after_update
+    AFTER UPDATE OF first_name, last_name, email, phone, notes, products_of_interest ON clients
+    BEGIN
+      ${deletePredicate("= NEW.id")};
+      ${insertProjection("= NEW.id")};
+    END;
+  `);
+
+  sqlite.exec(`
+    CREATE TRIGGER IF NOT EXISTS clients_fts_after_delete
+    AFTER DELETE ON clients
+    BEGIN
+      ${deletePredicate("= OLD.id")};
+    END;
+  `);
+
+  // Promo-side triggers: when a client→promo link is added or removed, or
+  // when a promo's model_number/collection text changes, recompute the FTS
+  // row(s) for the affected clients. Without these, "DEEPSTONE" search
+  // would stop matching clients after they're linked to/from a promo.
+  sqlite.exec(`
+    CREATE TRIGGER IF NOT EXISTS promo_matches_after_insert
+    AFTER INSERT ON promo_matches
+    BEGIN
+      ${deletePredicate("= NEW.client_id")};
+      ${insertProjection("= NEW.client_id")};
+    END;
+  `);
+
+  sqlite.exec(`
+    CREATE TRIGGER IF NOT EXISTS promo_matches_after_delete
+    AFTER DELETE ON promo_matches
+    BEGIN
+      ${deletePredicate("= OLD.client_id")};
+      ${insertProjection("= OLD.client_id")};
+    END;
+  `);
+
+  sqlite.exec(`
+    CREATE TRIGGER IF NOT EXISTS promo_watches_fts_after_update
+    AFTER UPDATE OF model_number, collection ON promo_watches
+    BEGIN
+      ${deletePredicate("IN (SELECT client_id FROM promo_matches WHERE promo_id = NEW.id)")};
+      ${insertProjection("IN (SELECT client_id FROM promo_matches WHERE promo_id = NEW.id)")};
+    END;
+  `);
+
+  // One-time backfill — only inserts rows that aren't in the FTS table yet.
+  // The triggers handle everything after this.
+  sqlite.exec(`${insertProjection("NOT IN (SELECT client_id FROM clients_fts)")};`);
 }
