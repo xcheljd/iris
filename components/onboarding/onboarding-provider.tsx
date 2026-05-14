@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useSidebar } from "@/components/ui/sidebar";
 import {
   getOnboardingState,
   updateOnboardingState,
@@ -19,6 +20,10 @@ import {
 import type { TourStep } from "./tour-steps";
 import { getStepsForRole } from "./tour-steps";
 import type { HintId } from "./hint-definitions";
+
+/** Per-step page/description overrides applied at render time (no mutation of step defs). */
+type StepOverride = { page?: string; description?: string };
+type StepOverrides = Record<string, StepOverride>;
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                       */
@@ -66,6 +71,8 @@ export interface OnboardingContextValue {
   completeTour: () => void;
   /** Whether the current viewport is below 768px (mobile). */
   isMobile: boolean;
+  /** Replace the cached onboarding state (e.g. after an external reset). */
+  refreshOnboardingState: (state: OnboardingState) => void;
 }
 
 const OnboardingContext = createContext<OnboardingContextValue | null>(null);
@@ -104,21 +111,37 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const pathname = usePathname();
   const { data: session, status: sessionStatus } = useSession();
   const isMobile = useIsMobile();
+  const { setOpen: setSidebarOpen } = useSidebar();
 
   const role = session?.user?.role ?? "associate";
-  const userId = session?.user?.id ?? "";
 
-  const steps = useMemo(() => getStepsForRole(role), [role]);
-  const totalSteps = steps.length;
+  const rawSteps = useMemo(() => getStepsForRole(role), [role]);
+  const totalSteps = rawSteps.length;
 
   /* ---- internal state ---- */
   const [tourStatus, setTourStatus] = useState<TourStatus>("idle");
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [onboardingState, setOnboardingState] = useState<OnboardingState | null>(null);
   const [loading, setLoading] = useState(true);
+  /** Per-step overrides — populated by side-effect runners (e.g. resolved client id). */
+  const [stepOverrides, setStepOverrides] = useState<StepOverrides>({});
 
   const initialisedRef = useRef(false);
+  /** True while a persist call is in-flight. Used with pendingPersistRef to coalesce. */
   const persistingRef = useRef(false);
+  /** Latest pending persist args; flushed when the in-flight call returns. */
+  const pendingPersistRef = useRef<{ stepIndex: number; extra?: OnboardingUpdate } | null>(null);
+  /** AbortController for the in-flight client-detail fetch, so step changes can cancel it. */
+  const sideEffectAbortRef = useRef<AbortController | null>(null);
+
+  /* ---- merge raw steps with overrides ---- */
+  const steps = useMemo<TourStep[]>(
+    () => rawSteps.map((s) => {
+      const o = stepOverrides[s.id];
+      return o ? { ...s, ...o } : s;
+    }),
+    [rawSteps, stepOverrides],
+  );
 
   /* ---- current step object ---- */
   const currentStep = useMemo(
@@ -126,9 +149,11 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     [currentStepIndex, steps],
   );
 
-  /* ---- load persisted state on mount ---- */
+  /* ---- mirror isMobile into a ref for the load effect ---- */
   const isMobileRef = useRef(isMobile);
-  isMobileRef.current = isMobile;
+  useEffect(() => {
+    isMobileRef.current = isMobile;
+  }, [isMobile]);
 
   useEffect(() => {
     if (sessionStatus !== "authenticated") return;
@@ -157,7 +182,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
             }, 800);
           } else if (!state.tourCompleted && !state.tourSkipped && state.currentStep > 0) {
             // Resume from persisted step — navigate to the step's target page first
-            const resumeStep = getStepsForRole(role)[state.currentStep - 1];
+            const resumeStep = rawSteps[state.currentStep - 1];
             if (resumeStep && resumeStep.page !== "current" && resumeStep.page !== pathname) {
               router.replace(resumeStep.page);
             }
@@ -177,7 +202,76 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionStatus]);
 
-  /* ---- helpers ---- */
+  /* ---- step side effects (sidebar expand, client nav, etc.) ---- */
+
+  /**
+   * Prepare side effects before spotlighting a step:
+   * - sidebar: open the sidebar via context (works for mobile/desktop)
+   * - client-detail: resolve a client id and override the step's page (no mutation)
+   * - command-palette: tag the trigger so the spotlight click doesn't open the palette
+   */
+  const prepareStepSideEffects = useCallback(
+    (stepIndex: number) => {
+      const stepDef = rawSteps[stepIndex - 1];
+      if (!stepDef) return;
+
+      // Cancel any pending client-detail fetch from a previous step transition
+      sideEffectAbortRef.current?.abort();
+      sideEffectAbortRef.current = null;
+
+      switch (stepDef.id) {
+        case "sidebar": {
+          setSidebarOpen(true);
+          break;
+        }
+        case "client-detail": {
+          const controller = new AbortController();
+          sideEffectAbortRef.current = controller;
+          fetch("/api/clients?limit=1&myClients=true", { signal: controller.signal })
+            .then((r) => (r.ok ? r.json() : { clients: [] }))
+            .then((data) => {
+              if (controller.signal.aborted) return;
+              const clients = data.clients ?? data;
+              if (Array.isArray(clients) && clients.length > 0) {
+                const clientId = clients[0].id;
+                setStepOverrides((prev) => ({
+                  ...prev,
+                  "client-detail": { page: `/clients/${clientId}` },
+                }));
+                if (!pathname.startsWith(`/clients/${clientId}`)) {
+                  router.replace(`/clients/${clientId}`);
+                }
+              } else {
+                setStepOverrides((prev) => ({
+                  ...prev,
+                  "client-detail": {
+                    page: "/clients",
+                    description:
+                      "Client details will appear here once you've added your first client. Use the 'Add Client' button to get started!",
+                  },
+                }));
+              }
+            })
+            .catch((err) => {
+              if (err?.name === "AbortError") return;
+              setStepOverrides((prev) => ({
+                ...prev,
+                "client-detail": { page: "/clients" },
+              }));
+            });
+          break;
+        }
+        case "command-palette": {
+          const trigger = document.querySelector("[data-tour='command-palette-trigger']");
+          if (trigger) trigger.setAttribute("data-tour-prevent-click", "true");
+          break;
+        }
+        default:
+          break;
+      }
+    },
+    [rawSteps, pathname, router, setSidebarOpen],
+  );
 
   /* ---- public API ---- */
 
@@ -187,122 +281,22 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       const idx = Math.max(1, Math.min(fromStep, totalSteps));
       setCurrentStepIndex(idx);
       setTourStatus("active");
-      // Prepare side effects for the starting step
       prepareStepSideEffects(idx);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isMobile, totalSteps],
-  );
-
-  /* ---- step side effects (sidebar expand, client nav, etc.) ---- */
-
-  /**
-   * Prepare side effects before spotlighting a step:
-   * - Step 3 (sidebar): Expand sidebar if collapsed
-   * - Step 5 (client-detail): Navigate to a client owned by the current user
-   * - Step 7 (command-palette): Prevent palette from opening on spotlight
-   */
-  const prepareStepSideEffects = useCallback(
-    (stepIndex: number) => {
-      const stepDef = steps[stepIndex - 1];
-      if (!stepDef) return;
-
-      switch (stepDef.id) {
-        case "sidebar": {
-          // Expand sidebar if collapsed so navigation items are visible
-          const sidebarEl = document.querySelector("[data-sidebar]");
-          if (sidebarEl) {
-            const collapsed = sidebarEl.getAttribute("data-sidebar") === "collapsed"
-              || sidebarEl.closest("[data-state='collapsed']");
-            if (collapsed) {
-              // Use the SidebarProvider's toggle mechanism
-              // Dispatch a custom event that the SidebarTrigger listens to,
-              // or directly toggle via localStorage + state
-              const sidebarToggle = document.querySelector("[data-sidebar-trigger]");
-              if (sidebarToggle instanceof HTMLElement) {
-                sidebarToggle.click();
-              }
-            }
-          }
-          // Alternative: check for data-sidebar="collapsed" on the sidebar container
-          try {
-            const stored = localStorage.getItem("sidebar:collapsed");
-            if (stored === "true") {
-              localStorage.setItem("sidebar:collapsed", "false");
-              // Force a state update by toggling the sidebar trigger
-              const trigger = document.querySelector("[data-slot='sidebar-trigger']") as HTMLElement | null
-                || document.querySelector("button[data-sidebar-trigger]") as HTMLElement | null;
-              if (trigger) trigger.click();
-            }
-          } catch {
-            // localStorage not available
-          }
-          break;
-        }
-        case "client-detail": {
-          // Find a client owned by the current user to navigate to
-          fetch("/api/clients?limit=1&myClients=true")
-            .then((r) => (r.ok ? r.json() : { clients: [] }))
-            .then((data) => {
-              const clients = data.clients ?? data;
-              if (Array.isArray(clients) && clients.length > 0) {
-                const clientId = clients[0].id;
-                // Update the step's page to include the specific client ID
-                const clientStep = steps[stepIndex - 1];
-                if (clientStep) {
-                  clientStep.page = `/clients/${clientId}`;
-                }
-                // Navigate if not already on the client page
-                if (!pathname.startsWith(`/clients/${clientId}`)) {
-                  router.replace(`/clients/${clientId}`);
-                }
-              } else {
-                // No clients found — update step description to informational message
-                const clientStep = steps[stepIndex - 1];
-                if (clientStep) {
-                  clientStep.description = "Client details will appear here once you've added your first client. Use the 'Add Client' button to get started!";
-                  clientStep.page = "/clients";
-                }
-              }
-            })
-            .catch(() => {
-              // On error, just navigate to clients list
-              const clientStep = steps[stepIndex - 1];
-              if (clientStep) {
-                clientStep.page = "/clients";
-              }
-            });
-          break;
-        }
-        case "command-palette": {
-          // Step 7 must NOT trigger the command palette.
-          // We add a temporary CSS class that prevents pointer events from
-          // reaching the trigger's onClick handler.
-          // The TourOverlay already blocks clicks on non-highlighted elements,
-          // so the palette won't open. No extra action needed here,
-          // but we add a data attribute to signal the spotlight.
-          const trigger = document.querySelector("[data-tour='command-palette-trigger']");
-          if (trigger) {
-            trigger.setAttribute("data-tour-prevent-click", "true");
-          }
-          break;
-        }
-        default:
-          break;
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [steps, pathname, router, userId],
+    [isMobile, totalSteps, prepareStepSideEffects],
   );
 
   const persistStep = useCallback(
     async (stepIndex: number, extra?: OnboardingUpdate) => {
-      if (persistingRef.current) return;
+      // If a persist is in-flight, queue the latest args; flushed when the current one resolves
+      if (persistingRef.current) {
+        pendingPersistRef.current = { stepIndex, extra };
+        return;
+      }
       persistingRef.current = true;
       try {
-        const stepId = steps[stepIndex - 1]?.id;
-        const existing = onboardingState;
-        const completedSteps = existing?.completedSteps ?? [];
+        const stepId = rawSteps[stepIndex - 1]?.id;
+        const completedSteps = onboardingState?.completedSteps ?? [];
         const newCompleted = stepId && !completedSteps.includes(stepId)
           ? [...completedSteps, stepId]
           : completedSteps;
@@ -311,39 +305,46 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
           currentStep: stepIndex,
           completedSteps: newCompleted,
           ...extra,
-        } as Parameters<typeof updateOnboardingState>[0]);
+        });
         setOnboardingState(updated);
       } catch (err) {
-        // Silently continue on server failure, but log for development
         console.error("[OnboardingProvider] Failed to persist step:", err);
       } finally {
         persistingRef.current = false;
+        const pending = pendingPersistRef.current;
+        if (pending) {
+          pendingPersistRef.current = null;
+          // Fire and forget — recursive call respects the same queue invariants
+          persistStep(pending.stepIndex, pending.extra);
+        }
       }
     },
-    [steps, onboardingState],
+    [rawSteps, onboardingState],
   );
+
+  /** Shared cleanup before any step transition or tour exit. */
+  const clearStepResidue = useCallback(() => {
+    const prevTrigger = document.querySelector("[data-tour-prevent-click]");
+    if (prevTrigger) prevTrigger.removeAttribute("data-tour-prevent-click");
+    sideEffectAbortRef.current?.abort();
+    sideEffectAbortRef.current = null;
+  }, []);
 
   const nextStep = useCallback(async () => {
     if (tourStatus !== "active") return;
-
-    // Clean up command-palette prevent-click attribute from previous step
-    const prevTrigger = document.querySelector("[data-tour-prevent-click]");
-    if (prevTrigger) prevTrigger.removeAttribute("data-tour-prevent-click");
+    clearStepResidue();
 
     if (currentStepIndex >= totalSteps) {
-      // Already on last step → complete
       setTourStatus("completed");
       setCurrentStepIndex(0);
-
       try {
         const updated = await updateOnboardingState({
           tourCompleted: true,
           currentStep: totalSteps,
-          completedSteps: steps.map((s) => s.id),
+          completedSteps: rawSteps.map((s) => s.id),
         });
         setOnboardingState(updated);
       } catch (err) {
-        // continue locally, but log for development
         console.error("[OnboardingProvider] Failed to persist tour completion on last step:", err);
       }
       return;
@@ -351,8 +352,6 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
     const nextIdx = currentStepIndex + 1;
     setCurrentStepIndex(nextIdx);
-
-    // Prepare side effects for the new step (sidebar expansion, client nav, etc.)
     prepareStepSideEffects(nextIdx);
 
     const nextStepDef = steps[nextIdx - 1];
@@ -361,20 +360,15 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     }
 
     persistStep(nextIdx);
-  }, [tourStatus, currentStepIndex, totalSteps, steps, pathname, router, persistStep, prepareStepSideEffects]);
+  }, [tourStatus, currentStepIndex, totalSteps, steps, rawSteps, pathname, router, persistStep, prepareStepSideEffects, clearStepResidue]);
 
   const prevStep = useCallback(() => {
     if (tourStatus !== "active") return;
     if (currentStepIndex <= 1) return;
-
-    // Clean up command-palette prevent-click attribute from previous step
-    const prevTrigger = document.querySelector("[data-tour-prevent-click]");
-    if (prevTrigger) prevTrigger.removeAttribute("data-tour-prevent-click");
+    clearStepResidue();
 
     const prevIdx = currentStepIndex - 1;
     setCurrentStepIndex(prevIdx);
-
-    // Prepare side effects for the step we're going back to
     prepareStepSideEffects(prevIdx);
 
     const prevStepDef = steps[prevIdx - 1];
@@ -383,13 +377,10 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     }
 
     persistStep(prevIdx);
-  }, [tourStatus, currentStepIndex, steps, pathname, router, persistStep, prepareStepSideEffects]);
+  }, [tourStatus, currentStepIndex, steps, pathname, router, persistStep, prepareStepSideEffects, clearStepResidue]);
 
   const skipTour = useCallback(async () => {
-    // Clean up command-palette prevent-click attribute
-    const prevTrigger = document.querySelector("[data-tour-prevent-click]");
-    if (prevTrigger) prevTrigger.removeAttribute("data-tour-prevent-click");
-
+    clearStepResidue();
     setTourStatus("idle");
     setCurrentStepIndex(0);
 
@@ -401,10 +392,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       });
       setOnboardingState(updated);
     } catch (err) {
-      // continue locally, but log for development
       console.error("[OnboardingProvider] Failed to persist skip tour:", err);
     }
-  }, [currentStepIndex]);
+  }, [currentStepIndex, clearStepResidue]);
 
   const pauseTour = useCallback(() => {
     if (tourStatus !== "active") return;
@@ -417,6 +407,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   }, [tourStatus]);
 
   const completeTour = useCallback(async () => {
+    clearStepResidue();
     setTourStatus("completed");
     setCurrentStepIndex(0);
 
@@ -424,14 +415,13 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       const updated = await updateOnboardingState({
         tourCompleted: true,
         currentStep: totalSteps,
-        completedSteps: steps.map((s) => s.id),
+        completedSteps: rawSteps.map((s) => s.id),
       });
       setOnboardingState(updated);
     } catch (err) {
-      // continue locally, but log for development
       console.error("[OnboardingProvider] Failed to persist tour completion:", err);
     }
-  }, [steps, totalSteps]);
+  }, [rawSteps, totalSteps, clearStepResidue]);
 
   /* ---- keyboard handling ---- */
   useEffect(() => {
@@ -456,6 +446,10 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [tourStatus, pauseTour]);
 
+  const refreshOnboardingState = useCallback((state: OnboardingState) => {
+    setOnboardingState(state);
+  }, []);
+
   /* ---- context value ---- */
   const value = useMemo<OnboardingContextValue>(
     () => ({
@@ -474,11 +468,13 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       resumeTour,
       completeTour,
       isMobile,
+      refreshOnboardingState,
     }),
     [
       tourStatus, currentStepIndex, totalSteps, steps, currentStep,
       onboardingState, loading, startTour, nextStep, prevStep,
       skipTour, pauseTour, resumeTour, completeTour, isMobile,
+      refreshOnboardingState,
     ],
   );
 

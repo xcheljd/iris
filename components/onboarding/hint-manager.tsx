@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { toast } from "sonner";
 import { useOnboarding } from "./onboarding-provider";
 import { getShortcutText, getHintsForPath, type HintDefinition, type HintId } from "./hint-definitions";
 import { updateOnboardingState } from "@/lib/actions/onboarding";
@@ -106,7 +107,6 @@ function HintOverlay({ hint }: { hint: HintDefinition }) {
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
   const [reducedMotion, setReducedMotion] = useState(false);
   const dismissedRef = useRef(false);
-  const measureRef = useRef<() => void>(() => {});
 
   /* ---- reduced motion detection ---- */
   useEffect(() => {
@@ -126,37 +126,29 @@ function HintOverlay({ hint }: { hint: HintDefinition }) {
     setTargetRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
     setViewportWidth(window.innerWidth);
 
-    // Determine side based on available space
+    // Determine side based on available space; when neither has 160px pick the larger side
     const spaceBelow = window.innerHeight - rect.bottom;
     const spaceAbove = rect.top;
-    setSide(spaceBelow >= 160 ? "bottom" : spaceAbove >= 160 ? "top" : "bottom");
+    setSide(spaceBelow >= 160 ? "bottom" : spaceAbove >= 160 ? "top" : (spaceBelow >= spaceAbove ? "bottom" : "top"));
     return true;
   }, [hint.targetSelector]);
-
-  // Keep measureRef current so the observer and resize callbacks always call latest
-  measureRef.current = measureTarget;
 
   useEffect(() => {
     if (dismissed) return;
 
-    // Initial measurement attempt
     measureTarget();
 
-    // Single MutationObserver watches for DOM changes (covers dynamic content, animations, etc.)
-    const observer = new MutationObserver(() => {
-      measureRef.current();
-    });
+    const observer = new MutationObserver(() => measureTarget());
     observer.observe(document.body, { childList: true, subtree: true });
 
-    // Resize handler for viewport changes
-    const handleResize = () => measureRef.current();
+    const handleResize = () => measureTarget();
     window.addEventListener("resize", handleResize);
 
     return () => {
       observer.disconnect();
       window.removeEventListener("resize", handleResize);
     };
-  }, [dismissed, measureTarget, hint.targetSelector]);
+  }, [dismissed, measureTarget]);
 
   /* ---- dismiss handler ---- */
   const dismissHint = useCallback(async () => {
@@ -173,8 +165,9 @@ function HintOverlay({ hint }: { hint: HintDefinition }) {
         });
       }
     } catch (err) {
-      // Optimistic dismissal — visual state already updated, but log for development
+      // Optimistic dismissal failed — visual state already updated, surface to user
       console.error("[HintManager] Failed to persist hint dismissal:", err);
+      toast.error("Hint dismissed, but we couldn't save it. It may reappear later.");
     }
   }, [hint.id, onboardingState?.hintsDismissed]);
 
@@ -345,14 +338,16 @@ function HintPopover({
 
   const transform = side === "top" ? "translateY(-100%)" : "none";
 
+  const popoverWidth = Math.min(Math.max(rect.width, 280), Math.min(360, viewportWidth - 32));
+  const clampedLeft = Math.max(8, Math.min(rect.left, viewportWidth - popoverWidth - 8));
+
   return (
     <div
       className="fixed z-[9998]"
       style={{
         top: popoverTop,
-        left: rect.left,
-        width: Math.max(rect.width, 280),
-        maxWidth: Math.min(360, viewportWidth - 32),
+        left: clampedLeft,
+        width: popoverWidth,
         transform,
       }}
       role="tooltip"

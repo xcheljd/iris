@@ -5,6 +5,35 @@ import { useOnboarding } from "./onboarding-provider";
 import type { TourStep } from "./tour-steps";
 
 /* -------------------------------------------------------------------------- */
+/* Pulse keyframes ref-count injection (shared single <style> tag)             */
+/* -------------------------------------------------------------------------- */
+
+let pulseRefCount = 0;
+let pulseStyleElement: HTMLStyleElement | null = null;
+
+function injectPulseKeyframes() {
+  pulseRefCount++;
+  if (pulseRefCount === 1 && !pulseStyleElement) {
+    pulseStyleElement = document.createElement("style");
+    pulseStyleElement.textContent = `
+      @keyframes tour-pulse {
+        0%, 100% { box-shadow: 0 0 0 2px hsl(var(--primary)), 0 0 0 9999px rgba(0, 0, 0, 0.5); }
+        50% { box-shadow: 0 0 0 6px hsl(var(--primary)), 0 0 0 9999px rgba(0, 0, 0, 0.5); }
+      }
+    `;
+    document.head.appendChild(pulseStyleElement);
+  }
+}
+
+function releasePulseKeyframes() {
+  pulseRefCount = Math.max(0, pulseRefCount - 1);
+  if (pulseRefCount === 0 && pulseStyleElement) {
+    document.head.removeChild(pulseStyleElement);
+    pulseStyleElement = null;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /* Spotlight rect                                                              */
 /* -------------------------------------------------------------------------- */
 
@@ -49,7 +78,7 @@ function useFocusTrap(isActive: boolean, isSpotlightStep: boolean) {
 
     function getFocusableElements(): HTMLElement[] {
       const elements: HTMLElement[] = [];
-      // Tour tooltip controls (buttons and skip link)
+      // Tour tooltip controls (buttons and skip link) — the spotlight is passive
       const tooltipContainer = document.querySelector("[data-tour-tooltip-controls]");
       if (tooltipContainer) {
         const focusable = tooltipContainer.querySelectorAll<HTMLElement>(
@@ -57,27 +86,12 @@ function useFocusTrap(isActive: boolean, isSpotlightStep: boolean) {
         );
         focusable.forEach((el) => elements.push(el));
       }
-      // Spotlight element (the clickable highlighted area)
-      const spotlight = document.querySelector("[data-tour-spotlight]");
-      if (spotlight instanceof HTMLElement) {
-        // Make spotlight focusable for the duration of the step
-        if (spotlight.getAttribute("tabindex") === null) {
-          spotlight.setAttribute("tabindex", "0");
-        }
-        elements.push(spotlight);
-      }
       return elements;
     }
 
     /** Check if an element belongs to the tour UI (not the underlying page). */
     function isTourElement(el: HTMLElement): boolean {
-      // Elements inside the tooltip controls container
-      if (el.closest("[data-tour-tooltip-controls]")) return true;
-      // The spotlight element itself
-      if (el.hasAttribute("data-tour-spotlight") || el.closest("[data-tour-spotlight]")) return true;
-      // Elements inside the dark backdrop (but the backdrop itself is aria-hidden)
-      if (el.closest("[data-tour-backdrop]")) return false;
-      return false;
+      return Boolean(el.closest("[data-tour-tooltip-controls]"));
     }
 
     function handleKeyDown(e: KeyboardEvent) {
@@ -137,11 +151,6 @@ function useFocusTrap(isActive: boolean, isSpotlightStep: boolean) {
       clearTimeout(focusTimer);
       document.removeEventListener("keydown", handleKeyDown, true);
       document.removeEventListener("focusin", handleFocusIn, true);
-      // Restore tabindex on spotlight element
-      const spotlight = document.querySelector("[data-tour-spotlight]");
-      if (spotlight instanceof HTMLElement) {
-        spotlight.removeAttribute("tabindex");
-      }
     };
   }, [isActive, isSpotlightStep]);
 
@@ -180,6 +189,8 @@ export function TourOverlay() {
   const [targetRect, setTargetRect] = useState<Rect | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
   const rafRef = useRef<number>(0);
+  /** Last applied rect — used to skip identical setState calls in the rAF loop. */
+  const lastRectRef = useRef<Rect | null>(null);
 
   const isSpotlightStep = tourStatus === "active" && currentStepIndex > 0 && currentStep?.targetSelector !== null;
 
@@ -195,23 +206,40 @@ export function TourOverlay() {
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  /* ---- track target element position ---- */
-  const updateRect = useCallback(() => {
-    if (!currentStep?.targetSelector) {
-      setTargetRect(null);
-      return false;
-    }
-
-    // Scroll target into view first
+  /* ---- scroll target into view once per step ---- */
+  // Kept separate from the position-tracking loop so the page doesn't
+  // fight scroll-into-view on every animation frame.
+  useEffect(() => {
+    if (tourStatus !== "active" || isMobile || !currentStep?.targetSelector) return;
     const el = document.querySelector(currentStep.targetSelector);
     if (el) {
       el.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
     }
+  }, [tourStatus, isMobile, currentStepIndex, currentStep?.targetSelector, reducedMotion]);
 
+  /* ---- track target element position ---- */
+  const updateRect = useCallback(() => {
+    if (!currentStep?.targetSelector) {
+      if (lastRectRef.current !== null) {
+        lastRectRef.current = null;
+        setTargetRect(null);
+      }
+      return false;
+    }
     const rect = getElementRect(currentStep.targetSelector);
-    setTargetRect(rect);
+    const prev = lastRectRef.current;
+    const unchanged =
+      rect && prev &&
+      Math.abs(rect.top - prev.top) < 0.5 &&
+      Math.abs(rect.left - prev.left) < 0.5 &&
+      Math.abs(rect.width - prev.width) < 0.5 &&
+      Math.abs(rect.height - prev.height) < 0.5;
+    if (!unchanged) {
+      lastRectRef.current = rect;
+      setTargetRect(rect);
+    }
     return rect !== null;
-  }, [currentStep?.targetSelector, reducedMotion]);
+  }, [currentStep?.targetSelector]);
 
   useEffect(() => {
     if (tourStatus !== "active" || isMobile) return;
@@ -309,83 +337,40 @@ function Spotlight({
   reducedMotion: boolean;
   step: TourStep | null;
 }) {
-  const { nextStep } = useOnboarding();
   const padding = 8;
 
-  const style: React.CSSProperties = useMemo(() => {
-    return {
-      position: "fixed",
-      top: rect.top - padding,
-      left: rect.left - padding,
-      width: rect.width + padding * 2,
-      height: rect.height + padding * 2,
-      zIndex: 9999,
-      borderRadius: 8,
-      pointerEvents: "auto",
-      cursor: "pointer",
-      // Massive box-shadow creates the spotlight cutout effect
-      boxShadow: reducedMotion
-        ? `0 0 0 2px hsl(var(--primary)), 0 0 0 9999px rgba(0, 0, 0, 0.5)`
-        : undefined,
-      animation: reducedMotion ? "none" : "tour-pulse 2s ease-in-out infinite",
-    };
-  }, [rect, reducedMotion]);
+  // Ref-count keyframes injection — inject on mount, release on unmount
+  useEffect(() => {
+    if (reducedMotion) return;
+    injectPulseKeyframes();
+    return () => releasePulseKeyframes();
+  }, [reducedMotion]);
 
-  const handleClick = useCallback(
-    (e: React.MouseEvent) => {
-      // Prevent the click from reaching the underlying element
-      e.preventDefault();
-      e.stopPropagation();
-      // Advance to the next tour step
-      nextStep();
-    },
-    [nextStep],
-  );
+  const style: React.CSSProperties = useMemo(() => ({
+    position: "fixed",
+    top: rect.top - padding,
+    left: rect.left - padding,
+    width: rect.width + padding * 2,
+    height: rect.height + padding * 2,
+    zIndex: 9999,
+    borderRadius: 8,
+    // Pass clicks through to the highlighted element so users can interact with it.
+    // Advance happens via the Next button in the tooltip.
+    pointerEvents: "none",
+    boxShadow: reducedMotion
+      ? `0 0 0 2px hsl(var(--primary)), 0 0 0 9999px rgba(0, 0, 0, 0.5)`
+      : undefined,
+    animation: reducedMotion ? "none" : "tour-pulse 2s ease-in-out infinite",
+  }), [rect, reducedMotion]);
 
   return (
-    <>
-      {/* Inject keyframes once */}
-      {!reducedMotion && <PulseKeyframes />}
-      <div
-        style={style}
-        role="presentation"
-        aria-hidden="true"
-        data-tour-spotlight={step?.id ?? "unknown"}
-        onClick={handleClick}
-      />
-    </>
+    <div
+      style={style}
+      role="presentation"
+      aria-hidden="true"
+      data-tour-spotlight={step?.id ?? "unknown"}
+    />
   );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Pulse keyframes (injected once)                                             */
-/* -------------------------------------------------------------------------- */
-
-let keyframesInjected = false;
-
-function PulseKeyframes() {
-  useEffect(() => {
-    if (keyframesInjected) return;
-    keyframesInjected = true;
-    const sheet = document.createElement("style");
-    sheet.textContent = `
-      @keyframes tour-pulse {
-        0%, 100% {
-          box-shadow: 0 0 0 2px hsl(var(--primary)), 0 0 0 9999px rgba(0, 0, 0, 0.5);
-        }
-        50% {
-          box-shadow: 0 0 0 6px hsl(var(--primary)), 0 0 0 9999px rgba(0, 0, 0, 0.5);
-        }
-      }
-    `;
-    document.head.appendChild(sheet);
-    return () => {
-      keyframesInjected = false;
-      document.head.removeChild(sheet);
-    };
-  }, []);
-
-  return null;
 }
 
 /* -------------------------------------------------------------------------- */

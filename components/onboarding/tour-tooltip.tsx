@@ -166,10 +166,10 @@ function SpotlightTooltip({
       if (!el) return false;
       const rect = el.getBoundingClientRect();
 
-      // Determine which side has more space
+      // Determine which side has more space; when neither has 200px pick the larger side
       const spaceBelow = window.innerHeight - rect.bottom;
       const spaceAbove = rect.top;
-      const newSide = spaceBelow >= 200 ? "bottom" : spaceAbove >= 200 ? "top" : "bottom";
+      const newSide = spaceBelow >= 200 ? "bottom" : spaceAbove >= 200 ? "top" : (spaceBelow >= spaceAbove ? "bottom" : "top");
 
       setAnchorPos({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
       setSide(newSide);
@@ -209,7 +209,6 @@ function SpotlightTooltip({
           // Timed out — advance to the next step (don't skip the entire tour)
           setWaitingForElement(false);
           cleanup();
-          // Element not found after 2s — advance step with console warning
           // eslint-disable-next-line no-console
           console.warn(`[Tour] Target element "${step.targetSelector}" not found after 5s — advancing to next step`);
           onNext();
@@ -262,9 +261,9 @@ function SpotlightTooltip({
       return (
         <div
           className="fixed inset-0 z-[10000] flex items-center justify-center"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Loading tour step..."
+          role="status"
+          aria-live="polite"
+          aria-label="Loading tour step"
         >
           <div className="rounded-lg border bg-background p-4 shadow-lg">
             <p className="text-sm text-muted-foreground">Loading step...</p>
@@ -281,14 +280,17 @@ function SpotlightTooltip({
 
   const transform = side === "top" ? "translateY(-100%)" : "none";
 
+  const vw = window.innerWidth;
+  const tooltipWidth = Math.min(Math.max(anchorPos.width, 300), Math.min(400, vw - 32));
+  const clampedLeft = Math.max(8, Math.min(anchorPos.left, vw - tooltipWidth - 8));
+
   return (
     <div
       className="fixed z-[10000]"
       style={{
         top: tooltipTop,
-        left: anchorPos.left,
-        width: Math.max(anchorPos.width, 300),
-        maxWidth: Math.min(400, window.innerWidth - 32),
+        left: clampedLeft,
+        width: tooltipWidth,
         transform,
       }}
       role="dialog"

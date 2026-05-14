@@ -20,7 +20,7 @@ import { toast } from "sonner";
 /* -------------------------------------------------------------------------- */
 
 export function OnboardingSettingsTab() {
-  const { tourStatus, onboardingState, loading, startTour } = useOnboarding();
+  const { tourStatus, onboardingState, loading, startTour, refreshOnboardingState } = useOnboarding();
   const { data: session } = useSession();
   const role = session?.user?.role ?? "associate";
 
@@ -49,7 +49,7 @@ export function OnboardingSettingsTab() {
     setResetting(true);
     try {
       const hints = onboardingState?.hintsDismissed ?? [];
-      await updateOnboardingState({
+      const updated = await updateOnboardingState({
         tourCompleted: false,
         completedSteps: [],
         // Omit currentStep — the server action defaults to current value when not provided.
@@ -57,19 +57,19 @@ export function OnboardingSettingsTab() {
         hintsDismissed: hints as HintId[],
         tourSkipped: false,
       });
+      // Pipe the reset state back into the provider so the tab reflects it immediately
+      refreshOnboardingState(updated);
       setConfirmOpen(false);
-      // Tour starts immediately from step 1
       startTour(1);
     } catch {
       // Server reset failed — do NOT start tour to avoid client/server state desync.
-      // Show an error message and close the dialog without starting the tour.
       setConfirmOpen(false);
       toast.error("Failed to reset tour. Please try again.");
       return;
     } finally {
       setResetting(false);
     }
-  }, [onboardingState?.hintsDismissed, startTour]);
+  }, [onboardingState?.hintsDismissed, startTour, refreshOnboardingState]);
 
   /* ---- render ---- */
 
