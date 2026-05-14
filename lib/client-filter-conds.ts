@@ -15,6 +15,7 @@
 
 import { eq, isNull, or, sql as rawSql, gte, lte, type SQL } from "drizzle-orm";
 import { clients, employees } from "@/lib/db/schema";
+import { toFtsQuery } from "@/lib/fts";
 
 export interface ClientFilterParams {
   /** Global free-text search (matches name OR email OR phone). */
@@ -50,13 +51,14 @@ export function buildClientFilterConds(filters: ClientFilterParams): BuiltClient
   const conds: SQL<unknown>[] = [];
 
   if (q) {
-    const ql = `%${q.toLowerCase()}%`;
-    const orCond = or(
-      rawSql`lower(${clients.firstName} || ' ' || COALESCE(${clients.lastName}, '')) LIKE ${ql}`,
-      rawSql`lower(COALESCE(${clients.email}, '')) LIKE ${ql}`,
-      rawSql`COALESCE(${clients.phone}, '') LIKE ${ql}`,
-    );
-    if (orCond) conds.push(orCond);
+    // Global search uses the FTS5 index which spans name + email + phone +
+    // notes + productsOfInterest, so model numbers and free-text product
+    // mentions are matchable. Falls back to no-op when the cleaned query is
+    // empty (e.g. user typed only whitespace).
+    const fts = toFtsQuery(q);
+    if (fts) {
+      conds.push(rawSql`${clients.id} IN (SELECT client_id FROM clients_fts WHERE clients_fts MATCH ${fts})`);
+    }
   }
 
   if (nameQ) {

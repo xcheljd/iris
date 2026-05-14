@@ -5,6 +5,7 @@ import type { SQL } from "drizzle-orm";
 import { applyClientFilter } from "@/lib/utils";
 import { buildClientFilterConds } from "@/lib/client-filter-conds";
 import { smartListToClientFilters } from "@/lib/smart-list-filters";
+import { toFtsQuery } from "@/lib/fts";
 import { MS_PER_DAY, SEC_PER_DAY, LIST_QUERY_LIMIT, FOLLOW_UP_LOOKAHEAD_DAYS, DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
 const clientListProjection = {
@@ -525,20 +526,21 @@ export async function getRecentOutreach(limit = 20, employeeId?: string) {
 }
 
 export async function searchClients(query: string, employeeId?: string) {
-  const cleaned = query.toLowerCase().replace(/[%_]/g, "");
-  if (!cleaned) return [];
-  const q = `%${cleaned}%`;
+  // FTS5-backed search: spans name, email, phone, notes, and
+  // productsOfInterest. Results are ranked by BM25 (lower = better match)
+  // so the most relevant clients surface first in the Cmd+K palette.
+  const fts = toFtsQuery(query);
+  if (!fts) return [];
   const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
-  return db.select().from(clients).where(and(
-    notInArray(clients.status, ["banned", "deleted"]),
-    or(
-      rawSql`lower(${clients.firstName}) like ${q}`,
-      rawSql`lower(${clients.lastName}) like ${q}`,
-      rawSql`lower(${clients.email}) like ${q}`,
-      rawSql`${clients.phone} like ${q}`,
-    ),
-    employeeFilter
-  )).limit(10).all();
+  return db.select().from(clients)
+    .where(and(
+      notInArray(clients.status, ["banned", "deleted"]),
+      rawSql`${clients.id} IN (SELECT client_id FROM clients_fts WHERE clients_fts MATCH ${fts})`,
+      employeeFilter,
+    ))
+    .orderBy(rawSql`(SELECT rank FROM clients_fts WHERE client_id = ${clients.id} AND clients_fts MATCH ${fts})`)
+    .limit(10)
+    .all();
 }
 
 export async function getDeletedClients(employeeId?: string) {
