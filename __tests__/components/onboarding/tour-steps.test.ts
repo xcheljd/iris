@@ -70,10 +70,10 @@ describe("tour-steps", () => {
       const managerOnlySteps = managerSteps.filter((s) => s.managerOnly);
       expect(managerOnlySteps).toHaveLength(4);
       expect(managerOnlySteps.map((s) => s.id)).toEqual([
+        "analytics",
         "approvals",
         "employee-management",
         "backup",
-        "analytics",
       ]);
     });
 
@@ -127,7 +127,8 @@ describe("tour-steps", () => {
     it("returns step ID for valid 1-based index", () => {
       expect(getStepIdForIndex("associate", 1)).toBe("welcome");
       expect(getStepIdForIndex("associate", 2)).toBe("dashboard");
-      expect(getStepIdForIndex("manager", 12)).toBe("analytics");
+      expect(getStepIdForIndex("manager", 9)).toBe("analytics");
+      expect(getStepIdForIndex("manager", 12)).toBe("backup");
     });
 
     it("returns undefined for out-of-range index", () => {
@@ -185,10 +186,10 @@ describe("tour-steps", () => {
       ]);
       // Last 4 are manager-only
       expect(ids.slice(8)).toEqual([
+        "analytics",
         "approvals",
         "employee-management",
         "backup",
-        "analytics",
       ]);
     });
   });
@@ -196,36 +197,36 @@ describe("tour-steps", () => {
   describe("manager step targets match validation contract (VAL-TOUR-020)", () => {
     const managerSteps = getStepsForRole("manager");
 
-    it("step 9 (approvals) spotlights Approvals Queue nav item in sidebar", () => {
+    it("step 9 (analytics) navigates to and spotlights Analytics page area", () => {
       const step = managerSteps[8]; // 0-based index for step 9
+      expect(step.id).toBe("analytics");
+      expect(step.targetSelector).toBe("[data-tour='analytics']");
+      expect(step.page).toBe("/analytics");
+      expect(step.title).toContain("Analytics");
+    });
+
+    it("step 10 (approvals) spotlights Approvals Queue nav item in sidebar", () => {
+      const step = managerSteps[9]; // 0-based index for step 10
       expect(step.id).toBe("approvals");
       expect(step.targetSelector).toBe("[data-tour='approvals']");
       expect(step.page).toBe("/approvals");
       expect(step.description).toContain("request");
     });
 
-    it("step 10 (employee-management) navigates to Settings and spotlights Employee Management tab", () => {
-      const step = managerSteps[9]; // 0-based index for step 10
+    it("step 11 (employee-management) navigates to Settings and spotlights Employee Management tab", () => {
+      const step = managerSteps[10]; // 0-based index for step 11
       expect(step.id).toBe("employee-management");
       expect(step.targetSelector).toBe("[data-tour='employee-management']");
       expect(step.page).toBe("/settings");
       expect(step.description).toContain("Employee");
     });
 
-    it("step 11 (backup) spotlights Backup tab within Settings", () => {
-      const step = managerSteps[10]; // 0-based index for step 11
+    it("step 12 (backup) spotlights Backup tab within Settings", () => {
+      const step = managerSteps[11]; // 0-based index for step 12
       expect(step.id).toBe("backup");
       expect(step.targetSelector).toBe("[data-tour='backup']");
       expect(step.page).toBe("/settings");
       expect(step.description).toContain("Backup");
-    });
-
-    it("step 12 (analytics) navigates to and spotlights Analytics page area", () => {
-      const step = managerSteps[11]; // 0-based index for step 12
-      expect(step.id).toBe("analytics");
-      expect(step.targetSelector).toBe("[data-tour='analytics']");
-      expect(step.page).toBe("/analytics");
-      expect(step.title).toContain("Analytics");
     });
   });
 
@@ -235,7 +236,7 @@ describe("tour-steps", () => {
     it("step 3 (sidebar) targets sidebar component with data-tour attribute", () => {
       const step = baseSteps[2]; // 0-based index for step 3
       expect(step.id).toBe("sidebar");
-      expect(step.targetSelector).toBe("[data-tour='sidebar']");
+      expect(step.targetSelector).toBe("[data-tour='sidebar-nav']");
     });
 
     it("step 5 (client-detail) targets client-detail-tabs", () => {

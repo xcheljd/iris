@@ -43,7 +43,7 @@ const BASE_STEPS: TourStep[] = [
     title: "Sidebar Navigation",
     description:
       "Use the sidebar to jump between every major section of the app: clients, follow-ups, smart lists, and more.",
-    targetSelector: "[data-tour='sidebar']",
+    targetSelector: "[data-tour='sidebar-nav']",
     page: "/",
   },
   {
@@ -58,7 +58,7 @@ const BASE_STEPS: TourStep[] = [
     id: "client-detail",
     title: "Client Detail",
     description:
-      "Click any client to see their full profile — contact info, outreach history, tags, and activity timeline.",
+      "Here's an example client profile — contact info, outreach history, tags, and activity timeline.",
     targetSelector: "[data-tour='client-detail-tabs']",
     page: "/clients",
   },
@@ -94,6 +94,15 @@ const BASE_STEPS: TourStep[] = [
 
 const MANAGER_STEPS: TourStep[] = [
   {
+    id: "analytics",
+    title: "Analytics Dashboard",
+    description:
+      "See sales trends, outreach performance, and team metrics to make data-driven decisions.",
+    targetSelector: "[data-tour='analytics']",
+    page: "/analytics",
+    managerOnly: true,
+  },
+  {
     id: "approvals",
     title: "Approvals Queue",
     description:
@@ -118,15 +127,6 @@ const MANAGER_STEPS: TourStep[] = [
       "Create and restore database backups from the Settings > Backup tab.",
     targetSelector: "[data-tour='backup']",
     page: "/settings",
-    managerOnly: true,
-  },
-  {
-    id: "analytics",
-    title: "Analytics Dashboard",
-    description:
-      "See sales trends, outreach performance, and team metrics to make data-driven decisions.",
-    targetSelector: "[data-tour='analytics']",
-    page: "/analytics",
     managerOnly: true,
   },
 ];

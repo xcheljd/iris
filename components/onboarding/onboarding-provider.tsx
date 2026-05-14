@@ -15,6 +15,7 @@ import { useSidebar } from "@/components/ui/sidebar";
 import {
   getOnboardingState,
   updateOnboardingState,
+  ensureTourDemoClient,
   type OnboardingState,
 } from "@/lib/actions/onboarding";
 import type { TourStep } from "./tour-steps";
@@ -209,11 +210,14 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
    * - sidebar: open the sidebar via context (works for mobile/desktop)
    * - client-detail: resolve a client id and override the step's page (no mutation)
    * - command-palette: tag the trigger so the spotlight click doesn't open the palette
+   *
+   * Returns a Promise that resolves once async side effects (e.g. client fetch)
+   * have completed and overrides are applied.
    */
   const prepareStepSideEffects = useCallback(
-    (stepIndex: number) => {
+    (stepIndex: number): Promise<void> => {
       const stepDef = rawSteps[stepIndex - 1];
-      if (!stepDef) return;
+      if (!stepDef) return Promise.resolve();
 
       // Cancel any pending client-detail fetch from a previous step transition
       sideEffectAbortRef.current?.abort();
@@ -222,55 +226,33 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       switch (stepDef.id) {
         case "sidebar": {
           setSidebarOpen(true);
-          break;
+          return Promise.resolve();
         }
         case "client-detail": {
-          const controller = new AbortController();
-          sideEffectAbortRef.current = controller;
-          fetch("/api/clients?limit=1&myClients=true", { signal: controller.signal })
-            .then((r) => (r.ok ? r.json() : { clients: [] }))
-            .then((data) => {
-              if (controller.signal.aborted) return;
-              const clients = data.clients ?? data;
-              if (Array.isArray(clients) && clients.length > 0) {
-                const clientId = clients[0].id;
-                setStepOverrides((prev) => ({
-                  ...prev,
-                  "client-detail": { page: `/clients/${clientId}` },
-                }));
-                if (!pathname.startsWith(`/clients/${clientId}`)) {
-                  router.replace(`/clients/${clientId}`);
-                }
-              } else {
-                setStepOverrides((prev) => ({
-                  ...prev,
-                  "client-detail": {
-                    page: "/clients",
-                    description:
-                      "Client details will appear here once you've added your first client. Use the 'Add Client' button to get started!",
-                  },
-                }));
-              }
+          return ensureTourDemoClient()
+            .then((clientId) => {
+              setStepOverrides((prev) => ({
+                ...prev,
+                "client-detail": { page: `/clients/${clientId}` },
+              }));
             })
-            .catch((err) => {
-              if (err?.name === "AbortError") return;
+            .catch(() => {
               setStepOverrides((prev) => ({
                 ...prev,
                 "client-detail": { page: "/clients" },
               }));
             });
-          break;
         }
         case "command-palette": {
           const trigger = document.querySelector("[data-tour='command-palette-trigger']");
           if (trigger) trigger.setAttribute("data-tour-prevent-click", "true");
-          break;
+          return Promise.resolve();
         }
         default:
-          break;
+          return Promise.resolve();
       }
     },
-    [rawSteps, pathname, router, setSidebarOpen],
+    [rawSteps, setSidebarOpen],
   );
 
   /* ---- public API ---- */
@@ -352,15 +334,16 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
     const nextIdx = currentStepIndex + 1;
     setCurrentStepIndex(nextIdx);
-    prepareStepSideEffects(nextIdx);
+    await prepareStepSideEffects(nextIdx);
 
-    const nextStepDef = steps[nextIdx - 1];
-    if (nextStepDef && nextStepDef.page !== "current" && nextStepDef.page !== pathname) {
-      router.replace(nextStepDef.page);
+    // Read the next step's page after overrides have been applied
+    const nextPage = stepOverrides[rawSteps[nextIdx - 1]?.id]?.page ?? rawSteps[nextIdx - 1]?.page;
+    if (nextPage && nextPage !== "current" && nextPage !== pathname) {
+      router.replace(nextPage);
     }
 
     persistStep(nextIdx);
-  }, [tourStatus, currentStepIndex, totalSteps, steps, rawSteps, pathname, router, persistStep, prepareStepSideEffects, clearStepResidue]);
+  }, [tourStatus, currentStepIndex, totalSteps, rawSteps, stepOverrides, pathname, router, persistStep, prepareStepSideEffects, clearStepResidue]);
 
   const prevStep = useCallback(() => {
     if (tourStatus !== "active") return;
@@ -371,13 +354,13 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     setCurrentStepIndex(prevIdx);
     prepareStepSideEffects(prevIdx);
 
-    const prevStepDef = steps[prevIdx - 1];
-    if (prevStepDef && prevStepDef.page !== "current" && prevStepDef.page !== pathname) {
-      router.replace(prevStepDef.page);
+    const prevPage = stepOverrides[rawSteps[prevIdx - 1]?.id]?.page ?? rawSteps[prevIdx - 1]?.page;
+    if (prevPage && prevPage !== "current" && prevPage !== pathname) {
+      router.replace(prevPage);
     }
 
     persistStep(prevIdx);
-  }, [tourStatus, currentStepIndex, steps, pathname, router, persistStep, prepareStepSideEffects, clearStepResidue]);
+  }, [tourStatus, currentStepIndex, rawSteps, stepOverrides, pathname, router, persistStep, prepareStepSideEffects, clearStepResidue]);
 
   const skipTour = useCallback(async () => {
     clearStepResidue();

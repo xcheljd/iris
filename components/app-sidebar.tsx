@@ -56,7 +56,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar data-tour="sidebar">
-      <SidebarHeader className="border-b border-sidebar-border">
+      <SidebarHeader className="border-b border-sidebar-border" data-tour="sidebar-header">
         <Link href="/" className={cn("flex items-center gap-2 py-1.5", collapsed ? "justify-center px-0" : "px-2")} aria-label="Iris Dashboard">
           <IrisIcon size={32} className="shrink-0" />
           {!collapsed && (
@@ -67,7 +67,7 @@ export function AppSidebar() {
           )}
         </Link>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent data-tour="sidebar-nav">
         {baseNav.map((group, i) => {
           const visibleItems = group.items.filter((item) => !("managerOnly" in item && item.managerOnly && !isManager));
           if (visibleItems.length === 0) return null;
@@ -110,7 +110,7 @@ export function AppSidebar() {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
-            {i < baseNav.length - 1 && <Separator className="mx-2" />}
+            {i < baseNav.length - 1 && <Separator className="mx-2 bg-white/10" />}
           </div>
           );
         })}

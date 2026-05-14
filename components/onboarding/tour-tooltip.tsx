@@ -166,12 +166,22 @@ function SpotlightTooltip({
       if (!el) return false;
       const rect = el.getBoundingClientRect();
 
+      // If the element spans most of the viewport height (>70%), clamp the anchor rect
+      // so the tooltip positions relative to the top portion rather than the full extent.
+      const vh = window.innerHeight;
+      const clampThreshold = vh * 0.7;
+      let top = rect.top;
+      let height = rect.height;
+      if (rect.height > clampThreshold) {
+        height = Math.min(rect.height, 80);
+      }
+
       // Determine which side has more space; when neither has 200px pick the larger side
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const spaceAbove = rect.top;
+      const spaceBelow = vh - (top + height);
+      const spaceAbove = top;
       const newSide = spaceBelow >= 200 ? "bottom" : spaceAbove >= 200 ? "top" : (spaceBelow >= spaceAbove ? "bottom" : "top");
 
-      setAnchorPos({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
+      setAnchorPos({ top, left: rect.left, width: rect.width, height });
       setSide(newSide);
       return true;
     }
