@@ -438,7 +438,9 @@ describe("OnboardingProvider", () => {
   });
 
   it("navigates to manager step page on resume (VAL-TOUR-016)", async () => {
-    // Manager was on step 9 (approvals, page=/approvals) when they closed the browser
+    // Manager was on step 9 (analytics, page=/analytics) when they closed the browser.
+    // Manager step order: analytics, approvals, employee-management, backup —
+    // the first manager-only step appended after the 8 base steps.
     mockSession.data.user.role = "manager";
     mockPathname = "/";
     mockOnboardingState = {
@@ -455,11 +457,9 @@ describe("OnboardingProvider", () => {
       await new Promise((r) => setTimeout(r, 200));
     });
 
-    // Tour should have resumed at step 9
     expect(screen.getByTestId("status").textContent).toBe("active");
     expect(screen.getByTestId("step-index").textContent).toBe("9");
-    // Router should have navigated to the approvals page
-    expect(mockReplace).toHaveBeenCalledWith("/approvals");
+    expect(mockReplace).toHaveBeenCalledWith("/analytics");
   });
 
   it("does not navigate on resume for steps on 'current' page (VAL-TOUR-016)", async () => {

@@ -55,3 +55,9 @@ Object.defineProperty(window, "matchMedia", {
     dispatchEvent: () => false,
   }),
 });
+
+// jsdom doesn't implement scrollIntoView. The tour overlay calls it once per
+// step to bring the spotlight target into view; a no-op is fine in tests.
+if (typeof window !== "undefined" && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = function () {};
+}
