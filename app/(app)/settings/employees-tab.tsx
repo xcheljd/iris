@@ -29,8 +29,10 @@ import {
   Pencil,
   ChevronUp,
   ChevronDown,
+  Trash2,
 } from "lucide-react";
-import { createEmployee, resetEmployeePassword, updateEmployeeRole, toggleEmployeeActive, updateEmployee, deactivateEmployee, reorderEmployee } from "@/lib/actions";
+import { createEmployee, resetEmployeePassword, updateEmployeeRole, toggleEmployeeActive, updateEmployee, deactivateEmployee, reorderEmployee, deleteEmployee } from "@/lib/actions";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { toast } from "sonner";
 import { fullName } from "@/lib/utils";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -63,6 +65,7 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
   const [deactivateMode, setDeactivateMode] = useState<"keep" | "reassign" | "unassign">("keep");
   const [reassignToId, setReassignToId] = useState<string>("");
   const [deactivating, setDeactivating] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<(typeof employees)[number] | null>(null);
   const [editEmployeeTarget, setEditEmployeeTarget] = useState<(typeof employees)[number] | null>(null);
   const [editEmployee, setEditEmployee] = useState({ firstName: "", lastName: "", username: "", role: "associate" as "associate" | "manager", active: true });
 
@@ -203,6 +206,22 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
       router.refresh();
     } catch {
       toast.error("Failed to reorder");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      const result = await deleteEmployee(deleteTarget.id);
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(`${fullName(deleteTarget)} deleted`);
+      setDeleteTarget(null);
+      router.refresh();
+    } catch {
+      toast.error("Failed to delete employee");
     }
   };
 
@@ -400,7 +419,7 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                          className="text-destructive"
+                          className={employee.active ? "text-destructive" : undefined}
                           disabled={employee.username === "__self__"}
                           onClick={() => {
                             if (employee.active) {
@@ -410,8 +429,17 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
                             }
                           }}
                         >
-                          {employee.active ? "Deactivate" : "Activate"}
+                          {employee.active ? "Deactivate" : "Reactivate"}
                         </DropdownMenuItem>
+                        {!employee.active && (
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => setDeleteTarget(employee)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete employee
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -539,6 +567,23 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete (soft) — only enabled from the dropdown when inactive */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title={`Delete ${deleteTarget ? fullName(deleteTarget) : "employee"}?`}
+        description={
+          <>
+            <strong>{deleteTarget ? fullName(deleteTarget) : ""}</strong> will be removed from the
+            Employees list. Their historical records (activity events, outreach logs, approvals)
+            stay intact for the audit trail. This can&apos;t be undone from the UI.
+          </>
+        }
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={handleDelete}
+      />
 
       {/* Edit Employee Dialog */}
       <Dialog open={!!editEmployeeTarget} onOpenChange={(open) => { if (!open) setEditEmployeeTarget(null); }}>

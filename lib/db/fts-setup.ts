@@ -37,6 +37,12 @@ export function setupClientsFts(sqlite: Database.Database) {
   if (!hasEmployeeSortOrder) {
     sqlite.exec("ALTER TABLE employees ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
   }
+  const hasEmployeeDeletedAt = sqlite
+    .prepare("SELECT 1 FROM pragma_table_info('employees') WHERE name = 'deleted_at'")
+    .get();
+  if (!hasEmployeeDeletedAt) {
+    sqlite.exec("ALTER TABLE employees ADD COLUMN deleted_at INTEGER");
+  }
 
   // Schema migration: if clients_fts exists but lacks the `promos` column
   // (added for collection-name search via promo_matches), drop the whole FTS

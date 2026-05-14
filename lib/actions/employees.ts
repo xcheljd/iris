@@ -253,3 +253,27 @@ export async function deactivateEmployee(
     return { error: "Failed to deactivate employee" };
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Soft-delete employee                                                        */
+/*                                                                            */
+/* Hides the employee from listings but keeps the row in the database so      */
+/* historical references (activity_events, outreach_logs, approvals,          */
+/* rvx_import_batches) stay intact. Only allowed on already-inactive          */
+/* employees so the deactivate flow has been used to handle their clients.   */
+/* -------------------------------------------------------------------------- */
+
+export async function deleteEmployee(employeeId: string) {
+  const user = await getSessionUser();
+  if (user?.role !== "manager") return { error: "Unauthorized" };
+  if (user.id === employeeId) return { error: "Cannot delete your own account" };
+
+  const target = db.select().from(employees).where(eq(employees.id, employeeId)).get();
+  if (!target) return { error: "Employee not found" };
+  if (target.deletedAt) return { error: "Employee already deleted" };
+  if (target.active) return { error: "Deactivate the employee first" };
+
+  db.update(employees).set({ deletedAt: new Date() }).where(eq(employees.id, employeeId)).run();
+  revalidatePath("/settings");
+  return { success: true as const };
+}

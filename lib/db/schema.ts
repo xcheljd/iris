@@ -36,6 +36,8 @@ export const employees = sqliteTable("employees", {
   onboardingState: text("onboarding_state"),
   /** Manual sort order for the Employees settings tab — lower comes first. */
   sortOrder: integer("sort_order").notNull().default(0),
+  /** Soft-delete timestamp. Non-null rows are hidden from listings but kept for audit-trail integrity. */
+  deletedAt: integer("deleted_at", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
