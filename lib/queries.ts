@@ -525,23 +525,47 @@ export async function getRecentOutreach(limit = 20, employeeId?: string) {
   return rows;
 }
 
+export interface SearchClientHit {
+  id: string;
+  firstName: string;
+  lastName: string | null;
+  phone: string | null;
+  email: string | null;
+  /** FTS5 snippet text with [[hl]]…[[/hl]] markers around matched tokens. null on phonetic fallback (no MATCH ran). */
+  snippet: string | null;
+}
+
 export interface SearchClientsResult {
   /** Direct FTS5 matches, or soundex matches when FTS returned nothing. */
-  clients: ClientListRow[];
+  clients: SearchClientHit[];
   /** True when results came from the soundex fallback — the UI can show a "Did you mean?" hint. */
   isPhoneticFallback: boolean;
 }
 
+/** Sentinel markers wrapping highlighted match tokens in FTS5 snippets. The renderer parses these. */
+const HL_OPEN = "[[hl]]";
+const HL_CLOSE = "[[/hl]]";
+
 export async function searchClients(query: string, employeeId?: string): Promise<SearchClientsResult> {
-  // FTS5-backed search: spans name, email, phone, notes, and
-  // productsOfInterest. Results are ranked by BM25 (lower = better match),
-  // with global recency (clients.lastViewedAt) as a secondary tiebreaker so
-  // recently-touched clients surface first when match quality is equal.
+  // FTS5-backed search: spans name, email, phone, notes, products, and
+  // promo collection/model. Results are ranked by BM25 (lower = better
+  // match), with global recency (clients.lastViewedAt) as a secondary
+  // tiebreaker so recently-touched clients surface first when match
+  // quality is equal. snippet() picks the best-matching column per row
+  // and wraps the matched tokens in sentinel markers the UI parses.
   const fts = toFtsQuery(query);
   if (!fts) return { clients: [], isPhoneticFallback: false };
   const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
 
-  const direct = db.select(clientListProjection).from(clients)
+  const direct = db.select({
+    id: clients.id,
+    firstName: clients.firstName,
+    lastName: clients.lastName,
+    phone: clients.phone,
+    email: clients.email,
+    snippet: rawSql<string>`(SELECT snippet(clients_fts, -1, ${HL_OPEN}, ${HL_CLOSE}, '…', 10) FROM clients_fts WHERE client_id = ${clients.id} AND clients_fts MATCH ${fts})`.as("snippet"),
+  })
+    .from(clients)
     .where(and(
       notInArray(clients.status, ["banned", "deleted"]),
       rawSql`${clients.id} IN (SELECT client_id FROM clients_fts WHERE clients_fts MATCH ${fts})`,
@@ -566,7 +590,15 @@ export async function searchClients(query: string, employeeId?: string): Promise
     return { clients: [], isPhoneticFallback: false };
   }
 
-  const phonetic = db.select(clientListProjection).from(clients)
+  const phonetic = db.select({
+    id: clients.id,
+    firstName: clients.firstName,
+    lastName: clients.lastName,
+    phone: clients.phone,
+    email: clients.email,
+    snippet: rawSql<string | null>`NULL`.as("snippet"),
+  })
+    .from(clients)
     .where(and(
       notInArray(clients.status, ["banned", "deleted"]),
       or(

@@ -5,7 +5,33 @@ import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, C
 import { Home, Users, Phone, ListFilter, Tag, BarChart3, Ban, MailX, Settings, Plus, Search as SearchIcon, ShieldCheck } from "lucide-react";
 import { useSession } from "next-auth/react";
 
-type ClientHit = { id: string; firstName: string; lastName: string | null; phone: string | null };
+type ClientHit = {
+  id: string;
+  firstName: string;
+  lastName: string | null;
+  phone: string | null;
+  /** FTS5 snippet text with [[hl]]…[[/hl]] markers wrapping matched tokens. */
+  snippet: string | null;
+};
+
+/**
+ * Parses an FTS5 snippet's [[hl]]…[[/hl]] sentinel markers and renders the
+ * highlighted spans safely (no dangerouslySetInnerHTML). Returns a fragment.
+ */
+function renderSnippet(snippet: string): React.ReactNode {
+  const parts: React.ReactNode[] = [];
+  const regex = /\[\[hl\]\]([\s\S]*?)\[\[\/hl\]\]/g;
+  let cursor = 0;
+  let m: RegExpExecArray | null;
+  let i = 0;
+  while ((m = regex.exec(snippet)) !== null) {
+    if (m.index > cursor) parts.push(<span key={`p${i++}`}>{snippet.slice(cursor, m.index)}</span>);
+    parts.push(<mark key={`h${i++}`} className="bg-transparent text-primary font-medium">{m[1]}</mark>);
+    cursor = regex.lastIndex;
+  }
+  if (cursor < snippet.length) parts.push(<span key={`p${i++}`}>{snippet.slice(cursor)}</span>);
+  return <>{parts}</>;
+}
 
 interface CommandPaletteContextValue {
   open: boolean;
@@ -93,10 +119,17 @@ export function CommandPalette() {
         {hits.length > 0 && (
           <CommandGroup heading={isPhonetic ? `Did you mean? (phonetic match for "${q}")` : "Clients"}>
             {hits.map((c) => (
-              <CommandItem key={c.id} onSelect={() => go(`/clients/${c.id}`)}>
-                <SearchIcon className="h-4 w-4" />
-                <span>{c.firstName} {c.lastName ?? ""}</span>
-                {c.phone && <span className="ml-2 text-xs text-muted-foreground">{c.phone}</span>}
+              <CommandItem key={c.id} onSelect={() => go(`/clients/${c.id}`)} className="flex-col items-start gap-0.5">
+                <div className="flex items-center gap-2 w-full">
+                  <SearchIcon className="h-4 w-4 shrink-0" />
+                  <span>{c.firstName} {c.lastName ?? ""}</span>
+                  {c.phone && <span className="ml-auto text-xs text-muted-foreground">{c.phone}</span>}
+                </div>
+                {c.snippet && (
+                  <div className="text-xs text-muted-foreground pl-6 truncate w-full">
+                    {renderSnippet(c.snippet)}
+                  </div>
+                )}
               </CommandItem>
             ))}
           </CommandGroup>

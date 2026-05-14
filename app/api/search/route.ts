@@ -9,7 +9,13 @@ export const GET = withAuth(async (session, req: NextRequest) => {
   const employeeId = !isManager ? session.user.id : undefined;
   const result = await searchClients(q, employeeId);
   return Response.json({
-    hits: result.clients.map((c) => ({ id: c.id, firstName: c.firstName, lastName: c.lastName, phone: c.phone })),
+    hits: result.clients.map((c) => ({
+      id: c.id,
+      firstName: c.firstName,
+      lastName: c.lastName,
+      phone: c.phone,
+      snippet: c.snippet,
+    })),
     isPhoneticFallback: result.isPhoneticFallback,
   });
 });
