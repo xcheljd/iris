@@ -27,7 +27,7 @@ export function TextFilterMenu({
   placeholder,
 }: {
   value: string;
-  onChange: (v: string) => void;
+  onChange(v: string): void;
   placeholder: string;
 }) {
   const [local, setLocal] = useState(value);
@@ -82,7 +82,7 @@ export function SingleSelectMenu({
 }: {
   options: SingleSelectOption[];
   value: string;
-  onChange: (v: string) => void;
+  onChange(v: string): void;
   searchable?: boolean;
 }) {
   return (
@@ -129,7 +129,7 @@ export function TagsFilterMenu({
   allTags: TagOption[];
   selected: string[];
   mode: "any" | "all";
-  onChange: (next: { selected: string[]; mode: "any" | "all" }) => void;
+  onChange(next: { selected: string[]; mode: "any" | "all" }): void;
 }) {
   const toggleTag = (name: string) => {
     const next = selected.includes(name)
@@ -211,12 +211,12 @@ interface DatesFilterButtonProps {
   lastContactTo?: number;
   createdFrom?: number;
   createdTo?: number;
-  onChange: (next: {
+  onChange(next: {
     lastContactFrom?: number;
     lastContactTo?: number;
     createdFrom?: number;
     createdTo?: number;
-  }) => void;
+  }): void;
 }
 
 export function DatesFilterButton({

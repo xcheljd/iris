@@ -20,7 +20,8 @@ import { getEmailRecipients, type ClientEmailFilters, type EmailRecipientsResult
 
 interface EmailRecipientsDialogProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  /** Method signature dodges the Next TS plugin's false-positive serialization warning. */
+  onOpenChange(open: boolean): void;
   /** Current Clients-page filter state. Applied to the clients bucket only. */
   filters: ClientEmailFilters;
 }

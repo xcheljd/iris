@@ -2,26 +2,12 @@
 
 import { db } from "@/lib/db";
 import { clients, prospects, employees } from "@/lib/db/schema";
-import { and, eq, gte, isNull, isNotNull, lte, notInArray, or, sql as rawSql, type SQL } from "drizzle-orm";
+import { and, eq, isNotNull, notInArray, type SQL } from "drizzle-orm";
+import { buildClientFilterConds, type ClientFilterParams } from "@/lib/client-filter-conds";
 import { requireAuth } from "./_shared";
 
-export interface ClientEmailFilters {
-  q?: string;
-  /** Column-scoped: name only. */
-  nameQ?: string;
-  /** Column-scoped: email or phone only. */
-  contactQ?: string;
-  heat?: string;
-  owner?: string;
-  tags?: string[];
-  tagMode?: "any" | "all";
-  /** Unix seconds bounds for clients.lastOutreachAt. */
-  lastContactFrom?: number;
-  lastContactTo?: number;
-  /** Unix seconds bounds for clients.createdAt. */
-  createdFrom?: number;
-  createdTo?: number;
-}
+/** Filter shape accepted by the Email Recipients server action. */
+export type ClientEmailFilters = ClientFilterParams;
 
 export interface EmailRecipientsResult {
   clients: { count: number; emails: string[] };
@@ -41,7 +27,7 @@ export async function getEmailRecipients(filters: ClientEmailFilters = {}): Prom
   const user = await requireAuth();
   const employeeId = user.role === "manager" ? undefined : user.id;
 
-  const { q, nameQ, contactQ, heat, owner, tags, tagMode = "any", lastContactFrom, lastContactTo, createdFrom, createdTo } = filters;
+  const { conds: filterConds, needsEmployeeJoin } = buildClientFilterConds(filters);
 
   /* ---- clients query ---- */
   const clientConds: (SQL<unknown> | undefined)[] = [
@@ -49,60 +35,9 @@ export async function getEmailRecipients(filters: ClientEmailFilters = {}): Prom
     eq(clients.onEmailList, true),
     isNotNull(clients.email),
     employeeId ? eq(clients.employeeId, employeeId) : undefined,
+    ...filterConds,
   ];
 
-  if (q) {
-    const ql = `%${q.toLowerCase()}%`;
-    clientConds.push(or(
-      rawSql`lower(${clients.firstName} || ' ' || COALESCE(${clients.lastName}, '')) LIKE ${ql}`,
-      rawSql`lower(COALESCE(${clients.email}, '')) LIKE ${ql}`,
-      rawSql`COALESCE(${clients.phone}, '') LIKE ${ql}`,
-    ));
-  }
-
-  if (nameQ) {
-    const nq = `%${nameQ.toLowerCase()}%`;
-    clientConds.push(rawSql`lower(${clients.firstName} || ' ' || COALESCE(${clients.lastName}, '')) LIKE ${nq}`);
-  }
-
-  if (contactQ) {
-    const cq = `%${contactQ.toLowerCase()}%`;
-    clientConds.push(or(
-      rawSql`lower(COALESCE(${clients.email}, '')) LIKE ${cq}`,
-      rawSql`COALESCE(${clients.phone}, '') LIKE ${cq}`,
-    ));
-  }
-
-  if (lastContactFrom !== undefined) clientConds.push(gte(clients.lastOutreachAt, new Date(lastContactFrom * 1000)));
-  if (lastContactTo !== undefined) clientConds.push(lte(clients.lastOutreachAt, new Date(lastContactTo * 1000)));
-  if (createdFrom !== undefined) clientConds.push(gte(clients.createdAt, new Date(createdFrom * 1000)));
-  if (createdTo !== undefined) clientConds.push(lte(clients.createdAt, new Date(createdTo * 1000)));
-
-  if (heat && heat !== "any") {
-    clientConds.push(eq(clients.heatLevel, heat as "hot" | "warm" | "cold"));
-  }
-
-  if (owner && owner !== "any") {
-    if (owner === "__none__") {
-      clientConds.push(isNull(clients.employeeId));
-    } else {
-      clientConds.push(rawSql`TRIM(COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, '')) = ${owner}`);
-    }
-  }
-
-  if (tags && tags.length > 0) {
-    if (tagMode === "all") {
-      for (const tag of tags) {
-        clientConds.push(rawSql`EXISTS (SELECT 1 FROM json_each(${clients.tags}) WHERE json_each.value = ${tag})`);
-      }
-    } else {
-      const placeholders = tags.map((t) => rawSql`${t}`);
-      clientConds.push(rawSql`EXISTS (SELECT 1 FROM json_each(${clients.tags}) WHERE json_each.value IN (${rawSql.join(placeholders, rawSql`, `)}))`);
-    }
-  }
-
-  // Join employees only when needed (owner name filter)
-  const needsEmployeeJoin = owner && owner !== "any" && owner !== "__none__";
   const baseClientQuery = db.select({ email: clients.email }).from(clients);
   const clientRows = (needsEmployeeJoin
     ? baseClientQuery.leftJoin(employees, eq(clients.employeeId, employees.id)).where(and(...clientConds)).orderBy(clients.email)

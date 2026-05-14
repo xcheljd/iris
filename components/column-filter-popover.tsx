@@ -10,7 +10,7 @@ interface ColumnFilterPopoverProps {
   /** True when this column has an active filter — visually fills the funnel. */
   active: boolean;
   /** Called when the user hits the Clear button at the bottom of the popover. */
-  onClear?: () => void;
+  onClear?(): void;
   /** ARIA label for the trigger button (screen readers). */
   label: string;
   /** Popover content — the column-specific filter UI. */

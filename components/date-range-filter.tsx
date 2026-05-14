@@ -11,7 +11,8 @@ export interface DateRange {
 
 interface DateRangeFilterProps {
   value: DateRange;
-  onChange: (range: DateRange) => void;
+  /** Method signature suppresses the Next TS plugin's false-positive serialization warning. */
+  onChange(range: DateRange): void;
   /** Section label shown above the calendar, e.g. "Last Contact". */
   label?: string;
 }

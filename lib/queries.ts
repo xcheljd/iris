@@ -3,6 +3,7 @@ import { clients, outreachLogs, activityEvents, promoWatches, bannedCustomers, u
 import { eq, desc, asc, and, or, isNull, isNotNull, lte, gte, notInArray, sql as rawSql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { applyClientFilter } from "@/lib/utils";
+import { buildClientFilterConds } from "@/lib/client-filter-conds";
 import { MS_PER_DAY, SEC_PER_DAY, LIST_QUERY_LIMIT, FOLLOW_UP_LOOKAHEAD_DAYS, DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
 const clientListProjection = {
@@ -103,50 +104,15 @@ export async function getClientsWithEmployeePaginated(
   const { q, nameQ, contactQ, heat, owner, filter, tags, tagMode = "any", lastContactFrom, lastContactTo, createdFrom, createdTo, sort = "heat", sortDir = "desc", page = 1, pageSize = DEFAULT_PAGE_SIZE } = opts;
   const nowSec = Math.floor(Date.now() / 1000);
 
+  const { conds: filterConds } = buildClientFilterConds({
+    q, nameQ, contactQ, heat, owner, tags, tagMode,
+    lastContactFrom, lastContactTo, createdFrom, createdTo,
+  });
   const conds: (SQL<unknown> | undefined)[] = [
     notInArray(clients.status, ["banned", "deleted"]),
     employeeId ? eq(clients.employeeId, employeeId) : undefined,
+    ...filterConds,
   ];
-
-  if (q) {
-    const ql = `%${q.toLowerCase()}%`;
-    conds.push(or(
-      rawSql`lower(${clients.firstName} || ' ' || COALESCE(${clients.lastName}, '')) LIKE ${ql}`,
-      rawSql`lower(COALESCE(${clients.email}, '')) LIKE ${ql}`,
-      rawSql`COALESCE(${clients.phone}, '') LIKE ${ql}`,
-    ));
-  }
-
-  // Column-scoped Name filter (Name header)
-  if (nameQ) {
-    const nq = `%${nameQ.toLowerCase()}%`;
-    conds.push(rawSql`lower(${clients.firstName} || ' ' || COALESCE(${clients.lastName}, '')) LIKE ${nq}`);
-  }
-
-  // Column-scoped Contact filter (Contact header — email or phone)
-  if (contactQ) {
-    const cq = `%${contactQ.toLowerCase()}%`;
-    conds.push(or(
-      rawSql`lower(COALESCE(${clients.email}, '')) LIKE ${cq}`,
-      rawSql`COALESCE(${clients.phone}, '') LIKE ${cq}`,
-    ));
-  }
-
-  // Date ranges (Dates button — Last contact / Created)
-  if (lastContactFrom !== undefined) conds.push(gte(clients.lastOutreachAt, new Date(lastContactFrom * 1000)));
-  if (lastContactTo !== undefined) conds.push(lte(clients.lastOutreachAt, new Date(lastContactTo * 1000)));
-  if (createdFrom !== undefined) conds.push(gte(clients.createdAt, new Date(createdFrom * 1000)));
-  if (createdTo !== undefined) conds.push(lte(clients.createdAt, new Date(createdTo * 1000)));
-
-  if (heat && heat !== "any") conds.push(eq(clients.heatLevel, heat as "hot" | "warm" | "cold"));
-
-  if (owner && owner !== "any") {
-    if (owner === "__none__") {
-      conds.push(isNull(clients.employeeId));
-    } else {
-      conds.push(rawSql`TRIM(COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, '')) = ${owner}`);
-    }
-  }
 
   if (filter && filter !== "all") {
     switch (filter) {
@@ -179,20 +145,6 @@ export async function getClientsWithEmployeePaginated(
       case "email_subscribers":
         conds.push(eq(clients.onEmailList, true), rawSql`${clients.status} != 'unsubscribed'`);
         break;
-    }
-  }
-
-  // Tag filter — match against the JSON array on clients.tags via json_each
-  if (tags && tags.length > 0) {
-    if (tagMode === "all") {
-      // Client must have every selected tag — AND of EXISTS per tag
-      for (const tag of tags) {
-        conds.push(rawSql`EXISTS (SELECT 1 FROM json_each(${clients.tags}) WHERE json_each.value = ${tag})`);
-      }
-    } else {
-      // ANY — at least one tag matches
-      const placeholders = tags.map((t) => rawSql`${t}`);
-      conds.push(rawSql`EXISTS (SELECT 1 FROM json_each(${clients.tags}) WHERE json_each.value IN (${rawSql.join(placeholders, rawSql`, `)}))`);
     }
   }
 
