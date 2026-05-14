@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
 import { SearchInput } from "@/components/search-input";
 import { Topbar } from "@/components/topbar";
@@ -13,6 +13,34 @@ import { RvxImportDialog } from "@/components/rvx-import-dialog";
 import { Upload, UserSearch, DollarSign } from "lucide-react";
 import Link from "next/link";
 import type { ProspectListRow } from "@/lib/queries";
+
+type ProspectStatus = "active" | "graduated" | "unsubscribed" | "rejected";
+
+const TAB_LABELS: Record<ProspectStatus, string> = {
+  active: "Active Prospects",
+  graduated: "Graduated Prospects",
+  unsubscribed: "Unsubscribed Prospects",
+  rejected: "Rejected Prospects",
+};
+
+const EMPTY_COPY: Record<ProspectStatus, { title: string; description: string }> = {
+  active: {
+    title: "No active prospects",
+    description: "Import prospects from RVX or wait for new ones to come in.",
+  },
+  graduated: {
+    title: "No graduated prospects",
+    description: "Prospects move here once they're converted to clients.",
+  },
+  unsubscribed: {
+    title: "No unsubscribed prospects",
+    description: "Prospects who opt out of outreach will appear here.",
+  },
+  rejected: {
+    title: "No rejected prospects",
+    description: "Prospects marked as not-a-fit will appear here.",
+  },
+};
 
 interface ProspectsContentProps {
   active: ProspectListRow[];
@@ -79,16 +107,16 @@ export function ProspectsContent({
           </TabsList>
 
           <TabsContent value="active" className="mt-4">
-            <ProspectTable rows={filter(active)} showActions />
+            <ProspectListCard rows={filter(active)} status="active" search={search} showActions />
           </TabsContent>
           <TabsContent value="graduated" className="mt-4">
-            <ProspectTable rows={filter(graduated)} />
+            <ProspectListCard rows={filter(graduated)} status="graduated" search={search} />
           </TabsContent>
           <TabsContent value="unsubscribed" className="mt-4">
-            <ProspectTable rows={filter(unsubscribed)} />
+            <ProspectListCard rows={filter(unsubscribed)} status="unsubscribed" search={search} />
           </TabsContent>
           <TabsContent value="rejected" className="mt-4">
-            <ProspectTable rows={filter(rejected)} />
+            <ProspectListCard rows={filter(rejected)} status="rejected" search={search} />
           </TabsContent>
         </Tabs>
 
@@ -98,54 +126,74 @@ export function ProspectsContent({
   );
 }
 
-function ProspectTable({
+function ProspectListCard({
   rows,
+  status,
+  search,
   showActions = false,
 }: {
   rows: ProspectListRow[];
+  status: ProspectStatus;
+  search: string;
   showActions?: boolean;
 }) {
-  if (rows.length === 0) {
-    return (
-      <EmptyState
-        icon={UserSearch}
-        title="No prospects here"
-        compact
-      />
-    );
-  }
+  const filtered = search.trim().length > 0;
+  const copy = EMPTY_COPY[status];
 
   return (
-    <div className="space-y-2">
-      {rows.map((prospect) => (
-        <Card key={prospect.id}>
-          <CardContent className="p-4 flex items-center justify-between gap-3">
-            <Link
-              href={`/prospects/${prospect.id}`}
-              className="flex-1 min-w-0 hover:underline"
-            >
-              <p className="font-medium truncate">
-                {prospect.firstName} {prospect.lastName ?? ""}
-              </p>
-              <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-0.5">
-                {prospect.phone && (
-                  <span className="text-xs text-muted-foreground">{prospect.phone}</span>
-                )}
-                {prospect.email && (
-                  <span className="text-xs text-muted-foreground truncate">{prospect.email}</span>
-                )}
-                {prospect.rvxSpend !== null && prospect.rvxSpend !== undefined && (
-                  <span className="text-xs text-muted-foreground flex items-center gap-0.5">
-                    <DollarSign className="h-3 w-3" />
-                    {prospect.rvxSpend.toFixed(2)}
-                  </span>
-                )}
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle>{TAB_LABELS[status]}</CardTitle>
+          {rows.length > 0 && (
+            <Badge variant="secondary">
+              {rows.length} prospect{rows.length !== 1 ? "s" : ""}
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        {rows.length === 0 ? (
+          <EmptyState
+            icon={UserSearch}
+            title={filtered ? "No matching prospects" : copy.title}
+            description={filtered ? "Try a different search term" : copy.description}
+          />
+        ) : (
+          <div className="space-y-2">
+            {rows.map((prospect) => (
+              <div
+                key={prospect.id}
+                className="border rounded-lg p-4 flex items-center justify-between gap-3"
+              >
+                <Link
+                  href={`/prospects/${prospect.id}`}
+                  className="flex-1 min-w-0 hover:underline"
+                >
+                  <p className="font-medium truncate">
+                    {prospect.firstName} {prospect.lastName ?? ""}
+                  </p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-0.5">
+                    {prospect.phone && (
+                      <span className="text-xs text-muted-foreground">{prospect.phone}</span>
+                    )}
+                    {prospect.email && (
+                      <span className="text-xs text-muted-foreground truncate">{prospect.email}</span>
+                    )}
+                    {prospect.rvxSpend !== null && prospect.rvxSpend !== undefined && (
+                      <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                        <DollarSign className="h-3 w-3" />
+                        {prospect.rvxSpend.toFixed(2)}
+                      </span>
+                    )}
+                  </div>
+                </Link>
+                {showActions && <ProspectActionsMenu prospect={prospect} />}
               </div>
-            </Link>
-            {showActions && <ProspectActionsMenu prospect={prospect} />}
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
