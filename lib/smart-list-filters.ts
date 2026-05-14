@@ -65,30 +65,61 @@ export function smartListToClientFilters(raw: Record<string, unknown>): ClientFi
   return out;
 }
 
-/** Human-readable chip strings describing each active filter. Format-only — no JSX. */
-export function describeClientFilters(f: ClientFilterParams): string[] {
-  const chips: string[] = [];
-  if (f.q && f.q.trim()) chips.push(`Search: "${f.q.trim()}"`);
-  if (f.nameQ && f.nameQ.trim()) chips.push(`Name: "${f.nameQ.trim()}"`);
-  if (f.contactQ && f.contactQ.trim()) chips.push(`Contact: "${f.contactQ.trim()}"`);
-  if (f.heat && f.heat !== "any") chips.push(`Heat: ${f.heat}`);
+/** Stable identifiers for each removable filter chip. */
+export type ClientFilterChipKey =
+  | "q"
+  | "nameQ"
+  | "contactQ"
+  | "heat"
+  | "owner"
+  | "tags"
+  | "lastContact"
+  | "created";
+
+export interface ClientFilterChip {
+  /** Unique key (one per filter family). The caller knows how to clear it in their own filter shape. */
+  key: ClientFilterChipKey;
+  /** Human-readable label, e.g. `"Heat: hot"`. */
+  label: string;
+}
+
+/**
+ * Returns one chip per active filter, with stable keys so a caller can wire
+ * a "clear" handler per chip. Used by the Clients-page active-filter strip
+ * and by the chip displays in the Email Recipients / Save-as-list dialogs.
+ */
+export function getActiveFilterChips(f: ClientFilterParams): ClientFilterChip[] {
+  const chips: ClientFilterChip[] = [];
+  if (f.q && f.q.trim()) chips.push({ key: "q", label: `Search: "${f.q.trim()}"` });
+  if (f.nameQ && f.nameQ.trim()) chips.push({ key: "nameQ", label: `Name: "${f.nameQ.trim()}"` });
+  if (f.contactQ && f.contactQ.trim()) chips.push({ key: "contactQ", label: `Contact: "${f.contactQ.trim()}"` });
+  if (f.heat && f.heat !== "any") chips.push({ key: "heat", label: `Heat: ${f.heat}` });
   if (f.owner && f.owner !== "any") {
-    chips.push(`Owner: ${f.owner === "__none__" ? "Unassigned" : f.owner}`);
+    chips.push({ key: "owner", label: `Owner: ${f.owner === "__none__" ? "Unassigned" : f.owner}` });
   }
   if (f.tags && f.tags.length > 0) {
     const mode = f.tagMode === "all" ? "all of" : "any of";
-    chips.push(`Tags (${mode}): ${f.tags.join(", ")}`);
+    chips.push({ key: "tags", label: `Tags (${mode}): ${f.tags.join(", ")}` });
   }
   const fmt = (ts: number) => new Date(ts * 1000).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
-  const range = (from?: number, to?: number) => {
-    if (!from && !to) return null;
-    return `${from ? fmt(from) : "—"} → ${to ? fmt(to) : "—"}`;
-  };
-  const lastContact = range(f.lastContactFrom, f.lastContactTo);
-  if (lastContact) chips.push(`Last Contact: ${lastContact}`);
-  const created = range(f.createdFrom, f.createdTo);
-  if (created) chips.push(`Created: ${created}`);
+  if (f.lastContactFrom || f.lastContactTo) {
+    chips.push({
+      key: "lastContact",
+      label: `Last Contact: ${f.lastContactFrom ? fmt(f.lastContactFrom) : "—"} → ${f.lastContactTo ? fmt(f.lastContactTo) : "—"}`,
+    });
+  }
+  if (f.createdFrom || f.createdTo) {
+    chips.push({
+      key: "created",
+      label: `Created: ${f.createdFrom ? fmt(f.createdFrom) : "—"} → ${f.createdTo ? fmt(f.createdTo) : "—"}`,
+    });
+  }
   return chips;
+}
+
+/** Human-readable chip strings describing each active filter. Format-only — no JSX. */
+export function describeClientFilters(f: ClientFilterParams): string[] {
+  return getActiveFilterChips(f).map((c) => c.label);
 }
 
 /** Returns true if any user-driven filter is active. */

@@ -26,7 +26,13 @@ import {
   DatesFilterButton,
 } from "@/components/clients-column-filters";
 import { SaveCurrentFilterDialog } from "@/components/smart-lists/save-current-filter-dialog";
-import { describeClientFilters, hasActiveClientFilters } from "@/lib/smart-list-filters";
+import {
+  describeClientFilters,
+  getActiveFilterChips,
+  hasActiveClientFilters,
+  type ClientFilterChipKey,
+} from "@/lib/smart-list-filters";
+import { ClientsActiveFilters } from "@/components/clients-active-filters";
 import { BulkActionsToolbar } from "@/components/clients-bulk-actions";
 import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -166,6 +172,41 @@ export function ClientListContent({
     ],
   );
 
+  function clearFilterChip(key: ClientFilterChipKey) {
+    switch (key) {
+      case "q": setQLocal(""); navigate({ q: "", page: 1 }); break;
+      case "nameQ": navigate({ nameQ: "", page: 1 }); break;
+      case "contactQ": navigate({ contactQ: "", page: 1 }); break;
+      case "heat": navigate({ heat: "any", page: 1 }); break;
+      case "owner": navigate({ owner: "any", page: 1 }); break;
+      case "tags": navigate({ tags: [], tagMode: "any", page: 1 }); break;
+      case "lastContact":
+        navigate({ lastContactFrom: undefined, lastContactTo: undefined, page: 1 });
+        break;
+      case "created":
+        navigate({ createdFrom: undefined, createdTo: undefined, page: 1 });
+        break;
+    }
+  }
+
+  function clearAllFilters() {
+    setQLocal("");
+    navigate({
+      q: "",
+      nameQ: "",
+      contactQ: "",
+      heat: "any",
+      owner: "any",
+      tags: [],
+      tagMode: "any",
+      lastContactFrom: undefined,
+      lastContactTo: undefined,
+      createdFrom: undefined,
+      createdTo: undefined,
+      page: 1,
+    });
+  }
+
   function navigate(overrides: Partial<ClientFilters>) {
     const next = { ...currentFilters, ...overrides };
     const sp = new URLSearchParams();
@@ -281,6 +322,13 @@ export function ClientListContent({
             onChange={(next) => navigate({ ...next, page: 1 })}
           />
         </div>
+
+        {/* Active filters strip — only renders when filters are active */}
+        <ClientsActiveFilters
+          chips={getActiveFilterChips(emailRecipientFilters)}
+          onRemove={clearFilterChip}
+          onClearAll={clearAllFilters}
+        />
 
         {/* Bulk actions */}
         <BulkActionsToolbar
