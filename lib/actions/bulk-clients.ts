@@ -14,6 +14,42 @@ interface BulkResult {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Shared transaction wrapper                                                  */
+/*                                                                            */
+/* Every bulk action below follows the same shape:                            */
+/*   1. early-return on empty id list                                         */
+/*   2. open a transaction                                                    */
+/*   3. mutate                                                                */
+/*   4. catch + return error                                                  */
+/*   5. revalidatePath after success                                          */
+/*                                                                            */
+/* runBulk centralizes that boilerplate so each action only writes the        */
+/* per-row business logic. The mutate fn receives the transaction handle      */
+/* and returns the count of successfully-touched rows.                        */
+/* -------------------------------------------------------------------------- */
+
+type TxHandle = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+function runBulk(opts: {
+  clientIds: string[];
+  errorMessage: string;
+  revalidate?: string[];
+  mutate(tx: TxHandle): number;
+}): BulkResult {
+  if (opts.clientIds.length === 0) return { ok: 0 };
+  let ok = 0;
+  try {
+    db.transaction((tx) => {
+      ok = opts.mutate(tx);
+    });
+  } catch {
+    return { ok: 0, error: opts.errorMessage };
+  }
+  for (const p of opts.revalidate ?? ["/clients"]) revalidatePath(p);
+  return { ok };
+}
+
+/* -------------------------------------------------------------------------- */
 /* Bulk add / remove tags                                                      */
 /*                                                                            */
 /* Both anyone-callable (matches single-row addTag/removeTag).                 */
@@ -21,89 +57,93 @@ interface BulkResult {
 /* usage counts are updated transactionally.                                  */
 /* -------------------------------------------------------------------------- */
 
+/** Shared per-client tag mutation: applies `transformTags` to each client's
+ *  tag array, logs an activity event when the array changed, and rolls up
+ *  per-tag usage-count deltas. Used by bulkAddTags / bulkRemoveTags. */
+function mutateClientTags(opts: {
+  tx: TxHandle;
+  clientIds: string[];
+  userId: string;
+  /** Returns the new tag array OR null if no change for this client. */
+  transformTags(existing: string[]): { next: string[]; changed: string[] } | null;
+  eventType: "tag_added" | "tag_removed";
+  describe(changed: string[]): string;
+  /** Sign of the usage-count update (+1 for add, -1 for remove). */
+  deltaSign: 1 | -1;
+}): number {
+  const { tx, clientIds, userId, transformTags, eventType, describe, deltaSign } = opts;
+  const rows = tx.select().from(clients).where(inArray(clients.id, clientIds)).all();
+  const tagDeltas = new Map<string, number>();
+  let ok = 0;
+  for (const row of rows) {
+    const existing = (row.tags || []) as string[];
+    const result = transformTags(existing);
+    if (!result) continue;
+    tx.update(clients).set({ tags: result.next, updatedAt: new Date() }).where(eq(clients.id, row.id)).run();
+    tx.insert(activityEvents).values({
+      id: randomUUID(),
+      clientId: row.id,
+      eventType,
+      description: describe(result.changed),
+      employeeId: userId,
+      metadata: { tags: result.changed },
+    }).run();
+    for (const t of result.changed) tagDeltas.set(t, (tagDeltas.get(t) ?? 0) + 1);
+    ok++;
+  }
+  // Roll up usage-count adjustments in one pass per tag name
+  for (const [tag, count] of tagDeltas) {
+    const existing = tx.select().from(clientTags).where(eq(clientTags.name, tag)).get();
+    if (existing) {
+      const delta = deltaSign * count;
+      tx.update(clientTags).set({
+        usageCount: sql`CASE WHEN ${clientTags.usageCount} + ${delta} < 0 THEN 0 ELSE ${clientTags.usageCount} + ${delta} END`,
+      }).where(eq(clientTags.id, existing.id)).run();
+    } else if (deltaSign === 1) {
+      tx.insert(clientTags).values({ id: randomUUID(), name: tag, usageCount: count }).run();
+    }
+  }
+  return ok;
+}
+
 export async function bulkAddTags(clientIds: string[], tags: string[]): Promise<BulkResult> {
   const user = await requireAuth();
-  if (clientIds.length === 0 || tags.length === 0) return { ok: 0 };
-
-  let ok = 0;
-  try {
-    db.transaction((tx) => {
-      const rows = tx.select().from(clients).where(inArray(clients.id, clientIds)).all();
-      const tagDeltas = new Map<string, number>();
-      for (const row of rows) {
-        const existing = (row.tags || []) as string[];
+  if (tags.length === 0) return { ok: 0 };
+  return runBulk({
+    clientIds,
+    errorMessage: "Failed to add tags to some clients",
+    mutate: (tx) => mutateClientTags({
+      tx, clientIds, userId: user.id,
+      transformTags: (existing) => {
         const added = tags.filter((t) => !existing.includes(t));
-        if (added.length === 0) continue;
-        const next = [...existing, ...added];
-        tx.update(clients).set({ tags: next, updatedAt: new Date() }).where(eq(clients.id, row.id)).run();
-        tx.insert(activityEvents).values({
-          id: randomUUID(),
-          clientId: row.id,
-          eventType: "tag_added",
-          description: `Tags added: ${added.join(", ")}`,
-          employeeId: user.id,
-          metadata: { tags: added },
-        }).run();
-        for (const t of added) tagDeltas.set(t, (tagDeltas.get(t) ?? 0) + 1);
-        ok++;
-      }
-      // Update tag usage counts in one pass
-      for (const [tag, delta] of tagDeltas) {
-        const existing = tx.select().from(clientTags).where(eq(clientTags.name, tag)).get();
-        if (existing) {
-          tx.update(clientTags).set({ usageCount: sql`${clientTags.usageCount} + ${delta}` }).where(eq(clientTags.id, existing.id)).run();
-        } else {
-          tx.insert(clientTags).values({ id: randomUUID(), name: tag, usageCount: delta }).run();
-        }
-      }
-    });
-    revalidatePath("/clients");
-    return { ok };
-  } catch {
-    return { ok, error: "Failed to add tags to some clients" };
-  }
+        if (added.length === 0) return null;
+        return { next: [...existing, ...added], changed: added };
+      },
+      eventType: "tag_added",
+      describe: (changed) => `Tags added: ${changed.join(", ")}`,
+      deltaSign: 1,
+    }),
+  });
 }
 
 export async function bulkRemoveTags(clientIds: string[], tags: string[]): Promise<BulkResult> {
   const user = await requireAuth();
-  if (clientIds.length === 0 || tags.length === 0) return { ok: 0 };
-
-  let ok = 0;
-  try {
-    db.transaction((tx) => {
-      const rows = tx.select().from(clients).where(inArray(clients.id, clientIds)).all();
-      const tagDeltas = new Map<string, number>();
-      for (const row of rows) {
-        const existing = (row.tags || []) as string[];
+  if (tags.length === 0) return { ok: 0 };
+  return runBulk({
+    clientIds,
+    errorMessage: "Failed to remove tags from some clients",
+    mutate: (tx) => mutateClientTags({
+      tx, clientIds, userId: user.id,
+      transformTags: (existing) => {
         const removed = tags.filter((t) => existing.includes(t));
-        if (removed.length === 0) continue;
-        const next = existing.filter((t) => !removed.includes(t));
-        tx.update(clients).set({ tags: next, updatedAt: new Date() }).where(eq(clients.id, row.id)).run();
-        tx.insert(activityEvents).values({
-          id: randomUUID(),
-          clientId: row.id,
-          eventType: "tag_removed",
-          description: `Tags removed: ${removed.join(", ")}`,
-          employeeId: user.id,
-          metadata: { tags: removed },
-        }).run();
-        for (const t of removed) tagDeltas.set(t, (tagDeltas.get(t) ?? 0) + 1);
-        ok++;
-      }
-      for (const [tag, delta] of tagDeltas) {
-        const existing = tx.select().from(clientTags).where(eq(clientTags.name, tag)).get();
-        if (existing) {
-          tx.update(clientTags).set({
-            usageCount: sql`CASE WHEN ${clientTags.usageCount} - ${delta} < 0 THEN 0 ELSE ${clientTags.usageCount} - ${delta} END`,
-          }).where(eq(clientTags.id, existing.id)).run();
-        }
-      }
-    });
-    revalidatePath("/clients");
-    return { ok };
-  } catch {
-    return { ok, error: "Failed to remove tags from some clients" };
-  }
+        if (removed.length === 0) return null;
+        return { next: existing.filter((t) => !removed.includes(t)), changed: removed };
+      },
+      eventType: "tag_removed",
+      describe: (changed) => `Tags removed: ${changed.join(", ")}`,
+      deltaSign: -1,
+    }),
+  });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -115,10 +155,10 @@ export async function bulkReassignOwner(
   newEmployeeId: string | null,
 ): Promise<BulkResult> {
   const user = await requireManager();
-  if (clientIds.length === 0) return { ok: 0 };
-
-  try {
-    db.transaction((tx) => {
+  return runBulk({
+    clientIds,
+    errorMessage: "Failed to reassign owner",
+    mutate: (tx) => {
       tx.update(clients).set({ employeeId: newEmployeeId, updatedAt: new Date() }).where(inArray(clients.id, clientIds)).run();
       for (const id of clientIds) {
         tx.insert(activityEvents).values({
@@ -130,12 +170,9 @@ export async function bulkReassignOwner(
           metadata: { newEmployeeId },
         }).run();
       }
-    });
-    revalidatePath("/clients");
-    return { ok: clientIds.length };
-  } catch {
-    return { ok: 0, error: "Failed to reassign owner" };
-  }
+      return clientIds.length;
+    },
+  });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -147,10 +184,10 @@ export async function bulkSetEmailList(
   onEmailList: boolean,
 ): Promise<BulkResult> {
   const user = await requireAuth();
-  if (clientIds.length === 0) return { ok: 0 };
-
-  try {
-    db.transaction((tx) => {
+  return runBulk({
+    clientIds,
+    errorMessage: "Failed to update email-list opt-in",
+    mutate: (tx) => {
       tx.update(clients).set({ onEmailList, updatedAt: new Date() }).where(inArray(clients.id, clientIds)).run();
       for (const id of clientIds) {
         tx.insert(activityEvents).values({
@@ -162,12 +199,9 @@ export async function bulkSetEmailList(
           metadata: { onEmailList },
         }).run();
       }
-    });
-    revalidatePath("/clients");
-    return { ok: clientIds.length };
-  } catch {
-    return { ok: 0, error: "Failed to update email-list opt-in" };
-  }
+      return clientIds.length;
+    },
+  });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -176,12 +210,14 @@ export async function bulkSetEmailList(
 
 export async function bulkDeleteClients(clientIds: string[]): Promise<BulkResult> {
   const user = await requireManager();
-  if (clientIds.length === 0) return { ok: 0 };
-
-  try {
-    db.transaction((tx) => {
+  return runBulk({
+    clientIds,
+    errorMessage: "Failed to delete clients",
+    revalidate: ["/clients", "/settings"],
+    mutate: (tx) => {
       const rows = tx.select().from(clients).where(inArray(clients.id, clientIds)).all();
       const now = new Date();
+      let ok = 0;
       for (const row of rows) {
         if (row.status === "deleted") continue;
         tx.update(clients).set({
@@ -199,14 +235,11 @@ export async function bulkDeleteClients(clientIds: string[]): Promise<BulkResult
           employeeId: user.id,
           metadata: { newStatus: "deleted", previousStatus: row.status },
         }).run();
+        ok++;
       }
-    });
-    revalidatePath("/clients");
-    revalidatePath("/settings");
-    return { ok: clientIds.length };
-  } catch {
-    return { ok: 0, error: "Failed to delete clients" };
-  }
+      return ok;
+    },
+  });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -219,10 +252,11 @@ export async function bulkBanClients(
   reason: string,
 ): Promise<BulkResult> {
   const user = await requireManager();
-  if (clientIds.length === 0) return { ok: 0 };
-
-  try {
-    db.transaction((tx) => {
+  return runBulk({
+    clientIds,
+    errorMessage: "Failed to ban clients",
+    revalidate: ["/clients", "/banned"],
+    mutate: (tx) => {
       const rows = tx.select().from(clients).where(inArray(clients.id, clientIds)).all();
       const now = new Date();
       tx.update(clients).set({ status: "banned", updatedAt: now }).where(inArray(clients.id, clientIds)).run();
@@ -246,13 +280,9 @@ export async function bulkBanClients(
           metadata: { newStatus: "banned", category, reason },
         }).run();
       }
-    });
-    revalidatePath("/clients");
-    revalidatePath("/banned");
-    return { ok: clientIds.length };
-  } catch {
-    return { ok: 0, error: "Failed to ban clients" };
-  }
+      return clientIds.length;
+    },
+  });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -261,10 +291,11 @@ export async function bulkBanClients(
 
 export async function bulkUnsubscribeClients(clientIds: string[]): Promise<BulkResult> {
   const user = await requireManager();
-  if (clientIds.length === 0) return { ok: 0 };
-
-  try {
-    db.transaction((tx) => {
+  return runBulk({
+    clientIds,
+    errorMessage: "Failed to unsubscribe clients",
+    revalidate: ["/clients", "/unsubscribed"],
+    mutate: (tx) => {
       const rows = tx.select().from(clients).where(inArray(clients.id, clientIds)).all();
       const now = new Date();
       tx.update(clients).set({ status: "unsubscribed", onEmailList: false, updatedAt: now }).where(inArray(clients.id, clientIds)).run();
@@ -282,11 +313,7 @@ export async function bulkUnsubscribeClients(clientIds: string[]): Promise<BulkR
           metadata: { newStatus: "unsubscribed" },
         }).run();
       }
-    });
-    revalidatePath("/clients");
-    revalidatePath("/unsubscribed");
-    return { ok: clientIds.length };
-  } catch {
-    return { ok: 0, error: "Failed to unsubscribe clients" };
-  }
+      return clientIds.length;
+    },
+  });
 }
