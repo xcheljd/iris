@@ -14,10 +14,11 @@ import { Topbar } from "@/components/topbar";
 import { formatPhone, daysAgo } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, ChevronUp, ChevronDown, ChevronsUpDown, MoreHorizontal, Eye, Edit, Ban, MailX, Trash2, Mail, BookmarkPlus } from "lucide-react";
+import { Plus, ChevronUp, ChevronDown, ChevronsUpDown, MoreHorizontal, Eye, Edit, Ban, MailX, Trash2, Mail, BookmarkPlus, FileText } from "lucide-react";
 import type { ReactNode } from "react";
 import { BanCustomerDialog, UnsubscribeCustomerDialog } from "@/components/client-status-actions";
 import { EmailRecipientsDialog } from "@/components/email-recipients-dialog";
+import { ClientsCsvExportDialog } from "@/components/clients-csv-export-dialog";
 import { ColumnFilterPopover } from "@/components/column-filter-popover";
 import {
   TextFilterMenu,
@@ -143,6 +144,7 @@ export function ClientListContent({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<ClientRow | null>(null);
   const [emailRecipientsOpen, setEmailRecipientsOpen] = useState(false);
+  const [csvExportOpen, setCsvExportOpen] = useState(false);
   const [saveFilterOpen, setSaveFilterOpen] = useState(false);
   const isFirstRender = useRef(true);
 
@@ -295,6 +297,10 @@ export function ClientListContent({
         >
           <BookmarkPlus className="h-4 w-4 mr-2" />
           Save Filter
+        </Button>
+        <Button onClick={() => setCsvExportOpen(true)} variant="outline" size="sm">
+          <FileText className="h-4 w-4 mr-2" />
+          Export CSV
         </Button>
         <Button onClick={() => setEmailRecipientsOpen(true)} variant="outline" size="sm">
           <Mail className="h-4 w-4 mr-2" />
@@ -587,6 +593,12 @@ export function ClientListContent({
       <EmailRecipientsDialog
         open={emailRecipientsOpen}
         onOpenChange={setEmailRecipientsOpen}
+        filters={emailRecipientFilters}
+      />
+
+      <ClientsCsvExportDialog
+        open={csvExportOpen}
+        onOpenChange={setCsvExportOpen}
         filters={emailRecipientFilters}
       />
 

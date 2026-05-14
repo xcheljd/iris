@@ -89,7 +89,9 @@ export function SmartListItem({
                 {onOpenInClients && (
                   <>
                     <DropdownMenuItem onClick={onOpenInClients}>
-                      <ExternalLink className="h-4 w-4 mr-2" />Open in Clients
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Open in Clients
+                      <span className="ml-auto pl-3 text-xs text-muted-foreground">{count}</span>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                   </>
