@@ -2,7 +2,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
-import { Home, Users, Phone, ListFilter, Tag, BarChart3, Ban, MailX, Settings, Plus, Search as SearchIcon, ShieldCheck } from "lucide-react";
+import { Home, Users, Phone, ListFilter, Tag, BarChart3, Ban, MailX, Settings, Plus, Search as SearchIcon, ShieldCheck, Clock, UserSearch, Filter as FilterIcon, Globe, Lock } from "lucide-react";
 import { useSession } from "next-auth/react";
 
 type ClientHit = {
@@ -13,6 +13,9 @@ type ClientHit = {
   /** FTS5 snippet text with [[hl]]…[[/hl]] markers wrapping matched tokens. */
   snippet: string | null;
 };
+
+type ProspectHit = { id: string; firstName: string; lastName: string | null; phone: string | null };
+type SmartListHit = { id: string; name: string; isShared: boolean };
 
 /**
  * Parses an FTS5 snippet's [[hl]]…[[/hl]] sentinel markers and renders the
@@ -66,6 +69,9 @@ export function CommandPalette() {
   const setOpen = ctx?.setOpen ?? setLocalOpen;
   const [q, setQ] = React.useState("");
   const [hits, setHits] = React.useState<ClientHit[]>([]);
+  const [prospectHits, setProspectHits] = React.useState<ProspectHit[]>([]);
+  const [listHits, setListHits] = React.useState<SmartListHit[]>([]);
+  const [recent, setRecent] = React.useState<ClientHit[]>([]);
   const [isPhonetic, setIsPhonetic] = React.useState(false);
 
   React.useEffect(() => {
@@ -79,16 +85,19 @@ export function CommandPalette() {
     return () => document.removeEventListener("keydown", onKey);
   }, [open, setOpen]);
 
+  // Fetch results — empty input pulls "recently viewed", non-empty pulls
+  // clients + prospects + smart-lists in one round-trip.
   React.useEffect(() => {
     const t = setTimeout(async () => {
-      if (!q) { setHits([]); setIsPhonetic(false); return; }
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-        if (res.ok) {
-          const json = await res.json();
-          setHits(json.hits ?? []);
-          setIsPhonetic(Boolean(json.isPhoneticFallback));
-        }
+        if (!res.ok) return;
+        const json = await res.json();
+        setHits(json.hits ?? []);
+        setProspectHits(json.prospects ?? []);
+        setListHits(json.lists ?? []);
+        setRecent(json.recentlyViewed ?? []);
+        setIsPhonetic(Boolean(json.isPhoneticFallback));
       } catch {}
     }, 150);
     return () => clearTimeout(t);
@@ -116,6 +125,17 @@ export function CommandPalette() {
       <CommandInput placeholder="Search clients, jump to pages..." value={q} onValueChange={setQ} />
       <CommandList>
         <CommandEmpty>No results.</CommandEmpty>
+        {recent.length > 0 && (
+          <CommandGroup heading="Recently viewed">
+            {recent.map((c) => (
+              <CommandItem key={`r-${c.id}`} onSelect={() => go(`/clients/${c.id}`)}>
+                <Clock className="h-4 w-4" />
+                <span>{c.firstName} {c.lastName ?? ""}</span>
+                {c.phone && <span className="ml-auto text-xs text-muted-foreground">{c.phone}</span>}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
         {hits.length > 0 && (
           <CommandGroup heading={isPhonetic ? `Did you mean? (phonetic match for "${q}")` : "Clients"}>
             {hits.map((c) => (
@@ -130,6 +150,30 @@ export function CommandPalette() {
                     {renderSnippet(c.snippet)}
                   </div>
                 )}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+        {prospectHits.length > 0 && (
+          <CommandGroup heading="Prospects">
+            {prospectHits.map((p) => (
+              <CommandItem key={`p-${p.id}`} onSelect={() => go(`/prospects/${p.id}`)}>
+                <UserSearch className="h-4 w-4" />
+                <span>{p.firstName} {p.lastName ?? ""}</span>
+                {p.phone && <span className="ml-auto text-xs text-muted-foreground">{p.phone}</span>}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+        {listHits.length > 0 && (
+          <CommandGroup heading="Smart Lists">
+            {listHits.map((l) => (
+              <CommandItem key={`l-${l.id}`} onSelect={() => go(`/smart-lists?list=${encodeURIComponent(l.id)}`)}>
+                <FilterIcon className="h-4 w-4" />
+                <span>{l.name}</span>
+                {l.isShared
+                  ? <Globe className="h-3 w-3 ml-auto text-muted-foreground" />
+                  : <Lock className="h-3 w-3 ml-auto text-muted-foreground" />}
               </CommandItem>
             ))}
           </CommandGroup>

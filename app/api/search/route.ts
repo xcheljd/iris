@@ -1,21 +1,46 @@
 import { type NextRequest } from "next/server";
 import { withAuth } from "@/lib/api-helpers";
-import { searchClients } from "@/lib/queries";
+import {
+  searchClients,
+  searchProspects,
+  searchSmartLists,
+  getRecentlyViewedClients,
+} from "@/lib/queries";
 
 export const GET = withAuth(async (session, req: NextRequest) => {
-  const q = req.nextUrl.searchParams.get("q") || "";
-  if (!q || q.length < 1) return Response.json({ hits: [], isPhoneticFallback: false });
+  const q = (req.nextUrl.searchParams.get("q") || "").trim();
   const isManager = session.user.role === "manager";
   const employeeId = !isManager ? session.user.id : undefined;
-  const result = await searchClients(q, employeeId);
+
+  // Empty input: surface recently-viewed clients so the palette opens to
+  // useful content instead of just nav routes.
+  if (!q) {
+    const recent = await getRecentlyViewedClients(employeeId, 5);
+    return Response.json({
+      hits: [],
+      prospects: [],
+      lists: [],
+      recentlyViewed: recent.map((c) => ({
+        id: c.id, firstName: c.firstName, lastName: c.lastName, phone: c.phone, snippet: null,
+      })),
+      isPhoneticFallback: false,
+    });
+  }
+
+  // Non-empty: run all three searches in parallel.
+  const [clientsResult, prospectsResult, listsResult] = await Promise.all([
+    searchClients(q, employeeId),
+    searchProspects(q),
+    searchSmartLists(q, employeeId),
+  ]);
+
   return Response.json({
-    hits: result.clients.map((c) => ({
-      id: c.id,
-      firstName: c.firstName,
-      lastName: c.lastName,
-      phone: c.phone,
-      snippet: c.snippet,
+    hits: clientsResult.clients.map((c) => ({
+      id: c.id, firstName: c.firstName, lastName: c.lastName, phone: c.phone, snippet: c.snippet,
     })),
-    isPhoneticFallback: result.isPhoneticFallback,
+    prospects: prospectsResult,
+    lists: listsResult,
+    recentlyViewed: [],
+    isPhoneticFallback: clientsResult.isPhoneticFallback,
   });
 });

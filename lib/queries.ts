@@ -525,6 +525,96 @@ export async function getRecentOutreach(limit = 20, employeeId?: string) {
   return rows;
 }
 
+export interface SearchProspectHit {
+  id: string;
+  firstName: string;
+  lastName: string | null;
+  phone: string | null;
+}
+
+export interface SearchSmartListHit {
+  id: string;
+  name: string;
+  isShared: boolean;
+}
+
+/**
+ * Quick name search across active prospects for the Cmd+K palette.
+ * Substring match on first/last/email/phone (prospects rarely have notes
+ * or products of interest, so no FTS5 surface — see lib/db/fts-setup.ts).
+ */
+export async function searchProspects(query: string): Promise<SearchProspectHit[]> {
+  const cleaned = query.toLowerCase().replace(/[%_]/g, "");
+  if (!cleaned) return [];
+  const q = `%${cleaned}%`;
+  return db.select({
+    id: prospects.id,
+    firstName: prospects.firstName,
+    lastName: prospects.lastName,
+    phone: prospects.phone,
+  })
+    .from(prospects)
+    .where(and(
+      eq(prospects.status, "active"),
+      or(
+        rawSql`lower(${prospects.firstName}) like ${q}`,
+        rawSql`lower(COALESCE(${prospects.lastName}, '')) like ${q}`,
+        rawSql`lower(COALESCE(${prospects.email}, '')) like ${q}`,
+        rawSql`COALESCE(${prospects.phone}, '') like ${q}`,
+      ),
+    ))
+    .limit(5)
+    .all();
+}
+
+/**
+ * Name-substring search for smart lists visible to this employee (owned or
+ * shared). Used by the Cmd+K palette to teleport directly into a saved
+ * filter view.
+ */
+export async function searchSmartLists(query: string, employeeId?: string): Promise<SearchSmartListHit[]> {
+  const cleaned = query.toLowerCase().replace(/[%_]/g, "");
+  if (!cleaned) return [];
+  const q = `%${cleaned}%`;
+  const visibility = employeeId ? or(eq(smartLists.ownerId, employeeId), eq(smartLists.isShared, true)) : undefined;
+  return db.select({
+    id: smartLists.id,
+    name: smartLists.name,
+    isShared: smartLists.isShared,
+  })
+    .from(smartLists)
+    .where(and(visibility, rawSql`lower(${smartLists.name}) like ${q}`))
+    .orderBy(smartLists.name)
+    .limit(5)
+    .all();
+}
+
+/**
+ * Top N clients by global recency. Powers the "Recently viewed" group in
+ * Cmd+K when the input is empty. Respects per-employee scoping so an
+ * associate only sees their own clients.
+ */
+export async function getRecentlyViewedClients(employeeId?: string, limit = 5): Promise<SearchClientHit[]> {
+  const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
+  return db.select({
+    id: clients.id,
+    firstName: clients.firstName,
+    lastName: clients.lastName,
+    phone: clients.phone,
+    email: clients.email,
+    snippet: rawSql<string | null>`NULL`.as("snippet"),
+  })
+    .from(clients)
+    .where(and(
+      notInArray(clients.status, ["banned", "deleted"]),
+      isNotNull(clients.lastViewedAt),
+      employeeFilter,
+    ))
+    .orderBy(desc(clients.lastViewedAt))
+    .limit(limit)
+    .all();
+}
+
 export interface SearchClientHit {
   id: string;
   firstName: string;
