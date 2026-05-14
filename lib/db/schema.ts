@@ -58,6 +58,8 @@ export const clients = sqliteTable("clients", {
   heatLevel: text("heat_level", { enum: ["hot", "warm", "cold"] }).notNull().default("cold"),
   lastOutreachAt: integer("last_outreach_at", { mode: "timestamp" }),
   lastPurchaseAt: integer("last_purchase_at", { mode: "timestamp" }),
+  /** Global last-viewed timestamp — bumped when any user opens the detail page. Used to nudge search ranking. */
+  lastViewedAt: integer("last_viewed_at", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
   deletedAt: integer("deleted_at", { mode: "timestamp" }),

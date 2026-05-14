@@ -525,22 +525,61 @@ export async function getRecentOutreach(limit = 20, employeeId?: string) {
   return rows;
 }
 
-export async function searchClients(query: string, employeeId?: string) {
+export interface SearchClientsResult {
+  /** Direct FTS5 matches, or soundex matches when FTS returned nothing. */
+  clients: ClientListRow[];
+  /** True when results came from the soundex fallback — the UI can show a "Did you mean?" hint. */
+  isPhoneticFallback: boolean;
+}
+
+export async function searchClients(query: string, employeeId?: string): Promise<SearchClientsResult> {
   // FTS5-backed search: spans name, email, phone, notes, and
-  // productsOfInterest. Results are ranked by BM25 (lower = better match)
-  // so the most relevant clients surface first in the Cmd+K palette.
+  // productsOfInterest. Results are ranked by BM25 (lower = better match),
+  // with global recency (clients.lastViewedAt) as a secondary tiebreaker so
+  // recently-touched clients surface first when match quality is equal.
   const fts = toFtsQuery(query);
-  if (!fts) return [];
+  if (!fts) return { clients: [], isPhoneticFallback: false };
   const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
-  return db.select().from(clients)
+
+  const direct = db.select(clientListProjection).from(clients)
     .where(and(
       notInArray(clients.status, ["banned", "deleted"]),
       rawSql`${clients.id} IN (SELECT client_id FROM clients_fts WHERE clients_fts MATCH ${fts})`,
       employeeFilter,
     ))
-    .orderBy(rawSql`(SELECT rank FROM clients_fts WHERE client_id = ${clients.id} AND clients_fts MATCH ${fts})`)
+    .orderBy(
+      rawSql`(SELECT rank FROM clients_fts WHERE client_id = ${clients.id} AND clients_fts MATCH ${fts})`,
+      desc(rawSql`COALESCE(${clients.lastViewedAt}, 0)`),
+    )
     .limit(10)
     .all();
+
+  if (direct.length > 0) return { clients: direct, isPhoneticFallback: false };
+
+  // Phonetic fallback — only fires when the query looks like a single
+  // alphabetic name token (skips emails, phones, model numbers). Uses
+  // SQLite's built-in soundex() against firstName and lastName.
+  const tokens = query.trim().split(/\s+/).filter(Boolean);
+  if (tokens.length !== 1) return { clients: [], isPhoneticFallback: false };
+  const token = tokens[0];
+  if (token.length < 2 || !/^[a-zA-Z]+$/.test(token)) {
+    return { clients: [], isPhoneticFallback: false };
+  }
+
+  const phonetic = db.select(clientListProjection).from(clients)
+    .where(and(
+      notInArray(clients.status, ["banned", "deleted"]),
+      or(
+        rawSql`soundex(${clients.firstName}) = soundex(${token})`,
+        rawSql`soundex(COALESCE(${clients.lastName}, '')) = soundex(${token})`,
+      ),
+      employeeFilter,
+    ))
+    .orderBy(desc(rawSql`COALESCE(${clients.lastViewedAt}, 0)`))
+    .limit(5)
+    .all();
+
+  return { clients: phonetic, isPhoneticFallback: true };
 }
 
 export async function getDeletedClients(employeeId?: string) {

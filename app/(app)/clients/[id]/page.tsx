@@ -105,5 +105,13 @@ async function ClientDetailFetcher({ params }: { params: Promise<{ id: string }>
   if (!isManager && client.employeeId !== session?.user?.id) {
     notFound();
   }
+  // Bump global recency so future searches nudge this client toward the top.
+  // Fire-and-forget — never blocks the page render and silently swallows any
+  // write error (e.g. read-only filesystem in tests).
+  try {
+    db.update(clients).set({ lastViewedAt: new Date() }).where(eq(clients.id, id)).run();
+  } catch {
+    // ignore — search ranking is a nice-to-have, never a page blocker
+  }
   return <ClientDetailContent client={JSON.parse(JSON.stringify(client))} currentUserRole={session?.user?.role ?? "associate"} />;
 }

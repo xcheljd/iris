@@ -15,6 +15,17 @@
 import type Database from "better-sqlite3";
 
 export function setupClientsFts(sqlite: Database.Database) {
+  // Self-healing column add: ensures clients.last_viewed_at exists even when
+  // the user hasn't run `npm run db:push` after pulling. SQLite's
+  // pragma_table_info is queried first because ALTER TABLE ADD COLUMN throws
+  // if the column already exists.
+  const hasLastViewed = sqlite
+    .prepare("SELECT 1 FROM pragma_table_info('clients') WHERE name = 'last_viewed_at'")
+    .get();
+  if (!hasLastViewed) {
+    sqlite.exec("ALTER TABLE clients ADD COLUMN last_viewed_at INTEGER");
+  }
+
   // Virtual table — porter stemmer + unicode tokenizer with diacritic folding.
   // `client_id UNINDEXED` keeps the id out of the search corpus but available
   // as a join key.

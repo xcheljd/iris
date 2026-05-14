@@ -40,6 +40,7 @@ export function CommandPalette() {
   const setOpen = ctx?.setOpen ?? setLocalOpen;
   const [q, setQ] = React.useState("");
   const [hits, setHits] = React.useState<ClientHit[]>([]);
+  const [isPhonetic, setIsPhonetic] = React.useState(false);
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -54,10 +55,14 @@ export function CommandPalette() {
 
   React.useEffect(() => {
     const t = setTimeout(async () => {
-      if (!q) { setHits([]); return; }
+      if (!q) { setHits([]); setIsPhonetic(false); return; }
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-        if (res.ok) setHits(await res.json());
+        if (res.ok) {
+          const json = await res.json();
+          setHits(json.hits ?? []);
+          setIsPhonetic(Boolean(json.isPhoneticFallback));
+        }
       } catch {}
     }, 150);
     return () => clearTimeout(t);
@@ -86,7 +91,7 @@ export function CommandPalette() {
       <CommandList>
         <CommandEmpty>No results.</CommandEmpty>
         {hits.length > 0 && (
-          <CommandGroup heading="Clients">
+          <CommandGroup heading={isPhonetic ? `Did you mean? (phonetic match for "${q}")` : "Clients"}>
             {hits.map((c) => (
               <CommandItem key={c.id} onSelect={() => go(`/clients/${c.id}`)}>
                 <SearchIcon className="h-4 w-4" />
