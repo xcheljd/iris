@@ -2,15 +2,25 @@
 
 import { db } from "@/lib/db";
 import { clients, prospects, employees } from "@/lib/db/schema";
-import { and, eq, isNull, isNotNull, notInArray, or, sql as rawSql, type SQL } from "drizzle-orm";
+import { and, eq, gte, isNull, isNotNull, lte, notInArray, or, sql as rawSql, type SQL } from "drizzle-orm";
 import { requireAuth } from "./_shared";
 
 export interface ClientEmailFilters {
   q?: string;
+  /** Column-scoped: name only. */
+  nameQ?: string;
+  /** Column-scoped: email or phone only. */
+  contactQ?: string;
   heat?: string;
   owner?: string;
   tags?: string[];
   tagMode?: "any" | "all";
+  /** Unix seconds bounds for clients.lastOutreachAt. */
+  lastContactFrom?: number;
+  lastContactTo?: number;
+  /** Unix seconds bounds for clients.createdAt. */
+  createdFrom?: number;
+  createdTo?: number;
 }
 
 export interface EmailRecipientsResult {
@@ -31,7 +41,7 @@ export async function getEmailRecipients(filters: ClientEmailFilters = {}): Prom
   const user = await requireAuth();
   const employeeId = user.role === "manager" ? undefined : user.id;
 
-  const { q, heat, owner, tags, tagMode = "any" } = filters;
+  const { q, nameQ, contactQ, heat, owner, tags, tagMode = "any", lastContactFrom, lastContactTo, createdFrom, createdTo } = filters;
 
   /* ---- clients query ---- */
   const clientConds: (SQL<unknown> | undefined)[] = [
@@ -49,6 +59,24 @@ export async function getEmailRecipients(filters: ClientEmailFilters = {}): Prom
       rawSql`COALESCE(${clients.phone}, '') LIKE ${ql}`,
     ));
   }
+
+  if (nameQ) {
+    const nq = `%${nameQ.toLowerCase()}%`;
+    clientConds.push(rawSql`lower(${clients.firstName} || ' ' || COALESCE(${clients.lastName}, '')) LIKE ${nq}`);
+  }
+
+  if (contactQ) {
+    const cq = `%${contactQ.toLowerCase()}%`;
+    clientConds.push(or(
+      rawSql`lower(COALESCE(${clients.email}, '')) LIKE ${cq}`,
+      rawSql`COALESCE(${clients.phone}, '') LIKE ${cq}`,
+    ));
+  }
+
+  if (lastContactFrom !== undefined) clientConds.push(gte(clients.lastOutreachAt, new Date(lastContactFrom * 1000)));
+  if (lastContactTo !== undefined) clientConds.push(lte(clients.lastOutreachAt, new Date(lastContactTo * 1000)));
+  if (createdFrom !== undefined) clientConds.push(gte(clients.createdAt, new Date(createdFrom * 1000)));
+  if (createdTo !== undefined) clientConds.push(lte(clients.createdAt, new Date(createdTo * 1000)));
 
   if (heat && heat !== "any") {
     clientConds.push(eq(clients.heatLevel, heat as "hot" | "warm" | "cold"));

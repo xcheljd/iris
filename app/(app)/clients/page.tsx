@@ -26,6 +26,17 @@ async function ClientListFetcher({ searchParams }: { searchParams: SearchParams 
     ? sp.tags.split(",").map((t) => t.trim()).filter(Boolean)
     : undefined;
   const tagMode: "any" | "all" = sp.tagMode === "all" ? "all" : "any";
+  const nameQ = typeof sp.nameQ === "string" ? sp.nameQ : undefined;
+  const contactQ = typeof sp.contactQ === "string" ? sp.contactQ : undefined;
+  const parseTs = (v: string | string[] | undefined) => {
+    if (typeof v !== "string") return undefined;
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  };
+  const lastContactFrom = parseTs(sp.lastContactFrom);
+  const lastContactTo = parseTs(sp.lastContactTo);
+  const createdFrom = parseTs(sp.createdFrom);
+  const createdTo = parseTs(sp.createdTo);
   const rawSort = typeof sp.sort === "string" ? sp.sort : undefined;
   const sort = VALID_SORT_KEYS.includes(rawSort as ClientSortKey) ? (rawSort as ClientSortKey) : undefined;
   const sortDir = sp.sortDir === "asc" ? "asc" : sp.sortDir === "desc" ? "desc" : undefined;
@@ -36,7 +47,7 @@ async function ClientListFetcher({ searchParams }: { searchParams: SearchParams 
   const employeeId = !isManager ? (session?.user?.id ?? undefined) : undefined;
 
   const [{ rows, total }, ownerNames, allTags] = await Promise.all([
-    getClientsWithEmployeePaginated(employeeId, { q, heat, owner, tags, tagMode, sort, sortDir, page }),
+    getClientsWithEmployeePaginated(employeeId, { q, nameQ, contactQ, heat, owner, tags, tagMode, lastContactFrom, lastContactTo, createdFrom, createdTo, sort, sortDir, page }),
     getClientOwnerNames(employeeId),
     getTags(),
   ]);
@@ -49,10 +60,16 @@ async function ClientListFetcher({ searchParams }: { searchParams: SearchParams 
       allTags={allTags.map((t) => ({ name: t.name, usageCount: t.usageCount }))}
       currentFilters={{
         q: q ?? "",
+        nameQ: nameQ ?? "",
+        contactQ: contactQ ?? "",
         heat: heat ?? "any",
         owner: owner ?? "any",
         tags: tags ?? [],
         tagMode,
+        lastContactFrom,
+        lastContactTo,
+        createdFrom,
+        createdTo,
         sort: sort ?? "heat",
         sortDir: sortDir ?? "desc",
         page,

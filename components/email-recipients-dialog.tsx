@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { format } from "date-fns";
 import { Mail, Copy, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -160,6 +161,8 @@ export function EmailRecipientsDialog({ open, onOpenChange, filters }: EmailReci
 function describeFilters(f: ClientEmailFilters): string[] {
   const chips: string[] = [];
   if (f.q && f.q.trim()) chips.push(`Search: "${f.q.trim()}"`);
+  if (f.nameQ && f.nameQ.trim()) chips.push(`Name: "${f.nameQ.trim()}"`);
+  if (f.contactQ && f.contactQ.trim()) chips.push(`Contact: "${f.contactQ.trim()}"`);
   if (f.heat && f.heat !== "any") chips.push(`Heat: ${f.heat}`);
   if (f.owner && f.owner !== "any") {
     chips.push(`Owner: ${f.owner === "__none__" ? "Unassigned" : f.owner}`);
@@ -168,5 +171,15 @@ function describeFilters(f: ClientEmailFilters): string[] {
     const mode = f.tagMode === "all" ? "all of" : "any of";
     chips.push(`Tags (${mode}): ${f.tags.join(", ")}`);
   }
+  const dateRange = (from?: number, to?: number) => {
+    if (!from && !to) return null;
+    const fromStr = from ? format(new Date(from * 1000), "MMM d, yyyy") : "—";
+    const toStr = to ? format(new Date(to * 1000), "MMM d, yyyy") : "—";
+    return `${fromStr} → ${toStr}`;
+  };
+  const lastContact = dateRange(f.lastContactFrom, f.lastContactTo);
+  if (lastContact) chips.push(`Last Contact: ${lastContact}`);
+  const created = dateRange(f.createdFrom, f.createdTo);
+  if (created) chips.push(`Created: ${created}`);
   return chips;
 }

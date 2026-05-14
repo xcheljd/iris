@@ -14,11 +14,17 @@ import { Topbar } from "@/components/topbar";
 import { formatPhone, daysAgo } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, ChevronUp, ChevronDown, ChevronsUpDown, MoreHorizontal, Eye, Edit, Ban, MailX, Trash2, Flame, User, Mail } from "lucide-react";
+import { Plus, ChevronUp, ChevronDown, ChevronsUpDown, MoreHorizontal, Eye, Edit, Ban, MailX, Trash2, Mail } from "lucide-react";
+import type { ReactNode } from "react";
 import { BanCustomerDialog, UnsubscribeCustomerDialog } from "@/components/client-status-actions";
-import { ClientsTagFilter } from "@/components/clients-tag-filter";
-import { FilterSelect } from "@/components/filter-select";
 import { EmailRecipientsDialog } from "@/components/email-recipients-dialog";
+import { ColumnFilterPopover } from "@/components/column-filter-popover";
+import {
+  TextFilterMenu,
+  SingleSelectMenu,
+  TagsFilterMenu,
+  DatesFilterButton,
+} from "@/components/clients-column-filters";
 import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { deleteClient } from "@/lib/actions";
@@ -32,10 +38,17 @@ type SortDir = "asc" | "desc";
 
 interface ClientFilters {
   q: string;
+  nameQ: string;
+  contactQ: string;
   heat: string;
   owner: string;
   tags: string[];
   tagMode: "any" | "all";
+  /** Unix seconds. */
+  lastContactFrom?: number;
+  lastContactTo?: number;
+  createdFrom?: number;
+  createdTo?: number;
   sort: SortKey;
   sortDir: SortDir;
   page: number;
@@ -57,19 +70,45 @@ interface ClientRow {
   employeeName: string | null;
 }
 
-function SortableHeader({ label, sortKey, currentSort, currentDir, onSort }: {
-  label: string; sortKey: SortKey; currentSort: SortKey; currentDir: SortDir; onSort: (key: SortKey) => void;
+/**
+ * Header cell: label + optional sort affordance + optional filter trigger.
+ * Sort is opt-in (pass sortKey/onSort); filter is opt-in (pass `filter` slot).
+ */
+function ColumnHeader({
+  label,
+  sortKey,
+  currentSort,
+  currentDir,
+  onSort,
+  filter,
+}: {
+  label: string;
+  sortKey?: SortKey;
+  currentSort?: SortKey;
+  currentDir?: SortDir;
+  onSort?: (key: SortKey) => void;
+  filter?: ReactNode;
 }) {
-  const isActive = currentSort === sortKey;
+  const isActive = sortKey && currentSort === sortKey;
   return (
-    <button onClick={() => onSort(sortKey)} className="flex items-center gap-1 hover:text-foreground transition-colors">
-      {label}
-      {isActive ? (
-        currentDir === "asc" ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />
+    <div className="flex items-center gap-1">
+      {sortKey ? (
+        <button
+          onClick={() => onSort?.(sortKey)}
+          className="flex items-center gap-1 hover:text-foreground transition-colors"
+        >
+          {label}
+          {isActive ? (
+            currentDir === "asc" ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronsUpDown className="h-3.5 w-3.5 opacity-40" />
+          )}
+        </button>
       ) : (
-        <ChevronsUpDown className="h-3.5 w-3.5 opacity-40" />
+        <span>{label}</span>
       )}
-    </button>
+      {filter}
+    </div>
   );
 }
 
@@ -101,23 +140,40 @@ export function ClientListContent({
   const emailRecipientFilters = useMemo(
     () => ({
       q: currentFilters.q,
+      nameQ: currentFilters.nameQ,
+      contactQ: currentFilters.contactQ,
       heat: currentFilters.heat,
       owner: currentFilters.owner,
       tags: currentFilters.tags,
       tagMode: currentFilters.tagMode,
+      lastContactFrom: currentFilters.lastContactFrom,
+      lastContactTo: currentFilters.lastContactTo,
+      createdFrom: currentFilters.createdFrom,
+      createdTo: currentFilters.createdTo,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [currentFilters.q, currentFilters.heat, currentFilters.owner, tagsKey, currentFilters.tagMode],
+    [
+      currentFilters.q, currentFilters.nameQ, currentFilters.contactQ,
+      currentFilters.heat, currentFilters.owner, tagsKey, currentFilters.tagMode,
+      currentFilters.lastContactFrom, currentFilters.lastContactTo,
+      currentFilters.createdFrom, currentFilters.createdTo,
+    ],
   );
 
   function navigate(overrides: Partial<ClientFilters>) {
     const next = { ...currentFilters, ...overrides };
     const sp = new URLSearchParams();
     if (next.q) sp.set("q", next.q);
+    if (next.nameQ) sp.set("nameQ", next.nameQ);
+    if (next.contactQ) sp.set("contactQ", next.contactQ);
     if (next.heat !== "any") sp.set("heat", next.heat);
     if (next.owner !== "any") sp.set("owner", next.owner);
     if (next.tags.length > 0) sp.set("tags", next.tags.join(","));
     if (next.tagMode !== "any") sp.set("tagMode", next.tagMode);
+    if (next.lastContactFrom) sp.set("lastContactFrom", String(next.lastContactFrom));
+    if (next.lastContactTo) sp.set("lastContactTo", String(next.lastContactTo));
+    if (next.createdFrom) sp.set("createdFrom", String(next.createdFrom));
+    if (next.createdTo) sp.set("createdTo", String(next.createdTo));
     if (next.sort !== "heat") sp.set("sort", next.sort);
     if (next.sortDir !== "desc") sp.set("sortDir", next.sortDir);
     if (next.page > 1) sp.set("page", String(next.page));
@@ -187,44 +243,22 @@ export function ClientListContent({
         </Button>
       </Topbar>
       <div className="flex-1 p-4 md:p-6 space-y-4 max-w-full overflow-hidden" data-tour="client-list">
-        {/* Filters */}
-        <Card className="p-3">
-          <div className="flex flex-col md:flex-row gap-2 items-stretch md:items-center">
-            <SearchInput value={qLocal} onChange={(v) => setQLocal(v)} placeholder="Search name, email, phone…" className="flex-1" />
-            <FilterSelect
-              icon={Flame}
-              placeholder="Heat"
-              widthClass="md:w-36"
-              value={currentFilters.heat}
-              onChange={(v) => navigate({ heat: v, page: 1 })}
-              options={[
-                { value: "any", label: "Any heat" },
-                { value: "hot", label: "Hot" },
-                { value: "warm", label: "Warm" },
-                { value: "cold", label: "Cold" },
-              ]}
-            />
-            <FilterSelect
-              icon={User}
-              placeholder="Owner"
-              widthClass="md:w-44"
-              searchable
-              value={currentFilters.owner}
-              onChange={(v) => navigate({ owner: v, page: 1 })}
-              options={[
-                { value: "any", label: "Any owner" },
-                { value: "__none__", label: "Unassigned" },
-                ...ownerNames.map((name) => ({ value: name, label: name })),
-              ]}
-            />
-            <ClientsTagFilter
-              allTags={allTags}
-              selected={currentFilters.tags}
-              mode={currentFilters.tagMode}
-              onChange={({ selected, mode }) => navigate({ tags: selected, tagMode: mode, page: 1 })}
-            />
-          </div>
-        </Card>
+        {/* Search + Dates filter row */}
+        <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+          <SearchInput
+            value={qLocal}
+            onChange={(v) => setQLocal(v)}
+            placeholder="Search name, email, phone…"
+            className="flex-1 max-w-md"
+          />
+          <DatesFilterButton
+            lastContactFrom={currentFilters.lastContactFrom}
+            lastContactTo={currentFilters.lastContactTo}
+            createdFrom={currentFilters.createdFrom}
+            createdTo={currentFilters.createdTo}
+            onChange={(next) => navigate({ ...next, page: 1 })}
+          />
+        </div>
 
         {/* Bulk actions */}
         {selected.size > 0 && (
@@ -248,12 +282,128 @@ export function ClientListContent({
                     aria-label="Select all clients"
                   />
                 </TableHead>
-                <TableHead><SortableHeader label="Name" sortKey="name" currentSort={currentFilters.sort} currentDir={currentFilters.sortDir} onSort={handleSort} /></TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead><SortableHeader label="Heat" sortKey="heat" currentSort={currentFilters.sort} currentDir={currentFilters.sortDir} onSort={handleSort} /></TableHead>
-                <TableHead className="hidden md:table-cell">Tags</TableHead>
-                <TableHead className="hidden md:table-cell"><SortableHeader label="Owner" sortKey="owner" currentSort={currentFilters.sort} currentDir={currentFilters.sortDir} onSort={handleSort} /></TableHead>
-                <TableHead className="hidden md:table-cell"><SortableHeader label="Last contact" sortKey="lastContact" currentSort={currentFilters.sort} currentDir={currentFilters.sortDir} onSort={handleSort} /></TableHead>
+                <TableHead>
+                  <ColumnHeader
+                    label="Name"
+                    sortKey="name"
+                    currentSort={currentFilters.sort}
+                    currentDir={currentFilters.sortDir}
+                    onSort={handleSort}
+                    filter={
+                      <ColumnFilterPopover
+                        label="Name"
+                        active={!!currentFilters.nameQ}
+                        onClear={() => navigate({ nameQ: "", page: 1 })}
+                      >
+                        <TextFilterMenu
+                          value={currentFilters.nameQ}
+                          onChange={(v) => navigate({ nameQ: v, page: 1 })}
+                          placeholder="Filter name…"
+                        />
+                      </ColumnFilterPopover>
+                    }
+                  />
+                </TableHead>
+                <TableHead>
+                  <ColumnHeader
+                    label="Contact"
+                    filter={
+                      <ColumnFilterPopover
+                        label="Contact"
+                        active={!!currentFilters.contactQ}
+                        onClear={() => navigate({ contactQ: "", page: 1 })}
+                      >
+                        <TextFilterMenu
+                          value={currentFilters.contactQ}
+                          onChange={(v) => navigate({ contactQ: v, page: 1 })}
+                          placeholder="Filter email or phone…"
+                        />
+                      </ColumnFilterPopover>
+                    }
+                  />
+                </TableHead>
+                <TableHead>
+                  <ColumnHeader
+                    label="Heat"
+                    sortKey="heat"
+                    currentSort={currentFilters.sort}
+                    currentDir={currentFilters.sortDir}
+                    onSort={handleSort}
+                    filter={
+                      <ColumnFilterPopover
+                        label="Heat"
+                        active={currentFilters.heat !== "any"}
+                        onClear={() => navigate({ heat: "any", page: 1 })}
+                      >
+                        <SingleSelectMenu
+                          value={currentFilters.heat}
+                          onChange={(v) => navigate({ heat: v, page: 1 })}
+                          options={[
+                            { value: "any", label: "Any heat" },
+                            { value: "hot", label: "Hot" },
+                            { value: "warm", label: "Warm" },
+                            { value: "cold", label: "Cold" },
+                          ]}
+                        />
+                      </ColumnFilterPopover>
+                    }
+                  />
+                </TableHead>
+                <TableHead className="hidden md:table-cell">
+                  <ColumnHeader
+                    label="Tags"
+                    filter={
+                      <ColumnFilterPopover
+                        label="Tags"
+                        active={currentFilters.tags.length > 0}
+                        onClear={() => navigate({ tags: [], tagMode: "any", page: 1 })}
+                      >
+                        <TagsFilterMenu
+                          allTags={allTags}
+                          selected={currentFilters.tags}
+                          mode={currentFilters.tagMode}
+                          onChange={({ selected, mode }) => navigate({ tags: selected, tagMode: mode, page: 1 })}
+                        />
+                      </ColumnFilterPopover>
+                    }
+                  />
+                </TableHead>
+                <TableHead className="hidden md:table-cell">
+                  <ColumnHeader
+                    label="Owner"
+                    sortKey="owner"
+                    currentSort={currentFilters.sort}
+                    currentDir={currentFilters.sortDir}
+                    onSort={handleSort}
+                    filter={
+                      <ColumnFilterPopover
+                        label="Owner"
+                        active={currentFilters.owner !== "any"}
+                        onClear={() => navigate({ owner: "any", page: 1 })}
+                      >
+                        <SingleSelectMenu
+                          searchable
+                          value={currentFilters.owner}
+                          onChange={(v) => navigate({ owner: v, page: 1 })}
+                          options={[
+                            { value: "any", label: "Any owner" },
+                            { value: "__none__", label: "Unassigned" },
+                            ...ownerNames.map((name) => ({ value: name, label: name })),
+                          ]}
+                        />
+                      </ColumnFilterPopover>
+                    }
+                  />
+                </TableHead>
+                <TableHead className="hidden md:table-cell">
+                  <ColumnHeader
+                    label="Last contact"
+                    sortKey="lastContact"
+                    currentSort={currentFilters.sort}
+                    currentDir={currentFilters.sortDir}
+                    onSort={handleSort}
+                  />
+                </TableHead>
                 <TableHead className="w-10"><span className="sr-only">Actions</span></TableHead>
               </TableRow>
             </TableHeader>

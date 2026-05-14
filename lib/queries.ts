@@ -77,18 +77,30 @@ export async function getClientsWithEmployeePaginated(
   employeeId: string | undefined,
   opts: {
     q?: string;
+    /** Column-scoped: matches first/last name only. */
+    nameQ?: string;
+    /** Column-scoped: matches email or phone only. */
+    contactQ?: string;
     heat?: string;
     owner?: string;
     filter?: string;
     tags?: string[];
     tagMode?: "any" | "all";
+    /** Last-outreach lower bound, unix seconds. */
+    lastContactFrom?: number;
+    /** Last-outreach upper bound, unix seconds (exclusive end-of-day handled by caller). */
+    lastContactTo?: number;
+    /** Created-at lower bound, unix seconds. */
+    createdFrom?: number;
+    /** Created-at upper bound, unix seconds. */
+    createdTo?: number;
     sort?: ClientSortKey;
     sortDir?: "asc" | "desc";
     page?: number;
     pageSize?: number;
   },
 ) {
-  const { q, heat, owner, filter, tags, tagMode = "any", sort = "heat", sortDir = "desc", page = 1, pageSize = DEFAULT_PAGE_SIZE } = opts;
+  const { q, nameQ, contactQ, heat, owner, filter, tags, tagMode = "any", lastContactFrom, lastContactTo, createdFrom, createdTo, sort = "heat", sortDir = "desc", page = 1, pageSize = DEFAULT_PAGE_SIZE } = opts;
   const nowSec = Math.floor(Date.now() / 1000);
 
   const conds: (SQL<unknown> | undefined)[] = [
@@ -104,6 +116,27 @@ export async function getClientsWithEmployeePaginated(
       rawSql`COALESCE(${clients.phone}, '') LIKE ${ql}`,
     ));
   }
+
+  // Column-scoped Name filter (Name header)
+  if (nameQ) {
+    const nq = `%${nameQ.toLowerCase()}%`;
+    conds.push(rawSql`lower(${clients.firstName} || ' ' || COALESCE(${clients.lastName}, '')) LIKE ${nq}`);
+  }
+
+  // Column-scoped Contact filter (Contact header — email or phone)
+  if (contactQ) {
+    const cq = `%${contactQ.toLowerCase()}%`;
+    conds.push(or(
+      rawSql`lower(COALESCE(${clients.email}, '')) LIKE ${cq}`,
+      rawSql`COALESCE(${clients.phone}, '') LIKE ${cq}`,
+    ));
+  }
+
+  // Date ranges (Dates button — Last contact / Created)
+  if (lastContactFrom !== undefined) conds.push(gte(clients.lastOutreachAt, new Date(lastContactFrom * 1000)));
+  if (lastContactTo !== undefined) conds.push(lte(clients.lastOutreachAt, new Date(lastContactTo * 1000)));
+  if (createdFrom !== undefined) conds.push(gte(clients.createdAt, new Date(createdFrom * 1000)));
+  if (createdTo !== undefined) conds.push(lte(clients.createdAt, new Date(createdTo * 1000)));
 
   if (heat && heat !== "any") conds.push(eq(clients.heatLevel, heat as "hot" | "warm" | "cold"));
 
