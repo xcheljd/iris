@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { HeatBadge } from "@/components/heat-badge";
-import { SearchInput } from "@/components/search-input";
+import { SearchInputWithHistory, pushSearchHistory } from "@/components/search-input-with-history";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PaginationFooter } from "@/components/pagination-footer";
@@ -27,6 +27,7 @@ import {
 } from "@/components/clients-column-filters";
 import { SaveCurrentFilterDialog } from "@/components/smart-lists/save-current-filter-dialog";
 import { describeClientFilters, hasActiveClientFilters } from "@/lib/smart-list-filters";
+import { BulkActionsToolbar } from "@/components/clients-bulk-actions";
 import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { deleteClient } from "@/lib/actions";
@@ -119,6 +120,7 @@ export function ClientListContent({
   total,
   ownerNames,
   allTags,
+  employeeOptions,
   currentFilters,
   currentUserRole,
 }: {
@@ -126,6 +128,7 @@ export function ClientListContent({
   total: number;
   ownerNames: string[];
   allTags: { name: string; usageCount: number }[];
+  employeeOptions: { id: string; name: string }[];
   currentFilters: ClientFilters;
   currentUserRole?: string;
 }) {
@@ -189,12 +192,17 @@ export function ClientListContent({
   navigateRef.current = navigate;
 
   // Debounce the search query so every keystroke doesn't fire a navigation.
+  // After the debounce fires, push the committed (non-empty) query into
+  // localStorage so the SearchInputWithHistory dropdown can surface it later.
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
     }
-    const id = setTimeout(() => navigateRef.current({ q: qLocal, page: 1 }), 300);
+    const id = setTimeout(() => {
+      navigateRef.current({ q: qLocal, page: 1 });
+      if (qLocal.trim()) pushSearchHistory("iris:recent-searches:clients", qLocal);
+    }, 300);
     return () => clearTimeout(id);
   }, [qLocal]);
 
@@ -258,11 +266,12 @@ export function ClientListContent({
       <div className="flex-1 p-4 md:p-6 space-y-4 max-w-full overflow-hidden" data-tour="client-list">
         {/* Search + Dates filter row */}
         <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
-          <SearchInput
+          <SearchInputWithHistory
             value={qLocal}
             onChange={(v) => setQLocal(v)}
             placeholder="Search name, email, phone…"
             className="flex-1 max-w-md"
+            historyKey="iris:recent-searches:clients"
           />
           <DatesFilterButton
             lastContactFrom={currentFilters.lastContactFrom}
@@ -274,12 +283,13 @@ export function ClientListContent({
         </div>
 
         {/* Bulk actions */}
-        {selected.size > 0 && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>{selected.size} selected</span>
-            <Button variant="outline" size="sm" onClick={() => setSelected(new Set())}>Clear</Button>
-          </div>
-        )}
+        <BulkActionsToolbar
+          selectedIds={Array.from(selected)}
+          onClear={() => setSelected(new Set())}
+          allTags={allTags}
+          owners={employeeOptions}
+          isManager={currentUserRole === "manager"}
+        />
 
         {/* Table */}
         <Card>

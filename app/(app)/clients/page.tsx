@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getClientsWithEmployeePaginated, getClientOwnerNames, getTags, type ClientSortKey } from "@/lib/queries";
+import { getClientsWithEmployeePaginated, getClientOwnerNames, getTags, getEmployees, type ClientSortKey } from "@/lib/queries";
 import { ClientListContent } from "./clients-content";
 import { ClientListSkeleton } from "@/components/skeletons";
 import { getServerSession } from "next-auth";
@@ -46,11 +46,17 @@ async function ClientListFetcher({ searchParams }: { searchParams: SearchParams 
   const isManager = session?.user?.role === "manager";
   const employeeId = !isManager ? (session?.user?.id ?? undefined) : undefined;
 
-  const [{ rows, total }, ownerNames, allTags] = await Promise.all([
+  const [{ rows, total }, ownerNames, allTags, allEmployees] = await Promise.all([
     getClientsWithEmployeePaginated(employeeId, { q, nameQ, contactQ, heat, owner, tags, tagMode, lastContactFrom, lastContactTo, createdFrom, createdTo, sort, sortDir, page }),
     getClientOwnerNames(employeeId),
     getTags(),
+    getEmployees(),
   ]);
+
+  // Only active employees, formatted for the bulk Reassign-owner picker
+  const employeeOptions = allEmployees
+    .filter((e) => e.active)
+    .map((e) => ({ id: e.id, name: `${e.firstName} ${e.lastName ?? ""}`.trim() || e.username }));
 
   return (
     <ClientListContent
@@ -58,6 +64,7 @@ async function ClientListFetcher({ searchParams }: { searchParams: SearchParams 
       total={total}
       ownerNames={ownerNames}
       allTags={allTags.map((t) => ({ name: t.name, usageCount: t.usageCount }))}
+      employeeOptions={employeeOptions}
       currentFilters={{
         q: q ?? "",
         nameQ: nameQ ?? "",
