@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getClientsWithEmployeePaginated, getClientOwnerNames, type ClientSortKey } from "@/lib/queries";
+import { getClientsWithEmployeePaginated, getClientOwnerNames, getTags, type ClientSortKey } from "@/lib/queries";
 import { ClientListContent } from "./clients-content";
 import { ClientListSkeleton } from "@/components/skeletons";
 import { getServerSession } from "next-auth";
@@ -22,7 +22,10 @@ async function ClientListFetcher({ searchParams }: { searchParams: SearchParams 
   const q = typeof sp.q === "string" ? sp.q : undefined;
   const heat = typeof sp.heat === "string" ? sp.heat : undefined;
   const owner = typeof sp.owner === "string" ? sp.owner : undefined;
-  const filter = typeof sp.filter === "string" ? sp.filter : undefined;
+  const tags = typeof sp.tags === "string" && sp.tags.length > 0
+    ? sp.tags.split(",").map((t) => t.trim()).filter(Boolean)
+    : undefined;
+  const tagMode: "any" | "all" = sp.tagMode === "all" ? "all" : "any";
   const rawSort = typeof sp.sort === "string" ? sp.sort : undefined;
   const sort = VALID_SORT_KEYS.includes(rawSort as ClientSortKey) ? (rawSort as ClientSortKey) : undefined;
   const sortDir = sp.sortDir === "asc" ? "asc" : sp.sortDir === "desc" ? "desc" : undefined;
@@ -32,9 +35,10 @@ async function ClientListFetcher({ searchParams }: { searchParams: SearchParams 
   const isManager = session?.user?.role === "manager";
   const employeeId = !isManager ? (session?.user?.id ?? undefined) : undefined;
 
-  const [{ rows, total }, ownerNames] = await Promise.all([
-    getClientsWithEmployeePaginated(employeeId, { q, heat, owner, filter, sort, sortDir, page }),
+  const [{ rows, total }, ownerNames, allTags] = await Promise.all([
+    getClientsWithEmployeePaginated(employeeId, { q, heat, owner, tags, tagMode, sort, sortDir, page }),
     getClientOwnerNames(employeeId),
+    getTags(),
   ]);
 
   return (
@@ -42,11 +46,13 @@ async function ClientListFetcher({ searchParams }: { searchParams: SearchParams 
       rows={JSON.parse(JSON.stringify(rows))}
       total={total}
       ownerNames={ownerNames}
+      allTags={allTags.map((t) => ({ name: t.name, usageCount: t.usageCount }))}
       currentFilters={{
         q: q ?? "",
         heat: heat ?? "any",
         owner: owner ?? "any",
-        filter: filter ?? "all",
+        tags: tags ?? [],
+        tagMode,
         sort: sort ?? "heat",
         sortDir: sortDir ?? "desc",
         page,

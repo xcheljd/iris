@@ -80,13 +80,15 @@ export async function getClientsWithEmployeePaginated(
     heat?: string;
     owner?: string;
     filter?: string;
+    tags?: string[];
+    tagMode?: "any" | "all";
     sort?: ClientSortKey;
     sortDir?: "asc" | "desc";
     page?: number;
     pageSize?: number;
   },
 ) {
-  const { q, heat, owner, filter, sort = "heat", sortDir = "desc", page = 1, pageSize = DEFAULT_PAGE_SIZE } = opts;
+  const { q, heat, owner, filter, tags, tagMode = "any", sort = "heat", sortDir = "desc", page = 1, pageSize = DEFAULT_PAGE_SIZE } = opts;
   const nowSec = Math.floor(Date.now() / 1000);
 
   const conds: (SQL<unknown> | undefined)[] = [
@@ -144,6 +146,20 @@ export async function getClientsWithEmployeePaginated(
       case "email_subscribers":
         conds.push(eq(clients.onEmailList, true), rawSql`${clients.status} != 'unsubscribed'`);
         break;
+    }
+  }
+
+  // Tag filter — match against the JSON array on clients.tags via json_each
+  if (tags && tags.length > 0) {
+    if (tagMode === "all") {
+      // Client must have every selected tag — AND of EXISTS per tag
+      for (const tag of tags) {
+        conds.push(rawSql`EXISTS (SELECT 1 FROM json_each(${clients.tags}) WHERE json_each.value = ${tag})`);
+      }
+    } else {
+      // ANY — at least one tag matches
+      const placeholders = tags.map((t) => rawSql`${t}`);
+      conds.push(rawSql`EXISTS (SELECT 1 FROM json_each(${clients.tags}) WHERE json_each.value IN (${rawSql.join(placeholders, rawSql`, `)}))`);
     }
   }
 

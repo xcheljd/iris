@@ -8,15 +8,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { HeatBadge } from "@/components/heat-badge";
 import { SearchInput } from "@/components/search-input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PaginationFooter } from "@/components/pagination-footer";
 import { Topbar } from "@/components/topbar";
 import { formatPhone, daysAgo } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, ChevronUp, ChevronDown, ChevronsUpDown, MoreHorizontal, Eye, Edit, Ban, MailX, Trash2 } from "lucide-react";
+import { Plus, ChevronUp, ChevronDown, ChevronsUpDown, MoreHorizontal, Eye, Edit, Ban, MailX, Trash2, Flame, User } from "lucide-react";
 import { BanCustomerDialog, UnsubscribeCustomerDialog } from "@/components/client-status-actions";
+import { ClientsTagFilter } from "@/components/clients-tag-filter";
+import { FilterSelect } from "@/components/filter-select";
 import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { deleteClient } from "@/lib/actions";
@@ -32,7 +33,8 @@ interface ClientFilters {
   q: string;
   heat: string;
   owner: string;
-  filter: string;
+  tags: string[];
+  tagMode: "any" | "all";
   sort: SortKey;
   sortDir: SortDir;
   page: number;
@@ -74,12 +76,14 @@ export function ClientListContent({
   rows,
   total,
   ownerNames,
+  allTags,
   currentFilters,
   currentUserRole,
 }: {
   rows: ClientRow[];
   total: number;
   ownerNames: string[];
+  allTags: { name: string; usageCount: number }[];
   currentFilters: ClientFilters;
   currentUserRole?: string;
 }) {
@@ -95,7 +99,8 @@ export function ClientListContent({
     if (next.q) sp.set("q", next.q);
     if (next.heat !== "any") sp.set("heat", next.heat);
     if (next.owner !== "any") sp.set("owner", next.owner);
-    if (next.filter !== "all") sp.set("filter", next.filter);
+    if (next.tags.length > 0) sp.set("tags", next.tags.join(","));
+    if (next.tagMode !== "any") sp.set("tagMode", next.tagMode);
     if (next.sort !== "heat") sp.set("sort", next.sort);
     if (next.sortDir !== "desc") sp.set("sortDir", next.sortDir);
     if (next.page > 1) sp.set("page", String(next.page));
@@ -165,34 +170,38 @@ export function ClientListContent({
         <Card className="p-3">
           <div className="flex flex-col md:flex-row gap-2 items-stretch md:items-center">
             <SearchInput value={qLocal} onChange={(v) => setQLocal(v)} placeholder="Search name, email, phone…" className="flex-1" />
-            <Select value={currentFilters.heat} onValueChange={(v) => navigate({ heat: v, page: 1 })}>
-              <SelectTrigger className="md:w-40"><SelectValue placeholder="Heat" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="any">Any heat</SelectItem>
-                <SelectItem value="hot">Hot</SelectItem>
-                <SelectItem value="warm">Warm</SelectItem>
-                <SelectItem value="cold">Cold</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={currentFilters.owner} onValueChange={(v) => navigate({ owner: v, page: 1 })}>
-              <SelectTrigger className="md:w-44"><SelectValue placeholder="Owner" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="any">Any owner</SelectItem>
-                <SelectItem value="__none__">Unassigned</SelectItem>
-                {ownerNames.map((name) => (
-                  <SelectItem key={name} value={name}>{name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={currentFilters.filter} onValueChange={(v) => navigate({ filter: v, page: 1 })}>
-              <SelectTrigger className="md:w-48"><SelectValue placeholder="Filter" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All clients</SelectItem>
-                <SelectItem value="hot">Hot only</SelectItem>
-                <SelectItem value="stale">Stale (90+ days)</SelectItem>
-                <SelectItem value="email_subscribers">Email subscribers</SelectItem>
-              </SelectContent>
-            </Select>
+            <FilterSelect
+              icon={Flame}
+              placeholder="Heat"
+              widthClass="md:w-36"
+              value={currentFilters.heat}
+              onChange={(v) => navigate({ heat: v, page: 1 })}
+              options={[
+                { value: "any", label: "Any heat" },
+                { value: "hot", label: "Hot" },
+                { value: "warm", label: "Warm" },
+                { value: "cold", label: "Cold" },
+              ]}
+            />
+            <FilterSelect
+              icon={User}
+              placeholder="Owner"
+              widthClass="md:w-44"
+              searchable
+              value={currentFilters.owner}
+              onChange={(v) => navigate({ owner: v, page: 1 })}
+              options={[
+                { value: "any", label: "Any owner" },
+                { value: "__none__", label: "Unassigned" },
+                ...ownerNames.map((name) => ({ value: name, label: name })),
+              ]}
+            />
+            <ClientsTagFilter
+              allTags={allTags}
+              selected={currentFilters.tags}
+              mode={currentFilters.tagMode}
+              onChange={({ selected, mode }) => navigate({ tags: selected, tagMode: mode, page: 1 })}
+            />
           </div>
         </Card>
 
