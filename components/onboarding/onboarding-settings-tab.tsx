@@ -70,7 +70,6 @@ export function OnboardingSettingsTab() {
       // Server reset failed — do NOT start tour to avoid client/server state desync.
       // Show an error message and close the dialog without starting the tour.
       setConfirmOpen(false);
-      setResetting(false);
       toast.error("Failed to reset tour. Please try again.");
       return;
     } finally {

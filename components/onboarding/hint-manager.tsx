@@ -92,17 +92,18 @@ export function HintManager() {
 /* -------------------------------------------------------------------------- */
 /* Single Hint Overlay — spotlight + popover for one hint                      */
 /*                                                                            */
-/* Uses a selective approach: only subscribes to hintsDismissed from context   */
-/* (not the full context), and uses a single MutationObserver for target       */
-/* element tracking instead of triple-tracking.                                */
+/* Note: useOnboarding() subscribes to the full context — HintOverlay          */
+/* re-renders on any context change. A use-context-selector pattern could      */
+/* optimize this, but the guard in shouldRender prevents unnecessary work.    */
 /* -------------------------------------------------------------------------- */
 
 function HintOverlay({ hint }: { hint: HintDefinition }) {
-  // Selective context subscription: only read hintsDismissed for dismissal check
+  // Subscribe to full onboarding context (useOnboarding returns everything)
   const { onboardingState } = useOnboarding();
   const [dismissed, setDismissed] = useState(false);
   const [targetRect, setTargetRect] = useState<Rect | null>(null);
   const [side, setSide] = useState<"top" | "bottom">("bottom");
+  const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
   const [reducedMotion, setReducedMotion] = useState(false);
   const dismissedRef = useRef(false);
   const measureRef = useRef<() => void>(() => {});
@@ -123,6 +124,7 @@ function HintOverlay({ hint }: { hint: HintDefinition }) {
     if (!el) return false;
     const rect = el.getBoundingClientRect();
     setTargetRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
+    setViewportWidth(window.innerWidth);
 
     // Determine side based on available space
     const spaceBelow = window.innerHeight - rect.bottom;
@@ -246,6 +248,7 @@ function HintOverlay({ hint }: { hint: HintDefinition }) {
         rect={targetRect}
         padding={padding}
         side={side}
+        viewportWidth={viewportWidth}
         onDismiss={dismissHint}
       />
 
@@ -323,12 +326,14 @@ function HintPopover({
   rect,
   padding,
   side,
+  viewportWidth,
   onDismiss,
 }: {
   hint: HintDefinition;
   rect: Rect;
   padding: number;
   side: "top" | "bottom";
+  viewportWidth: number;
   onDismiss: () => void;
 }) {
   const shortcutText = getShortcutText();
@@ -347,7 +352,7 @@ function HintPopover({
         top: popoverTop,
         left: rect.left,
         width: Math.max(rect.width, 280),
-        maxWidth: Math.min(360, window.innerWidth - 32),
+        maxWidth: Math.min(360, viewportWidth - 32),
         transform,
       }}
       role="tooltip"
