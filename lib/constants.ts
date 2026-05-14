@@ -9,9 +9,6 @@ export const SEC_PER_DAY = 86_400;
 /** Maximum rows returned by unbounded list queries. */
 export const LIST_QUERY_LIMIT = 10_000;
 
-/** Maximum number of clients a smart list may contain before triggering a warning. */
-export const MAX_SMART_LIST_CLIENTS = 500;
-
 /** Days of outreach history used to calculate heat score. */
 export const HEAT_LOOKBACK_DAYS = 90;
 
