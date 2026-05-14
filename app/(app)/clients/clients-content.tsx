@@ -14,7 +14,7 @@ import { Topbar } from "@/components/topbar";
 import { formatPhone, daysAgo } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, ChevronUp, ChevronDown, ChevronsUpDown, MoreHorizontal, Eye, Edit, Ban, MailX, Trash2, Mail } from "lucide-react";
+import { Plus, ChevronUp, ChevronDown, ChevronsUpDown, MoreHorizontal, Eye, Edit, Ban, MailX, Trash2, Mail, BookmarkPlus } from "lucide-react";
 import type { ReactNode } from "react";
 import { BanCustomerDialog, UnsubscribeCustomerDialog } from "@/components/client-status-actions";
 import { EmailRecipientsDialog } from "@/components/email-recipients-dialog";
@@ -25,6 +25,8 @@ import {
   TagsFilterMenu,
   DatesFilterButton,
 } from "@/components/clients-column-filters";
+import { SaveCurrentFilterDialog } from "@/components/smart-lists/save-current-filter-dialog";
+import { describeClientFilters, hasActiveClientFilters } from "@/lib/smart-list-filters";
 import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { deleteClient } from "@/lib/actions";
@@ -132,6 +134,7 @@ export function ClientListContent({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<ClientRow | null>(null);
   const [emailRecipientsOpen, setEmailRecipientsOpen] = useState(false);
+  const [saveFilterOpen, setSaveFilterOpen] = useState(false);
   const isFirstRender = useRef(true);
 
   // Stable filter object for the EmailRecipientsDialog — prevents refetch
@@ -234,6 +237,16 @@ export function ClientListContent({
   return (
     <>
       <Topbar title="Clients">
+        <Button
+          onClick={() => setSaveFilterOpen(true)}
+          variant="outline"
+          size="sm"
+          disabled={!hasActiveClientFilters(emailRecipientFilters)}
+          title={hasActiveClientFilters(emailRecipientFilters) ? "Save current filter as Smart List" : "Apply a filter first"}
+        >
+          <BookmarkPlus className="h-4 w-4 mr-2" />
+          Save Filter
+        </Button>
         <Button onClick={() => setEmailRecipientsOpen(true)} variant="outline" size="sm">
           <Mail className="h-4 w-4 mr-2" />
           Email Recipients
@@ -517,6 +530,13 @@ export function ClientListContent({
         open={emailRecipientsOpen}
         onOpenChange={setEmailRecipientsOpen}
         filters={emailRecipientFilters}
+      />
+
+      <SaveCurrentFilterDialog
+        open={saveFilterOpen}
+        onOpenChange={setSaveFilterOpen}
+        filters={emailRecipientFilters}
+        activeFilterChips={describeClientFilters(emailRecipientFilters)}
       />
     </>
   );

@@ -14,7 +14,7 @@ import { toast } from "sonner";
 
 interface CreateListDialogProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange(open: boolean): void;
 }
 
 export function CreateListDialog({ open, onOpenChange }: CreateListDialogProps) {
@@ -33,7 +33,7 @@ export function CreateListDialog({ open, onOpenChange }: CreateListDialogProps) 
 
     startTransition(async () => {
       const result = await createSmartList(name.trim(), filters);
-      if (result?.error) {
+      if ("error" in result) {
         toast.error(result.error);
       } else {
         toast.success("Smart list created");

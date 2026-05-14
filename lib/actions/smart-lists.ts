@@ -51,16 +51,23 @@ export async function renameSmartList(listId: string, newName: string): Promise<
   }
 }
 
-export async function createSmartList(name: string, filters: Record<string, unknown>): Promise<{ error: string } | undefined> {
+export async function createSmartList(
+  name: string,
+  filters: Record<string, unknown>,
+  options: { isShared?: boolean } = {},
+): Promise<{ id: string } | { error: string }> {
   const user = await requireAuth();
+  const id = randomUUID();
   try {
     db.insert(smartLists).values({
-      id: randomUUID(),
+      id,
       name,
       ownerId: user.id,
       filters,
+      isShared: options.isShared ?? false,
     }).run();
     revalidatePath("/smart-lists");
+    return { id };
   } catch {
     return { error: "Failed to create smart list" };
   }

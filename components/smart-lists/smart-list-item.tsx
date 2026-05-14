@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Globe, Lock, MoreHorizontal, Pencil, Copy, Trash2 } from "lucide-react";
+import { Globe, Lock, MoreHorizontal, Pencil, Copy, Trash2, ExternalLink } from "lucide-react";
 
 interface SmartListItemProps {
   id: string;
@@ -17,10 +17,12 @@ interface SmartListItemProps {
   isBuiltIn: boolean;
   isShared: boolean;
   isSelected: boolean;
-  onSelect: () => void;
-  onDelete: () => void;
-  onDuplicate: () => void;
-  onRename: (name: string) => void;
+  onSelect(): void;
+  onDelete(): void;
+  onDuplicate(): void;
+  onRename(name: string): void;
+  /** Optional: when present, adds "Open in Clients" action to the menu (custom lists only). */
+  onOpenInClients?(): void;
 }
 
 export function SmartListItem({
@@ -35,6 +37,7 @@ export function SmartListItem({
   onDelete,
   onDuplicate,
   onRename,
+  onOpenInClients,
 }: SmartListItemProps) {
   const [renameOpen, setRenameOpen] = useState(false);
   const [newName, setNewName] = useState(name);
@@ -83,6 +86,14 @@ export function SmartListItem({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {onOpenInClients && (
+                  <>
+                    <DropdownMenuItem onClick={onOpenInClients}>
+                      <ExternalLink className="h-4 w-4 mr-2" />Open in Clients
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem onClick={() => { setNewName(name); setRenameOpen(true); }}>
                   <Pencil className="h-4 w-4 mr-2" />Rename
                 </DropdownMenuItem>

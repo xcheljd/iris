@@ -33,6 +33,10 @@ import type { ClientListRow } from "@/lib/queries";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import { SmartListItem } from "@/components/smart-lists/smart-list-item";
 import { CreateListDialog } from "@/components/smart-lists/create-list-dialog";
+import {
+  smartListToClientFilters,
+  clientFiltersToSearchParams,
+} from "@/lib/smart-list-filters";
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
@@ -142,6 +146,13 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
     });
   };
 
+  const handleOpenInClients = (list: SmartList) => {
+    const filters = smartListToClientFilters(list.filters as Record<string, unknown>);
+    const sp = clientFiltersToSearchParams(filters);
+    const qs = sp.toString();
+    router.push(`/clients${qs ? `?${qs}` : ""}`);
+  };
+
   const handleRename = (listId: string, newName: string) => {
     startTransition(async () => {
       const result = await renameSmartList(listId, newName);
@@ -233,6 +244,7 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
                       onDelete={() => setDeleteTarget(list)}
                       onDuplicate={() => handleDuplicate(list)}
                       onRename={(newName) => handleRename(list.id, newName)}
+                      onOpenInClients={() => handleOpenInClients(list)}
                     />
                   ))
                 )}

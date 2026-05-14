@@ -4,6 +4,7 @@ import { eq, desc, asc, and, or, isNull, isNotNull, lte, gte, notInArray, sql as
 import type { SQL } from "drizzle-orm";
 import { applyClientFilter } from "@/lib/utils";
 import { buildClientFilterConds } from "@/lib/client-filter-conds";
+import { smartListToClientFilters } from "@/lib/smart-list-filters";
 import { MS_PER_DAY, SEC_PER_DAY, LIST_QUERY_LIMIT, FOLLOW_UP_LOOKAHEAD_DAYS, DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
 const clientListProjection = {
@@ -362,11 +363,18 @@ function buildBuiltInConds(filter: BuiltInFilter, nowSec: number, employeeId?: s
 }
 
 function buildCustomConds(filters: Record<string, unknown>, nowSec: number, employeeId?: string): (SQL<unknown> | undefined)[] {
+  // Translate the smart-list filter blob into the shared ClientFilterParams
+  // shape (handles legacy heatLevel/tag keys + new heat/tags/tagMode/dates).
+  const clientFilters = smartListToClientFilters(filters);
+  const { conds: filterConds } = buildClientFilterConds(clientFilters);
+
   const conds: (SQL<unknown> | undefined)[] = [
     notInArray(clients.status, ["banned", "deleted"]),
     employeeId ? eq(clients.employeeId, employeeId) : undefined,
+    ...filterConds,
   ];
-  if (filters.heatLevel) conds.push(eq(clients.heatLevel, filters.heatLevel as "hot" | "warm" | "cold"));
+
+  // Smart-list-only filters (no Clients-page UI equivalent yet)
   if (filters.source) conds.push(rawSql`${clients.source} = ${String(filters.source)}`);
   if (filters.onEmailList) conds.push(eq(clients.onEmailList, true));
   if (filters.stale) {
@@ -382,12 +390,7 @@ function buildCustomConds(filters: Record<string, unknown>, nowSec: number, empl
     const m = String(filters.birthdayMonth).padStart(2, "0");
     conds.push(isNotNull(clients.birthday), rawSql`substr(${clients.birthday}, 6, 2) = ${m}`);
   }
-  const tagValues = filters.tags
-    ? (Array.isArray(filters.tags) ? filters.tags : [filters.tags])
-    : filters.tag ? [filters.tag] : [];
-  for (const tag of tagValues) {
-    conds.push(rawSql`EXISTS (SELECT 1 FROM json_each(${clients.tags}) WHERE value = ${String(tag)})`);
-  }
+
   return conds;
 }
 
@@ -401,14 +404,22 @@ export async function getBuiltInListClients(filter: string, employeeId?: string)
 export async function getCustomListClients(filters: Record<string, unknown>, employeeId?: string): Promise<ClientListRow[]> {
   const nowSec = Math.floor(Date.now() / 1000);
   const conds = buildCustomConds(filters, nowSec, employeeId);
-  return db.select(clientListProjection).from(clients).where(and(...conds)).orderBy(desc(clients.heatScore)).limit(1000).all();
+  // Owner-name filter references employees.firstName/lastName — join when needed
+  const clientFilters = smartListToClientFilters(filters);
+  const needsEmployeeJoin = !!(clientFilters.owner && clientFilters.owner !== "any" && clientFilters.owner !== "__none__");
+  const base = db.select(clientListProjection).from(clients);
+  const q = needsEmployeeJoin
+    ? base.leftJoin(employees, eq(clients.employeeId, employees.id))
+    : base;
+  return q.where(and(...conds)).orderBy(desc(clients.heatScore)).limit(1000).all();
 }
 
 function countCustomFilter(all: ClientListRow[], filters: Record<string, unknown>): number {
   const now = Date.now();
   const staleMs = 90 * MS_PER_DAY;
   let result = all;
-  if (filters.heatLevel) result = result.filter((c) => c.heatLevel === String(filters.heatLevel));
+
+  // Smart-list-only filters (no Clients-page equivalent)
   if (filters.source) result = result.filter((c) => c.source === String(filters.source));
   if (filters.onEmailList) result = result.filter((c) => c.onEmailList);
   if (filters.stale) {
@@ -426,12 +437,57 @@ function countCustomFilter(all: ClientListRow[], filters: Record<string, unknown
     const m = String(filters.birthdayMonth).padStart(2, "0");
     result = result.filter((c) => c.birthday?.split("-")[1] === m);
   }
-  const tagValues = filters.tags
-    ? (Array.isArray(filters.tags) ? filters.tags : [filters.tags])
-    : filters.tag ? [filters.tag] : [];
-  for (const tag of tagValues) {
-    result = result.filter((c) => Array.isArray(c.tags) && (c.tags as string[]).includes(String(tag)));
+
+  // Shared with Clients page (normalized via smartListToClientFilters — reads
+  // both legacy heatLevel/tag and new heat/tags/tagMode/date keys).
+  const f = smartListToClientFilters(filters);
+  if (f.q) {
+    const q = f.q.toLowerCase();
+    result = result.filter((c) =>
+      `${c.firstName} ${c.lastName ?? ""}`.toLowerCase().includes(q) ||
+      (c.email ?? "").toLowerCase().includes(q) ||
+      (c.phone ?? "").includes(q),
+    );
   }
+  if (f.nameQ) {
+    const nq = f.nameQ.toLowerCase();
+    result = result.filter((c) => `${c.firstName} ${c.lastName ?? ""}`.toLowerCase().includes(nq));
+  }
+  if (f.contactQ) {
+    const cq = f.contactQ.toLowerCase();
+    result = result.filter((c) =>
+      (c.email ?? "").toLowerCase().includes(cq) || (c.phone ?? "").includes(cq),
+    );
+  }
+  if (f.heat) result = result.filter((c) => c.heatLevel === f.heat);
+  // f.owner skipped — would require an employees join not present in the projection
+  if (f.tags && f.tags.length > 0) {
+    const wanted = f.tags;
+    if (f.tagMode === "all") {
+      result = result.filter((c) => {
+        const tags = Array.isArray(c.tags) ? (c.tags as string[]) : [];
+        return wanted.every((t) => tags.includes(t));
+      });
+    } else {
+      result = result.filter((c) => {
+        const tags = Array.isArray(c.tags) ? (c.tags as string[]) : [];
+        return wanted.some((t) => tags.includes(t));
+      });
+    }
+  }
+  if (f.lastContactFrom !== undefined) {
+    result = result.filter((c) => c.lastOutreachAt && new Date(c.lastOutreachAt).getTime() / 1000 >= f.lastContactFrom!);
+  }
+  if (f.lastContactTo !== undefined) {
+    result = result.filter((c) => c.lastOutreachAt && new Date(c.lastOutreachAt).getTime() / 1000 <= f.lastContactTo!);
+  }
+  if (f.createdFrom !== undefined) {
+    result = result.filter((c) => new Date(c.createdAt).getTime() / 1000 >= f.createdFrom!);
+  }
+  if (f.createdTo !== undefined) {
+    result = result.filter((c) => new Date(c.createdAt).getTime() / 1000 <= f.createdTo!);
+  }
+
   return result.length;
 }
 
