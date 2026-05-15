@@ -2,8 +2,7 @@ import { Suspense } from "react";
 import { getClientsWithEmployeePaginated, getClientOwnerNames, getTags, getEmployees, type ClientSortKey } from "@/lib/queries";
 import { ClientListContent } from "./clients-content";
 import { ClientListSkeleton } from "@/components/skeletons";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -42,7 +41,7 @@ async function ClientListFetcher({ searchParams }: { searchParams: SearchParams 
   const sortDir = sp.sortDir === "asc" ? "asc" : sp.sortDir === "desc" ? "desc" : undefined;
   const page = Math.max(1, parseInt(typeof sp.page === "string" ? sp.page : "1") || 1);
 
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const isManager = session?.user?.role === "manager";
   const employeeId = !isManager ? (session?.user?.id ?? undefined) : undefined;
 

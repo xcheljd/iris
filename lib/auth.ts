@@ -1,5 +1,7 @@
 import type { NextAuthOptions } from "next-auth";
+import { getServerSession } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { cache } from "react";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { employees } from "@/lib/db/schema";
@@ -53,3 +55,10 @@ export const authOptions: NextAuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
+
+// Per-request memoized session lookup. React's cache() dedupes calls within a
+// single render pass so the JWT decode runs once per request even when layouts,
+// pages, and server actions all need the session. Falls back to a passthrough
+// when `cache` isn't available (e.g., the jsdom test environment).
+const memoize = typeof cache === "function" ? cache : <T>(fn: T) => fn;
+export const getSession = memoize(() => getServerSession(authOptions));

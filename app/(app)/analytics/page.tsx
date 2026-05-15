@@ -2,8 +2,7 @@ import { Suspense } from "react";
 import { getStats, getRecentOutreach, getEmployees } from "@/lib/queries";
 import { AnalyticsContent } from "./analytics-content";
 import { AnalyticsSkeleton } from "@/components/skeletons";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -17,7 +16,7 @@ export default function AnalyticsPage({ searchParams }: { searchParams: SearchPa
 
 async function AnalyticsFetcher({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const isManager = session?.user?.role === "manager";
 
   let employeeId: string | undefined;

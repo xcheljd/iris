@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Users, Phone, ListFilter, Tag, BarChart3, Ban, MailX, Settings, LogOut, Watch, KeyRound, ShieldCheck, UserSearch } from "lucide-react";
@@ -41,16 +41,33 @@ const baseNav = [
   ]},
 ];
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  initialPendingCount?: number;
+}
+
+export function AppSidebar({ initialPendingCount = 0 }: AppSidebarProps = {}) {
   const pathname = usePathname();
   const { state } = useSidebar();
   const { data: session } = useSession();
   const collapsed = state === "collapsed";
   const isManager = session?.user?.role === "manager";
-  const [pendingCount, setPendingCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(initialPendingCount);
 
+  // Sync local state when SSR-passed prop changes (e.g., a server action called
+  // revalidatePath and the layout re-rendered with a fresh count).
+  useEffect(() => {
+    setPendingCount(initialPendingCount);
+  }, [initialPendingCount]);
+
+  // SSR provides the initial count, so skip the mount fetch; refetch only on
+  // subsequent client-side navigations to keep the badge fresh.
+  const skipNextFetch = useRef(true);
   useEffect(() => {
     if (!isManager) return;
+    if (skipNextFetch.current) {
+      skipNextFetch.current = false;
+      return;
+    }
     fetch("/api/approvals/count").then(r => r.ok ? r.json() : { count: 0 }).then(d => setPendingCount(d.count)).catch(() => {});
   }, [isManager, pathname]);
 

@@ -98,6 +98,9 @@ export async function reviewApprovalRequest(
       employeeId: user.id,
     }).run();
   });
+
+  // Invalidates the (app) layout so the sidebar badge re-reads `getPendingApprovalCount`.
+  revalidatePath("/", "layout");
 }
 
 export async function getPendingApprovalRequests() {
@@ -113,4 +116,14 @@ export async function getPendingApprovalRequests() {
     .orderBy(desc(approvalRequests.createdAt))
     .all();
   return requests;
+}
+
+export async function getPendingApprovalCount(): Promise<number> {
+  await requireManager();
+  const result = db
+    .select({ c: sql<number>`count(*)` })
+    .from(approvalRequests)
+    .where(eq(approvalRequests.status, "pending"))
+    .get();
+  return result?.c ?? 0;
 }

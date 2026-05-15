@@ -2,8 +2,7 @@ import { Suspense } from "react";
 import { getProspects } from "@/lib/queries";
 import { ProspectsContent } from "./prospects-content";
 import { ProspectsSkeleton } from "@/components/skeletons";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 
 export default function ProspectsPage() {
   return (
@@ -14,7 +13,7 @@ export default function ProspectsPage() {
 }
 
 async function ProspectsFetcher() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const isManager = session?.user?.role === "manager";
 
   const [active, graduated, unsubscribed, rejected] = await Promise.all([

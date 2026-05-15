@@ -14,6 +14,7 @@ import type { SafeEmployeeRow } from "@/lib/queries";
 import type { ClientTag } from "@/lib/db/schema";
 import type { OutreachTemplate } from "@/lib/db/schema";
 import type { Client } from "@/lib/db/schema";
+import type { OnboardingState } from "@/lib/actions/onboarding";
 
 interface SettingsContentProps {
   employees: SafeEmployeeRow[];
@@ -22,9 +23,10 @@ interface SettingsContentProps {
   deletedClients: Client[];
   currentUserRole: string;
   currentUserId: string;
+  onboardingState: OnboardingState | null;
 }
 
-export function SettingsContent({ employees, tags, templates, deletedClients, currentUserRole, currentUserId }: SettingsContentProps) {
+export function SettingsContent({ employees, tags, templates, deletedClients, currentUserRole, currentUserId, onboardingState }: SettingsContentProps) {
   const isManager = currentUserRole === "manager";
   const currentUser = employees.find((e) => e.id === currentUserId);
 
@@ -104,7 +106,7 @@ export function SettingsContent({ employees, tags, templates, deletedClients, cu
           </TabsContent>
 
           <TabsContent value="onboarding">
-            <OnboardingSettingsTab />
+            <OnboardingSettingsTab initialState={onboardingState} />
           </TabsContent>
         </Tabs>
       </div>

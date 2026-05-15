@@ -5,8 +5,7 @@ import { clients, outreachLogs, activityEvents, promoMatches, promoWatches, clie
 import { eq, desc, and, isNull, sql } from "drizzle-orm";
 import { ClientDetailContent } from "./client-detail-content";
 import { ClientDetailSkeleton } from "@/components/skeletons";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 
 async function getFullClient(clientId: string) {
   const row = db
@@ -96,7 +95,7 @@ export default function ClientDetailPage({
 
 async function ClientDetailFetcher({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const client = await getFullClient(id);
   if (!client) {
     notFound();

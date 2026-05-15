@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { updateOnboardingState } from "@/lib/actions/onboarding";
+import { updateOnboardingState, type OnboardingState } from "@/lib/actions/onboarding";
 import { useOnboarding } from "./onboarding-provider";
 import { getStepsForRole } from "./tour-steps";
 import type { HintId } from "./hint-definitions";
@@ -20,7 +20,12 @@ import { toast } from "sonner";
 /* Replay/Start Tour button with confirmation dialog.                         */
 /* -------------------------------------------------------------------------- */
 
-export function OnboardingSettingsTab() {
+interface OnboardingSettingsTabProps {
+  // Server-fetched initial state — bypasses the provider's loading skeleton on first paint.
+  initialState?: OnboardingState | null;
+}
+
+export function OnboardingSettingsTab({ initialState }: OnboardingSettingsTabProps = {}) {
   const { tourStatus, onboardingState, loading, startTour, refreshOnboardingState } = useOnboarding();
   const { data: session } = useSession();
   const role = session?.user?.role ?? "associate";
@@ -34,9 +39,12 @@ export function OnboardingSettingsTab() {
 
   const isTourActive = tourStatus === "active";
 
-  const tourCompleted = onboardingState?.tourCompleted ?? false;
-  const tourSkipped = onboardingState?.tourSkipped ?? false;
-  const completedSteps: string[] = onboardingState?.completedSteps ?? [];
+  // Use initialState until the provider finishes its session + getOnboardingState chain.
+  const effectiveState = loading && initialState !== undefined ? initialState : onboardingState;
+
+  const tourCompleted = effectiveState?.tourCompleted ?? false;
+  const tourSkipped = effectiveState?.tourSkipped ?? false;
+  const completedSteps: string[] = effectiveState?.completedSteps ?? [];
 
   // Button text adapts to state:
   // "Start Tour" if never completed or skipped, "Replay Tour" if completed
@@ -49,7 +57,7 @@ export function OnboardingSettingsTab() {
   const handleConfirm = useCallback(async () => {
     setResetting(true);
     try {
-      const hints = onboardingState?.hintsDismissed ?? [];
+      const hints = effectiveState?.hintsDismissed ?? [];
       const updated = await updateOnboardingState({
         tourCompleted: false,
         completedSteps: [],
@@ -70,11 +78,11 @@ export function OnboardingSettingsTab() {
     } finally {
       setResetting(false);
     }
-  }, [onboardingState?.hintsDismissed, startTour, refreshOnboardingState]);
+  }, [effectiveState?.hintsDismissed, startTour, refreshOnboardingState]);
 
   /* ---- render ---- */
 
-  if (loading) {
+  if (loading && initialState === undefined) {
     // Mirror the two-Card layout below so the skeleton occupies the same
     // shape as the loaded state — no layout shift on hydrate.
     return (

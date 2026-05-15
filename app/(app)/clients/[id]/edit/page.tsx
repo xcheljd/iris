@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { getClient, getEmployees } from "@/lib/queries";
 import { EditClientForm } from "./edit-client-form";
 
@@ -9,7 +8,7 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
   const client = await getClient(id);
   if (!client) notFound();
 
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const isManager = session?.user?.role === "manager";
 
   const employees = isManager

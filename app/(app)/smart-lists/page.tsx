@@ -9,8 +9,7 @@ import {
 } from "@/lib/queries";
 import { SmartListsContent } from "./smart-lists-content";
 import { SmartListsSkeleton } from "@/components/skeletons";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -26,7 +25,7 @@ async function SmartListsFetcher({ searchParams }: { searchParams: SearchParams 
   const sp = await searchParams;
   const selectedParam = typeof sp.list === "string" ? sp.list : null;
 
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const isManager = session?.user?.role === "manager";
   const employeeId = !isManager ? (session?.user?.id ?? undefined) : undefined;
 

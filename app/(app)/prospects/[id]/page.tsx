@@ -3,8 +3,7 @@ import { notFound } from "next/navigation";
 import { getProspectWithBatch } from "@/lib/queries";
 import { ProspectDetailContent } from "./prospect-detail-content";
 import { ProspectDetailSkeleton } from "@/components/skeletons";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 
 export default function ProspectDetailPage({
   params,
@@ -20,7 +19,7 @@ export default function ProspectDetailPage({
 
 async function ProspectDetailFetcher({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const data = await getProspectWithBatch(id);
   if (!data?.prospect) notFound();
 
