@@ -32,6 +32,9 @@ screenshots/
 .playwright-mcp/
 .claude/
 
+# Remotion demo (local scratch)
+remotion-demo/
+
 # Misc
 *.log
 *.png
