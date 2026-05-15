@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertCircle } from "lucide-react";
@@ -112,7 +111,7 @@ export default function LoginPage() {
               )}
               <div className="space-y-2">
                 <Label htmlFor="username">Username</Label>
-                <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Marcus" required autoFocus />
+                <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Enter your username" required autoFocus />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
@@ -125,16 +124,6 @@ export default function LoginPage() {
               <Button type="button" variant="link" className="block mx-auto" onClick={() => setMode("forgot-username")}>
                 Forgot Password?
               </Button>
-              {process.env.NODE_ENV === "development" && (
-                <>
-                  <Separator />
-                  <div className="pt-1 text-xs text-muted-foreground text-center space-y-1">
-                    <p>Demo accounts:</p>
-                    <p><span className="font-mono">Marcus / meridian</span> (manager)</p>
-                    <p><span className="font-mono">Jordan / meridian</span> (associate)</p>
-                  </div>
-                </>
-              )}
             </form>
           )}
 
