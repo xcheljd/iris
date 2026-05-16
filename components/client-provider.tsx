@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, ReactNode } from "react";
-import type { OutreachLog, ActivityEvent, PromoMatch, PromoWatch, ClientTag, ClientSource } from "@/lib/db/schema";
+import type { OutreachLog, ActivityEvent, PromoMatch, PromoWatch, ClientTag, ClientSource, ProductOfInterest } from "@/lib/db/schema";
 
 export interface PromoMatchWithPromo {
   match: PromoMatch;
@@ -18,7 +18,7 @@ export interface FullClient {
   employeeName?: string | null;
   customerId?: string | null;
   dateAdded: string;
-  productsOfInterest: string[];
+  productsOfInterest: ProductOfInterest[];
   notes?: string | null;
   onEmailList: boolean;
   status: "active" | "inactive" | "banned" | "unsubscribed" | "deleted";
@@ -37,7 +37,6 @@ export interface FullClient {
   matches: PromoMatchWithPromo[];
   allTags: ClientTag[];
   followUps: OutreachLog[];
-  collectionMap?: Record<string, string>;
 }
 
 const ClientContext = createContext<FullClient | null>(null);

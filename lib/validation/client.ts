@@ -1,9 +1,35 @@
 import { z } from "zod";
 import { CLIENT_SOURCE_VALUES } from "@/lib/db/schema";
+import { normalizeModel } from "@/lib/normalize";
 
 // Coerces empty string to null; passes null/string through unchanged.
 const nullableStr = (max: number) =>
   z.preprocess((v) => (v === "" ? null : v), z.string().max(max).nullable());
+
+const blankToNull = (v: unknown) =>
+  typeof v === "string" && v.trim() === "" ? null : v;
+
+// A structured product of interest. Model is upper-cased (normalizeModel);
+// collection is trimmed. At least one must remain non-null — fuzzy interests
+// belong in notes, not here.
+export const productOfInterestSchema = z
+  .object({
+    model: z
+      .preprocess(blankToNull, z.string().max(100).nullable())
+      .transform((m) => {
+        const n = normalizeModel(m);
+        return n === "" ? null : n;
+      }),
+    collection: z
+      .preprocess(blankToNull, z.string().max(100).nullable())
+      .transform((c) => {
+        const t = (c ?? "").trim();
+        return t === "" ? null : t;
+      }),
+  })
+  .refine((p) => p.model !== null || p.collection !== null, {
+    message: "A product of interest needs a model or a collection",
+  });
 
 // Allowed fields for client create. Enforces enum on source, format on email.
 export const clientCreateSchema = z.object({
@@ -20,7 +46,7 @@ export const clientCreateSchema = z.object({
   onEmailList: z.boolean().default(false),
   notes: nullableStr(5000).optional(),
   tags: z.array(z.string().max(50)).default([]),
-  productsOfInterest: z.array(z.string().max(100)).default([]),
+  productsOfInterest: z.array(productOfInterestSchema).default([]),
 });
 
 // Allowed fields for client patch — all optional, no defaults.
@@ -42,7 +68,7 @@ export const clientPatchSchema = z
     onEmailList: z.boolean(),
     notes: nullableStr(5000),
     tags: z.array(z.string().max(50)),
-    productsOfInterest: z.array(z.string().max(100)),
+    productsOfInterest: z.array(productOfInterestSchema),
   })
   .partial();
 

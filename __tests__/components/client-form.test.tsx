@@ -27,16 +27,13 @@ const baseFormData: ClientFormData = {
 function createProps(overrides: Record<string, unknown> = {}) {
   return {
     formData: baseFormData,
-    productsOfInterest: ["KX1023-01X"],
+    productsOfInterest: [{ model: "KX1023-01X", collection: null }],
     newTag: "",
-    productInterest: "",
     onFieldChange: vi.fn(),
     onNewTagChange: vi.fn(),
-    onProductInterestChange: vi.fn(),
+    onProductsChange: vi.fn(),
     onAddTag: vi.fn(),
     onRemoveTag: vi.fn(),
-    onAddProduct: vi.fn(),
-    onRemoveProduct: vi.fn(),
     showDuplicateWarning: false,
     duplicateClient: null,
     onDismissDuplicate: vi.fn(),

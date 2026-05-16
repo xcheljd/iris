@@ -39,9 +39,9 @@ const clientWithInterests = makeClient({
   firstName: "John",
   lastName: "Doe",
   productsOfInterest: [
-    "KX1023-01X Meridian Solaris",
-    "Sentinel Diver",
-    "NR-710-12L",
+    { model: "KX1023-01X", collection: "Solaris" },
+    { model: null, collection: "Sentinel Diver" },
+    { model: "NR-710-12L", collection: null },
   ],
   matches: [
     {
@@ -60,14 +60,6 @@ const clientWithNoInterests = makeClient({
   firstName: "Jane",
   lastName: "Smith",
   productsOfInterest: [],
-  matches: [],
-});
-
-const clientWithTextOnlyInterests = makeClient({
-  id: "client-3",
-  firstName: "Bob",
-  lastName: "Jones",
-  productsOfInterest: ["Something without alphanumeric model numbers"],
   matches: [],
 });
 

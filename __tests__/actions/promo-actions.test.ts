@@ -65,8 +65,8 @@ describe("Promo Actions", () => {
       let testModel = "";
       for (const c of allClients) {
         const poi = c.productsOfInterest || [];
-        if (poi.length > 0) {
-          testModel = poi[0];
+        if (poi.length > 0 && poi[0].model) {
+          testModel = poi[0].model;
           break;
         }
       }

@@ -15,6 +15,7 @@ import { Merge } from "lucide-react";
 import { patchClientFromFormMerge } from "@/lib/actions";
 import { toast } from "sonner";
 import type { ClientFormData } from "@/components/client-form";
+import type { ProductOfInterest } from "@/lib/db/schema";
 import { type MergeableClient, initChoices, buildMergePatch, ResolutionPanel } from "./resolution-panel";
 
 export function MergeFromFormDialog({
@@ -27,7 +28,7 @@ export function MergeFromFormDialog({
 }: {
   existingClientId: string;
   formData: ClientFormData;
-  productsOfInterest: string[];
+  productsOfInterest: ProductOfInterest[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onMerged: (winnerId: string) => void;

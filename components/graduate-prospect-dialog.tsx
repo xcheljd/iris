@@ -12,11 +12,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { X, UserCheck, AlertCircle } from "lucide-react";
+import { UserCheck, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { graduateProspect, graduateProspectIntoExistingClient } from "@/lib/actions";
 import type { ProspectListRow } from "@/lib/queries";
+import type { ProductOfInterest } from "@/lib/db/schema";
+import { ProductsOfInterestInput } from "@/components/products-of-interest-input";
 
 interface GraduateProspectDialogProps {
   prospect: ProspectListRow;
@@ -41,10 +42,7 @@ export function GraduateProspectDialog({
   const [birthday, setBirthday] = useState(prospect.birthday ?? "");
   const [anniversary, setAnniversary] = useState(prospect.anniversary ?? "");
   const [notes, setNotes] = useState(prospect.notes ?? "");
-  const [productInput, setProductInput] = useState("");
-  const [productsOfInterest, setProductsOfInterest] = useState<string[]>(
-    prospect.productsOfInterest ?? [],
-  );
+  const [productsOfInterest, setProductsOfInterest] = useState<ProductOfInterest[]>([]);
 
   const [duplicateClientId, setDuplicateClientId] = useState("");
   const [duplicateClientName, setDuplicateClientName] = useState("");
@@ -52,14 +50,6 @@ export function GraduateProspectDialog({
   const handleClose = () => {
     onOpenChange(false);
     setStep("enrich");
-  };
-
-  const handleAddProduct = () => {
-    const trimmed = productInput.trim();
-    if (trimmed && !productsOfInterest.includes(trimmed)) {
-      setProductsOfInterest((prev) => [...prev, trimmed]);
-      setProductInput("");
-    }
   };
 
   const handleGraduate = () => {
@@ -170,41 +160,16 @@ export function GraduateProspectDialog({
               </div>
 
               <div className="space-y-1.5">
-                <Label>Models of Interest</Label>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Add model..."
-                    value={productInput}
-                    onChange={(e) => setProductInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleAddProduct();
-                      }
-                    }}
-                  />
-                  <Button type="button" variant="outline" size="sm" onClick={handleAddProduct}>
-                    Add
-                  </Button>
-                </div>
-                {productsOfInterest.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {productsOfInterest.map((p) => (
-                      <Badge key={p} variant="secondary" className="gap-1">
-                        {p}
-                        <button
-                          onClick={() =>
-                            setProductsOfInterest((prev) => prev.filter((x) => x !== p))
-                          }
-                          className="hover:text-destructive"
-                          aria-label={`Remove ${p}`}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
+                <Label>Products of Interest</Label>
+                {(prospect.productsOfInterest?.length ?? 0) > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    From prospect record (reference): {prospect.productsOfInterest.join(", ")}
+                  </p>
                 )}
+                <ProductsOfInterestInput
+                  value={productsOfInterest}
+                  onChange={setProductsOfInterest}
+                />
               </div>
 
               <div className="space-y-1.5">

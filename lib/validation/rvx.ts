@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { productOfInterestSchema } from "./client";
 
 const nullableStr = (max: number) =>
   z.preprocess((v) => (v === "" ? null : v), z.string().max(max).nullable());
@@ -13,7 +14,7 @@ export const graduateProspectSchema = z.object({
     .optional(),
   birthday: nullableStr(100).optional(),
   anniversary: nullableStr(100).optional(),
-  productsOfInterest: z.array(z.string().max(100)).default([]),
+  productsOfInterest: z.array(productOfInterestSchema).default([]),
   notes: nullableStr(5000).optional(),
 });
 

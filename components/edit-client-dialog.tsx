@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Edit3 } from "lucide-react";
 import { toast } from "sonner";
 import type { FullClient } from "@/components/client-provider";
+import type { ProductOfInterest } from "@/lib/db/schema";
 import { ClientForm, type ClientFormData } from "@/components/client-form";
 import { validateClientForm } from "@/lib/validation/client";
 
@@ -34,8 +35,7 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
     tags: (client.tags || []) as string[],
   });
   const [newTag, setNewTag] = useState("");
-  const [productInterest, setProductInterest] = useState("");
-  const [productsOfInterest, setProductsOfInterest] = useState<string[]>(client.productsOfInterest || []);
+  const [productsOfInterest, setProductsOfInterest] = useState<ProductOfInterest[]>(client.productsOfInterest || []);
 
   const resetForm = () => {
     setFormData({
@@ -53,7 +53,6 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
     });
     setProductsOfInterest(client.productsOfInterest || []);
     setNewTag("");
-    setProductInterest("");
     setShowDuplicateWarning(false);
     setDuplicateClient(null);
   };
@@ -71,17 +70,6 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
 
   const handleRemoveTag = (tag: string) => {
     setFormData((prev) => ({ ...prev, tags: prev.tags.filter((t) => t !== tag) }));
-  };
-
-  const handleAddProduct = () => {
-    if (productInterest.trim() && !productsOfInterest.includes(productInterest.trim())) {
-      setProductsOfInterest((prev) => [...prev, productInterest.trim()]);
-      setProductInterest("");
-    }
-  };
-
-  const handleRemoveProduct = (product: string) => {
-    setProductsOfInterest((prev) => prev.filter((p) => p !== product));
   };
 
   const handleSubmit = () => {
@@ -136,14 +124,11 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
             formData={formData}
             productsOfInterest={productsOfInterest}
             newTag={newTag}
-            productInterest={productInterest}
             onFieldChange={handleFieldChange}
             onNewTagChange={setNewTag}
-            onProductInterestChange={setProductInterest}
+            onProductsChange={setProductsOfInterest}
             onAddTag={handleAddTag}
             onRemoveTag={handleRemoveTag}
-            onAddProduct={handleAddProduct}
-            onRemoveProduct={handleRemoveProduct}
             showDuplicateWarning={showDuplicateWarning}
             duplicateClient={duplicateClient}
             onDismissDuplicate={() => setShowDuplicateWarning(false)}

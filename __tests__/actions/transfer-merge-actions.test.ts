@@ -199,15 +199,16 @@ describe("mergeClients", () => {
     const bId = createTestClient({ firstName: "B", dateAdded: new Date("2022-01-01") });
     createdClientIds.push(aId, bId);
 
-    db.update(clients).set({ productsOfInterest: ["SKU-001"] }).where(eq(clients.id, aId)).run();
-    db.update(clients).set({ productsOfInterest: ["SKU-002"] }).where(eq(clients.id, bId)).run();
+    db.update(clients).set({ productsOfInterest: [{ model: "SKU-001", collection: null }] }).where(eq(clients.id, aId)).run();
+    db.update(clients).set({ productsOfInterest: [{ model: "SKU-002", collection: null }] }).where(eq(clients.id, bId)).run();
 
     const { winnerId } = await mergeClients(aId, bId, {}, null) as { winnerId: string };
     createdClientIds.splice(createdClientIds.indexOf(bId), 1);
 
     const winner = db.select().from(clients).where(eq(clients.id, winnerId)).get();
-    expect(winner!.productsOfInterest).toContain("SKU-001");
-    expect(winner!.productsOfInterest).toContain("SKU-002");
+    const winnerModels = (winner!.productsOfInterest ?? []).map((p) => p.model);
+    expect(winnerModels).toContain("SKU-001");
+    expect(winnerModels).toContain("SKU-002");
   });
 
   it("uses finalNotes as the winner's notes", async () => {

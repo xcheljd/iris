@@ -39,7 +39,7 @@ const baseClient: FullClient = {
   employeeName: "Marcus",
   customerId: null,
   dateAdded: "2025-01-01T00:00:00Z",
-  productsOfInterest: ["KX1023-01X"],
+  productsOfInterest: [{ model: "KX1023-01X", collection: null }],
   notes: null,
   onEmailList: true,
   status: "active",

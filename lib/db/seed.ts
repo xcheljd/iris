@@ -79,6 +79,25 @@ for (const p of promos) {
   promoIds.push({ id, ...p });
 }
 
+// Full known model → collection set (promos + a few non-promo models).
+// Drives the durable model_catalog and structured client interests.
+const productCatalog = [
+  ...promos,
+  { model: "KX1011-01X", collection: "SOLARIS" },
+  { model: "KX1007-01X", collection: "SOLARIS" },
+  { model: "LX1012-01X", collection: "SENTINEL" },
+  { model: "LX1016-01X", collection: "SOLARIS" },
+  { model: "HX1001-01X", collection: "VERTEX" },
+];
+const knownCollections = Array.from(new Set(productCatalog.map((p) => p.collection)));
+
+const insCatalog = sqlite.prepare(
+  "INSERT OR REPLACE INTO model_catalog (model,collection,source,first_seen_at,updated_at) VALUES (?,?,?,?,?)",
+);
+for (const p of productCatalog) {
+  insCatalog.run(p.model.toUpperCase(), p.collection, "promo", now - 30 * day, now - 30 * day);
+}
+
 // Templates
 const templates = [
   { name: "New Promo Blast", channel: "text", body: "Hey {{first_name}}! {{collection}} watches are on promo this week — want me to set one aside?" },
@@ -100,7 +119,7 @@ const lastNames = ["Rivera","Chen","Martinez","Johnson","Williams","Brown","Jone
 const sources = ["Client Log", "Customer Report", "Walk-in", "Referral"];
 const statuses: ("active" | "inactive")[] = ["active", "active", "active", "active", "active", "inactive"];
 const clientTagPool = ["VIP", "repeat-buyer", "high-spender", "military", "talker", "no-texts", "email-only"];
-const models = [...promos.map((p) => p.model), "KX1011-01X", "KX1007-01X", "LX1012-01X", "LX1016-01X", "HX1001-01X"];
+const models = productCatalog.map((p) => p.model);
 
 function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
 function pickMany<T>(arr: T[], n: number): T[] {
@@ -136,7 +155,18 @@ for (let i = 0; i < 22; i++) {
   const fn = pick(firstNames);
   const ln = pick(lastNames);
   const owner = pick(employees);
-  const interests = pickMany(models, 1 + Math.floor(Math.random() * 3));
+  // Mix of interest shapes: ~15% none (email-only), ~15% collection-only,
+  // rest 1-3 structured {model, collection} pairs.
+  const interestRoll = Math.random();
+  const interests: { model: string | null; collection: string | null }[] =
+    interestRoll < 0.15
+      ? []
+      : interestRoll < 0.3
+        ? [{ model: null, collection: pick(knownCollections) }]
+        : pickMany(productCatalog, 1 + Math.floor(Math.random() * 3)).map((p) => ({
+            model: p.model,
+            collection: p.collection,
+          }));
   const tagList = Math.random() > 0.4 ? pickMany(clientTagPool, 1 + Math.floor(Math.random() * 2)) : [];
   const status = pick(statuses);
   const source = pick(sources);
@@ -164,7 +194,7 @@ for (let i = 0; i < 22; i++) {
   insClient.run(
     id, fn, ln, randomPhone(), email, owner.id, dateAdded,
     JSON.stringify(interests),
-    `Customer interested in ${interests[0]}. Prefers ${pick(["in-person","text","calls"])} contact.`,
+    `${interests[0] ? `Interested in ${interests[0].model ?? interests[0].collection}. ` : ""}Prefers ${pick(["in-person","text","calls"])} contact.`,
     onEmail, status, source, birthday,
     Math.random() > 0.7 ? `2015-${String(Math.floor(Math.random()*12)+1).padStart(2,"0")}-${String(Math.floor(Math.random()*28)+1).padStart(2,"0")}` : null,
     JSON.stringify(tagList),
@@ -196,14 +226,14 @@ for (let i = 0; i < 22; i++) {
     }
   }
 
-  // Promo matches
+  // Promo matches — mirrors the runtime matcher (exact model, else exact
+  // collection), so seeded data is consistent with createPromo/importPromos.
   for (const p of promoIds) {
-    if (interests.includes(p.model)) {
+    const pm = p.model.toUpperCase();
+    const pc = p.collection.toUpperCase();
+    if (interests.some((it) => (it.model ?? "").toUpperCase() === pm)) {
       insPromoMatch.run(randomUUID(), id, p.id, "model", now);
-    } else if (interests.some((m) => {
-      // Fake collection-match: share a prefix of the model
-      return m.substring(0, 2) === p.model.substring(0, 2);
-    }) && Math.random() > 0.7) {
+    } else if (interests.some((it) => (it.collection ?? "").toUpperCase() === pc)) {
       insPromoMatch.run(randomUUID(), id, p.id, "collection", now);
     }
   }

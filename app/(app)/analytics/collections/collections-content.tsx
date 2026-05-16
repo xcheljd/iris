@@ -16,16 +16,14 @@ import { Topbar } from "@/components/topbar";
 import Link from "next/link";
 import { PaginationFooter } from "@/components/pagination-footer";
 import type { ClientListRow } from "@/lib/queries";
-import { resolveCollection } from "@/lib/collections";
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 interface CollectionsContentProps {
   clients: ClientListRow[];
-  collectionMap: Record<string, string>;
 }
 
-export function CollectionsContent({ clients, collectionMap }: CollectionsContentProps) {
+export function CollectionsContent({ clients }: CollectionsContentProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
   const [clientsPage, setClientsPage] = useState(1);
@@ -37,9 +35,8 @@ export function CollectionsContent({ clients, collectionMap }: CollectionsConten
     clients.forEach((client) => {
       const poi = client.productsOfInterest || [];
       poi.forEach((product) => {
-        const collection = resolveCollection(product, collectionMap);
-        if (collection) {
-          totals[collection] = (totals[collection] || 0) + 1;
+        if (product.collection) {
+          totals[product.collection] = (totals[product.collection] || 0) + 1;
         }
       });
     });
@@ -47,7 +44,7 @@ export function CollectionsContent({ clients, collectionMap }: CollectionsConten
     return Object.entries(totals)
       .sort((a, b) => b[1] - a[1])
       .map(([name, count]) => ({ name, count }));
-  }, [clients, collectionMap]);
+  }, [clients]);
 
   const totalInterests = collectionData.reduce((sum, c) => sum + c.count, 0);
 
@@ -61,9 +58,9 @@ export function CollectionsContent({ clients, collectionMap }: CollectionsConten
     if (!selectedCollection) return [];
     return clients.filter((client) => {
       const poi = client.productsOfInterest || [];
-      return poi.some((p) => resolveCollection(p, collectionMap) === selectedCollection);
+      return poi.some((p) => p.collection === selectedCollection);
     });
-  }, [clients, selectedCollection, collectionMap]);
+  }, [clients, selectedCollection]);
 
   const clientsTotalPages = Math.ceil(collectionClients.length / PAGE_SIZE);
   const pagedClients = collectionClients.slice((clientsPage - 1) * PAGE_SIZE, clientsPage * PAGE_SIZE);

@@ -1,0 +1,87 @@
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { modelCatalog, type ProductOfInterest } from "@/lib/db/schema";
+import { normalizeModel } from "@/lib/normalize";
+
+// drizzle better-sqlite3 transaction handle (same shape as `db`).
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type DbOrTx = typeof db | Tx;
+
+export type CatalogConflict = {
+  model: string;
+  existing: string;
+  attempted: string;
+};
+
+/**
+ * Upsert a model → collection pairing into the durable catalog.
+ *
+ * Conflict policy:
+ *  - `promo` is authoritative: always (re)writes the row.
+ *  - `manual` only fills when the model is unknown; it never overwrites an
+ *    existing row. If a manual entry disagrees with the stored collection,
+ *    the existing value is kept and the conflict is returned so the caller
+ *    can surface it.
+ *
+ * No-ops when model or collection is missing (a collection-only or
+ * model-only interest contributes nothing to a model→collection map).
+ */
+export function recordModelCollection(
+  tx: DbOrTx,
+  model: string | null | undefined,
+  collection: string | null | undefined,
+  source: "promo" | "manual",
+): { conflict?: CatalogConflict } {
+  const m = normalizeModel(model);
+  const c = (collection ?? "").trim();
+  if (!m || !c) return {};
+
+  const existing = tx.select().from(modelCatalog).where(eq(modelCatalog.model, m)).get();
+
+  if (!existing) {
+    tx.insert(modelCatalog).values({ model: m, collection: c, source }).run();
+    return {};
+  }
+
+  if (source === "promo") {
+    if (existing.collection !== c || existing.source !== "promo") {
+      tx.update(modelCatalog)
+        .set({ collection: c, source: "promo", updatedAt: new Date() })
+        .where(eq(modelCatalog.model, m))
+        .run();
+    }
+    return {};
+  }
+
+  // manual + already known: never overwrite; report disagreement only.
+  if (existing.collection.toUpperCase() !== c.toUpperCase()) {
+    return { conflict: { model: m, existing: existing.collection, attempted: c } };
+  }
+  return {};
+}
+
+/**
+ * Record every model+collection pair from a client's interests as a `manual`
+ * catalog entry. Entries missing either field contribute nothing. Returns any
+ * conflicts (model already known with a different collection) for the caller
+ * to surface — the stored value is kept.
+ */
+export function recordProductsOfInterest(
+  tx: DbOrTx,
+  products: ProductOfInterest[] | null | undefined,
+): CatalogConflict[] {
+  const conflicts: CatalogConflict[] = [];
+  for (const p of products ?? []) {
+    const { conflict } = recordModelCollection(tx, p.model, p.collection, "manual");
+    if (conflict) conflicts.push(conflict);
+  }
+  return conflicts;
+}
+
+/** Full model → collection lookup (uppercase keys), durable across promo resets. */
+export function getCatalogMap(): Record<string, string> {
+  const rows = db.select({ model: modelCatalog.model, collection: modelCatalog.collection }).from(modelCatalog).all();
+  const map: Record<string, string> = {};
+  for (const r of rows) map[r.model] = r.collection;
+  return map;
+}

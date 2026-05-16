@@ -1,12 +1,24 @@
 "use server";
 import { db } from "@/lib/db";
-import { clients, outreachLogs, activityEvents, promoMatches, bannedCustomers, unsubscribeList, approvalRequests, employees } from "@/lib/db/schema";
+import { clients, outreachLogs, activityEvents, promoMatches, bannedCustomers, unsubscribeList, approvalRequests, employees, type ProductOfInterest } from "@/lib/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireAuth, requireManager } from "./_shared";
 import { recalcHeat } from "./outreach";
 import { fullName } from "@/lib/utils";
+import { recordProductsOfInterest } from "./model-catalog";
+
+// Structural de-dupe for products of interest (objects, so Set won't dedupe).
+function dedupeProducts(list: ProductOfInterest[]): ProductOfInterest[] {
+  const seen = new Set<string>();
+  const out: ProductOfInterest[] = [];
+  for (const p of list) {
+    const key = `${(p.model ?? "").toUpperCase()}|${(p.collection ?? "").toUpperCase()}`;
+    if (!seen.has(key)) { seen.add(key); out.push(p); }
+  }
+  return out;
+}
 
 export async function applyClientPatch(clientId: string, data: Record<string, unknown>): Promise<void> {
   const patch: Record<string, unknown> = { updatedAt: new Date() };
@@ -14,6 +26,9 @@ export async function applyClientPatch(clientId: string, data: Record<string, un
     if (v !== undefined) patch[k] = v;
   }
   db.update(clients).set(patch).where(eq(clients.id, clientId)).run();
+  if (data.productsOfInterest !== undefined) {
+    recordProductsOfInterest(db, data.productsOfInterest as ProductOfInterest[]);
+  }
   db.insert(activityEvents).values({
     id: randomUUID(),
     clientId,
@@ -269,6 +284,11 @@ export async function mergeClients(
     return a.getTime() >= b.getTime() ? a : b;
   };
 
+  const mergedProducts = dedupeProducts([
+    ...(clientA.productsOfInterest || []),
+    ...(clientB.productsOfInterest || []),
+  ]);
+
   db.transaction((tx) => {
     tx.update(clients).set({
       firstName: pick("firstName") as string || winner.firstName,
@@ -281,7 +301,7 @@ export async function mergeClients(
       source: pick("source") as typeof clients.$inferSelect.source,
       onEmailList: (clientA.onEmailList || clientB.onEmailList),
       notes: finalNotes ?? null,
-      productsOfInterest: Array.from(new Set([...(clientA.productsOfInterest || []), ...(clientB.productsOfInterest || [])])),
+      productsOfInterest: mergedProducts,
       tags: Array.from(new Set([...(clientA.tags || []), ...(clientB.tags || [])])),
       lastOutreachAt: latestOf(clientA.lastOutreachAt, clientB.lastOutreachAt),
       lastPurchaseAt: latestOf(clientA.lastPurchaseAt, clientB.lastPurchaseAt),
@@ -315,6 +335,7 @@ export async function mergeClients(
     }).run();
 
     tx.delete(clients).where(eq(clients.id, loser.id)).run();
+    recordProductsOfInterest(tx, mergedProducts);
   });
 
   await recalcHeat(winner.id);
@@ -337,7 +358,7 @@ export async function patchClientFromFormMerge(
     source?: string;
     onEmailList?: boolean;
     notes?: string | null;
-    productsOfInterest?: string[];
+    productsOfInterest?: ProductOfInterest[];
     tags?: string[];
   },
 ): Promise<{ error: string } | undefined> {
@@ -361,6 +382,8 @@ export async function patchClientFromFormMerge(
       tags: patch.tags ?? existing.tags,
       updatedAt: new Date(),
     }).where(eq(clients.id, existingId)).run();
+
+    recordProductsOfInterest(tx, patch.productsOfInterest ?? existing.productsOfInterest);
 
     tx.insert(activityEvents).values({
       id: randomUUID(),

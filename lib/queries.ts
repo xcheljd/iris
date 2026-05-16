@@ -6,7 +6,7 @@ import { applyClientFilter } from "@/lib/utils";
 import { buildClientFilterConds } from "@/lib/client-filter-conds";
 import { smartListToClientFilters } from "@/lib/smart-list-filters";
 import { toFtsQuery } from "@/lib/fts";
-import { buildModelCollectionMap } from "@/lib/collections";
+import { getCatalogMap } from "@/lib/actions/model-catalog";
 import { MS_PER_DAY, SEC_PER_DAY, LIST_QUERY_LIMIT, FOLLOW_UP_LOOKAHEAD_DAYS, DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
 const clientListProjection = {
@@ -272,14 +272,10 @@ export async function getPromos() {
   return db.select().from(promoWatches).orderBy(desc(promoWatches.dateAdded)).limit(LIST_QUERY_LIMIT).all();
 }
 
-// Model-number → collection lookup across all promo watches. Used to resolve
-// free-text productsOfInterest (often model-number-only) to a collection.
+// Durable model → collection lookup from the model catalog (survives the
+// weekly promo reset). Used for input-time collection suggestion.
 export async function getModelCollectionMap(): Promise<Record<string, string>> {
-  const rows = db
-    .select({ modelNumber: promoWatches.modelNumber, collection: promoWatches.collection })
-    .from(promoWatches)
-    .all();
-  return buildModelCollectionMap(rows);
+  return getCatalogMap();
 }
 
 export async function getBannedCustomers() {

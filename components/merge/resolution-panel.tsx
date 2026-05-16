@@ -5,6 +5,26 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import type { ProductOfInterest } from "@/lib/db/schema";
+
+function productKey(p: ProductOfInterest) {
+  return `${(p.model ?? "").toUpperCase()}|${(p.collection ?? "").toUpperCase()}`;
+}
+
+function describeProduct(p: ProductOfInterest) {
+  if (p.model && p.collection) return `${p.model} — ${p.collection}`;
+  return p.model ?? p.collection ?? "";
+}
+
+function dedupeProducts(list: ProductOfInterest[]): ProductOfInterest[] {
+  const seen = new Set<string>();
+  const out: ProductOfInterest[] = [];
+  for (const p of list) {
+    const k = productKey(p);
+    if (!seen.has(k)) { seen.add(k); out.push(p); }
+  }
+  return out;
+}
 
 export interface MergeableClient {
   id: string;
@@ -18,7 +38,7 @@ export interface MergeableClient {
   source?: string | null;
   onEmailList?: boolean;
   notes?: string | null;
-  productsOfInterest?: string[];
+  productsOfInterest?: ProductOfInterest[];
   tags?: string[];
 }
 
@@ -33,7 +53,7 @@ export type MergePatch = {
   source?: string;
   onEmailList?: boolean;
   notes?: string | null;
-  productsOfInterest?: string[];
+  productsOfInterest?: ProductOfInterest[];
   tags?: string[];
 };
 
@@ -84,7 +104,7 @@ export function buildMergePatch(
     source: (pick("source") as string) || undefined,
     onEmailList: !!(a.onEmailList || b.onEmailList),
     notes: finalNotes || null,
-    productsOfInterest: Array.from(new Set([...(a.productsOfInterest ?? []), ...(b.productsOfInterest ?? [])])),
+    productsOfInterest: dedupeProducts([...(a.productsOfInterest ?? []), ...(b.productsOfInterest ?? [])]),
     tags: Array.from(new Set([...(a.tags ?? []), ...(b.tags ?? [])])),
   };
 }
@@ -216,11 +236,12 @@ export function ResolutionPanel({
         <div>
           <div className="text-sm font-medium mb-1">Products of Interest (combined)</div>
           <div className="flex flex-wrap gap-1">
-            {Array.from(
-              new Set([...(clientA.productsOfInterest ?? []), ...(clientB.productsOfInterest ?? [])]),
-            ).map((p) => (
-              <Badge key={p} variant="outline" className="text-xs">
-                {p}
+            {dedupeProducts([
+              ...(clientA.productsOfInterest ?? []),
+              ...(clientB.productsOfInterest ?? []),
+            ]).map((p) => (
+              <Badge key={productKey(p)} variant="outline" className="text-xs">
+                {describeProduct(p)}
               </Badge>
             ))}
             {!clientA.productsOfInterest?.length && !clientB.productsOfInterest?.length && (

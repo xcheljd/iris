@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Topbar } from "@/components/topbar";
 import { ClientForm } from "@/components/client-form";
 import type { ClientFormData } from "@/components/client-form";
+import type { ProductOfInterest } from "@/lib/db/schema";
 import { MergeFromFormDialog } from "@/components/merge-client-dialog";
 import { validateClientForm } from "@/lib/validation/client";
 
@@ -32,8 +33,7 @@ export default function AddClientPage() {
   });
 
   const [newTag, setNewTag] = useState("");
-  const [productInterest, setProductInterest] = useState("");
-  const [productsOfInterest, setProductsOfInterest] = useState<string[]>([]);
+  const [productsOfInterest, setProductsOfInterest] = useState<ProductOfInterest[]>([]);
 
   const formDataRef = useRef(formData);
   formDataRef.current = formData;
@@ -92,17 +92,6 @@ export default function AddClientPage() {
 
   const handleRemoveTag = (tagToRemove: string) => {
     setFormData(prev => ({ ...prev, tags: prev.tags.filter(tag => tag !== tagToRemove) }));
-  };
-
-  const handleAddProduct = () => {
-    if (productInterest.trim() && !productsOfInterest.includes(productInterest.trim())) {
-      setProductsOfInterest(prev => [...prev, productInterest.trim()]);
-      setProductInterest("");
-    }
-  };
-
-  const handleRemoveProduct = (productToRemove: string) => {
-    setProductsOfInterest(prev => prev.filter(product => product !== productToRemove));
   };
 
   const handleSubmit = () => {
@@ -168,14 +157,11 @@ export default function AddClientPage() {
             formData={formData}
             productsOfInterest={productsOfInterest}
             newTag={newTag}
-            productInterest={productInterest}
             onFieldChange={handleFieldChange}
             onNewTagChange={setNewTag}
-            onProductInterestChange={setProductInterest}
+            onProductsChange={setProductsOfInterest}
             onAddTag={handleAddTag}
             onRemoveTag={handleRemoveTag}
-            onAddProduct={handleAddProduct}
-            onRemoveProduct={handleRemoveProduct}
             showDuplicateWarning={showDuplicateWarning}
             duplicateClient={duplicateClient}
             onDismissDuplicate={() => setShowDuplicateWarning(false)}

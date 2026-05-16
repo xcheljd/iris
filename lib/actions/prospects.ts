@@ -7,6 +7,7 @@ import { randomUUID } from "crypto";
 import { normalizePhone, fullName } from "@/lib/utils";
 import { graduateProspectSchema, type GraduateProspectInput } from "@/lib/validation/rvx";
 import { requireAuth } from "./_shared";
+import { recordProductsOfInterest } from "./model-catalog";
 
 export async function graduateProspect(input: GraduateProspectInput): Promise<
   | { type: "created"; clientId: string }
@@ -62,6 +63,8 @@ export async function graduateProspect(input: GraduateProspectInput): Promise<
       employeeId: user.role === "associate" ? user.id : undefined,
     }).run();
 
+    recordProductsOfInterest(tx, parsed.productsOfInterest);
+
     tx.update(prospects)
       .set({ status: "graduated", graduatedToClientId: newClientId, updatedAt: new Date() })
       .where(eq(prospects.id, parsed.prospectId))
@@ -112,6 +115,7 @@ export async function graduateProspectIntoExistingClient(
 
   db.transaction((tx) => {
     tx.update(clients).set(patch).where(eq(clients.id, existingClientId)).run();
+    if (patch.productsOfInterest) recordProductsOfInterest(tx, patch.productsOfInterest);
 
     tx.update(prospects)
       .set({ status: "graduated", graduatedToClientId: existingClientId, updatedAt: new Date() })

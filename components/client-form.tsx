@@ -12,7 +12,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DatePicker } from "@/components/date-picker";
 import { Plus, X, AlertCircle } from "lucide-react";
 
-import { CLIENT_SOURCE_VALUES } from "@/lib/db/schema";
+import { CLIENT_SOURCE_VALUES, type ProductOfInterest } from "@/lib/db/schema";
+import { ProductsOfInterestInput } from "@/components/products-of-interest-input";
 import { COMMON_TAGS } from "@/lib/constants";
 
 interface DuplicateClient {
@@ -41,16 +42,13 @@ export interface ClientFormData {
 
 interface ClientFormProps {
   formData: ClientFormData;
-  productsOfInterest: string[];
+  productsOfInterest: ProductOfInterest[];
   newTag: string;
-  productInterest: string;
   onFieldChange: (field: string, value: string | boolean | Date | null | undefined | string[]) => void;
   onNewTagChange: (value: string) => void;
-  onProductInterestChange: (value: string) => void;
+  onProductsChange: (next: ProductOfInterest[]) => void;
   onAddTag: () => void;
   onRemoveTag: (tag: string) => void;
-  onAddProduct: () => void;
-  onRemoveProduct: (product: string) => void;
   // Duplicate warning
   showDuplicateWarning: boolean;
   duplicateClient: DuplicateClient | null;
@@ -71,14 +69,11 @@ export function ClientForm({
   formData,
   productsOfInterest,
   newTag,
-  productInterest,
   onFieldChange,
   onNewTagChange,
-  onProductInterestChange,
+  onProductsChange,
   onAddTag,
   onRemoveTag,
-  onAddProduct,
-  onRemoveProduct,
   showDuplicateWarning,
   duplicateClient,
   onDismissDuplicate,
@@ -328,39 +323,10 @@ export function ClientForm({
           <CardTitle>Products of Interest</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Add model number or collection..."
-                value={productInterest}
-                onChange={(e) => onProductInterestChange(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    onAddProduct();
-                  }
-                }}
-              />
-              <Button onClick={onAddProduct} variant="outline">
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {productsOfInterest.map((product) => (
-                <Badge key={product} variant="secondary" className="cursor-pointer">
-                  {product}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-5 w-5 ml-1"
-                    onClick={() => onRemoveProduct(product)}
-                    aria-label={`Remove ${product}`}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </Badge>
-              ))}
-            </div>
-          </div>
+          <ProductsOfInterestInput
+            value={productsOfInterest}
+            onChange={onProductsChange}
+          />
         </CardContent>
       </Card>
 

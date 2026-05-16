@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { calcHeatScore } from "@/lib/heat-score";
 import { MS_PER_DAY } from "@/lib/constants";
+import type { ProductOfInterest } from "@/lib/db/schema";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -13,7 +14,7 @@ const NOW = new Date("2025-06-15T12:00:00.000Z");
 function makeClient(
   overrides: Partial<{
     onEmailList: boolean;
-    productsOfInterest: string[];
+    productsOfInterest: ProductOfInterest[];
     birthday: string | null;
     status: "active" | "inactive" | "banned" | "unsubscribed" | "deleted";
     lastOutreachAt: Date | null;
@@ -22,7 +23,7 @@ function makeClient(
 ) {
   return {
     onEmailList: false,
-    productsOfInterest: [] as string[],
+    productsOfInterest: [] as ProductOfInterest[],
     birthday: null as string | null,
     status: "active" as const,
     lastOutreachAt: null as Date | null,
@@ -140,7 +141,7 @@ describe("calcHeatScore", () => {
   // --- Products of interest ---
   it("adds 5 when productsOfInterest is non-empty", () => {
     const client = makeClient({
-      productsOfInterest: ["DEEPSTONE"],
+      productsOfInterest: [{ model: "DEEPSTONE", collection: null }],
       lastOutreachAt: new Date("2025-06-10T12:00:00.000Z"),
     });
     const result = calcHeatScore(client, []);
@@ -208,7 +209,7 @@ describe("calcHeatScore", () => {
     const client = makeClient({
       lastPurchaseAt: new Date("2025-06-01T12:00:00.000Z"), // +15 +10 = 25
       onEmailList: true,                                      // +5
-      productsOfInterest: ["SUNLAP"],                         // +5
+      productsOfInterest: [{ model: "SUNLAP", collection: null }],                         // +5
       birthday: "1985-03-15",                                  // +3
       lastOutreachAt: new Date("2025-06-10T12:00:00.000Z"),  // no penalty
     });
@@ -223,7 +224,7 @@ describe("calcHeatScore", () => {
     const hotClient = makeClient({
       lastPurchaseAt: new Date("2025-06-01T12:00:00.000Z"), // +15 +10 = 25
       onEmailList: true,                                      // +5
-      productsOfInterest: ["SUNLAP", "Sub"],                 // +5
+      productsOfInterest: [{ model: "SUNLAP", collection: null }, { model: "SUB", collection: null }],                 // +5
       birthday: "1985-03-15",                                  // +3
       lastOutreachAt: new Date("2025-06-10T12:00:00.000Z"),  // no penalty
       status: "active",
@@ -246,7 +247,7 @@ describe("calcHeatScore", () => {
     const client = makeClient({
       lastPurchaseAt: new Date("2025-05-01T12:00:00.000Z"), // +15 +10 = 25
       onEmailList: true,                                      // +5
-      productsOfInterest: ["GMT-Master"],                      // +5
+      productsOfInterest: [{ model: "GMT-MASTER", collection: null }],                      // +5
       lastOutreachAt: new Date("2025-06-10T12:00:00.000Z"),  // no penalty
     });
     const outreachLogs = [outreach("responded", -10)]; // +10
@@ -282,7 +283,7 @@ describe("calcHeatScore", () => {
     const client = makeClient({
       lastPurchaseAt: new Date("2025-06-01T12:00:00.000Z"), // +15 +10
       onEmailList: true,                                      // +5
-      productsOfInterest: ["Sub"],                             // +5
+      productsOfInterest: [{ model: "SUB", collection: null }],                             // +5
       birthday: "1990-01-01",                                  // +3
       lastOutreachAt: new Date("2025-06-10T12:00:00.000Z"),  // no penalty
     });

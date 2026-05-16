@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getAllClients, getModelCollectionMap } from "@/lib/queries";
+import { getAllClients } from "@/lib/queries";
 import { CollectionsContent } from "./collections-content";
 import { CollectionsSkeleton } from "@/components/skeletons";
 import { getSession } from "@/lib/auth";
@@ -16,9 +16,6 @@ async function CollectionsFetcher() {
   const session = await getSession();
   const isManager = session?.user?.role === "manager";
   const employeeId = !isManager ? (session?.user?.id ?? undefined) : undefined;
-  const [clients, collectionMap] = await Promise.all([
-    getAllClients(employeeId),
-    getModelCollectionMap(),
-  ]);
-  return <CollectionsContent clients={clients} collectionMap={collectionMap} />;
+  const clients = await getAllClients(employeeId);
+  return <CollectionsContent clients={clients} />;
 }

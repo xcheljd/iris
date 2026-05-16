@@ -41,6 +41,14 @@ export const employees = sqliteTable("employees", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
+// A structured product of interest. At least one of model/collection is
+// non-null (enforced at the validation layer, not the DB). Free-text/fuzzy
+// interests ("anything titanium") belong in `clients.notes`, not here.
+export type ProductOfInterest = {
+  model: string | null;
+  collection: string | null;
+};
+
 export const clients = sqliteTable("clients", {
   id: text("id").primaryKey(),
   customerId: text("customer_id"),
@@ -50,7 +58,7 @@ export const clients = sqliteTable("clients", {
   email: text("email"),
   employeeId: text("employee_id").references(() => employees.id),
   dateAdded: integer("date_added", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  productsOfInterest: text("products_of_interest", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
+  productsOfInterest: text("products_of_interest", { mode: "json" }).$type<ProductOfInterest[]>().notNull().default(sql`'[]'`),
   notes: text("notes"),
   onEmailList: integer("on_email_list", { mode: "boolean" }).notNull().default(false),
   status: text("status", { enum: ["active", "inactive", "banned", "unsubscribed", "deleted"] }).notNull().default("active"),
@@ -146,6 +154,19 @@ export const promoMatches = sqliteTable("promo_matches", {
 }, (table) => ({
   uniqClientPromo: unique().on(table.clientId, table.promoId),
 }));
+
+// Durable model → collection catalog. Accumulates from promo writes and
+// client interest entries; survives the weekly promo "Clear All & Reset".
+// `model` is stored uppercase (see normalizeModel). `source` records who
+// last set the row — promo writes are authoritative and overwrite; manual
+// entries only fill when a model is absent (see recordModelCollection).
+export const modelCatalog = sqliteTable("model_catalog", {
+  model: text("model").primaryKey(),
+  collection: text("collection").notNull(),
+  source: text("source", { enum: ["promo", "manual"] }).notNull(),
+  firstSeenAt: integer("first_seen_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+});
 
 export const bannedCustomers = sqliteTable("banned_customers", {
   id: text("id").primaryKey(),
@@ -250,3 +271,4 @@ export type SmartList = typeof smartLists.$inferSelect;
 export type ApprovalRequest = typeof approvalRequests.$inferSelect;
 export type RvxImportBatch = typeof rvxImportBatches.$inferSelect;
 export type Prospect = typeof prospects.$inferSelect;
+export type ModelCatalog = typeof modelCatalog.$inferSelect;

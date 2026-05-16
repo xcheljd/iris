@@ -1,33 +1,41 @@
 "use server";
 import { db } from "@/lib/db";
-import { clients, promoWatches, promoMatches } from "@/lib/db/schema";
+import { clients, promoWatches, promoMatches, type ProductOfInterest } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireManager } from "./_shared";
+import { normalizeModel } from "@/lib/normalize";
+import { recordModelCollection } from "./model-catalog";
 
 interface PromoClientEntry {
   id: string;
-  poiLower: string[];
+  collections: Set<string>; // upper-cased collections this client is interested in
 }
 interface PromoClientIndex {
-  modelMap: Map<string, string[]>; // lowercase poi → clientIds (for O(1) exact model lookup)
-  entries: PromoClientEntry[];     // pre-lowercased for collection substring scan
+  modelMap: Map<string, string[]>; // normalized model → clientIds (exact lookup)
+  entries: PromoClientEntry[];     // for exact collection match
 }
 
+// Collections are compared case-insensitively (seed/import casing varies);
+// models are compared via normalizeModel (uppercase) on both sides.
 function buildPromoClientIndex(
-  all: Array<{ id: string; productsOfInterest: string[] | null }>,
+  all: Array<{ id: string; productsOfInterest: ProductOfInterest[] | null }>,
 ): PromoClientIndex {
   const modelMap = new Map<string, string[]>();
   const entries: PromoClientEntry[] = [];
   for (const c of all) {
-    const poiLower = (c.productsOfInterest ?? []).map((p) => p.toLowerCase());
-    entries.push({ id: c.id, poiLower });
-    for (const p of poiLower) {
-      const arr = modelMap.get(p);
-      if (arr) arr.push(c.id);
-      else modelMap.set(p, [c.id]);
+    const collections = new Set<string>();
+    for (const p of c.productsOfInterest ?? []) {
+      const m = normalizeModel(p.model);
+      if (m) {
+        const arr = modelMap.get(m);
+        if (arr) arr.push(c.id);
+        else modelMap.set(m, [c.id]);
+      }
+      if (p.collection) collections.add(p.collection.trim().toUpperCase());
     }
+    entries.push({ id: c.id, collections });
   }
   return { modelMap, entries };
 }
@@ -39,19 +47,19 @@ function matchPromoToClients(
   collection: string,
   index: PromoClientIndex,
 ) {
-  const modelLower = modelNumber.toLowerCase();
-  const collectionLower = collection.toLowerCase();
+  const model = normalizeModel(modelNumber);
+  const coll = collection.trim().toUpperCase();
   const matches: { id: string; clientId: string; promoId: string; matchType: "model" | "collection" }[] = [];
 
-  const modelClientIds = index.modelMap.get(modelLower) ?? [];
+  const modelClientIds = model ? index.modelMap.get(model) ?? [] : [];
   const modelMatchSet = new Set(modelClientIds);
   for (const clientId of modelClientIds) {
     matches.push({ id: randomUUID(), clientId, promoId, matchType: "model" });
   }
 
-  if (collectionLower) {
+  if (coll) {
     for (const entry of index.entries) {
-      if (!modelMatchSet.has(entry.id) && entry.poiLower.some((p) => p.includes(collectionLower))) {
+      if (!modelMatchSet.has(entry.id) && entry.collections.has(coll)) {
         matches.push({ id: randomUUID(), clientId: entry.id, promoId, matchType: "collection" });
       }
     }
@@ -71,6 +79,7 @@ export async function createPromo(modelNumber: string, collection: string, msrp?
     const id = randomUUID();
     db.transaction((tx) => {
       tx.insert(promoWatches).values({ id, modelNumber, collection, msrp: msrp ?? null, discountPercent: discountPercent ?? null, discountPrice: discountPrice ?? null }).run();
+      recordModelCollection(tx, modelNumber, collection, "promo");
       matchPromoToClients(tx, id, modelNumber, collection, index);
     });
     revalidatePath("/promos");
@@ -102,6 +111,7 @@ export async function importPromos(rows: { modelNumber: string; collection: stri
           promoStart: promoStart ?? null,
           promoEnd: promoEnd ?? null,
         }).run();
+        recordModelCollection(tx, modelNumber, collection, "promo");
         matchPromoToClients(tx, id, modelNumber, collection, index);
         imported++;
       }
