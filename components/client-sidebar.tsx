@@ -9,6 +9,7 @@ import { Tag, Copy, Calendar, Plus, Phone, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { OutreachLogger } from "@/components/outreach-logger";
+import { isFollowUpOverdue, isFollowUpUpcoming } from "@/lib/outreach-helpers";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function ClientSidebar() {
@@ -27,9 +28,13 @@ export function ClientSidebar() {
     }
   };
 
-  const nextFollowUp = client.followUps.find(
-    (fu) => fu.followUpDate && new Date(fu.followUpDate) > new Date()
-  );
+  // Soonest pending follow-up (earliest date, including overdue ones).
+  const nextFollowUp = client.followUps
+    .filter((fu) => fu.followUpDate)
+    .sort(
+      (a, b) =>
+        new Date(a.followUpDate!).getTime() - new Date(b.followUpDate!).getTime()
+    )[0];
 
   return (
     <div className="p-4 space-y-4">
@@ -110,8 +115,15 @@ export function ClientSidebar() {
                 Active follow-ups: {client.followUps.length}
               </div>
               {nextFollowUp && (
-                <div className="p-2 bg-accent rounded">
-                  <div className="text-sm font-medium">Next</div>
+                <div className="p-2 bg-accent rounded space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-sm font-medium">Next</div>
+                    {isFollowUpOverdue(nextFollowUp.followUpDate!) ? (
+                      <Badge variant="destructive" className="text-xs">Overdue</Badge>
+                    ) : isFollowUpUpcoming(nextFollowUp.followUpDate!) ? (
+                      <Badge variant="secondary" className="text-xs">Upcoming</Badge>
+                    ) : null}
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     {format(new Date(nextFollowUp.followUpDate!), "MMM d, yyyy")}
                   </div>

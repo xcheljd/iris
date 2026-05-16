@@ -13,17 +13,28 @@ import { logOutreach } from "@/lib/actions";
 import { toast } from "sonner";
 import { Phone, MessageSquare, Mail, User } from "lucide-react";
 
+type Method = "call" | "text" | "email" | "in-person";
+
 type Props = {
   clientId: string;
   clientName: string;
   trigger?: React.ReactNode;
   templates?: { id: string; name: string; body: string }[];
+  defaultMethod?: Method;
+  defaultOutcome?: string;
 };
 
-export function OutreachLogger({ clientId, clientName, trigger, templates = [] }: Props) {
+export function OutreachLogger({
+  clientId,
+  clientName,
+  trigger,
+  templates = [],
+  defaultMethod = "call",
+  defaultOutcome = "no_answer",
+}: Props) {
   const [open, setOpen] = useState(false);
-  const [method, setMethod] = useState<"call" | "text" | "email" | "in-person">("call");
-  const [outcome, setOutcome] = useState<string>("no_answer");
+  const [method, setMethod] = useState<Method>(defaultMethod);
+  const [outcome, setOutcome] = useState<string>(defaultOutcome);
   const [purchasedModel, setPurchasedModel] = useState("");
   const [notes, setNotes] = useState("");
   const [followUp, setFollowUp] = useState<Date | null>(null);
@@ -45,7 +56,7 @@ export function OutreachLogger({ clientId, clientName, trigger, templates = [] }
   }
 
   function reset() {
-    setMethod("call"); setOutcome("no_answer"); setPurchasedModel(""); setNotes(""); setFollowUp(null); setTemplateId("");
+    setMethod(defaultMethod); setOutcome(defaultOutcome); setPurchasedModel(""); setNotes(""); setFollowUp(null); setTemplateId("");
   }
 
   function submit() {

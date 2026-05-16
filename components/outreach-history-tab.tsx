@@ -4,14 +4,16 @@ import { useState, useTransition } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Phone, Calendar, Clock, CheckCircle, ChevronDown } from "lucide-react";
+import { Phone, Calendar, Clock, CheckCircle, ChevronDown, CalendarClock, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/empty-state";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import type { FullClient } from "@/components/client-provider";
 import type { OutreachLog } from "@/lib/db/schema";
-import { getMethodIcon } from "@/lib/outreach-helpers";
-import { markFollowUpComplete } from "@/lib/actions";
+import { getMethodIcon, isFollowUpOverdue, isFollowUpUpcoming } from "@/lib/outreach-helpers";
+import { markFollowUpComplete, rescheduleFollowUp } from "@/lib/actions";
 import { OutreachLogger } from "@/components/outreach-logger";
 
 const PAGE_SIZE = 10;
@@ -30,6 +32,17 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
         toast.success("Follow-up marked complete");
       } catch {
         toast.error("Failed to mark complete");
+      }
+    });
+  };
+
+  const handleReschedule = (logId: string, date: Date) => {
+    startTransition(async () => {
+      try {
+        await rescheduleFollowUp(logId, format(date, "yyyy-MM-dd"));
+        toast.success(`Follow-up rescheduled to ${format(date, "MMM d, yyyy")}`);
+      } catch {
+        toast.error("Failed to reschedule follow-up");
       }
     });
   };
@@ -60,19 +73,6 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
         {labels[outcome] || outcome.replace(/_/g, " ")}
       </Badge>
     );
-  };
-
-  const isFollowUpOverdue = (followUpDate: Date | string | null) => {
-    if (!followUpDate) return false;
-    return new Date(followUpDate) < new Date();
-  };
-
-  const isFollowUpUpcoming = (followUpDate: Date | string | null) => {
-    if (!followUpDate) return false;
-    const today = new Date();
-    const followUp = new Date(followUpDate);
-    const daysDiff = Math.ceil((followUp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return daysDiff >= 0 && daysDiff <= 7;
   };
 
   const outreachLogs: OutreachLog[] = client.outreach || [];
@@ -160,7 +160,21 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
                           {format(new Date(log.date), "MMM d, yyyy")}
                         </span>
                       </div>
-                      {getOutcomeBadge(log.outcome)}
+                      <div className="flex items-center gap-2">
+                        {getOutcomeBadge(log.outcome)}
+                        <OutreachLogger
+                          key={`relog-${log.id}`}
+                          clientId={client.id}
+                          clientName={`${client.firstName} ${client.lastName}`}
+                          defaultMethod={log.method as "call" | "text" | "email" | "in-person"}
+                          trigger={
+                            <Button variant="ghost" size="sm" title="Log another outreach with this method">
+                              <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                              Re-log
+                            </Button>
+                          }
+                        />
+                      </div>
                     </div>
 
                     {log.purchasedModel && (
@@ -179,33 +193,63 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
                       </div>
                     )}
 
-                    {log.followUpDate && !log.completed && (
-                      <div className="flex items-center justify-between mt-3 pt-3 border-t">
+                    {log.followUpDate && (
+                      <div className="flex items-center justify-between mt-3 pt-3 border-t gap-2 flex-wrap">
                         <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
-                          <span className="text-sm">
+                          {log.completed ? (
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <Calendar className="h-4 w-4" />
+                          )}
+                          <span className={`text-sm ${log.completed ? "text-muted-foreground line-through" : ""}`}>
                             Follow up: {format(new Date(log.followUpDate), "MMM d, yyyy")}
                           </span>
-                          {isFollowUpOverdue(log.followUpDate) && (
-                            <Badge variant="destructive" className="text-xs">
-                              Overdue
+                          {log.completed ? (
+                            <Badge variant="outline" className="text-xs border-green-600/40 text-green-700">
+                              Completed
                             </Badge>
-                          )}
-                          {isFollowUpUpcoming(log.followUpDate) && (
-                            <Badge variant="secondary" className="text-xs">
-                              Upcoming
-                            </Badge>
+                          ) : (
+                            <>
+                              {isFollowUpOverdue(log.followUpDate) && (
+                                <Badge variant="destructive" className="text-xs">
+                                  Overdue
+                                </Badge>
+                              )}
+                              {isFollowUpUpcoming(log.followUpDate) && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Upcoming
+                                </Badge>
+                              )}
+                            </>
                           )}
                         </div>
                         {!log.completed && (
-                          <Button
-                            size="sm"
-                            disabled={isPending}
-                            onClick={() => handleComplete(log.id)}
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            {isPending ? "Saving…" : "Complete"}
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button variant="outline" size="sm" disabled={isPending}>
+                                  <CalendarClock className="h-4 w-4 mr-1" />
+                                  Reschedule
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="end">
+                                <CalendarPicker
+                                  mode="single"
+                                  selected={new Date(log.followUpDate)}
+                                  onSelect={(d) => d && handleReschedule(log.id, d)}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                            <Button
+                              size="sm"
+                              disabled={isPending}
+                              onClick={() => handleComplete(log.id)}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              {isPending ? "Saving…" : "Complete"}
+                            </Button>
+                          </div>
                         )}
                       </div>
                     )}

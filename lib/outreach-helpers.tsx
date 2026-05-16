@@ -21,6 +21,19 @@ export function getMethodBadgeVariant(method: string) {
   }
 }
 
+export function isFollowUpOverdue(followUpDate: Date | string | null) {
+  if (!followUpDate) return false;
+  return new Date(followUpDate) < new Date();
+}
+
+export function isFollowUpUpcoming(followUpDate: Date | string | null) {
+  if (!followUpDate) return false;
+  const today = new Date();
+  const followUp = new Date(followUpDate);
+  const daysDiff = Math.ceil((followUp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  return daysDiff >= 0 && daysDiff <= 7;
+}
+
 export function getOutcomeColor(outcome: string) {
   switch (outcome) {
     case "purchased": return "text-emerald-500";
