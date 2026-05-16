@@ -12,6 +12,7 @@ import type { FullClient } from "@/components/client-provider";
 import type { OutreachLog } from "@/lib/db/schema";
 import { getMethodIcon } from "@/lib/outreach-helpers";
 import { markFollowUpComplete } from "@/lib/actions";
+import { OutreachLogger } from "@/components/outreach-logger";
 
 const PAGE_SIZE = 10;
 
@@ -127,10 +128,22 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            Outreach History
-          </CardTitle>
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Outreach History
+            </CardTitle>
+            <OutreachLogger
+              clientId={client.id}
+              clientName={`${client.firstName} ${client.lastName}`}
+              trigger={
+                <Button variant="gold" size="sm">
+                  <Phone className="h-3.5 w-3.5 mr-1.5" />
+                  Log Outreach
+                </Button>
+              }
+            />
+          </div>
         </CardHeader>
         <CardContent>
           {outreachLogs.length > 0 ? (

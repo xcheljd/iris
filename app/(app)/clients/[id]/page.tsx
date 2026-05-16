@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { clients, outreachLogs, activityEvents, promoMatches, promoWatches, clientTags, employees } from "@/lib/db/schema";
-import { eq, desc, and, isNull, sql } from "drizzle-orm";
+import { eq, desc, and, isNotNull, sql } from "drizzle-orm";
 import { ClientDetailContent } from "./client-detail-content";
 import { ClientDetailSkeleton } from "@/components/skeletons";
 import { getSession } from "@/lib/auth";
@@ -64,7 +64,8 @@ async function getFullClient(clientId: string) {
     .where(
       and(
         eq(outreachLogs.clientId, clientId),
-        isNull(outreachLogs.completed)
+        isNotNull(outreachLogs.followUpDate),
+        eq(outreachLogs.completed, false)
       )
     )
     .orderBy(desc(outreachLogs.followUpDate))

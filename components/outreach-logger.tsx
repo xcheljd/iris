@@ -49,6 +49,10 @@ export function OutreachLogger({ clientId, clientName, trigger, templates = [] }
   }
 
   function submit() {
+    if (outcome === "purchased" && !purchasedModel.trim()) {
+      toast.error("Enter the model purchased before saving");
+      return;
+    }
     start(async () => {
       const result = await logOutreach({
         clientId,
@@ -71,12 +75,12 @@ export function OutreachLogger({ clientId, clientName, trigger, templates = [] }
       <DialogTrigger asChild>
         {trigger ?? <Button variant="gold" size="sm"><Phone className="h-3.5 w-3.5 mr-1.5" />Log Outreach</Button>}
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg flex flex-col max-h-[85vh]">
         <DialogHeader>
           <DialogTitle>Log outreach — {clientName}</DialogTitle>
           <DialogDescription>Log an outreach interaction with this client.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-2 overflow-y-auto -mx-6 px-6 flex-1">
           <div className="space-y-2">
             <Label>Method</Label>
             <ToggleGroup

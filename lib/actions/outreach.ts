@@ -37,7 +37,12 @@ async function createPromoMatchIfApplies(clientId: string, modelNumber: string) 
 
 export async function logOutreach(data: OutreachInput): Promise<{ error: string } | undefined> {
   const result = outreachInputSchema.safeParse(data);
-  if (!result.success) return { error: "Invalid outreach data" };
+  if (!result.success) {
+    const details = result.error.issues
+      .map((i) => `${i.path.join(".") || "form"}: ${i.message}`)
+      .join("; ");
+    return { error: `Invalid outreach data — ${details}` };
+  }
   const parsed = result.data;
   // B-5: getSessionUser() intentionally used instead of requireAuth() — outreach can be
   // logged without attributing it to an employee (employeeId is nullable by design).
