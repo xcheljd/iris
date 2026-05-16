@@ -9,6 +9,8 @@ import { ClientForm } from "@/components/client-form";
 import type { ClientFormData } from "@/components/client-form";
 import type { ClientSource, ProductOfInterest } from "@/lib/db/schema";
 import { validateClientForm } from "@/lib/validation/client";
+import { useCatalog } from "@/components/use-catalog";
+import { correctCatalog } from "@/lib/actions";
 
 interface ClientData {
   id: string;
@@ -43,6 +45,11 @@ interface EditClientFormProps {
 
 export function EditClientForm({ initialClient, clientId, employees }: EditClientFormProps) {
   const router = useRouter();
+  const { catalogMap, isManager, refetchCatalog } = useCatalog();
+  const handleCorrectCatalog = async (m: string, c: string) => {
+    await correctCatalog(m, c);
+    await refetchCatalog();
+  };
   const [isPending, start] = useTransition();
   const [_isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
@@ -183,6 +190,9 @@ export function EditClientForm({ initialClient, clientId, employees }: EditClien
           </div>
 
           <ClientForm
+            catalogMap={catalogMap}
+            isManager={isManager}
+            onCorrectCatalog={handleCorrectCatalog}
             formData={formData}
             productsOfInterest={productsOfInterest}
             newTag={newTag}

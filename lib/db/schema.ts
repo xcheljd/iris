@@ -41,12 +41,18 @@ export const employees = sqliteTable("employees", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
+export const INTEREST_INTENT_VALUES = ["interested", "promo", "arrival"] as const;
+export type InterestIntent = typeof INTEREST_INTENT_VALUES[number];
+
 // A structured product of interest. At least one of model/collection is
-// non-null (enforced at the validation layer, not the DB). Free-text/fuzzy
-// interests ("anything titanium") belong in `clients.notes`, not here.
+// non-null (enforced at the validation layer, not the DB). `intent` is
+// required (picked explicitly on add); readers treat a missing intent as
+// "interested" defensively. Free-text/fuzzy interests ("anything
+// titanium") belong in `clients.notes`, not here.
 export type ProductOfInterest = {
   model: string | null;
   collection: string | null;
+  intent: InterestIntent;
 };
 
 export const clients = sqliteTable("clients", {
@@ -157,15 +163,21 @@ export const promoMatches = sqliteTable("promo_matches", {
 
 // Durable model → collection catalog. Accumulates from promo writes and
 // client interest entries; survives the weekly promo "Clear All & Reset".
-// `model` is stored uppercase (see normalizeModel). `source` records who
-// last set the row — promo writes are authoritative and overwrite; manual
-// entries only fill when a model is absent (see recordModelCollection).
+// `model` is stored uppercase (see normalizeModel). `source` precedence is
+// curated > promo > manual: a manager correction is `curated` and is never
+// overwritten by a promo import — a disagreeing import records the latest
+// pending conflict in the flagged* columns for review (see
+// recordModelCollection / correctCatalog).
 export const modelCatalog = sqliteTable("model_catalog", {
   model: text("model").primaryKey(),
   collection: text("collection").notNull(),
-  source: text("source", { enum: ["promo", "manual"] }).notNull(),
+  source: text("source", { enum: ["promo", "manual", "curated"] }).notNull(),
   firstSeenAt: integer("first_seen_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  // Latest pending promo-vs-curated conflict (one per model).
+  flaggedCollection: text("flagged_collection"),
+  flaggedSource: text("flagged_source"),
+  flaggedAt: integer("flagged_at", { mode: "timestamp" }),
 });
 
 export const bannedCustomers = sqliteTable("banned_customers", {

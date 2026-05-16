@@ -13,25 +13,33 @@ export type CatalogConflict = {
   attempted: string;
 };
 
+export type CatalogFlagged = {
+  model: string;
+  curated: string;
+  attempted: string;
+};
+
 /**
  * Upsert a model → collection pairing into the durable catalog.
  *
- * Conflict policy:
- *  - `promo` is authoritative: always (re)writes the row.
- *  - `manual` only fills when the model is unknown; it never overwrites an
- *    existing row. If a manual entry disagrees with the stored collection,
- *    the existing value is kept and the conflict is returned so the caller
- *    can surface it.
+ * Precedence: curated > promo > manual.
+ *  - `curated` (manager correction) is authoritative: always (re)writes
+ *    and clears any pending flag.
+ *  - `promo` overwrites a `promo`/`manual` row, but NEVER a `curated` one
+ *    — a disagreeing promo import records the latest pending conflict in
+ *    the flagged* columns and returns `{ flagged }` for review.
+ *  - `manual` only fills when the model is unknown; it never overwrites.
+ *    A disagreeing manual entry keeps the stored value and returns
+ *    `{ conflict }`.
  *
- * No-ops when model or collection is missing (a collection-only or
- * model-only interest contributes nothing to a model→collection map).
+ * No-ops when model or collection is missing.
  */
 export function recordModelCollection(
   tx: DbOrTx,
   model: string | null | undefined,
   collection: string | null | undefined,
-  source: "promo" | "manual",
-): { conflict?: CatalogConflict } {
+  source: "promo" | "manual" | "curated",
+): { conflict?: CatalogConflict; flagged?: CatalogFlagged } {
   const m = normalizeModel(model);
   const c = (collection ?? "").trim();
   if (!m || !c) return {};
@@ -43,7 +51,34 @@ export function recordModelCollection(
     return {};
   }
 
+  if (source === "curated") {
+    tx.update(modelCatalog)
+      .set({
+        collection: c,
+        source: "curated",
+        updatedAt: new Date(),
+        flaggedCollection: null,
+        flaggedSource: null,
+        flaggedAt: null,
+      })
+      .where(eq(modelCatalog.model, m))
+      .run();
+    return {};
+  }
+
   if (source === "promo") {
+    if (existing.source === "curated") {
+      // Never overwrite a manager correction; record the latest pending
+      // conflict for review when it actually disagrees.
+      if (existing.collection.toUpperCase() !== c.toUpperCase()) {
+        tx.update(modelCatalog)
+          .set({ flaggedCollection: c, flaggedSource: "promo", flaggedAt: new Date() })
+          .where(eq(modelCatalog.model, m))
+          .run();
+        return { flagged: { model: m, curated: existing.collection, attempted: c } };
+      }
+      return {};
+    }
     if (existing.collection !== c || existing.source !== "promo") {
       tx.update(modelCatalog)
         .set({ collection: c, source: "promo", updatedAt: new Date() })

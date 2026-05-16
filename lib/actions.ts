@@ -9,3 +9,4 @@ export * from "./actions/approvals";
 export * from "./actions/rvx-import";
 export * from "./actions/prospects";
 export * from "./actions/onboarding";
+export * from "./actions/catalog";

@@ -97,6 +97,16 @@ const insCatalog = sqlite.prepare(
 for (const p of productCatalog) {
   insCatalog.run(p.model.toUpperCase(), p.collection, "promo", now - 30 * day, now - 30 * day);
 }
+// One manager-curated row, and one curated row with a pending promo
+// conflict flag — so the /catalog screen has data to exercise.
+sqlite
+  .prepare("UPDATE model_catalog SET source='curated', updated_at=? WHERE model=?")
+  .run(now - 5 * day, "IX1014-01X");
+sqlite
+  .prepare(
+    "UPDATE model_catalog SET source='curated', flagged_collection=?, flagged_source='promo', flagged_at=? WHERE model=?",
+  )
+  .run("SENTINEL", now - 1 * day, "IX1006-01X");
 
 // Templates
 const templates = [
@@ -157,15 +167,17 @@ for (let i = 0; i < 22; i++) {
   const owner = pick(employees);
   // Mix of interest shapes: ~15% none (email-only), ~15% collection-only,
   // rest 1-3 structured {model, collection} pairs.
+  const intents = ["interested", "promo", "arrival"] as const;
   const interestRoll = Math.random();
-  const interests: { model: string | null; collection: string | null }[] =
+  const interests: { model: string | null; collection: string | null; intent: "interested" | "promo" | "arrival" }[] =
     interestRoll < 0.15
       ? []
       : interestRoll < 0.3
-        ? [{ model: null, collection: pick(knownCollections) }]
+        ? [{ model: null, collection: pick(knownCollections), intent: pick([...intents]) }]
         : pickMany(productCatalog, 1 + Math.floor(Math.random() * 3)).map((p) => ({
             model: p.model,
             collection: p.collection,
+            intent: pick([...intents]),
           }));
   const tagList = Math.random() > 0.4 ? pickMany(clientTagPool, 1 + Math.floor(Math.random() * 2)) : [];
   const status = pick(statuses);

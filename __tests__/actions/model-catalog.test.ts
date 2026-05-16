@@ -8,11 +8,13 @@ import { db } from "@/lib/db";
 import { clients, promoWatches, promoMatches, modelCatalog } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
-import { createPromo, clearAllPromos } from "@/lib/actions";
+import { createPromo, clearAllPromos, correctCatalog, resolveFlag } from "@/lib/actions";
 import { recordModelCollection, getCatalogMap } from "@/lib/actions/model-catalog";
 
 const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
+const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23";
 const managerSession = { user: { id: MANAGER_ID, name: "Marcus", role: "manager" } };
+const associateSession = { user: { id: ASSOCIATE_ID, name: "Jordan", role: "associate" } };
 
 describe("model catalog", () => {
   const promoIds: string[] = [];
@@ -89,11 +91,11 @@ describe("model catalog", () => {
 
     db.insert(clients).values({
       id: modelClientId, firstName: "ModelMatch",
-      productsOfInterest: [{ model, collection: null }],
+      productsOfInterest: [{ model, collection: null, intent: "interested" }],
     }).run();
     db.insert(clients).values({
       id: collClientId, firstName: "CollMatch",
-      productsOfInterest: [{ model: null, collection }],
+      productsOfInterest: [{ model: null, collection, intent: "interested" }],
     }).run();
 
     await createPromo(model, collection);
@@ -111,7 +113,7 @@ describe("model catalog", () => {
     clientIds.push(clientId);
     db.insert(clients).values({
       id: clientId, firstName: "SeriesGuy",
-      productsOfInterest: [{ model: null, collection: "Octa 770" }],
+      productsOfInterest: [{ model: null, collection: "Octa 770", intent: "interested" }],
     }).run();
 
     await createPromo(`SER-${Date.now()}`, "Octa");
@@ -122,5 +124,64 @@ describe("model catalog", () => {
       .where(eq(promoMatches.promoId, promo.id)).all()
       .find((m) => m.clientId === clientId);
     expect(match).toBeUndefined(); // "Octa" must not match "Octa 770"
+  });
+
+  it("correctCatalog cascades the collection to client entries and curates the row", async () => {
+    const clientId = randomUUID();
+    clientIds.push(clientId);
+    const model = `COR-${Date.now()}`;
+    catalogModels.push(model);
+    recordModelCollection(db, model, "OLDCOLL", "manual");
+    db.insert(clients).values({
+      id: clientId, firstName: "Cascade",
+      productsOfInterest: [{ model, collection: "OLDCOLL", intent: "promo" }],
+    }).run();
+
+    const res = await correctCatalog(model, "NEWCOLL");
+    expect("affected" in res && res.affected).toBe(1);
+    expect(getCatalogMap()[model]).toBe("NEWCOLL");
+    const row = db.select().from(modelCatalog).where(eq(modelCatalog.model, model)).get()!;
+    expect(row.source).toBe("curated");
+    const c = db.select().from(clients).where(eq(clients.id, clientId)).get()!;
+    expect(c.productsOfInterest[0].collection).toBe("NEWCOLL");
+  });
+
+  it("flags (does not overwrite) a curated row on a disagreeing promo import, and resolveFlag works", async () => {
+    const model = `FLG-${Date.now()}`;
+    catalogModels.push(model);
+    await correctCatalog(model, "CURATEDCOLL"); // creates curated row
+    await createPromo(model, "PROMOCOLL");
+    const promo = db.select().from(promoWatches).where(eq(promoWatches.modelNumber, model)).get();
+    if (promo) promoIds.push(promo.id);
+
+    let row = db.select().from(modelCatalog).where(eq(modelCatalog.model, model)).get()!;
+    expect(row.collection).toBe("CURATEDCOLL"); // not overwritten
+    expect(row.flaggedCollection).toBe("PROMOCOLL");
+
+    // Reject → keep curated, clear flag.
+    await resolveFlag(model, false);
+    row = db.select().from(modelCatalog).where(eq(modelCatalog.model, model)).get()!;
+    expect(row.collection).toBe("CURATEDCOLL");
+    expect(row.flaggedCollection).toBeNull();
+  });
+
+  it("resolveFlag(accept) adopts the promo value", async () => {
+    const model = `FLA-${Date.now()}`;
+    catalogModels.push(model);
+    await correctCatalog(model, "CURATEDCOLL");
+    await createPromo(model, "PROMOCOLL");
+    const promo = db.select().from(promoWatches).where(eq(promoWatches.modelNumber, model)).get();
+    if (promo) promoIds.push(promo.id);
+
+    await resolveFlag(model, true);
+    const row = db.select().from(modelCatalog).where(eq(modelCatalog.model, model)).get()!;
+    expect(row.collection).toBe("PROMOCOLL");
+    expect(row.flaggedCollection).toBeNull();
+  });
+
+  it("rejects catalog correction from an associate (manager only)", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(associateSession as never);
+    await expect(correctCatalog("ANY-1", "X")).rejects.toThrow();
+    vi.mocked(getServerSession).mockResolvedValue(managerSession as never);
   });
 });

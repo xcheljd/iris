@@ -17,22 +17,27 @@ describe("normalizeModel", () => {
 
 describe("productOfInterestSchema", () => {
   it("accepts a model + collection pair (model upper-cased)", () => {
-    const r = productOfInterestSchema.parse({ model: "ix1002-01x", collection: "Sentinel" });
-    expect(r).toEqual({ model: "IX1002-01X", collection: "Sentinel" });
+    const r = productOfInterestSchema.parse({ model: "ix1002-01x", collection: "Sentinel", intent: "promo" });
+    expect(r).toEqual({ model: "IX1002-01X", collection: "Sentinel", intent: "promo" });
   });
 
   it("accepts a collection-only interest", () => {
-    expect(productOfInterestSchema.parse({ model: "", collection: "CRIMSON ACE" }))
-      .toEqual({ model: null, collection: "CRIMSON ACE" });
+    expect(productOfInterestSchema.parse({ model: "", collection: "CRIMSON ACE", intent: "arrival" }))
+      .toEqual({ model: null, collection: "CRIMSON ACE", intent: "arrival" });
   });
 
   it("accepts a bare model interest", () => {
-    expect(productOfInterestSchema.parse({ model: "lx1012-01x", collection: null }))
-      .toEqual({ model: "LX1012-01X", collection: null });
+    expect(productOfInterestSchema.parse({ model: "lx1012-01x", collection: null, intent: "interested" }))
+      .toEqual({ model: "LX1012-01X", collection: null, intent: "interested" });
   });
 
   it("rejects an entry with neither model nor collection", () => {
-    expect(productOfInterestSchema.safeParse({ model: "", collection: "  " }).success).toBe(false);
-    expect(productOfInterestSchema.safeParse({ model: null, collection: null }).success).toBe(false);
+    expect(productOfInterestSchema.safeParse({ model: "", collection: "  ", intent: "promo" }).success).toBe(false);
+    expect(productOfInterestSchema.safeParse({ model: null, collection: null, intent: "promo" }).success).toBe(false);
+  });
+
+  it("requires a valid intent", () => {
+    expect(productOfInterestSchema.safeParse({ model: "AT1-1", collection: null }).success).toBe(false);
+    expect(productOfInterestSchema.safeParse({ model: "AT1-1", collection: null, intent: "bogus" }).success).toBe(false);
   });
 });

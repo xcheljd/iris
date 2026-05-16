@@ -124,8 +124,8 @@ export async function ensureTourDemoClient(): Promise<string> {
     email: "alex.tourguide@example.com",
     employeeId: user.id,
     productsOfInterest: [
-      { model: "IX1002-01X", collection: "CAMBRIDGE" },
-      { model: "LX1024-01X", collection: "LUNARIS" },
+      { model: "IX1002-01X", collection: "CAMBRIDGE", intent: "promo" },
+      { model: "LX1024-01X", collection: "LUNARIS", intent: "interested" },
     ],
     notes: "This is an example client profile used by the onboarding tour.",
     onEmailList: true,

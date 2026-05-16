@@ -1,204 +1,302 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Star, Gem, Clock, Users } from "lucide-react";
-import { useState } from "react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Filter, ArrowUpDown, MoreHorizontal, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { OutreachLogger } from "@/components/outreach-logger";
 import { EmptyState } from "@/components/empty-state";
+import { normalizeModel } from "@/lib/normalize";
+import { INTEREST_INTENT_VALUES, type InterestIntent } from "@/lib/db/schema";
 import type { FullClient, PromoMatchWithPromo } from "@/components/client-provider";
 
 interface InterestsTabProps {
   client: FullClient;
 }
 
+const INTENT_LABEL: Record<InterestIntent, string> = {
+  interested: "Interested",
+  promo: "Promo",
+  arrival: "Arrival",
+};
+
+type SortKey = "intent" | "model" | "collection" | "promo";
+
+interface Row {
+  intent: InterestIntent;
+  model: string | null;
+  collection: string | null;
+  /** Promo cell: model/collection match with price, or collection-only "select models". */
+  promoLabel: string;
+  promoModels: string[]; // for collection-only "select models"
+  promoModelNumber: string | null; // matched promo's model (for copy/template)
+  promoCollection: string | null;
+}
+
 export function InterestsTab({ client }: InterestsTabProps) {
-  const [activeTab, setActiveTab] = useState<"models" | "collections" | "matches">("models");
-
-  const models = Array.from(
-    new Set(
-      client.productsOfInterest
-        .map((p) => p.model)
-        .filter((m): m is string => !!m)
-    )
-  ).sort();
-
-  const collections = Array.from(
-    new Set(
-      client.productsOfInterest
-        .map((p) => p.collection)
-        .filter((c): c is string => !!c)
-    )
-  ).sort();
-
-  const promoMatches = client.matches.filter(
-    (match: PromoMatchWithPromo) => match.promo?.modelNumber || match.promo?.collection
+  const matched = client.matches.filter(
+    (m: PromoMatchWithPromo) => m.promo?.modelNumber || m.promo?.collection,
   );
 
-  const handleCopyTemplate = (modelNumber: string, collection: string) => {
-    const template = `Hi ${client.firstName}, we have a great promo on the ${modelNumber} from the ${collection} collection. Would you like to come in and take a look?`;
-    navigator.clipboard.writeText(template);
+  const rows: Row[] = useMemo(() => {
+    return (client.productsOfInterest ?? []).map((p) => {
+      const intent: InterestIntent = p.intent ?? "interested";
+      const m = normalizeModel(p.model);
+      const coll = (p.collection ?? "").trim();
+
+      // Model match: a matched promo with the same model number.
+      const modelHit = m
+        ? matched.find((x) => normalizeModel(x.promo?.modelNumber) === m)
+        : undefined;
+      // Collection match: a matched promo with the same collection.
+      const collHits = coll
+        ? matched.filter(
+            (x) => (x.promo?.collection ?? "").trim().toUpperCase() === coll.toUpperCase(),
+          )
+        : [];
+
+      let promoLabel = "—";
+      let promoModels: string[] = [];
+      let promoModelNumber: string | null = null;
+      let promoCollection: string | null = null;
+
+      if (modelHit?.promo) {
+        promoModelNumber = modelHit.promo.modelNumber;
+        promoCollection = modelHit.promo.collection;
+        promoLabel = modelHit.promo.discountPrice != null
+          ? `$${modelHit.promo.discountPrice.toFixed(2)} · model`
+          : "On promo · model";
+      } else if (collHits.length > 0) {
+        if (!p.model) {
+          // Collection-only interest: surface the specific promo models.
+          promoModels = Array.from(new Set(collHits.map((x) => x.promo!.modelNumber)));
+          promoCollection = collHits[0].promo!.collection;
+          promoLabel = "Select models";
+        } else {
+          promoModelNumber = collHits[0].promo!.modelNumber;
+          promoCollection = collHits[0].promo!.collection;
+          promoLabel = "On promo · collection";
+        }
+      }
+
+      return { intent, model: p.model, collection: p.collection, promoLabel, promoModels, promoModelNumber, promoCollection };
+    });
+  }, [client.productsOfInterest, matched]);
+
+  // --- sort + filter state ---
+  const [sortKey, setSortKey] = useState<SortKey>("intent");
+  const [sortDir, setSortDir] = useState<1 | -1>(1);
+  const [intentFilter, setIntentFilter] = useState<Set<InterestIntent>>(new Set());
+  const [modelFilter, setModelFilter] = useState("");
+  const [collectionFilter, setCollectionFilter] = useState("");
+  const [promoOnly, setPromoOnly] = useState<"" | "has" | "none">("");
+
+  const toggleSort = (k: SortKey) => {
+    if (sortKey === k) setSortDir((d) => (d === 1 ? -1 : 1));
+    else { setSortKey(k); setSortDir(1); }
   };
 
+  const visible = useMemo(() => {
+    let r = rows;
+    if (intentFilter.size > 0) r = r.filter((x) => intentFilter.has(x.intent));
+    if (modelFilter.trim()) r = r.filter((x) => (x.model ?? "").toUpperCase().includes(modelFilter.trim().toUpperCase()));
+    if (collectionFilter.trim()) r = r.filter((x) => (x.collection ?? "").toUpperCase().includes(collectionFilter.trim().toUpperCase()));
+    if (promoOnly === "has") r = r.filter((x) => x.promoLabel !== "—");
+    if (promoOnly === "none") r = r.filter((x) => x.promoLabel === "—");
+    const val = (x: Row) =>
+      sortKey === "intent" ? x.intent
+        : sortKey === "model" ? (x.model ?? "")
+        : sortKey === "collection" ? (x.collection ?? "")
+        : x.promoLabel;
+    return [...r].sort((a, b) => val(a).localeCompare(val(b)) * sortDir);
+  }, [rows, intentFilter, modelFilter, collectionFilter, promoOnly, sortKey, sortDir]);
+
+  const copyTemplate = (model: string, collection: string) => {
+    navigator.clipboard.writeText(
+      `Hi ${client.firstName}, we have a great promo on the ${model} from the ${collection} collection. Would you like to come in and take a look?`,
+    );
+    toast.success("Outreach template copied");
+  };
+
+  const SortHead = ({ k, label }: { k: SortKey; label: string }) => (
+    <button className="flex items-center gap-1 font-medium" onClick={() => toggleSort(k)}>
+      {label}
+      <ArrowUpDown className={`h-3 w-3 ${sortKey === k ? "text-foreground" : "text-muted-foreground/50"}`} />
+    </button>
+  );
+
   return (
-    <div className="space-y-6">
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "models" | "collections" | "matches")}>
-        <TabsList>
-          <TabsTrigger value="models">Models of Interest</TabsTrigger>
-          <TabsTrigger value="collections">Collections</TabsTrigger>
-          <TabsTrigger value="matches">Promo Matches</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="models">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Models of Interest
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {models.length > 0 ? (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {models.map((model) => (
-                    <Badge
-                      key={model}
-                      variant="outline"
-                      className="p-3 text-center justify-center cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-                      onClick={() => navigator.clipboard.writeText(model)}
-                    >
-                      {model}
-                    </Badge>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState icon={Clock} title="No models of interest recorded" compact />
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="collections">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Collections of Interest
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {collections.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {collections.map((collection) => (
-                    <Badge
-                      key={collection}
-                      variant="secondary"
-                      className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-                      onClick={() => navigator.clipboard.writeText(collection)}
-                    >
-                      {collection}
-                    </Badge>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState icon={Users} title="No collections of interest recorded" compact />
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="matches">
-          <div className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Star className="h-5 w-5" />
-                  Current Promo Matches
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-4">
-                  <div className="text-3xl font-bold text-primary">
-                    {promoMatches.length}
-                  </div>
-                  <div className="text-muted-foreground">
-                    Promos match this client&apos;s interests
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {promoMatches.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Promo Items</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {promoMatches.map((match: PromoMatchWithPromo) => (
-                      <div key={match.match.id} className="border rounded-lg p-4">
-                        <div className="flex items-start justify-between mb-2">
-                          <div>
-                            <div className="font-medium">
-                              {match.promo?.modelNumber}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {match.promo?.collection}
-                            </div>
-                          </div>
-                          <Badge
-                            variant={match.match.matchType === "model" ? "default" : "secondary"}
-                            className="flex items-center gap-1"
-                          >
-                            {match.match.matchType === "model" ? (
-                              <Star className="h-3 w-3" />
-                            ) : (
-                              <Gem className="h-3 w-3" />
-                            )}
-                            {match.match.matchType}
-                          </Badge>
-                        </div>
-
-                        <div className="flex gap-2 mt-3">
-                          <OutreachLogger
-                            clientId={client.id}
-                            clientName={`${client.firstName} ${client.lastName || ""}`}
-                            trigger={
-                              <Button size="sm">
-                                Log Outreach
-                              </Button>
-                            }
-                          />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigator.clipboard.writeText(match.promo?.modelNumber || "")}
-                          >
-                            Copy Model
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              handleCopyTemplate(match.promo?.modelNumber || "", match.promo?.collection || "");
-                              toast.success("Outreach template copied");
-                            }}
-                          >
-                            Copy Template
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Tag className="h-5 w-5" />
+          Products of Interest
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {rows.length === 0 ? (
+          <EmptyState icon={Tag} title="No products of interest recorded" compact />
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
+                    <div className="flex items-center gap-1">
+                      <SortHead k="intent" label="Intent" />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button aria-label="Filter intent"><Filter className={`h-3 w-3 ${intentFilter.size ? "text-primary" : "text-muted-foreground/50"}`} /></button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-44 space-y-1">
+                          {INTEREST_INTENT_VALUES.map((it) => (
+                            <label key={it} className="flex items-center gap-2 text-sm">
+                              <input
+                                type="checkbox"
+                                checked={intentFilter.has(it)}
+                                onChange={(e) => {
+                                  const next = new Set(intentFilter);
+                                  if (e.target.checked) next.add(it); else next.delete(it);
+                                  setIntentFilter(next);
+                                }}
+                              />
+                              {INTENT_LABEL[it]}
+                            </label>
+                          ))}
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-1">
+                      <SortHead k="model" label="Model" />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button aria-label="Filter model"><Filter className={`h-3 w-3 ${modelFilter ? "text-primary" : "text-muted-foreground/50"}`} /></button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-56">
+                          <Input placeholder="Model contains…" value={modelFilter} onChange={(e) => setModelFilter(e.target.value)} />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-1">
+                      <SortHead k="collection" label="Collection" />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button aria-label="Filter collection"><Filter className={`h-3 w-3 ${collectionFilter ? "text-primary" : "text-muted-foreground/50"}`} /></button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-56">
+                          <Input placeholder="Collection contains…" value={collectionFilter} onChange={(e) => setCollectionFilter(e.target.value)} />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-1">
+                      <SortHead k="promo" label="Promo" />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button aria-label="Filter promo"><Filter className={`h-3 w-3 ${promoOnly ? "text-primary" : "text-muted-foreground/50"}`} /></button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-40 space-y-1">
+                          {([["", "All"], ["has", "On promo"], ["none", "Not on promo"]] as const).map(([v, l]) => (
+                            <label key={v} className="flex items-center gap-2 text-sm">
+                              <input type="radio" name="promoFilter" checked={promoOnly === v} onChange={() => setPromoOnly(v)} />
+                              {l}
+                            </label>
+                          ))}
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visible.map((r, i) => (
+                  <TableRow key={`${r.model ?? ""}|${r.collection ?? ""}|${r.intent}|${i}`}>
+                    <TableCell>
+                      <Badge variant={r.intent === "promo" ? "default" : r.intent === "arrival" ? "secondary" : "outline"}>
+                        {INTENT_LABEL[r.intent]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">{r.model ?? "—"}</TableCell>
+                    <TableCell>{r.collection ?? "—"}</TableCell>
+                    <TableCell>
+                      {r.promoLabel === "Select models" ? (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-7">Select models</Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-56 space-y-1">
+                            <p className="text-xs text-muted-foreground mb-1">
+                              Promo models in {r.promoCollection}. Copy one and add it via Edit Client.
+                            </p>
+                            {r.promoModels.map((pm) => (
+                              <button
+                                key={pm}
+                                className="block w-full text-left font-mono text-sm rounded px-2 py-1 hover:bg-muted"
+                                onClick={() => { navigator.clipboard.writeText(pm); toast.success(`Copied ${pm}`); }}
+                              >
+                                {pm}
+                              </button>
+                            ))}
+                          </PopoverContent>
+                        </Popover>
+                      ) : r.promoLabel === "—" ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <Badge variant="default">{r.promoLabel}</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {r.promoLabel !== "—" && r.promoLabel !== "Select models" && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="Promo actions">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <OutreachLogger
+                              clientId={client.id}
+                              clientName={`${client.firstName} ${client.lastName || ""}`}
+                              trigger={
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                  Log Outreach
+                                </DropdownMenuItem>
+                              }
+                            />
+                            <DropdownMenuItem onClick={() => { navigator.clipboard.writeText(r.promoModelNumber || r.model || ""); toast.success("Model copied"); }}>
+                              Copy Model
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => copyTemplate(r.promoModelNumber || r.model || "", r.promoCollection || r.collection || "")}>
+                              Copy Template
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <p className="text-xs text-muted-foreground text-center mt-3">
+              {visible.length} of {rows.length} {rows.length === 1 ? "interest" : "interests"}
+              {" · "}
+              {matched.length} active promo match{matched.length !== 1 ? "es" : ""}
+            </p>
           </div>
-        </TabsContent>
-      </Tabs>
-    </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

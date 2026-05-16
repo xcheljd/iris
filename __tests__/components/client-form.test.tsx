@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ClientForm } from "@/components/client-form";
 import type { ClientFormData } from "@/components/client-form";
+import type { ProductOfInterest } from "@/lib/db/schema";
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -27,7 +28,7 @@ const baseFormData: ClientFormData = {
 function createProps(overrides: Record<string, unknown> = {}) {
   return {
     formData: baseFormData,
-    productsOfInterest: [{ model: "KX1023-01X", collection: null }],
+    productsOfInterest: [{ model: "KX1023-01X", collection: null, intent: "interested" }] as ProductOfInterest[],
     newTag: "",
     onFieldChange: vi.fn(),
     onNewTagChange: vi.fn(),
@@ -59,7 +60,8 @@ describe("ClientForm", () => {
 
   it("renders existing products of interest", () => {
     render(<ClientForm {...createProps()} />);
-    expect(screen.getByText("KX1023-01X")).toBeInTheDocument();
+    // Badge renders as "<model> · <Intent>" in the structured editor.
+    expect(screen.getByText(/KX1023-01X/)).toBeInTheDocument();
   });
 
   it("renders existing tags", () => {

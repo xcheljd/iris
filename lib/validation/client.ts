@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CLIENT_SOURCE_VALUES } from "@/lib/db/schema";
+import { CLIENT_SOURCE_VALUES, INTEREST_INTENT_VALUES } from "@/lib/db/schema";
 import { normalizeModel } from "@/lib/normalize";
 
 // Coerces empty string to null; passes null/string through unchanged.
@@ -26,6 +26,7 @@ export const productOfInterestSchema = z
         const t = (c ?? "").trim();
         return t === "" ? null : t;
       }),
+    intent: z.enum(INTEREST_INTENT_VALUES),
   })
   .refine((p) => p.model !== null || p.collection !== null, {
     message: "A product of interest needs a model or a collection",

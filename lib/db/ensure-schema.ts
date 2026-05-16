@@ -18,7 +18,25 @@ export function ensureModelCatalog(sqlite: Database.Database) {
       collection TEXT NOT NULL,
       source TEXT NOT NULL,
       first_seen_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      flagged_collection TEXT,
+      flagged_source TEXT,
+      flagged_at INTEGER
     );
   `);
+
+  // Self-healing column adds for DBs created before the flag columns
+  // existed (same pragma_table_info guard pattern as fts-setup.ts).
+  const cols = new Set(
+    sqlite
+      .prepare("SELECT name FROM pragma_table_info('model_catalog')")
+      .all()
+      .map((r) => (r as { name: string }).name),
+  );
+  if (!cols.has("flagged_collection"))
+    sqlite.exec("ALTER TABLE model_catalog ADD COLUMN flagged_collection TEXT");
+  if (!cols.has("flagged_source"))
+    sqlite.exec("ALTER TABLE model_catalog ADD COLUMN flagged_source TEXT");
+  if (!cols.has("flagged_at"))
+    sqlite.exec("ALTER TABLE model_catalog ADD COLUMN flagged_at INTEGER");
 }

@@ -10,6 +10,8 @@ import type { ClientFormData } from "@/components/client-form";
 import type { ProductOfInterest } from "@/lib/db/schema";
 import { MergeFromFormDialog } from "@/components/merge-client-dialog";
 import { validateClientForm } from "@/lib/validation/client";
+import { useCatalog } from "@/components/use-catalog";
+import { correctCatalog } from "@/lib/actions";
 
 export default function AddClientPage() {
   const router = useRouter();
@@ -17,6 +19,11 @@ export default function AddClientPage() {
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [duplicateClient, setDuplicateClient] = useState<{ id: string; firstName: string; lastName?: string | null; phone?: string | null; email?: string | null } | null>(null);
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
+  const { catalogMap, isManager, refetchCatalog } = useCatalog();
+  const handleCorrectCatalog = async (m: string, c: string) => {
+    await correctCatalog(m, c);
+    await refetchCatalog();
+  };
 
   const [formData, setFormData] = useState<ClientFormData>({
     firstName: "",
@@ -154,6 +161,9 @@ export default function AddClientPage() {
           </div>
 
           <ClientForm
+            catalogMap={catalogMap}
+            isManager={isManager}
+            onCorrectCatalog={handleCorrectCatalog}
             formData={formData}
             productsOfInterest={productsOfInterest}
             newTag={newTag}

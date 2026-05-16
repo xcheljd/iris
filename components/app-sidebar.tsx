@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Users, Phone, ListFilter, Tag, BarChart3, Ban, MailX, Settings, LogOut, Watch, KeyRound, ShieldCheck, UserSearch } from "lucide-react";
+import { Home, Users, Phone, ListFilter, Tag, BarChart3, Ban, MailX, Settings, LogOut, Watch, KeyRound, ShieldCheck, UserSearch, Library } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton, useSidebar } from "@/components/ui/sidebar";
 import { IrisIcon } from "@/components/iris-icon";
@@ -26,6 +26,7 @@ const baseNav = [
   ]},
   { section: "Inventory", items: [
     { href: "/promos", label: "Promo Manager", icon: Tag },
+    { href: "/catalog", label: "Model Catalog", icon: Library, managerOnly: true },
   ]},
   { section: "Analytics", items: [
     { href: "/analytics", label: "Analytics", icon: BarChart3 },

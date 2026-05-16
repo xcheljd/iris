@@ -1,0 +1,164 @@
+"use client";
+
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/search-input";
+import { EmptyState } from "@/components/empty-state";
+import { Topbar } from "@/components/topbar";
+import { Library, Check, X, Pencil } from "lucide-react";
+import { toast } from "sonner";
+import { correctCatalog, resolveFlag } from "@/lib/actions";
+
+interface CatalogRow {
+  model: string;
+  collection: string;
+  source: "promo" | "manual" | "curated";
+  flaggedCollection: string | null;
+  flaggedSource: string | null;
+}
+
+export function CatalogContent({ rows }: { rows: CatalogRow[] }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [query, setQuery] = useState("");
+  const [editing, setEditing] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+
+  const flagged = rows.filter((r) => r.flaggedCollection);
+  const filtered = useMemo(() => {
+    const q = query.trim().toUpperCase();
+    if (!q) return rows;
+    return rows.filter((r) => r.model.includes(q) || r.collection.toUpperCase().includes(q));
+  }, [rows, query]);
+
+  const sourceBadge = (s: CatalogRow["source"]) =>
+    s === "curated" ? "default" : s === "promo" ? "secondary" : "outline";
+
+  const saveCorrection = (model: string, collection: string) => {
+    if (!collection.trim()) return;
+    start(async () => {
+      const res = await correctCatalog(model, collection.trim());
+      if ("error" in res) { toast.error(res.error); return; }
+      toast.success(`Catalog updated — ${res.affected} client${res.affected !== 1 ? "s" : ""} re-matched`);
+      setEditing(null);
+      router.refresh();
+    });
+  };
+
+  const handleFlag = (model: string, accept: boolean) => {
+    start(async () => {
+      const res = await resolveFlag(model, accept);
+      if ("error" in res) { toast.error(res.error); return; }
+      toast.success(accept ? "Promo value applied" : "Kept curated value");
+      router.refresh();
+    });
+  };
+
+  return (
+    <>
+      <Topbar title="Model Catalog" />
+      <div className="flex-1 p-4 md:p-6 space-y-6">
+        {flagged.length > 0 && (
+          <Card className="border-amber-500/40">
+            <CardHeader>
+              <CardTitle className="text-base">
+                Pending promo conflicts ({flagged.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {flagged.map((r) => (
+                <div key={r.model} className="flex items-center justify-between gap-3 text-sm border rounded-md p-2">
+                  <div>
+                    <span className="font-mono">{r.model}</span> — curated{" "}
+                    <strong>{r.collection}</strong>, a promo import said{" "}
+                    <strong>{r.flaggedCollection}</strong>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <Button size="sm" variant="outline" disabled={pending} onClick={() => handleFlag(r.model, true)}>
+                      <Check className="h-4 w-4 mr-1" />Use promo
+                    </Button>
+                    <Button size="sm" variant="ghost" disabled={pending} onClick={() => handleFlag(r.model, false)}>
+                      <X className="h-4 w-4 mr-1" />Keep curated
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Library className="h-5 w-5" />
+              Model Catalog
+            </CardTitle>
+            <div className="mt-3">
+              <SearchInput placeholder="Search model or collection…" value={query} onChange={setQuery} className="max-w-sm" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            {filtered.length === 0 ? (
+              <EmptyState icon={Library} title="No catalog entries" compact />
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Model</TableHead>
+                      <TableHead>Collection</TableHead>
+                      <TableHead>Source</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((r) => (
+                      <TableRow key={r.model}>
+                        <TableCell className="font-mono text-sm">{r.model}</TableCell>
+                        <TableCell>
+                          {editing === r.model ? (
+                            <Input
+                              autoFocus
+                              value={draft}
+                              onChange={(e) => setDraft(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") saveCorrection(r.model, draft); if (e.key === "Escape") setEditing(null); }}
+                              className="h-8 max-w-[200px]"
+                            />
+                          ) : (
+                            r.collection
+                          )}
+                        </TableCell>
+                        <TableCell><Badge variant={sourceBadge(r.source)}>{r.source}</Badge></TableCell>
+                        <TableCell className="text-right">
+                          {editing === r.model ? (
+                            <div className="flex justify-end gap-2">
+                              <Button size="sm" disabled={pending} onClick={() => saveCorrection(r.model, draft)}>Save</Button>
+                              <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
+                            </div>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => { setEditing(r.model); setDraft(r.collection); }}
+                            >
+                              <Pencil className="h-4 w-4 mr-1" />Correct
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </>
+  );
+}

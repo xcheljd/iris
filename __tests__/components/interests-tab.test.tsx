@@ -39,9 +39,9 @@ const clientWithInterests = makeClient({
   firstName: "John",
   lastName: "Doe",
   productsOfInterest: [
-    { model: "KX1023-01X", collection: "Solaris" },
-    { model: null, collection: "Sentinel Diver" },
-    { model: "NR-710-12L", collection: null },
+    { model: "KX1023-01X", collection: "Solaris", intent: "promo" },
+    { model: null, collection: "Sentinel Diver", intent: "arrival" },
+    { model: "NR-710-12L", collection: null, intent: "interested" },
   ],
   matches: [
     {
@@ -63,90 +63,51 @@ const clientWithNoInterests = makeClient({
   matches: [],
 });
 
-describe("InterestsTab", () => {
-  it("renders all three sub-tab buttons", () => {
+describe("InterestsTab (unified table)", () => {
+  it("renders the Products of Interest table with one row per entry", () => {
     render(<InterestsTab client={clientWithInterests} />);
-    // "Models of Interest" appears as both a tab button and a card title
-    expect(screen.getAllByText("Models of Interest").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Collections")).toBeInTheDocument();
-    expect(screen.getByText("Promo Matches")).toBeInTheDocument();
-  });
-
-  it("shows Models tab by default with card content", () => {
-    render(<InterestsTab client={clientWithInterests} />);
-    // The card title "Models of Interest" should be visible — it appears in both tab button and card heading
-    const allModelTexts = screen.getAllByText("Models of Interest");
-    expect(allModelTexts.length).toBeGreaterThanOrEqual(2); // tab button + card title
-  });
-
-  it("extracts and displays model numbers from products of interest", () => {
-    render(<InterestsTab client={clientWithInterests} />);
-    // KX1023-01X should be extracted as a model number
+    expect(screen.getAllByText("Products of Interest").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("KX1023-01X")).toBeInTheDocument();
-  });
-
-  it("extracts NR-710-12L model number", () => {
-    render(<InterestsTab client={clientWithInterests} />);
     expect(screen.getByText("NR-710-12L")).toBeInTheDocument();
+    expect(screen.getByText("Solaris")).toBeInTheDocument();
+    expect(screen.getByText("Sentinel Diver")).toBeInTheDocument();
   });
 
-  it("switches to Collections tab on click", async () => {
-    const user = userEvent.setup();
+  it("shows intent badges for each entry", () => {
     render(<InterestsTab client={clientWithInterests} />);
-    const collectionButtons = screen.getAllByText("Collections");
-    // Click the tab button (first occurrence)
-    await user.click(collectionButtons[0]);
-    // Should show Collections card content
-    const collectionCardTitles = screen.getAllByText("Collections of Interest");
-    expect(collectionCardTitles.length).toBeGreaterThanOrEqual(1);
+    // "Promo" is also a column header, so there are ≥2; the badge adds one.
+    expect(screen.getAllByText("Promo").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("Arrival")).toBeInTheDocument();
+    expect(screen.getByText("Interested")).toBeInTheDocument();
   });
 
-  it("shows empty state for models when no interests", () => {
+  it("derives a promo badge for the model-matched entry", () => {
+    render(<InterestsTab client={clientWithInterests} />);
+    // m1 matches KX1023-01X by model → promo cell shows a model badge
+    expect(screen.getByText(/· model/)).toBeInTheDocument();
+  });
+
+  it("shows the empty state when there are no interests", () => {
     render(<InterestsTab client={clientWithNoInterests} />);
-    expect(screen.getByText("No models of interest recorded")).toBeInTheDocument();
+    expect(screen.getByText("No products of interest recorded")).toBeInTheDocument();
   });
 
-  it("shows empty state for collections when no collections extracted", async () => {
-    const user = userEvent.setup();
-    render(<InterestsTab client={clientWithNoInterests} />);
-    const collectionButtons = screen.getAllByText("Collections");
-    await user.click(collectionButtons[0]);
-    expect(screen.getByText("No collections of interest recorded")).toBeInTheDocument();
-  });
-
-  it("switches to Promo Matches tab and shows match count", async () => {
+  it("filters rows by intent via the funnel", async () => {
     const user = userEvent.setup();
     render(<InterestsTab client={clientWithInterests} />);
-    const matchButtons = screen.getAllByText("Promo Matches");
-    await user.click(matchButtons[0]);
-    expect(screen.getByText("Current Promo Matches")).toBeInTheDocument();
-    expect(screen.getByText("2")).toBeInTheDocument(); // 2 promo matches
-    expect(screen.getByText("Promos match this client's interests")).toBeInTheDocument();
-  });
-
-  it("shows promo match details including model numbers", async () => {
-    const user = userEvent.setup();
-    render(<InterestsTab client={clientWithInterests} />);
-    const matchButtons = screen.getAllByText("Promo Matches");
-    await user.click(matchButtons[0]);
     expect(screen.getByText("KX1023-01X")).toBeInTheDocument();
-    expect(screen.getByText("NR-710")).toBeInTheDocument();
+    await user.click(screen.getByLabelText("Filter intent"));
+    await user.click(screen.getByLabelText("Arrival"));
+    // Arrival-only: the promo/interested model rows drop out
+    expect(screen.queryByText("KX1023-01X")).not.toBeInTheDocument();
+    expect(screen.getByText("Sentinel Diver")).toBeInTheDocument();
   });
 
-  it("shows match type badges for promo matches", async () => {
+  it("sorts when a column header is clicked", async () => {
     const user = userEvent.setup();
     render(<InterestsTab client={clientWithInterests} />);
-    const matchButtons = screen.getAllByText("Promo Matches");
-    await user.click(matchButtons[0]);
-    expect(screen.getByText("model")).toBeInTheDocument();
-    expect(screen.getByText("collection")).toBeInTheDocument();
-  });
-
-  it("shows empty promo matches for client with no matches", async () => {
-    const user = userEvent.setup();
-    render(<InterestsTab client={clientWithNoInterests} />);
-    const matchButtons = screen.getAllByText("Promo Matches");
-    await user.click(matchButtons[0]);
-    expect(screen.getByText("0")).toBeInTheDocument();
+    // Toggling sort should not throw and keeps rows rendered
+    await user.click(screen.getByText("Model"));
+    expect(screen.getByText("NR-710-12L")).toBeInTheDocument();
   });
 });

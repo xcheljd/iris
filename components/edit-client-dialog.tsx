@@ -10,6 +10,8 @@ import type { FullClient } from "@/components/client-provider";
 import type { ProductOfInterest } from "@/lib/db/schema";
 import { ClientForm, type ClientFormData } from "@/components/client-form";
 import { validateClientForm } from "@/lib/validation/client";
+import { useCatalog } from "@/components/use-catalog";
+import { correctCatalog } from "@/lib/actions";
 
 interface EditClientDialogProps {
   client: FullClient;
@@ -18,6 +20,11 @@ interface EditClientDialogProps {
 
 export function EditClientDialog({ client, children }: EditClientDialogProps) {
   const [open, setOpen] = useState(false);
+  const { catalogMap, isManager, refetchCatalog } = useCatalog();
+  const handleCorrectCatalog = async (m: string, c: string) => {
+    await correctCatalog(m, c);
+    await refetchCatalog();
+  };
   const [isPending, start] = useTransition();
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [duplicateClient, setDuplicateClient] = useState<{ id: string; firstName: string; lastName?: string | null; phone?: string | null; email?: string | null } | null>(null);
@@ -121,6 +128,9 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
         </DialogHeader>
         <ScrollArea className="max-h-[70vh]">
           <ClientForm
+            catalogMap={catalogMap}
+            isManager={isManager}
+            onCorrectCatalog={handleCorrectCatalog}
             formData={formData}
             productsOfInterest={productsOfInterest}
             newTag={newTag}

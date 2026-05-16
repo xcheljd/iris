@@ -14,10 +14,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { UserCheck, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { graduateProspect, graduateProspectIntoExistingClient } from "@/lib/actions";
+import { graduateProspect, graduateProspectIntoExistingClient, correctCatalog } from "@/lib/actions";
 import type { ProspectListRow } from "@/lib/queries";
 import type { ProductOfInterest } from "@/lib/db/schema";
 import { ProductsOfInterestInput } from "@/components/products-of-interest-input";
+import { useCatalog } from "@/components/use-catalog";
 
 interface GraduateProspectDialogProps {
   prospect: ProspectListRow;
@@ -43,6 +44,11 @@ export function GraduateProspectDialog({
   const [anniversary, setAnniversary] = useState(prospect.anniversary ?? "");
   const [notes, setNotes] = useState(prospect.notes ?? "");
   const [productsOfInterest, setProductsOfInterest] = useState<ProductOfInterest[]>([]);
+  const { catalogMap, isManager, refetchCatalog } = useCatalog();
+  const handleCorrectCatalog = async (m: string, c: string) => {
+    await correctCatalog(m, c);
+    await refetchCatalog();
+  };
 
   const [duplicateClientId, setDuplicateClientId] = useState("");
   const [duplicateClientName, setDuplicateClientName] = useState("");
@@ -169,6 +175,9 @@ export function GraduateProspectDialog({
                 <ProductsOfInterestInput
                   value={productsOfInterest}
                   onChange={setProductsOfInterest}
+                  catalogMap={catalogMap}
+                  isManager={isManager}
+                  onCorrectCatalog={handleCorrectCatalog}
                 />
               </div>
 
