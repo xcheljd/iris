@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,7 @@ interface ImportPromoDialogProps {
 }
 
 export function ImportPromoDialog({ open, onOpenChange }: ImportPromoDialogProps) {
+  const router = useRouter();
   const [rawText, setRawText] = useState("");
   const [parsed, setParsed] = useState<{ rows: ParsedRow[]; mapping: Record<string, number> | null; headers: string[] } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -43,6 +45,7 @@ export function ImportPromoDialog({ open, onOpenChange }: ImportPromoDialogProps
       toast.success(`Imported ${result.imported} promo watches`);
       setRawText(""); setParsed(null); setPromoStart(undefined); setPromoEnd(undefined);
       onOpenChange(false);
+      router.refresh();
     } catch { toast.error("Failed to import promos"); }
     finally { setIsImporting(false); }
   };

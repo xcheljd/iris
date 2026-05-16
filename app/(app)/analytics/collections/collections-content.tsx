@@ -16,37 +16,16 @@ import { Topbar } from "@/components/topbar";
 import Link from "next/link";
 import { PaginationFooter } from "@/components/pagination-footer";
 import type { ClientListRow } from "@/lib/queries";
+import { resolveCollection } from "@/lib/collections";
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 interface CollectionsContentProps {
   clients: ClientListRow[];
+  collectionMap: Record<string, string>;
 }
 
-const MERIDIAN_COLLECTIONS = [
-  "Solaris",
-  "Sentinel",
-  "Sentinel Diver",
-  "Wentworth",
-  "STARCROSS",
-  "Octa",
-  "Calder",
-  "Zenith Point",
-  "Cobalt",
-  "Lunaris",
-  "Signal Sync",
-  "Hyperion Steel",
-  "VERTEX",
-  "NR-710",
-  "NR-900",
-  "Precision One",
-  "Aethon",
-  "Octa 770",
-  "NEX-100",
-  "Horologia",
-];
-
-export function CollectionsContent({ clients }: CollectionsContentProps) {
+export function CollectionsContent({ clients, collectionMap }: CollectionsContentProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
   const [clientsPage, setClientsPage] = useState(1);
@@ -58,21 +37,17 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
     clients.forEach((client) => {
       const poi = client.productsOfInterest || [];
       poi.forEach((product) => {
-        const productLower = product.toLowerCase();
-        for (const collection of MERIDIAN_COLLECTIONS) {
-          if (productLower.includes(collection.toLowerCase())) {
-            totals[collection] = (totals[collection] || 0) + 1;
-            return;
-          }
+        const collection = resolveCollection(product, collectionMap);
+        if (collection) {
+          totals[collection] = (totals[collection] || 0) + 1;
         }
-        totals[product] = (totals[product] || 0) + 1;
       });
     });
 
     return Object.entries(totals)
       .sort((a, b) => b[1] - a[1])
       .map(([name, count]) => ({ name, count }));
-  }, [clients]);
+  }, [clients, collectionMap]);
 
   const totalInterests = collectionData.reduce((sum, c) => sum + c.count, 0);
 
@@ -86,9 +61,9 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
     if (!selectedCollection) return [];
     return clients.filter((client) => {
       const poi = client.productsOfInterest || [];
-      return poi.some((p) => p.toLowerCase().includes(selectedCollection.toLowerCase()));
+      return poi.some((p) => resolveCollection(p, collectionMap) === selectedCollection);
     });
-  }, [clients, selectedCollection]);
+  }, [clients, selectedCollection, collectionMap]);
 
   const clientsTotalPages = Math.ceil(collectionClients.length / PAGE_SIZE);
   const pagedClients = collectionClients.slice((clientsPage - 1) * PAGE_SIZE, clientsPage * PAGE_SIZE);

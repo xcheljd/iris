@@ -6,6 +6,7 @@ import { eq, desc, and, isNotNull, sql } from "drizzle-orm";
 import { ClientDetailContent } from "./client-detail-content";
 import { ClientDetailSkeleton } from "@/components/skeletons";
 import { getSession } from "@/lib/auth";
+import { buildModelCollectionMap } from "@/lib/collections";
 
 async function getFullClient(clientId: string) {
   const row = db
@@ -71,6 +72,13 @@ async function getFullClient(clientId: string) {
     .orderBy(desc(outreachLogs.followUpDate))
     .all();
 
+  const collectionMap = buildModelCollectionMap(
+    db
+      .select({ modelNumber: promoWatches.modelNumber, collection: promoWatches.collection })
+      .from(promoWatches)
+      .all()
+  );
+
   return {
     ...client,
     employeeName,
@@ -79,6 +87,7 @@ async function getFullClient(clientId: string) {
     matches,
     allTags,
     followUps,
+    collectionMap,
   };
 }
 

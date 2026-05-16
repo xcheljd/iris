@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState, useMemo } from "react";
+import { Fragment, useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatsCard } from "@/components/stats-card";
@@ -44,6 +44,11 @@ interface PromosContentProps {
 export function PromosContent({ promos: initialPromos, isManager }: PromosContentProps) {
   const router = useRouter();
   const [promos, setPromos] = useState(initialPromos);
+  // router.refresh() (after import/create) re-renders the server component with
+  // fresh data, but useState keeps its initial value — sync when the prop changes.
+  useEffect(() => {
+    setPromos(initialPromos);
+  }, [initialPromos]);
   const [isCreating, setIsCreating] = useState(false);
   const [showMatches, setShowMatches] = useState<string | null>(null);
   const [matches, setMatches] = useState<PromoClientMatch[]>([]);

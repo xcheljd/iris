@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { OutreachLogger } from "@/components/outreach-logger";
 import { EmptyState } from "@/components/empty-state";
 import type { FullClient, PromoMatchWithPromo } from "@/components/client-provider";
+import { resolveCollections } from "@/lib/collections";
 
 interface InterestsTabProps {
   client: FullClient;
@@ -27,14 +28,10 @@ export function InterestsTab({ client }: InterestsTabProps) {
     )
   ).sort() as string[];
 
-  const collections = Array.from(
-    new Set(
-      client.productsOfInterest.flatMap((interest: string) => {
-        const collectionMatch = interest.match(/\b[A-Z][a-z]+\b/g);
-        return collectionMatch || [];
-      })
-    )
-  ).sort() as string[];
+  const collections = resolveCollections(
+    client.productsOfInterest,
+    client.collectionMap ?? {}
+  );
 
   const promoMatches = client.matches.filter(
     (match: PromoMatchWithPromo) => match.promo?.modelNumber || match.promo?.collection

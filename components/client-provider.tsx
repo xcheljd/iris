@@ -37,6 +37,7 @@ export interface FullClient {
   matches: PromoMatchWithPromo[];
   allTags: ClientTag[];
   followUps: OutreachLog[];
+  collectionMap?: Record<string, string>;
 }
 
 const ClientContext = createContext<FullClient | null>(null);
