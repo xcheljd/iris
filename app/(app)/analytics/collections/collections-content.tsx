@@ -14,6 +14,9 @@ import {
   BarChart3
 } from "lucide-react";
 import { Topbar } from "@/components/topbar";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
+import { CollectionsCsvExportDialog } from "@/components/collections-csv-export-dialog";
 import Link from "next/link";
 import { PaginationFooter } from "@/components/pagination-footer";
 import type { ClientListRow } from "@/lib/queries";
@@ -33,6 +36,7 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
     searchParams.get("collection"),
   );
   const [clientsPage, setClientsPage] = useState(1);
+  const [exportOpen, setExportOpen] = useState(false);
 
   // Extract all collections from client products of interest
   const collectionData = useMemo(() => {
@@ -87,13 +91,21 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Watch className="h-5 w-5" />
-                Collection Interest
-              </CardTitle>
-              <CardDescription>
-                {collectionData.length} collections tracked across {totalInterests} interests
-              </CardDescription>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Watch className="h-5 w-5" />
+                    Collection Interest
+                  </CardTitle>
+                  <CardDescription>
+                    {collectionData.length} collections tracked across {totalInterests} interests
+                  </CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setExportOpen(true)}>
+                  <Download className="h-4 w-4 mr-1.5" />
+                  Export CSV
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <SearchInput
@@ -217,6 +229,12 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
         </div>
       </div>
       </div>
+      <CollectionsCsvExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        selectedCollection={selectedCollection}
+        searchQuery={searchQuery}
+      />
     </>
   );
 }

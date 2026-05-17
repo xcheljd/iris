@@ -111,6 +111,9 @@ export async function exportClientsCsv(filters: ClientFilterParams = {}): Promis
   };
 }
 
+// TODO(follow-up, plan-004): migrate to the shared `csvCell` in
+// `lib/csv.ts`, which also neutralizes spreadsheet formula injection
+// (cells starting `= + - @`). This escaper does RFC-4180 quoting only.
 function csvEscape(field: string): string {
   if (field === "") return "";
   if (/[",\n\r]/.test(field)) {
