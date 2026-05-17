@@ -42,7 +42,15 @@ export function ImportPromoDialog({ open, onOpenChange }: ImportPromoDialogProps
       const startStr = promoStart ? format(promoStart, "yyyy-MM-dd") : null;
       const endStr = promoEnd ? format(promoEnd, "yyyy-MM-dd") : null;
       const result = await importPromos(parsed.rows, startStr, endStr);
-      toast.success(`Imported ${result.imported} promo watches`);
+      if ("error" in result) { toast.error(result.error); return; }
+      if (result.imported === 0) {
+        toast.error("No promos imported — check the pasted data");
+        return;
+      }
+      toast.success(
+        `Imported ${result.imported} promo watch${result.imported !== 1 ? "es" : ""} · ` +
+        `${result.matchedClients} client${result.matchedClients !== 1 ? "s" : ""} matched`,
+      );
       setRawText(""); setParsed(null); setPromoStart(undefined); setPromoEnd(undefined);
       onOpenChange(false);
       router.refresh();

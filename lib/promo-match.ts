@@ -66,4 +66,7 @@ export function matchPromoToClients(
   if (matches.length > 0) {
     tx.insert(promoMatches).values(matches).run();
   }
+  // Client IDs matched to this promo (≤1 row per client/promo via the
+  // unique constraint). Callers may union these for distinct-client counts.
+  return matches.map((m) => m.clientId);
 }

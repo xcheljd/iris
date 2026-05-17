@@ -2,6 +2,7 @@
 
 import { Fragment, useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatsCard } from "@/components/stats-card";
 import { Button } from "@/components/ui/button";
@@ -32,16 +33,18 @@ const PAGE_SIZE = 15;
 
 interface PromoClientMatch {
   match: { id: string; matchType: string };
-  client?: { firstName: string; lastName: string | null; phone: string | null };
+  client?: { id: string; firstName: string; lastName: string | null; phone: string | null; employeeId: string | null };
 }
 
 interface PromosContentProps {
   promos: PromoWatch[];
   isManager: boolean;
+  matchCounts?: Record<string, number>;
+  currentUserId?: string;
 }
 
 
-export function PromosContent({ promos: initialPromos, isManager }: PromosContentProps) {
+export function PromosContent({ promos: initialPromos, isManager, matchCounts = {}, currentUserId = "" }: PromosContentProps) {
   const router = useRouter();
   const [promos, setPromos] = useState(initialPromos);
   // router.refresh() (after import/create) re-renders the server component with
@@ -272,6 +275,7 @@ export function PromosContent({ promos: initialPromos, isManager }: PromosConten
                     <TableHead className="text-right hidden sm:table-cell">MSRP</TableHead>
                     <TableHead className="text-right hidden md:table-cell">Disc.</TableHead>
                     <TableHead className="text-right hidden sm:table-cell">Sale Price</TableHead>
+                    <TableHead className="text-right">Clients</TableHead>
                     {isManager && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
@@ -284,6 +288,13 @@ export function PromosContent({ promos: initialPromos, isManager }: PromosConten
                         <TableCell className="text-right hidden sm:table-cell">{promo.msrp != null ? `$${promo.msrp.toFixed(2)}` : "—"}</TableCell>
                         <TableCell className="text-right hidden md:table-cell">{promo.discountPercent != null ? `${promo.discountPercent}%` : "—"}</TableCell>
                         <TableCell className="text-right hidden sm:table-cell font-medium text-green-500">{promo.discountPrice != null ? `$${promo.discountPrice.toFixed(2)}` : "—"}</TableCell>
+                        <TableCell className="text-right">
+                          {(matchCounts[promo.id] ?? 0) > 0 && (
+                            <Badge variant="secondary">
+                              {matchCounts[promo.id]} client{matchCounts[promo.id] !== 1 ? "s" : ""}
+                            </Badge>
+                          )}
+                        </TableCell>
                         {isManager && (
                         <TableCell className="text-right">
                           <DropdownMenu>
@@ -309,7 +320,7 @@ export function PromosContent({ promos: initialPromos, isManager }: PromosConten
                       </TableRow>
                       {showMatches === promo.id && (
                         <TableRow key={`${promo.id}-matches`}>
-                          <TableCell colSpan={isManager ? 6 : 5} className="bg-muted/30 p-4">
+                          <TableCell colSpan={isManager ? 7 : 6} className="bg-muted/30 p-4">
                             <div className="space-y-2">
                               <h4 className="text-sm font-medium">Matched Clients</h4>
                               {matches.length === 0 ? (
@@ -319,7 +330,16 @@ export function PromosContent({ promos: initialPromos, isManager }: PromosConten
                                   {matches.map((m) => (
                                     <div key={m.match.id} className="flex items-center gap-2 text-sm">
                                       <Badge variant="outline" className="text-xs">{m.match.matchType}</Badge>
-                                      <span>{m.client?.firstName} {m.client?.lastName || ""}</span>
+                                      {m.client && (isManager || m.client.employeeId === currentUserId) ? (
+                                        <Link
+                                          href={`/clients/${m.client.id}`}
+                                          className="font-medium hover:underline"
+                                        >
+                                          {m.client.firstName} {m.client.lastName || ""}
+                                        </Link>
+                                      ) : (
+                                        <span>{m.client?.firstName} {m.client?.lastName || ""}</span>
+                                      )}
                                       {m.client?.phone && <span className="text-muted-foreground">{m.client.phone}</span>}
                                     </div>
                                   ))}

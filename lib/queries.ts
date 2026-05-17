@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { clients, outreachLogs, activityEvents, promoWatches, bannedCustomers, unsubscribeList, employees, clientTags, outreachTemplates, smartLists, rvxImportBatches, prospects } from "@/lib/db/schema";
+import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bannedCustomers, unsubscribeList, employees, clientTags, outreachTemplates, smartLists, rvxImportBatches, prospects } from "@/lib/db/schema";
 import { eq, desc, asc, and, or, isNull, isNotNull, lte, gte, notInArray, sql as rawSql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { applyClientFilter } from "@/lib/utils";
@@ -270,6 +270,23 @@ export async function getStats(employeeId?: string) {
 
 export async function getPromos() {
   return db.select().from(promoWatches).orderBy(desc(promoWatches.dateAdded)).limit(LIST_QUERY_LIMIT).all();
+}
+
+// Distinct matched-client count per promo, excluding deleted/soft-deleted
+// and orphaned clients (mirrors what View Matches shows). One row per
+// (client, promo) is guaranteed by the promo_matches unique constraint,
+// so count(*) == distinct clients.
+export async function getPromoMatchCounts(): Promise<Record<string, number>> {
+  const rows = db
+    .select({ promoId: promoMatches.promoId, n: rawSql<number>`count(*)` })
+    .from(promoMatches)
+    .leftJoin(clients, eq(promoMatches.clientId, clients.id))
+    .where(and(isNull(clients.deletedAt), notInArray(clients.status, ["deleted"])))
+    .groupBy(promoMatches.promoId)
+    .all();
+  const map: Record<string, number> = {};
+  for (const r of rows) map[r.promoId] = Number(r.n);
+  return map;
 }
 
 // Durable model → collection lookup from the model catalog (survives the

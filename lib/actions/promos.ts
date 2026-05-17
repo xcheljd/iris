@@ -33,6 +33,7 @@ export async function importPromos(rows: { modelNumber: string; collection: stri
     const all = db.select({ id: clients.id, productsOfInterest: clients.productsOfInterest }).from(clients).all();
     const index = buildPromoClientIndex(all);
     let imported = 0;
+    const matchedClients = new Set<string>();
     db.transaction((tx) => {
       for (const row of rows) {
         if (!row.modelNumber?.trim() || !row.collection?.trim()) continue;
@@ -50,12 +51,14 @@ export async function importPromos(rows: { modelNumber: string; collection: stri
           promoEnd: promoEnd ?? null,
         }).run();
         recordModelCollection(tx, modelNumber, collection, "promo");
-        matchPromoToClients(tx, id, modelNumber, collection, index);
+        for (const cid of matchPromoToClients(tx, id, modelNumber, collection, index)) {
+          matchedClients.add(cid);
+        }
         imported++;
       }
     });
     revalidatePath("/promos");
-    return { imported };
+    return { imported, matchedClients: matchedClients.size };
   } catch (err) {
     console.error("importPromos failed:", err);
     return { error: "Failed to import promos" };

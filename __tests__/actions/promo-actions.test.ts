@@ -9,10 +9,12 @@ vi.mock("next/cache", () => ({
 }));
 
 import { getServerSession } from "next-auth";
-import { createPromo, deletePromo } from "@/lib/actions";
+import { createPromo, deletePromo, importPromos } from "@/lib/actions";
+import { getPromoMatchCounts } from "@/lib/queries";
 import { db } from "@/lib/db";
-import { promoWatches, promoMatches } from "@/lib/db/schema";
+import { clients, promoWatches, promoMatches } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { randomUUID } from "crypto";
 
 const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206"; // Marcus (manager)
 
@@ -144,6 +146,43 @@ describe("Promo Actions", () => {
       await deletePromo(promo!.id);
 
       expect(revalidatePath).toHaveBeenCalledWith("/promos");
+    });
+  });
+
+  describe("importPromos + match counts", () => {
+    it("reports distinct matched clients and excludes deleted from counts", async () => {
+      const clientId = randomUUID();
+      const model = `IMP-${Date.now()}`;
+      const collection = `IMPCOL-${Date.now()}`;
+      db.insert(clients).values({
+        id: clientId,
+        firstName: "Importable",
+        productsOfInterest: [{ model, collection: null, intent: "promo" }],
+      }).run();
+
+      // Two promo rows for the SAME model → 2 match rows, 1 distinct client.
+      const res = await importPromos([
+        { modelNumber: model, collection },
+        { modelNumber: model, collection },
+      ]);
+      expect("imported" in res && res.imported).toBe(2);
+      expect("matchedClients" in res && res.matchedClients).toBe(1);
+
+      const promoRows = db.select().from(promoWatches).where(eq(promoWatches.modelNumber, model)).all();
+      const counts = await getPromoMatchCounts();
+      for (const p of promoRows) expect(counts[p.id]).toBe(1);
+
+      // Soft-delete the client → excluded from counts.
+      db.update(clients).set({ deletedAt: new Date(), status: "deleted" }).where(eq(clients.id, clientId)).run();
+      const after = await getPromoMatchCounts();
+      for (const p of promoRows) expect(after[p.id] ?? 0).toBe(0);
+
+      // cleanup
+      for (const p of promoRows) {
+        db.delete(promoMatches).where(eq(promoMatches.promoId, p.id)).run();
+        db.delete(promoWatches).where(eq(promoWatches.id, p.id)).run();
+      }
+      db.delete(clients).where(eq(clients.id, clientId)).run();
     });
   });
 });
