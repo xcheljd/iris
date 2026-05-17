@@ -43,7 +43,7 @@ describe("Promo Import Actions", () => {
         { modelNumber: `${prefix}-A`, collection: "TestCol1" },
         { modelNumber: `${prefix}-B`, collection: "TestCol2" },
         { modelNumber: `${prefix}-C`, collection: "TestCol3" },
-      ]);
+      ], "Meridian");
 
       expect(result.imported).toBe(3);
 
@@ -65,7 +65,7 @@ describe("Promo Import Actions", () => {
         { modelNumber: "   ", collection: "WhitespaceModel" },
         { modelNumber: `${prefix}-D`, collection: "" },
         { modelNumber: `${prefix}-E`, collection: "   " },
-      ]);
+      ], "Meridian");
 
       expect(result.imported).toBe(1); // Only the first row is valid
 
@@ -80,6 +80,7 @@ describe("Promo Import Actions", () => {
       const prefix = `DATE-${Date.now()}`;
       const result = await importPromos(
         [{ modelNumber: `${prefix}-A`, collection: "DateCol" }],
+        "Meridian",
         "2026-01-01",
         "2026-06-30"
       );
@@ -99,7 +100,7 @@ describe("Promo Import Actions", () => {
       const { revalidatePath } = await import("next/cache");
       const prefix = `REVAL-${Date.now()}`;
 
-      await importPromos([{ modelNumber: `${prefix}-A`, collection: "RevalCol" }]);
+      await importPromos([{ modelNumber: `${prefix}-A`, collection: "RevalCol" }], "Meridian");
 
       expect(revalidatePath).toHaveBeenCalledWith("/promos");
 
@@ -113,7 +114,7 @@ describe("Promo Import Actions", () => {
       const result = await importPromos([
         { modelNumber: "", collection: "" },
         { modelNumber: "   ", collection: "   " },
-      ]);
+      ], "Meridian");
 
       expect(result.imported).toBe(0);
     });
@@ -123,8 +124,8 @@ describe("Promo Import Actions", () => {
     it("should delete all promo matches and watches", async () => {
       // Create some test promos first
       const prefix = `CLEAR-${Date.now()}`;
-      await createPromo(`${prefix}-A`, "ClearCol1");
-      await createPromo(`${prefix}-B`, "ClearCol2");
+      await createPromo(`${prefix}-A`, "ClearCol1", "Meridian");
+      await createPromo(`${prefix}-B`, "ClearCol2", "Meridian");
 
       // Verify they exist
       const beforePromos = db.select().from(promoWatches)

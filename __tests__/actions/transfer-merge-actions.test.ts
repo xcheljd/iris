@@ -199,8 +199,8 @@ describe("mergeClients", () => {
     const bId = createTestClient({ firstName: "B", dateAdded: new Date("2022-01-01") });
     createdClientIds.push(aId, bId);
 
-    db.update(clients).set({ productsOfInterest: [{ model: "SKU-001", collection: null, intent: "interested" }] }).where(eq(clients.id, aId)).run();
-    db.update(clients).set({ productsOfInterest: [{ model: "SKU-002", collection: null, intent: "interested" }] }).where(eq(clients.id, bId)).run();
+    db.update(clients).set({ productsOfInterest: [{ model: "SKU-001", collection: null, brand: null, intent: "interested" }] }).where(eq(clients.id, aId)).run();
+    db.update(clients).set({ productsOfInterest: [{ model: "SKU-002", collection: null, brand: null, intent: "interested" }] }).where(eq(clients.id, bId)).run();
 
     const { winnerId } = await mergeClients(aId, bId, {}, null) as { winnerId: string };
     createdClientIds.splice(createdClientIds.indexOf(bId), 1);

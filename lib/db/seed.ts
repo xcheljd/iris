@@ -58,25 +58,25 @@ for (const t of tagData) insTag.run(randomUUID(), t.name, t.color);
 
 // Promo watches
 const promos = [
-  { model: "IX1002-01X", collection: "CAMBRIDGE" },
-  { model: "HX1021-01X", collection: "WAYFINDER" },
-  { model: "IX1010-01X", collection: "SOLARIS" },
-  { model: "LX1020-01X", collection: "CRIMSON ACE" },
-  { model: "IX1006-01X", collection: "SENTINEL" },
-  { model: "IX1022-01X", collection: "OCTA" },
-  { model: "HX1013-01X", collection: "SENTINEL DEEP" },
-  { model: "HX1017-01X", collection: "LUNARIS" },
-  { model: "LX1024-01X", collection: "LUNARIS" },
-  { model: "IX1014-01X", collection: "BRYCEN" },
+  { model: "IX1002-01X", collection: "CAMBRIDGE", brand: "Meridian", s1: 4, s2: 0 },
+  { model: "HX1021-01X", collection: "WAYFINDER", brand: "Meridian", s1: 2, s2: 1 },
+  { model: "IX1010-01X", collection: "SOLARIS", brand: "Meridian", s1: 0, s2: 0 },
+  { model: "LX1020-01X", collection: "CRIMSON ACE", brand: "Meridian", s1: 6, s2: 3 },
+  { model: "IX1006-01X", collection: "SENTINEL", brand: "Meridian", s1: 1, s2: 0 },
+  { model: "IX1022-01X", collection: "OCTA", brand: "Meridian", s1: 0, s2: 5 },
+  { model: "70Z004", collection: "DEEPSTAR", brand: "Ashford", s1: 3, s2: 2 },
+  { model: "70Z003", collection: "ARCLINE", brand: "Ashford", s1: 0, s2: 0 },
+  { model: "AL-525", collection: "RIDGELINE", brand: "Voss", s1: 2, s2: 0 },
+  { model: "FC-220", collection: "HERITAGE", brand: "Chamberlain", s1: 1, s2: 1 },
 ];
 const insPromo = sqlite.prepare(
-  "INSERT INTO promo_watches (id,model_number,collection,active,date_added) VALUES (?,?,?,1,?)",
+  "INSERT INTO promo_watches (id,model_number,collection,brand,size_one_qty,size_two_qty,active,date_added) VALUES (?,?,?,?,?,?,1,?)",
 );
-const promoIds: { id: string; model: string; collection: string }[] = [];
+const promoIds: { id: string; model: string; collection: string; brand: string }[] = [];
 for (const p of promos) {
   const id = randomUUID();
-  insPromo.run(id, p.model, p.collection, now - 30 * day);
-  promoIds.push({ id, ...p });
+  insPromo.run(id, p.model, p.collection, p.brand, p.s1, p.s2, now - 30 * day);
+  promoIds.push({ id, model: p.model, collection: p.collection, brand: p.brand });
 }
 
 // Full known model → collection set (promos + a few non-promo models).
@@ -168,17 +168,21 @@ for (let i = 0; i < 22; i++) {
   // Mix of interest shapes: ~15% none (email-only), ~15% collection-only,
   // rest 1-3 structured {model, collection} pairs.
   const intents = ["interested", "promo", "arrival"] as const;
+  const brands = ["Meridian", "Ashford", "Voss", "Chamberlain"] as const;
   const interestRoll = Math.random();
-  const interests: { model: string | null; collection: string | null; intent: "interested" | "promo" | "arrival" }[] =
+  const interests: { model: string | null; collection: string | null; brand: typeof brands[number] | null; intent: "interested" | "promo" | "arrival" }[] =
     interestRoll < 0.15
       ? []
       : interestRoll < 0.3
-        ? [{ model: null, collection: pick(knownCollections), intent: pick([...intents]) }]
-        : pickMany(productCatalog, 1 + Math.floor(Math.random() * 3)).map((p) => ({
-            model: p.model,
-            collection: p.collection,
-            intent: pick([...intents]),
-          }));
+        ? [{ model: null, collection: pick(knownCollections), brand: null, intent: pick([...intents]) }]
+        : interestRoll < 0.4
+          ? [{ model: null, collection: null, brand: pick([...brands]), intent: pick([...intents]) }]
+          : pickMany(productCatalog, 1 + Math.floor(Math.random() * 3)).map((p) => ({
+              model: p.model,
+              collection: p.collection,
+              brand: Math.random() < 0.25 ? pick([...brands]) : null,
+              intent: pick([...intents]),
+            }));
   const tagList = Math.random() > 0.4 ? pickMany(clientTagPool, 1 + Math.floor(Math.random() * 2)) : [];
   const status = pick(statuses);
   const source = pick(sources);
@@ -256,14 +260,17 @@ for (let i = 0; i < 22; i++) {
   sqlite.prepare("UPDATE clients SET preferred_contact=? WHERE id=?").run(preferred, id);
 
   // Promo matches — mirrors the runtime matcher (exact model, else exact
-  // collection), so seeded data is consistent with createPromo/importPromos.
+  // collection, else exact brand), consistent with createPromo/importPromos.
   for (const p of promoIds) {
     const pm = p.model.toUpperCase();
     const pc = p.collection.toUpperCase();
+    const pb = p.brand.toUpperCase();
     if (interests.some((it) => (it.model ?? "").toUpperCase() === pm)) {
       insPromoMatch.run(randomUUID(), id, p.id, "model", now);
     } else if (interests.some((it) => (it.collection ?? "").toUpperCase() === pc)) {
       insPromoMatch.run(randomUUID(), id, p.id, "collection", now);
+    } else if (interests.some((it) => (it.brand ?? "").toUpperCase() === pb)) {
+      insPromoMatch.run(randomUUID(), id, p.id, "brand", now);
     }
   }
 }

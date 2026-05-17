@@ -76,7 +76,7 @@ function applyCorrection(
     const index = buildPromoClientIndex(affected);
     const promos = tx.select().from(promoWatches).all();
     for (const promo of promos) {
-      matchPromoToClients(tx, promo.id, promo.modelNumber, promo.collection, index);
+      matchPromoToClients(tx, promo.id, promo.modelNumber, promo.collection, promo.brand, index);
     }
   }
 

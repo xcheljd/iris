@@ -1,6 +1,6 @@
 "use server";
 import { db } from "@/lib/db";
-import { clients, promoWatches, promoMatches } from "@/lib/db/schema";
+import { clients, promoWatches, promoMatches, BRAND_VALUES, type Brand } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
@@ -8,17 +8,27 @@ import { requireManager } from "./_shared";
 import { recordModelCollection } from "./model-catalog";
 import { buildPromoClientIndex, matchPromoToClients } from "@/lib/promo-match";
 
-export async function createPromo(modelNumber: string, collection: string, msrp?: number | null, discountPercent?: number | null, discountPrice?: number | null) {
+export async function createPromo(
+  modelNumber: string,
+  collection: string,
+  brand: Brand,
+  msrp?: number | null,
+  discountPercent?: number | null,
+  discountPrice?: number | null,
+  sizeOneQty = 0,
+  sizeTwoQty = 0,
+) {
   await requireManager();
   if (!modelNumber?.trim() || !collection?.trim()) return { error: "Model number and collection are required" };
+  if (!brand || !BRAND_VALUES.includes(brand)) return { error: "Brand is required" };
   try {
     const all = db.select({ id: clients.id, productsOfInterest: clients.productsOfInterest }).from(clients).all();
     const index = buildPromoClientIndex(all);
     const id = randomUUID();
     db.transaction((tx) => {
-      tx.insert(promoWatches).values({ id, modelNumber, collection, msrp: msrp ?? null, discountPercent: discountPercent ?? null, discountPrice: discountPrice ?? null }).run();
+      tx.insert(promoWatches).values({ id, modelNumber, collection, brand, sizeOneQty, sizeTwoQty, msrp: msrp ?? null, discountPercent: discountPercent ?? null, discountPrice: discountPrice ?? null }).run();
       recordModelCollection(tx, modelNumber, collection, "promo");
-      matchPromoToClients(tx, id, modelNumber, collection, index);
+      matchPromoToClients(tx, id, modelNumber, collection, brand, index);
     });
     revalidatePath("/promos");
   } catch (err) {
@@ -27,8 +37,14 @@ export async function createPromo(modelNumber: string, collection: string, msrp?
   }
 }
 
-export async function importPromos(rows: { modelNumber: string; collection: string; msrp?: number | null; discountPercent?: number | null; discountPrice?: number | null }[], promoStart?: string | null, promoEnd?: string | null) {
+export async function importPromos(
+  rows: { modelNumber: string; collection: string; msrp?: number | null; discountPercent?: number | null; discountPrice?: number | null; sizeOneQty?: number; sizeTwoQty?: number }[],
+  brand: Brand,
+  promoStart?: string | null,
+  promoEnd?: string | null,
+) {
   await requireManager();
+  if (!brand || !BRAND_VALUES.includes(brand)) return { error: "Brand is required" };
   try {
     const all = db.select({ id: clients.id, productsOfInterest: clients.productsOfInterest }).from(clients).all();
     const index = buildPromoClientIndex(all);
@@ -44,6 +60,9 @@ export async function importPromos(rows: { modelNumber: string; collection: stri
           id,
           modelNumber,
           collection,
+          brand,
+          sizeOneQty: row.sizeOneQty ?? 0,
+          sizeTwoQty: row.sizeTwoQty ?? 0,
           msrp: row.msrp ?? null,
           discountPercent: row.discountPercent ?? null,
           discountPrice: row.discountPrice ?? null,
@@ -51,7 +70,7 @@ export async function importPromos(rows: { modelNumber: string; collection: stri
           promoEnd: promoEnd ?? null,
         }).run();
         recordModelCollection(tx, modelNumber, collection, "promo");
-        for (const cid of matchPromoToClients(tx, id, modelNumber, collection, index)) {
+        for (const cid of matchPromoToClients(tx, id, modelNumber, collection, brand, index)) {
           matchedClients.add(cid);
         }
         imported++;

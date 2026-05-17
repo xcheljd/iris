@@ -269,7 +269,10 @@ export async function getStats(employeeId?: string) {
 }
 
 export async function getPromos() {
-  return db.select().from(promoWatches).orderBy(desc(promoWatches.dateAdded)).limit(LIST_QUERY_LIMIT).all();
+  // Insertion/append order (rowid) — the promo list reflects import order;
+  // newly imported/added rows append to the bottom. Stable across the
+  // same-second timestamps a single import batch produces.
+  return db.select().from(promoWatches).orderBy(rawSql`rowid`).limit(LIST_QUERY_LIMIT).all();
 }
 
 // Distinct matched-client count per promo, excluding deleted/soft-deleted

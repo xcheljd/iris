@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Plus, X } from "lucide-react";
 import { normalizeModel } from "@/lib/normalize";
 import { MERIDIAN_COLLECTIONS } from "@/lib/collections";
-import { INTEREST_INTENT_VALUES, type ProductOfInterest, type InterestIntent } from "@/lib/db/schema";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { INTEREST_INTENT_VALUES, BRAND_VALUES, type ProductOfInterest, type InterestIntent, type Brand } from "@/lib/db/schema";
 
 interface Props {
   value: ProductOfInterest[];
@@ -28,11 +29,12 @@ const INTENT_LABELS: Record<InterestIntent, string> = {
 };
 
 function keyOf(p: ProductOfInterest) {
-  return `${(p.model ?? "").toUpperCase()}|${(p.collection ?? "").toUpperCase()}|${p.intent}`;
+  return `${(p.model ?? "").toUpperCase()}|${(p.collection ?? "").toUpperCase()}|${p.brand ?? ""}|${p.intent}`;
 }
 
 function describe(p: ProductOfInterest) {
-  const base = p.model && p.collection ? `${p.model} — ${p.collection}` : p.model ?? p.collection ?? "";
+  const parts = [p.model, p.collection, p.brand].filter(Boolean);
+  const base = parts.length ? parts.join(" — ") : "";
   return `${base} · ${INTENT_LABELS[p.intent] ?? p.intent}`;
 }
 
@@ -53,6 +55,7 @@ export function ProductsOfInterestInput({
 }: Props) {
   const [model, setModel] = useState("");
   const [collection, setCollection] = useState("");
+  const [brand, setBrand] = useState<Brand | "">("");
   const [intent, setIntent] = useState<InterestIntent | "">("");
   const [conflict, setConflict] = useState<{ m: string; typed: string; cataloged: string; intent: InterestIntent } | null>(null);
   const listId = useId();
@@ -65,11 +68,17 @@ export function ProductsOfInterestInput({
   function reset() {
     setModel("");
     setCollection("");
+    setBrand("");
     setIntent("");
   }
 
   function commit(finalModel: string | null, finalCollection: string | null, it: InterestIntent) {
-    const entry: ProductOfInterest = { model: finalModel, collection: finalCollection, intent: it };
+    const entry: ProductOfInterest = {
+      model: finalModel,
+      collection: finalCollection,
+      brand: brand || null,
+      intent: it,
+    };
     if (!value.some((p) => keyOf(p) === keyOf(entry))) onChange([...value, entry]);
     reset();
   }
@@ -77,7 +86,7 @@ export function ProductsOfInterestInput({
   const add = () => {
     if (!intent) return;
     const c = collection.trim();
-    if (!m && !c) return;
+    if (!m && !c && !brand) return;
 
     if (cataloged) {
       const sameCollection = c === "" || c.toUpperCase() === cataloged.toUpperCase();
@@ -124,7 +133,15 @@ export function ProductsOfInterestInput({
         <datalist id={listId}>
           {suggestions.map((s) => <option key={s} value={s} />)}
         </datalist>
-        <Button type="button" onClick={add} variant="outline" className="shrink-0" disabled={!intent || (!m && !collection.trim())}>
+        <Select value={brand || undefined} onValueChange={(v) => setBrand(v as Brand)}>
+          <SelectTrigger className="sm:w-44" aria-label="Brand (optional)">
+            <SelectValue placeholder="Brand (optional)" />
+          </SelectTrigger>
+          <SelectContent>
+            {BRAND_VALUES.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Button type="button" onClick={add} variant="outline" className="shrink-0" disabled={!intent || (!m && !collection.trim() && !brand)}>
           <Plus className="h-4 w-4" />
         </Button>
       </div>

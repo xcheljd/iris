@@ -10,7 +10,7 @@ const mockClient: FullClient = {
   email: "john@example.com",
   employeeId: "emp-1",
   dateAdded: "2026-01-01",
-  productsOfInterest: [{ model: "MODEL-X", collection: "Collection Y", intent: "interested" }],
+  productsOfInterest: [{ model: "MODEL-X", collection: "Collection Y", brand: null, intent: "interested" }],
   notes: null,
   onEmailList: true,
   status: "active",

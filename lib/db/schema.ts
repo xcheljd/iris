@@ -14,6 +14,11 @@ export type OutreachMethod = typeof OUTREACH_METHOD_VALUES[number];
 export const PREFERRED_CONTACT_VALUES = ["call", "text", "email"] as const;
 export type PreferredContact = typeof PREFERRED_CONTACT_VALUES[number];
 
+// Watch brands carried, shared by promo watches and a client's products
+// of interest. Stored verbatim (no accents — "Chamberlain").
+export const BRAND_VALUES = ["Meridian", "Ashford", "Voss", "Chamberlain"] as const;
+export type Brand = typeof BRAND_VALUES[number];
+
 export const OUTREACH_OUTCOME_VALUES = [
   "no_answer", "voicemail", "voicemail_full",
   "responded", "not_interested", "wants_to_come_in", "purchased",
@@ -59,6 +64,7 @@ export type InterestIntent = typeof INTEREST_INTENT_VALUES[number];
 export type ProductOfInterest = {
   model: string | null;
   collection: string | null;
+  brand: Brand | null;
   intent: InterestIntent;
 };
 
@@ -153,6 +159,11 @@ export const promoWatches = sqliteTable("promo_watches", {
   id: text("id").primaryKey(),
   modelNumber: text("model_number").notNull(),
   collection: text("collection").notNull(),
+  // Required at import/create validation; nullable in the DB so legacy
+  // rows / direct inserts survive (reads render null as "—").
+  brand: text("brand", { enum: BRAND_VALUES }),
+  sizeOneQty: integer("size_one_qty").notNull().default(0),
+  sizeTwoQty: integer("size_two_qty").notNull().default(0),
   msrp: real("msrp"),
   discountPercent: real("discount_percent"),
   discountPrice: real("discount_price"),
@@ -165,7 +176,7 @@ export const promoMatches = sqliteTable("promo_matches", {
   id: text("id").primaryKey(),
   clientId: text("client_id").notNull().references(() => clients.id),
   promoId: text("promo_id").notNull().references(() => promoWatches.id),
-  matchType: text("match_type", { enum: ["model", "collection"] }).notNull(),
+  matchType: text("match_type", { enum: ["model", "collection", "brand"] }).notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
   uniqClientPromo: unique().on(table.clientId, table.promoId),

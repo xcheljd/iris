@@ -28,7 +28,7 @@ const baseFormData: ClientFormData = {
 function createProps(overrides: Record<string, unknown> = {}) {
   return {
     formData: baseFormData,
-    productsOfInterest: [{ model: "KX1023-01X", collection: null, intent: "interested" }] as ProductOfInterest[],
+    productsOfInterest: [{ model: "KX1023-01X", collection: null, brand: null, intent: "interested" }] as ProductOfInterest[],
     newTag: "",
     onFieldChange: vi.fn(),
     onNewTagChange: vi.fn(),

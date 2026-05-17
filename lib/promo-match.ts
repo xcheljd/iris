@@ -11,10 +11,11 @@ import { normalizeModel } from "@/lib/normalize";
 interface PromoClientEntry {
   id: string;
   collections: Set<string>;
+  brands: Set<string>;
 }
 export interface PromoClientIndex {
   modelMap: Map<string, string[]>; // normalized model → clientIds (exact lookup)
-  entries: PromoClientEntry[];     // for exact collection match
+  entries: PromoClientEntry[];     // for exact collection / brand match
 }
 
 export function buildPromoClientIndex(
@@ -24,6 +25,7 @@ export function buildPromoClientIndex(
   const entries: PromoClientEntry[] = [];
   for (const c of all) {
     const collections = new Set<string>();
+    const brands = new Set<string>();
     for (const p of c.productsOfInterest ?? []) {
       const m = normalizeModel(p.model);
       if (m) {
@@ -32,8 +34,9 @@ export function buildPromoClientIndex(
         else modelMap.set(m, [c.id]);
       }
       if (p.collection) collections.add(p.collection.trim().toUpperCase());
+      if (p.brand) brands.add(p.brand.trim().toUpperCase());
     }
-    entries.push({ id: c.id, collections });
+    entries.push({ id: c.id, collections, brands });
   }
   return { modelMap, entries };
 }
@@ -43,22 +46,34 @@ export function matchPromoToClients(
   promoId: string,
   modelNumber: string,
   collection: string,
+  brand: string | null,
   index: PromoClientIndex,
 ) {
   const model = normalizeModel(modelNumber);
   const coll = collection.trim().toUpperCase();
-  const matches: { id: string; clientId: string; promoId: string; matchType: "model" | "collection" }[] = [];
+  const br = (brand ?? "").trim().toUpperCase();
+  const matches: { id: string; clientId: string; promoId: string; matchType: "model" | "collection" | "brand" }[] = [];
 
   const modelClientIds = model ? index.modelMap.get(model) ?? [] : [];
-  const modelMatchSet = new Set(modelClientIds);
+  const matched = new Set(modelClientIds);
   for (const clientId of modelClientIds) {
     matches.push({ id: randomUUID(), clientId, promoId, matchType: "model" });
   }
 
   if (coll) {
     for (const entry of index.entries) {
-      if (!modelMatchSet.has(entry.id) && entry.collections.has(coll)) {
+      if (!matched.has(entry.id) && entry.collections.has(coll)) {
         matches.push({ id: randomUUID(), clientId: entry.id, promoId, matchType: "collection" });
+        matched.add(entry.id);
+      }
+    }
+  }
+
+  if (br) {
+    for (const entry of index.entries) {
+      if (!matched.has(entry.id) && entry.brands.has(br)) {
+        matches.push({ id: randomUUID(), clientId: entry.id, promoId, matchType: "brand" });
+        matched.add(entry.id);
       }
     }
   }

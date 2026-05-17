@@ -39,18 +39,18 @@ const clientWithInterests = makeClient({
   firstName: "John",
   lastName: "Doe",
   productsOfInterest: [
-    { model: "KX1023-01X", collection: "Solaris", intent: "promo" },
-    { model: null, collection: "Sentinel Diver", intent: "arrival" },
-    { model: "NR-710-12L", collection: null, intent: "interested" },
+    { model: "KX1023-01X", collection: "Solaris", brand: null, intent: "promo" },
+    { model: null, collection: "Sentinel Diver", brand: null, intent: "arrival" },
+    { model: "NR-710-12L", collection: null, brand: null, intent: "interested" },
   ],
   matches: [
     {
       match: { id: "m1", clientId: "client-1", promoId: "p1", matchType: "model", createdAt: new Date() },
-      promo: { id: "p1", modelNumber: "KX1023-01X", collection: "Eco", msrp: null, discountPercent: null, discountPrice: null, promoStart: null, promoEnd: null, dateAdded: new Date() },
+      promo: { id: "p1", modelNumber: "KX1023-01X", collection: "Eco", brand: "Meridian", sizeOneQty: 0, sizeTwoQty: 0, msrp: null, discountPercent: null, discountPrice: null, promoStart: null, promoEnd: null, dateAdded: new Date() },
     },
     {
       match: { id: "m2", clientId: "client-1", promoId: "p2", matchType: "collection", createdAt: new Date() },
-      promo: { id: "p2", modelNumber: "NR-710", collection: "Sentinel", msrp: null, discountPercent: null, discountPrice: null, promoStart: null, promoEnd: null, dateAdded: new Date() },
+      promo: { id: "p2", modelNumber: "NR-710", collection: "Sentinel", brand: "Meridian", sizeOneQty: 0, sizeTwoQty: 0, msrp: null, discountPercent: null, discountPrice: null, promoStart: null, promoEnd: null, dateAdded: new Date() },
     },
   ],
 });

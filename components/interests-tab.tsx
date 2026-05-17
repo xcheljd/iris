@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { OutreachLogger } from "@/components/outreach-logger";
 import { EmptyState } from "@/components/empty-state";
 import { normalizeModel } from "@/lib/normalize";
-import { INTEREST_INTENT_VALUES, type InterestIntent } from "@/lib/db/schema";
+import { INTEREST_INTENT_VALUES, BRAND_VALUES, type InterestIntent } from "@/lib/db/schema";
 import type { FullClient, PromoMatchWithPromo } from "@/components/client-provider";
 
 interface InterestsTabProps {
@@ -26,12 +26,13 @@ const INTENT_LABEL: Record<InterestIntent, string> = {
   arrival: "Arrival",
 };
 
-type SortKey = "intent" | "model" | "collection" | "promo";
+type SortKey = "intent" | "model" | "collection" | "brand" | "promo";
 
 interface Row {
   intent: InterestIntent;
   model: string | null;
   collection: string | null;
+  brand: string | null;
   /** Promo cell: model/collection match with price, or collection-only "select models". */
   promoLabel: string;
   promoModels: string[]; // for collection-only "select models"
@@ -44,11 +45,15 @@ export function InterestsTab({ client }: InterestsTabProps) {
     (m: PromoMatchWithPromo) => m.promo?.modelNumber || m.promo?.collection,
   );
 
+  const promoBrandLabel = (b: string | null | undefined) =>
+    !b ? "" : b === "Chamberlain" ? "FC" : b;
+
   const rows: Row[] = useMemo(() => {
     return (client.productsOfInterest ?? []).map((p) => {
       const intent: InterestIntent = p.intent ?? "interested";
       const m = normalizeModel(p.model);
       const coll = (p.collection ?? "").trim();
+      const br = (p.brand ?? "").trim();
 
       // Model match: a matched promo with the same model number.
       const modelHit = m
@@ -60,6 +65,10 @@ export function InterestsTab({ client }: InterestsTabProps) {
             (x) => (x.promo?.collection ?? "").trim().toUpperCase() === coll.toUpperCase(),
           )
         : [];
+      // Brand match: a matched promo with the same brand.
+      const brandHit = br
+        ? matched.find((x) => (x.promo?.brand ?? "").trim().toUpperCase() === br.toUpperCase())
+        : undefined;
 
       let promoLabel = "—";
       let promoModels: string[] = [];
@@ -83,9 +92,13 @@ export function InterestsTab({ client }: InterestsTabProps) {
           promoCollection = collHits[0].promo!.collection;
           promoLabel = "On promo · collection";
         }
+      } else if (brandHit?.promo) {
+        promoModelNumber = brandHit.promo.modelNumber;
+        promoCollection = brandHit.promo.collection;
+        promoLabel = "On promo · brand";
       }
 
-      return { intent, model: p.model, collection: p.collection, promoLabel, promoModels, promoModelNumber, promoCollection };
+      return { intent, model: p.model, collection: p.collection, brand: p.brand, promoLabel, promoModels, promoModelNumber, promoCollection };
     });
   }, [client.productsOfInterest, matched]);
 
@@ -95,6 +108,7 @@ export function InterestsTab({ client }: InterestsTabProps) {
   const [intentFilter, setIntentFilter] = useState<Set<InterestIntent>>(new Set());
   const [modelFilter, setModelFilter] = useState("");
   const [collectionFilter, setCollectionFilter] = useState("");
+  const [brandFilter, setBrandFilter] = useState<Set<string>>(new Set());
   const [promoOnly, setPromoOnly] = useState<"" | "has" | "none">("");
 
   const toggleSort = (k: SortKey) => {
@@ -107,15 +121,17 @@ export function InterestsTab({ client }: InterestsTabProps) {
     if (intentFilter.size > 0) r = r.filter((x) => intentFilter.has(x.intent));
     if (modelFilter.trim()) r = r.filter((x) => (x.model ?? "").toUpperCase().includes(modelFilter.trim().toUpperCase()));
     if (collectionFilter.trim()) r = r.filter((x) => (x.collection ?? "").toUpperCase().includes(collectionFilter.trim().toUpperCase()));
+    if (brandFilter.size > 0) r = r.filter((x) => x.brand != null && brandFilter.has(x.brand));
     if (promoOnly === "has") r = r.filter((x) => x.promoLabel !== "—");
     if (promoOnly === "none") r = r.filter((x) => x.promoLabel === "—");
     const val = (x: Row) =>
       sortKey === "intent" ? x.intent
         : sortKey === "model" ? (x.model ?? "")
         : sortKey === "collection" ? (x.collection ?? "")
+        : sortKey === "brand" ? (x.brand ?? "")
         : x.promoLabel;
     return [...r].sort((a, b) => val(a).localeCompare(val(b)) * sortDir);
-  }, [rows, intentFilter, modelFilter, collectionFilter, promoOnly, sortKey, sortDir]);
+  }, [rows, intentFilter, modelFilter, collectionFilter, brandFilter, promoOnly, sortKey, sortDir]);
 
   const copyTemplate = (model: string, collection: string) => {
     navigator.clipboard.writeText(
@@ -201,6 +217,32 @@ export function InterestsTab({ client }: InterestsTabProps) {
                   </TableHead>
                   <TableHead>
                     <div className="flex items-center gap-1">
+                      <SortHead k="brand" label="Brand" />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button aria-label="Filter brand"><Filter className={`h-3 w-3 ${brandFilter.size ? "text-primary" : "text-muted-foreground/50"}`} /></button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-48 space-y-1">
+                          {BRAND_VALUES.map((b) => (
+                            <label key={b} className="flex items-center gap-2 text-sm">
+                              <input
+                                type="checkbox"
+                                checked={brandFilter.has(b)}
+                                onChange={(e) => {
+                                  const next = new Set(brandFilter);
+                                  if (e.target.checked) next.add(b); else next.delete(b);
+                                  setBrandFilter(next);
+                                }}
+                              />
+                              {promoBrandLabel(b)}
+                            </label>
+                          ))}
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-1">
                       <SortHead k="promo" label="Promo" />
                       <Popover>
                         <PopoverTrigger asChild>
@@ -230,6 +272,7 @@ export function InterestsTab({ client }: InterestsTabProps) {
                     </TableCell>
                     <TableCell className="font-mono text-sm">{r.model ?? "—"}</TableCell>
                     <TableCell>{r.collection ?? "—"}</TableCell>
+                    <TableCell>{r.brand ? promoBrandLabel(r.brand) : "—"}</TableCell>
                     <TableCell>
                       {r.promoLabel === "Select models" ? (
                         <Popover>

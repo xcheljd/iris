@@ -17,23 +17,23 @@ describe("normalizeModel", () => {
 
 describe("productOfInterestSchema", () => {
   it("accepts a model + collection pair (model upper-cased)", () => {
-    const r = productOfInterestSchema.parse({ model: "ix1002-01x", collection: "Sentinel", intent: "promo" });
-    expect(r).toEqual({ model: "IX1002-01X", collection: "Sentinel", intent: "promo" });
+    const r = productOfInterestSchema.parse({ model: "ix1002-01x", collection: "Sentinel", brand: null, intent: "promo" });
+    expect(r).toEqual({ model: "IX1002-01X", collection: "Sentinel", brand: null, intent: "promo" });
   });
 
   it("accepts a collection-only interest", () => {
-    expect(productOfInterestSchema.parse({ model: "", collection: "CRIMSON ACE", intent: "arrival" }))
-      .toEqual({ model: null, collection: "CRIMSON ACE", intent: "arrival" });
+    expect(productOfInterestSchema.parse({ model: "", collection: "CRIMSON ACE", brand: null, intent: "arrival" }))
+      .toEqual({ model: null, collection: "CRIMSON ACE", brand: null, intent: "arrival" });
   });
 
   it("accepts a bare model interest", () => {
-    expect(productOfInterestSchema.parse({ model: "lx1012-01x", collection: null, intent: "interested" }))
-      .toEqual({ model: "LX1012-01X", collection: null, intent: "interested" });
+    expect(productOfInterestSchema.parse({ model: "lx1012-01x", collection: null, brand: null, intent: "interested" }))
+      .toEqual({ model: "LX1012-01X", collection: null, brand: null, intent: "interested" });
   });
 
   it("rejects an entry with neither model nor collection", () => {
-    expect(productOfInterestSchema.safeParse({ model: "", collection: "  ", intent: "promo" }).success).toBe(false);
-    expect(productOfInterestSchema.safeParse({ model: null, collection: null, intent: "promo" }).success).toBe(false);
+    expect(productOfInterestSchema.safeParse({ model: "", collection: "  ", brand: null, intent: "promo" }).success).toBe(false);
+    expect(productOfInterestSchema.safeParse({ model: null, collection: null, brand: null, intent: "promo" }).success).toBe(false);
   });
 
   it("requires a valid intent", () => {

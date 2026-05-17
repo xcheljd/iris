@@ -54,3 +54,22 @@ export function ensureClientColumns(sqlite: Database.Database) {
     sqlite.exec("ALTER TABLE clients ADD COLUMN preferred_contact TEXT");
   }
 }
+
+/**
+ * Idempotent self-heal for the promo_watches brand + inventory-size
+ * columns (brand required at validation; nullable in the DB).
+ */
+export function ensurePromoColumns(sqlite: Database.Database) {
+  const cols = new Set(
+    sqlite
+      .prepare("SELECT name FROM pragma_table_info('promo_watches')")
+      .all()
+      .map((r) => (r as { name: string }).name),
+  );
+  if (!cols.has("brand"))
+    sqlite.exec("ALTER TABLE promo_watches ADD COLUMN brand TEXT");
+  if (!cols.has("size_one_qty"))
+    sqlite.exec("ALTER TABLE promo_watches ADD COLUMN size_one_qty INTEGER NOT NULL DEFAULT 0");
+  if (!cols.has("size_two_qty"))
+    sqlite.exec("ALTER TABLE promo_watches ADD COLUMN size_two_qty INTEGER NOT NULL DEFAULT 0");
+}

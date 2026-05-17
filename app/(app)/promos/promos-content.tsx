@@ -26,6 +26,11 @@ import { createPromo, deletePromo, clearAllPromos } from "@/lib/actions";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import type { PromoWatch } from "@/lib/db/schema";
+import { BRAND_VALUES, type Brand } from "@/lib/db/schema";
+import { brandLabel } from "@/lib/brand";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ArrowUpDown, Filter } from "lucide-react";
 import { Topbar } from "@/components/topbar";
 import { ImportPromoDialog } from "@/components/promo/import-promo-dialog";
 
@@ -55,18 +60,73 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
   const [isCreating, setIsCreating] = useState(false);
   const [showMatches, setShowMatches] = useState<string | null>(null);
   const [matches, setMatches] = useState<PromoClientMatch[]>([]);
-  const [newPromo, setNewPromo] = useState({ modelNumber: "", collection: "", msrp: "", discountPercent: "", discountPrice: "" });
+  const [newPromo, setNewPromo] = useState({ modelNumber: "", collection: "", brand: "", msrp: "", discountPercent: "", discountPrice: "", sizeOneQty: "", sizeTwoQty: "" });
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<PromoWatch | null>(null);
   const [clearAllOpen, setClearAllOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
+  type SortKey = "modelNumber" | "collection" | "brand" | "msrp" | "discountPercent" | "discountPrice" | "sizeOneQty" | "sizeTwoQty";
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<1 | -1>(1);
+  const [brandFilter, setBrandFilter] = useState<Set<string>>(new Set());
+  const [collectionFilter, setCollectionFilter] = useState<Set<string>>(new Set());
+  const [priceMax, setPriceMax] = useState("");
+  const [discMin, setDiscMin] = useState("");
+  const [size1Pos, setSize1Pos] = useState(false);
+  const [size2Pos, setSize2Pos] = useState(false);
+
+  const toggleSort = (k: SortKey) => {
+    if (sortKey === k) setSortDir((d) => (d === 1 ? -1 : 1));
+    else { setSortKey(k); setSortDir(1); }
+  };
+
+  const distinctCollections = useMemo(
+    () => Array.from(new Set(promos.map((p) => p.collection))).sort(),
+    [promos],
+  );
+
+  const SortHead = ({ k, label, className }: { k: SortKey; label: string; className?: string }) => (
+    <TableHead className={className}>
+      <button className="inline-flex items-center gap-1 font-medium" onClick={() => toggleSort(k)}>
+        {label}
+        <ArrowUpDown className={`h-3 w-3 ${sortKey === k ? "text-foreground" : "text-muted-foreground/50"}`} />
+      </button>
+    </TableHead>
+  );
+
+  const toggleIn = (set: Set<string>, v: string, setter: (s: Set<string>) => void) => {
+    const next = new Set(set);
+    if (next.has(v)) next.delete(v); else next.add(v);
+    setter(next);
+  };
+
   const filtered = useMemo(() => {
-    if (!searchQuery) return promos;
-    const q = searchQuery.toLowerCase();
-    return promos.filter((p) => p.modelNumber.toLowerCase().includes(q) || p.collection.toLowerCase().includes(q));
-  }, [promos, searchQuery]);
+    let r = promos;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      r = r.filter((p) => p.modelNumber.toLowerCase().includes(q) || p.collection.toLowerCase().includes(q));
+    }
+    if (brandFilter.size) r = r.filter((p) => p.brand && brandFilter.has(p.brand));
+    if (collectionFilter.size) r = r.filter((p) => collectionFilter.has(p.collection));
+    if (priceMax.trim()) { const m = parseFloat(priceMax); if (!isNaN(m)) r = r.filter((p) => (p.msrp ?? Infinity) <= m); }
+    if (discMin.trim()) { const m = parseFloat(discMin); if (!isNaN(m)) r = r.filter((p) => (p.discountPercent ?? 0) >= m); }
+    if (size1Pos) r = r.filter((p) => p.sizeOneQty > 0);
+    if (size2Pos) r = r.filter((p) => p.sizeTwoQty > 0);
+    if (sortKey) {
+      const val = (p: PromoWatch) => {
+        const v = p[sortKey];
+        return v == null ? (typeof v === "string" ? "" : -Infinity) : v;
+      };
+      r = [...r].sort((a, b) => {
+        const av = val(a), bv = val(b);
+        if (typeof av === "string" || typeof bv === "string") return String(av).localeCompare(String(bv)) * sortDir;
+        return ((av as number) - (bv as number)) * sortDir;
+      });
+    }
+    return r;
+  }, [promos, searchQuery, brandFilter, collectionFilter, priceMax, discMin, size1Pos, size2Pos, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -93,17 +153,25 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
       toast.error("Model number and collection are required");
       return;
     }
+    if (!newPromo.brand) {
+      toast.error("Brand is required");
+      return;
+    }
     setIsCreating(true);
     try {
-      await createPromo(
+      const res = await createPromo(
         newPromo.modelNumber,
         newPromo.collection,
+        newPromo.brand as Brand,
         newPromo.msrp ? parseFloat(newPromo.msrp) : null,
         newPromo.discountPercent ? parseFloat(newPromo.discountPercent) : null,
         newPromo.discountPrice ? parseFloat(newPromo.discountPrice) : null,
+        newPromo.sizeOneQty ? parseInt(newPromo.sizeOneQty, 10) : 0,
+        newPromo.sizeTwoQty ? parseInt(newPromo.sizeTwoQty, 10) : 0,
       );
+      if (res?.error) { toast.error(res.error); return; }
       toast.success("Promo watch created");
-      setNewPromo({ modelNumber: "", collection: "", msrp: "", discountPercent: "", discountPrice: "" });
+      setNewPromo({ modelNumber: "", collection: "", brand: "", msrp: "", discountPercent: "", discountPrice: "", sizeOneQty: "", sizeTwoQty: "" });
       router.refresh();
     } catch { toast.error("Failed to create promo watch"); }
     finally { setIsCreating(false); }
@@ -175,6 +243,25 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
                     <Input id="collection" placeholder="e.g., Solaris" value={newPromo.collection} onChange={(e) => setNewPromo({ ...newPromo, collection: e.target.value })} />
                   </div>
                 </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-2">
+                    <Label>Brand *</Label>
+                    <Select value={newPromo.brand || undefined} onValueChange={(v) => setNewPromo({ ...newPromo, brand: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select brand" /></SelectTrigger>
+                      <SelectContent>
+                        {BRAND_VALUES.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="size1">Size 1 qty</Label>
+                    <Input id="size1" type="number" min="0" placeholder="0" value={newPromo.sizeOneQty} onChange={(e) => setNewPromo({ ...newPromo, sizeOneQty: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="size2">Size 2 qty</Label>
+                    <Input id="size2" type="number" min="0" placeholder="0" value={newPromo.sizeTwoQty} onChange={(e) => setNewPromo({ ...newPromo, sizeTwoQty: e.target.value })} />
+                  </div>
+                </div>
                 <Separator />
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="space-y-2">
@@ -244,14 +331,72 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
               </Button>
             )}
           </div>
-          {/* Search */}
-          <div className="mt-3">
+          {/* Search + filters */}
+          <div className="mt-3 flex items-center gap-2">
             <SearchInput
               placeholder="Search model or collection..."
               value={searchQuery}
               onChange={(v) => { setSearchQuery(v); setPage(1); }}
               className="max-w-sm"
             />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Filter className={`h-4 w-4 mr-1.5 ${(brandFilter.size || collectionFilter.size || priceMax || discMin || size1Pos || size2Pos) ? "text-primary" : ""}`} />
+                  Filters
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 space-y-3" align="end">
+                <div>
+                  <div className="text-xs font-medium mb-1">Brand</div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1">
+                    {BRAND_VALUES.map((b) => (
+                      <label key={b} className="flex items-center gap-1.5 text-sm">
+                        <input type="checkbox" checked={brandFilter.has(b)} onChange={() => { toggleIn(brandFilter, b, setBrandFilter); setPage(1); }} />
+                        {brandLabel(b)}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs font-medium mb-1">Collection</div>
+                  <div className="max-h-32 overflow-y-auto space-y-1">
+                    {distinctCollections.map((c) => (
+                      <label key={c} className="flex items-center gap-1.5 text-sm">
+                        <input type="checkbox" checked={collectionFilter.has(c)} onChange={() => { toggleIn(collectionFilter, c, setCollectionFilter); setPage(1); }} />
+                        {c}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <div className="text-xs font-medium mb-1">Max MSRP</div>
+                    <Input type="number" value={priceMax} onChange={(e) => { setPriceMax(e.target.value); setPage(1); }} placeholder="e.g. 500" className="h-8" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium mb-1">Min Disc. %</div>
+                    <Input type="number" value={discMin} onChange={(e) => { setDiscMin(e.target.value); setPage(1); }} placeholder="e.g. 20" className="h-8" />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="flex items-center gap-1.5 text-sm">
+                    <input type="checkbox" checked={size1Pos} onChange={(e) => { setSize1Pos(e.target.checked); setPage(1); }} /> Size 1 in stock (&gt;0)
+                  </label>
+                  <label className="flex items-center gap-1.5 text-sm">
+                    <input type="checkbox" checked={size2Pos} onChange={(e) => { setSize2Pos(e.target.checked); setPage(1); }} /> Size 2 in stock (&gt;0)
+                  </label>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => { setBrandFilter(new Set()); setCollectionFilter(new Set()); setPriceMax(""); setDiscMin(""); setSize1Pos(false); setSize2Pos(false); setPage(1); }}
+                >
+                  Clear filters
+                </Button>
+              </PopoverContent>
+            </Popover>
           </div>
         </CardHeader>
         <CardContent>
@@ -270,11 +415,14 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Model Number</TableHead>
-                    <TableHead>Collection</TableHead>
-                    <TableHead className="text-right hidden sm:table-cell">MSRP</TableHead>
-                    <TableHead className="text-right hidden md:table-cell">Disc.</TableHead>
-                    <TableHead className="text-right hidden sm:table-cell">Sale Price</TableHead>
+                    <SortHead k="modelNumber" label="Model Number" />
+                    <SortHead k="collection" label="Collection" />
+                    <SortHead k="brand" label="Brand" className="hidden sm:table-cell" />
+                    <SortHead k="msrp" label="MSRP" className="text-right hidden sm:table-cell" />
+                    <SortHead k="discountPercent" label="Disc." className="text-right hidden md:table-cell" />
+                    <SortHead k="discountPrice" label="Sale Price" className="text-right hidden sm:table-cell" />
+                    <SortHead k="sizeOneQty" label="Size 1" className="text-right hidden md:table-cell" />
+                    <SortHead k="sizeTwoQty" label="Size 2" className="text-right hidden md:table-cell" />
                     <TableHead className="text-right">Clients</TableHead>
                     {isManager && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
@@ -285,9 +433,12 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
                       <TableRow>
                         <TableCell className="font-medium font-mono text-sm">{promo.modelNumber}</TableCell>
                         <TableCell><Badge variant="outline">{promo.collection}</Badge></TableCell>
+                        <TableCell className="hidden sm:table-cell">{brandLabel(promo.brand)}</TableCell>
                         <TableCell className="text-right hidden sm:table-cell">{promo.msrp != null ? `$${promo.msrp.toFixed(2)}` : "—"}</TableCell>
                         <TableCell className="text-right hidden md:table-cell">{promo.discountPercent != null ? `${promo.discountPercent}%` : "—"}</TableCell>
                         <TableCell className="text-right hidden sm:table-cell font-medium text-green-500">{promo.discountPrice != null ? `$${promo.discountPrice.toFixed(2)}` : "—"}</TableCell>
+                        <TableCell className="text-right hidden md:table-cell">{promo.sizeOneQty}</TableCell>
+                        <TableCell className="text-right hidden md:table-cell">{promo.sizeTwoQty}</TableCell>
                         <TableCell className="text-right">
                           {(matchCounts[promo.id] ?? 0) > 0 && (
                             <Badge variant="secondary">
@@ -320,7 +471,7 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
                       </TableRow>
                       {showMatches === promo.id && (
                         <TableRow key={`${promo.id}-matches`}>
-                          <TableCell colSpan={isManager ? 7 : 6} className="bg-muted/30 p-4">
+                          <TableCell colSpan={isManager ? 10 : 9} className="bg-muted/30 p-4">
                             <div className="space-y-2">
                               <h4 className="text-sm font-medium">Matched Clients</h4>
                               {matches.length === 0 ? (

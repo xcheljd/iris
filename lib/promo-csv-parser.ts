@@ -6,14 +6,20 @@ export interface ParsedPromoRow {
   msrp: number | null;
   discountPercent: number | null;
   discountPrice: number | null;
+  sizeOneQty: number;
+  sizeTwoQty: number;
 }
 
+// Note: "brand" is intentionally NOT a collection synonym — brand is
+// chosen per import batch, not derived from a pasted column.
 export const KNOWN_HEADERS: Record<string, string[]> = {
   modelNumber: ["model", "model number", "model no", "model#", "sku", "style", "item", "style number", "style no", "part number", "part no"],
-  collection: ["collection", "brand", "line", "series", "category", "type", "group", "family"],
+  collection: ["collection", "line", "series", "category", "type", "group", "family"],
   msrp: ["msrp", "list price", "price", "retail", "retail price", "original price", "regular price", "unit price"],
   discountPercent: ["discount", "discount %", "pct", "percent", "off", "% off", "discount pct", "disc", "disc %"],
   discountPrice: ["sale price", "sale", "your price", "promo price", "discounted price", "net price", "final price", "our price", "special price", "promotional price"],
+  sizeOneQty: ["size 1", "size1", "sz1", "qty1", "qty 1", "quantity 1", "size 1 qty", "s1"],
+  sizeTwoQty: ["size 2", "size2", "sz2", "qty2", "qty 2", "quantity 2", "size 2 qty", "s2"],
 };
 
 export function findColumnMapping(headers: string[]): Record<string, number> | null {
@@ -53,14 +59,21 @@ export function parsePasteData(raw: string): { rows: ParsedPromoRow[]; mapping: 
   if (!mapping) return { rows: [], mapping: null, headers: [] };
 
   const parseNum = (v: string) => { const n = parseFloat(v.replace(/[$,%]/g, "").trim()); return isNaN(n) ? null : n; };
+  const parseQty = (v: string) => { const n = parseInt(v.replace(/[,\s]/g, ""), 10); return isNaN(n) || n < 0 ? 0 : n; };
   const parsed = dataRows.map((row) => {
     const modelNumber = mapping.modelNumber !== undefined ? (row[mapping.modelNumber] || "").trim() : "";
     const collection = mapping.collection !== undefined ? (row[mapping.collection] || "").trim() : "";
     const msrpRaw = mapping.msrp !== undefined ? (row[mapping.msrp] || "").trim() : "";
     const discPctRaw = mapping.discountPercent !== undefined ? (row[mapping.discountPercent] || "").trim() : "";
     const discPriceRaw = mapping.discountPrice !== undefined ? (row[mapping.discountPrice] || "").trim() : "";
+    const s1Raw = mapping.sizeOneQty !== undefined ? (row[mapping.sizeOneQty] || "").trim() : "";
+    const s2Raw = mapping.sizeTwoQty !== undefined ? (row[mapping.sizeTwoQty] || "").trim() : "";
     if (!modelNumber && !collection) return null;
-    return { modelNumber, collection, msrp: parseNum(msrpRaw), discountPercent: parseNum(discPctRaw), discountPrice: parseNum(discPriceRaw) };
+    return {
+      modelNumber, collection,
+      msrp: parseNum(msrpRaw), discountPercent: parseNum(discPctRaw), discountPrice: parseNum(discPriceRaw),
+      sizeOneQty: parseQty(s1Raw), sizeTwoQty: parseQty(s2Raw),
+    };
   }).filter((r): r is ParsedPromoRow => r !== null);
 
   return { rows: parsed, mapping, headers };

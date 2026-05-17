@@ -15,6 +15,8 @@ import { importPromos } from "@/lib/actions";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { type ParsedPromoRow as ParsedRow, parsePasteData } from "@/lib/promo-csv-parser";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BRAND_VALUES, type Brand } from "@/lib/db/schema";
 
 interface ImportPromoDialogProps {
   open: boolean;
@@ -28,6 +30,7 @@ export function ImportPromoDialog({ open, onOpenChange }: ImportPromoDialogProps
   const [isImporting, setIsImporting] = useState(false);
   const [promoStart, setPromoStart] = useState<Date | undefined>(undefined);
   const [promoEnd, setPromoEnd] = useState<Date | undefined>(undefined);
+  const [brand, setBrand] = useState<Brand | "">("");
 
   const handleParse = () => {
     if (!rawText.trim()) return;
@@ -37,11 +40,12 @@ export function ImportPromoDialog({ open, onOpenChange }: ImportPromoDialogProps
 
   const handleImport = async () => {
     if (!parsed || parsed.rows.length === 0) return;
+    if (!brand) { toast.error("Pick a brand for this import"); return; }
     setIsImporting(true);
     try {
       const startStr = promoStart ? format(promoStart, "yyyy-MM-dd") : null;
       const endStr = promoEnd ? format(promoEnd, "yyyy-MM-dd") : null;
-      const result = await importPromos(parsed.rows, startStr, endStr);
+      const result = await importPromos(parsed.rows, brand, startStr, endStr);
       if ("error" in result) { toast.error(result.error); return; }
       if (result.imported === 0) {
         toast.error("No promos imported — check the pasted data");
@@ -51,7 +55,7 @@ export function ImportPromoDialog({ open, onOpenChange }: ImportPromoDialogProps
         `Imported ${result.imported} promo watch${result.imported !== 1 ? "es" : ""} · ` +
         `${result.matchedClients} client${result.matchedClients !== 1 ? "s" : ""} matched`,
       );
-      setRawText(""); setParsed(null); setPromoStart(undefined); setPromoEnd(undefined);
+      setRawText(""); setParsed(null); setPromoStart(undefined); setPromoEnd(undefined); setBrand("");
       onOpenChange(false);
       router.refresh();
     } catch { toast.error("Failed to import promos"); }
@@ -109,6 +113,16 @@ export function ImportPromoDialog({ open, onOpenChange }: ImportPromoDialogProps
                   Clear
                 </Button>
               )}
+            </div>
+            <div className="space-y-2">
+              <Label>Brand *</Label>
+              <Select value={brand || undefined} onValueChange={(v) => setBrand(v as Brand)}>
+                <SelectTrigger className="sm:w-64"><SelectValue placeholder="Select the brand for this paste" /></SelectTrigger>
+                <SelectContent>
+                  {BRAND_VALUES.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">One brand per paste (one Excel sheet per brand).</p>
             </div>
             <Separator />
             <div className="space-y-2">

@@ -71,7 +71,7 @@ describe("model catalog", () => {
     const model = `CAT-${Date.now()}-S`;
     const collection = `COLL-${Date.now()}`;
     catalogModels.push(model);
-    await createPromo(model, collection);
+    await createPromo(model, collection, "Meridian");
     const promo = db.select().from(promoWatches).where(eq(promoWatches.modelNumber, model)).get();
     if (promo) promoIds.push(promo.id);
 
@@ -91,14 +91,14 @@ describe("model catalog", () => {
 
     db.insert(clients).values({
       id: modelClientId, firstName: "ModelMatch",
-      productsOfInterest: [{ model, collection: null, intent: "interested" }],
+      productsOfInterest: [{ model, collection: null, brand: null, intent: "interested" }],
     }).run();
     db.insert(clients).values({
       id: collClientId, firstName: "CollMatch",
-      productsOfInterest: [{ model: null, collection, intent: "interested" }],
+      productsOfInterest: [{ model: null, collection, brand: null, intent: "interested" }],
     }).run();
 
-    await createPromo(model, collection);
+    await createPromo(model, collection, "Meridian");
     const promo = db.select().from(promoWatches).where(eq(promoWatches.modelNumber, model)).get()!;
     promoIds.push(promo.id);
 
@@ -113,10 +113,10 @@ describe("model catalog", () => {
     clientIds.push(clientId);
     db.insert(clients).values({
       id: clientId, firstName: "SeriesGuy",
-      productsOfInterest: [{ model: null, collection: "Octa 770", intent: "interested" }],
+      productsOfInterest: [{ model: null, collection: "Octa 770", brand: null, intent: "interested" }],
     }).run();
 
-    await createPromo(`SER-${Date.now()}`, "Octa");
+    await createPromo(`SER-${Date.now()}`, "Octa", "Meridian");
     const promo = db.select().from(promoWatches).where(eq(promoWatches.collection, "Octa")).get()!;
     promoIds.push(promo.id);
 
@@ -134,7 +134,7 @@ describe("model catalog", () => {
     recordModelCollection(db, model, "OLDCOLL", "manual");
     db.insert(clients).values({
       id: clientId, firstName: "Cascade",
-      productsOfInterest: [{ model, collection: "OLDCOLL", intent: "promo" }],
+      productsOfInterest: [{ model, collection: "OLDCOLL", brand: null, intent: "promo" }],
     }).run();
 
     const res = await correctCatalog(model, "NEWCOLL");
@@ -150,7 +150,7 @@ describe("model catalog", () => {
     const model = `FLG-${Date.now()}`;
     catalogModels.push(model);
     await correctCatalog(model, "CURATEDCOLL"); // creates curated row
-    await createPromo(model, "PROMOCOLL");
+    await createPromo(model, "PROMOCOLL", "Meridian");
     const promo = db.select().from(promoWatches).where(eq(promoWatches.modelNumber, model)).get();
     if (promo) promoIds.push(promo.id);
 
@@ -169,7 +169,7 @@ describe("model catalog", () => {
     const model = `FLA-${Date.now()}`;
     catalogModels.push(model);
     await correctCatalog(model, "CURATEDCOLL");
-    await createPromo(model, "PROMOCOLL");
+    await createPromo(model, "PROMOCOLL", "Meridian");
     const promo = db.select().from(promoWatches).where(eq(promoWatches.modelNumber, model)).get();
     if (promo) promoIds.push(promo.id);
 

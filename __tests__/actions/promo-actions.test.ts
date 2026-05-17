@@ -47,7 +47,7 @@ describe("Promo Actions", () => {
       const model = `TEST-MODEL-${Date.now()}`;
       const collection = "TESTCOLLECTION";
 
-      await createPromo(model, collection);
+      await createPromo(model, collection, "Meridian");
 
       const promo = db.select().from(promoWatches)
         .where(eq(promoWatches.modelNumber, model))
@@ -75,7 +75,7 @@ describe("Promo Actions", () => {
 
       // Create promo with unique model that won't match any client
       const uniqueModel = `UNIQUE-${Date.now()}`;
-      await createPromo(uniqueModel, "NOCOLLECTION");
+      await createPromo(uniqueModel, "NOCOLLECTION", "Meridian");
 
       const promo = db.select().from(promoWatches)
         .where(eq(promoWatches.modelNumber, uniqueModel))
@@ -83,18 +83,19 @@ describe("Promo Actions", () => {
       expect(promo).toBeDefined();
       createdPromoIds.push(promo!.id);
 
-      // This promo shouldn't match any clients (unique model + no collection match)
+      // Unique model + no collection match → no model/collection matches.
+      // (Brand matches are expected/legitimate now — seeded clients carry
+      // brand interests — and are out of scope for this assertion.)
       const matches = db.select().from(promoMatches)
         .where(eq(promoMatches.promoId, promo!.id))
         .all();
-      // No matches expected for completely unique model/collection
-      expect(matches).toHaveLength(0);
+      expect(matches.filter((m) => m.matchType === "model" || m.matchType === "collection")).toHaveLength(0);
     });
 
     it("should revalidate promos path", async () => {
       const { revalidatePath } = await import("next/cache");
 
-      await createPromo(`REVALIDATE-TEST-${Date.now()}`, "TESTCOL");
+      await createPromo(`REVALIDATE-TEST-${Date.now()}`, "TESTCOL", "Meridian");
 
       expect(revalidatePath).toHaveBeenCalledWith("/promos");
 
@@ -108,7 +109,7 @@ describe("Promo Actions", () => {
   describe("deletePromo", () => {
     it("should delete a promo and its matches", async () => {
       const model = `DELETE-TEST-${Date.now()}`;
-      await createPromo(model, "DELETECOL");
+      await createPromo(model, "DELETECOL", "Meridian");
 
       const promo = db.select().from(promoWatches)
         .where(eq(promoWatches.modelNumber, model))
@@ -135,7 +136,7 @@ describe("Promo Actions", () => {
       const { revalidatePath } = await import("next/cache");
 
       const model = `DELETE-REVAL-${Date.now()}`;
-      await createPromo(model, "DELETECOL");
+      await createPromo(model, "DELETECOL", "Meridian");
 
       const promo = db.select().from(promoWatches)
         .where(eq(promoWatches.modelNumber, model))
@@ -157,25 +158,35 @@ describe("Promo Actions", () => {
       db.insert(clients).values({
         id: clientId,
         firstName: "Importable",
-        productsOfInterest: [{ model, collection: null, intent: "promo" }],
+        productsOfInterest: [{ model, collection: null, brand: null, intent: "promo" }],
       }).run();
 
-      // Two promo rows for the SAME model → 2 match rows, 1 distinct client.
+      // Two promo rows for the SAME unique model. The test client
+      // model-matches both. (Seeded clients may also brand-match the
+      // "Meridian" batch — legitimate — so assert deterministic
+      // properties about THIS client, not brittle global totals.)
       const res = await importPromos([
         { modelNumber: model, collection },
         { modelNumber: model, collection },
-      ]);
+      ], "Meridian");
       expect("imported" in res && res.imported).toBe(2);
-      expect("matchedClients" in res && res.matchedClients).toBe(1);
+      // Distinct-client dedup: the client matched both promos but counts once.
+      expect("matchedClients" in res && (res.matchedClients as number) >= 1).toBe(true);
 
       const promoRows = db.select().from(promoWatches).where(eq(promoWatches.modelNumber, model)).all();
-      const counts = await getPromoMatchCounts();
-      for (const p of promoRows) expect(counts[p.id]).toBe(1);
+      const myModelMatches = db.select().from(promoMatches)
+        .where(eq(promoMatches.clientId, clientId)).all()
+        .filter((m) => promoRows.some((p) => p.id === m.promoId));
+      expect(myModelMatches).toHaveLength(2); // one per promo, matchType model
+      expect(myModelMatches.every((m) => m.matchType === "model")).toBe(true);
 
-      // Soft-delete the client → excluded from counts.
+      // Soft-delete the client → its contribution drops out of the counts.
+      const before = await getPromoMatchCounts();
       db.update(clients).set({ deletedAt: new Date(), status: "deleted" }).where(eq(clients.id, clientId)).run();
       const after = await getPromoMatchCounts();
-      for (const p of promoRows) expect(after[p.id] ?? 0).toBe(0);
+      for (const p of promoRows) {
+        expect((after[p.id] ?? 0)).toBe((before[p.id] ?? 0) - 1);
+      }
 
       // cleanup
       for (const p of promoRows) {
