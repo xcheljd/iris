@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,8 +25,13 @@ interface CollectionsContentProps {
 }
 
 export function CollectionsContent({ clients }: CollectionsContentProps) {
+  const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
+  // Honor ?collection= so the client-detail breadcrumb round-trips back
+  // to this page with the collection pre-selected.
+  const [selectedCollection, setSelectedCollection] = useState<string | null>(
+    searchParams.get("collection"),
+  );
   const [clientsPage, setClientsPage] = useState(1);
 
   // Extract all collections from client products of interest
@@ -170,7 +176,7 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
                       pagedClients.map((client) => (
                         <Link
                           key={client.id}
-                          href={`/clients/${client.id}`}
+                          href={`/clients/${client.id}?from=collections&collection=${encodeURIComponent(selectedCollection ?? "")}`}
                           className="flex items-center justify-between p-2 rounded hover:bg-muted/50 transition-colors"
                         >
                           <div className="min-w-0">

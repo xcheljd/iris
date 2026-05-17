@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ClientDetailTabs } from "@/components/client-detail-tabs";
 import { ClientSidebar } from "@/components/client-sidebar";
 import { ClientProvider } from "@/components/client-provider";
@@ -11,6 +12,11 @@ import type { FullClient } from "@/components/client-provider";
 
 export function ClientDetailContent({ client, currentUserRole }: { client: FullClient; currentUserRole?: string }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const searchParams = useSearchParams();
+  // When arrived from the Collections analytics page, show
+  // "Collections > [collection] > [client]" instead of "Clients > [client]".
+  const fromCollection =
+    searchParams.get("from") === "collections" ? searchParams.get("collection") : null;
 
   return (
     <div className="flex flex-col h-svh">
@@ -18,9 +24,23 @@ export function ClientDetailContent({ client, currentUserRole }: { client: FullC
       <div className="px-4 pt-3">
         <Breadcrumb>
           <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/clients">Clients</BreadcrumbLink>
-            </BreadcrumbItem>
+            {fromCollection ? (
+              <>
+                <BreadcrumbItem>
+                  <BreadcrumbLink href="/analytics/collections">Collections</BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbLink href={`/analytics/collections?collection=${encodeURIComponent(fromCollection)}`}>
+                    {fromCollection}
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+              </>
+            ) : (
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/clients">Clients</BreadcrumbLink>
+              </BreadcrumbItem>
+            )}
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbPage>{client.firstName} {client.lastName}</BreadcrumbPage>
