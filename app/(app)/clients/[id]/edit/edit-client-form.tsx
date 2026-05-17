@@ -26,6 +26,7 @@ interface ClientData {
   onEmailList: boolean;
   status: "active" | "inactive" | "banned" | "unsubscribed";
   source: ClientSource;
+  preferredContact?: "call" | "text" | "email" | null;
   birthday?: string;
   anniversary?: string;
   tags: string[];
@@ -63,6 +64,7 @@ export function EditClientForm({ initialClient, clientId, employees }: EditClien
     customerId: initialClient.customerId || "",
     employeeId: initialClient.employeeId || "",
     source: initialClient.source,
+    preferredContact: initialClient.preferredContact ?? "",
     birthday: initialClient.birthday ? new Date(initialClient.birthday) : null,
     anniversary: initialClient.anniversary ? new Date(initialClient.anniversary) : null,
     onEmailList: initialClient.onEmailList,

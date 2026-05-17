@@ -51,7 +51,8 @@ export async function graduateProspect(input: GraduateProspectInput): Promise<
     tx.insert(clients).values({
       id: newClientId,
       firstName: parsed.firstName,
-      lastName: parsed.lastName ?? null,
+      lastName: parsed.lastName,
+      preferredContact: parsed.preferredContact,
       phone: parsed.phone ?? null,
       email: parsed.email ?? null,
       birthday: parsed.birthday ?? null,
@@ -105,6 +106,7 @@ export async function graduateProspectIntoExistingClient(
   if (!existing.birthday && enrichment.birthday) patch.birthday = enrichment.birthday;
   if (!existing.anniversary && enrichment.anniversary) patch.anniversary = enrichment.anniversary;
   if (!existing.notes && enrichment.notes) patch.notes = enrichment.notes;
+  if (!existing.preferredContact && enrichment.preferredContact) patch.preferredContact = enrichment.preferredContact;
   if (!existing.customerId && prospect.rvxCustomerId) patch.customerId = prospect.rvxCustomerId;
   if (
     (!existing.productsOfInterest || existing.productsOfInterest.length === 0) &&

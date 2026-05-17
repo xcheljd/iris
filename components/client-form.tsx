@@ -32,6 +32,7 @@ export interface ClientFormData {
   customerId: string;
   employeeId?: string;
   source: string;
+  preferredContact: "" | "call" | "text" | "email";
   birthday: Date | null;
   anniversary: Date | null;
   onEmailList: boolean;
@@ -146,13 +147,29 @@ export function ClientForm({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name</Label>
+              <Label htmlFor="lastName">Last Name *</Label>
               <Input
                 id="lastName"
                 placeholder="Enter last name"
                 value={formData.lastName}
                 onChange={(e) => onFieldChange("lastName", e.target.value)}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="preferredContact">Preferred Contact *</Label>
+              <Select
+                value={formData.preferredContact || undefined}
+                onValueChange={(v) => onFieldChange("preferredContact", v)}
+              >
+                <SelectTrigger id="preferredContact">
+                  <SelectValue placeholder="Select method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="call">Call</SelectItem>
+                  <SelectItem value="text">Text</SelectItem>
+                  <SelectItem value="email">Email</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="customerId">Customer ID</Label>

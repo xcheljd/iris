@@ -5,7 +5,7 @@ import path from "path";
 import fs from "fs";
 import { DATABASE_PATH } from "@/lib/constants";
 import { setupClientsFts } from "./fts-setup";
-import { ensureModelCatalog } from "./ensure-schema";
+import { ensureModelCatalog, ensureClientColumns } from "./ensure-schema";
 
 const dbPath = path.join(process.cwd(), DATABASE_PATH);
 const dataDir = path.dirname(dbPath);
@@ -24,6 +24,7 @@ export const db = drizzle(sqlite, { schema });
 // Idempotent: creates model_catalog if absent. Runs before FTS setup so a
 // fresh DB has every app-managed table without any drizzle-kit step.
 ensureModelCatalog(sqlite);
+ensureClientColumns(sqlite);
 
 try {
   setupClientsFts(sqlite);

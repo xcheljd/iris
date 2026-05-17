@@ -299,6 +299,8 @@ export async function mergeClients(
       anniversary: pick("anniversary") as string | null,
       customerId: pick("customerId") as string | null,
       source: pick("source") as typeof clients.$inferSelect.source,
+      preferredContact: (pick("preferredContact") as typeof clients.$inferSelect.preferredContact)
+        ?? clientA.preferredContact ?? clientB.preferredContact ?? null,
       onEmailList: (clientA.onEmailList || clientB.onEmailList),
       notes: finalNotes ?? null,
       productsOfInterest: mergedProducts,
@@ -356,6 +358,7 @@ export async function patchClientFromFormMerge(
     anniversary?: string | null;
     customerId?: string | null;
     source?: string;
+    preferredContact?: "call" | "text" | "email" | null;
     onEmailList?: boolean;
     notes?: string | null;
     productsOfInterest?: ProductOfInterest[];
@@ -376,6 +379,7 @@ export async function patchClientFromFormMerge(
       anniversary: patch.anniversary ?? null,
       customerId: patch.customerId ?? null,
       source: (patch.source as typeof clients.$inferSelect.source) ?? existing.source,
+      preferredContact: patch.preferredContact ?? existing.preferredContact,
       onEmailList: patch.onEmailList ?? existing.onEmailList,
       notes: patch.notes ?? null,
       productsOfInterest: patch.productsOfInterest ?? existing.productsOfInterest,

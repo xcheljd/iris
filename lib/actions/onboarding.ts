@@ -129,6 +129,7 @@ export async function ensureTourDemoClient(): Promise<string> {
     ],
     notes: "This is an example client profile used by the onboarding tour.",
     onEmailList: true,
+    preferredContact: "email",
     source: "Walk-in",
     birthday: "1990-06-15",
     tags: ["VIP", "repeat-buyer"],

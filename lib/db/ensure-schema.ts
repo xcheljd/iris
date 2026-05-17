@@ -40,3 +40,17 @@ export function ensureModelCatalog(sqlite: Database.Database) {
   if (!cols.has("flagged_at"))
     sqlite.exec("ALTER TABLE model_catalog ADD COLUMN flagged_at INTEGER");
 }
+
+/**
+ * Idempotent self-heal for the clients.preferred_contact column
+ * (required at the validation layer; nullable in the DB). Same
+ * pragma_table_info guard pattern as fts-setup.ts.
+ */
+export function ensureClientColumns(sqlite: Database.Database) {
+  const has = sqlite
+    .prepare("SELECT 1 FROM pragma_table_info('clients') WHERE name = 'preferred_contact'")
+    .get();
+  if (!has) {
+    sqlite.exec("ALTER TABLE clients ADD COLUMN preferred_contact TEXT");
+  }
+}

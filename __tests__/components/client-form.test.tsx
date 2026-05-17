@@ -21,7 +21,7 @@ vi.mock("@/components/date-picker", () => ({
 
 const baseFormData: ClientFormData = {
   firstName: "John", lastName: "Doe", phone: "(555) 123-4567", email: "john@test.com",
-  customerId: "", source: "Walk-in", birthday: null, anniversary: null,
+  customerId: "", source: "Walk-in", preferredContact: "call", birthday: null, anniversary: null,
   onEmailList: false, notes: "", tags: ["VIP"],
 };
 

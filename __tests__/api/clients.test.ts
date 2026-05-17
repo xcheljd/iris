@@ -119,6 +119,7 @@ describe("POST /api/clients", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         firstName: "Test",
+        preferredContact: "call",
         lastName: "Client",
         phone: `555-${uniqueSuffix}`,
         email: `test-create-${uniqueSuffix}@example.com`,
@@ -148,6 +149,8 @@ describe("POST /api/clients", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         firstName: "Minimal",
+        preferredContact: "call",
+        lastName: "QA",
       }),
     });
     const res = await POST(req);
@@ -164,6 +167,8 @@ describe("POST /api/clients", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         firstName: "Dup1",
+        preferredContact: "call",
+        lastName: "QA",
         email: "duplicate-test@example.com",
       }),
     });
@@ -177,6 +182,8 @@ describe("POST /api/clients", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         firstName: "Dup2",
+        preferredContact: "call",
+        lastName: "QA",
         email: "duplicate-test@example.com",
       }),
     });
@@ -193,6 +200,8 @@ describe("POST /api/clients", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         firstName: "PhoneDup1",
+        preferredContact: "call",
+        lastName: "QA",
         phone: "555-DUPPHONE",
       }),
     });
@@ -205,6 +214,8 @@ describe("POST /api/clients", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         firstName: "PhoneDup2",
+        preferredContact: "call",
+        lastName: "QA",
         phone: "555-DUPPHONE",
       }),
     });
@@ -221,7 +232,7 @@ describe("PUT /api/clients", () => {
     const createReq = new Request("http://localhost:3000/api/clients", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ firstName: "ToUpdate", lastName: "Me" }),
+      body: JSON.stringify({ firstName: "ToUpdate", lastName: "Me", preferredContact: "call" }),
     });
     const createRes = await POST(createReq);
     const createData = await createRes.json();
@@ -234,6 +245,7 @@ describe("PUT /api/clients", () => {
       body: JSON.stringify({
         id: createData.id,
         firstName: "Updated",
+        preferredContact: "call",
         lastName: "Name",
       }),
     });
@@ -280,6 +292,8 @@ describe("GET /api/clients/check-duplicates", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         firstName: "DupCheck",
+        preferredContact: "call",
+        lastName: "QA",
         email: "dup-check@example.com",
       }),
     });
@@ -304,6 +318,8 @@ describe("GET /api/clients/check-duplicates", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         firstName: "PhoneCheck",
+        preferredContact: "call",
+        lastName: "QA",
         phone: "5550001234",
       }),
     });

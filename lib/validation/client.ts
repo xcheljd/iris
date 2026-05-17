@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CLIENT_SOURCE_VALUES, INTEREST_INTENT_VALUES } from "@/lib/db/schema";
+import { CLIENT_SOURCE_VALUES, INTEREST_INTENT_VALUES, PREFERRED_CONTACT_VALUES } from "@/lib/db/schema";
 import { normalizeModel } from "@/lib/normalize";
 
 // Coerces empty string to null; passes null/string through unchanged.
@@ -35,7 +35,10 @@ export const productOfInterestSchema = z
 // Allowed fields for client create. Enforces enum on source, format on email.
 export const clientCreateSchema = z.object({
   firstName: z.string().min(1, "First name is required").max(100),
-  lastName: nullableStr(100).optional(),
+  lastName: z.string().min(1, "Last name is required").max(100),
+  preferredContact: z.enum(PREFERRED_CONTACT_VALUES, {
+    errorMap: () => ({ message: "Preferred contact method is required" }),
+  }),
   phone: nullableStr(20).optional(),
   email: z
     .preprocess((v) => (v === "" ? null : v), z.string().email("Invalid email").max(200).nullable())
@@ -64,6 +67,7 @@ export const clientPatchSchema = z
     ),
     customerId: nullableStr(50),
     source: z.enum(CLIENT_SOURCE_VALUES),
+    preferredContact: z.enum(PREFERRED_CONTACT_VALUES),
     birthday: nullableStr(100),
     anniversary: nullableStr(100),
     onEmailList: z.boolean(),
@@ -75,8 +79,15 @@ export const clientPatchSchema = z
 
 // Lightweight form-side validation before submitting (H-14).
 // Date fields are excluded — the date picker guarantees format correctness.
-export function validateClientForm(data: { firstName: string; email?: string | null }): string | null {
+export function validateClientForm(data: {
+  firstName: string;
+  lastName?: string | null;
+  email?: string | null;
+  preferredContact?: string | null;
+}): string | null {
   if (!data.firstName.trim()) return "First name is required";
+  if (!data.lastName?.trim()) return "Last name is required";
+  if (!data.preferredContact) return "Preferred contact method is required";
   const email = data.email?.trim();
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Invalid email format";
   return null;

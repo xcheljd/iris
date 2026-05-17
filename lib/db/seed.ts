@@ -218,9 +218,11 @@ for (let i = 0; i < 22; i++) {
 
   // 0-4 outreach logs per client
   const outreachCount = Math.floor(Math.random() * 5);
+  const methodsUsed: string[] = [];
   for (let j = 0; j < outreachCount; j++) {
     const oid = randomUUID();
     const method = pick(["call","text","email","in-person"] as const);
+    methodsUsed.push(method);
     const outcome = pick(["no_answer","voicemail","responded","wants_to_come_in","not_interested","purchased"] as const);
     const oDate = now - Math.floor(Math.random() * 150) * day;
     const purchasedModel = outcome === "purchased" ? pick(models) : null;
@@ -237,6 +239,21 @@ for (let i = 0; i < 22; i++) {
         `Purchased ${purchasedModel}`, JSON.stringify({ model: purchasedModel }), owner.id, oDate);
     }
   }
+
+  // Preferred contact: most-frequent logged method excluding in-person;
+  // fall back to a random of call/text/email when there's no usable history.
+  const tally = new Map<string, number>();
+  for (const m of methodsUsed) {
+    if (m === "in-person") continue;
+    tally.set(m, (tally.get(m) ?? 0) + 1);
+  }
+  let preferred: string;
+  if (tally.size > 0) {
+    preferred = [...tally.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  } else {
+    preferred = pick(["call", "text", "email"] as const);
+  }
+  sqlite.prepare("UPDATE clients SET preferred_contact=? WHERE id=?").run(preferred, id);
 
   // Promo matches — mirrors the runtime matcher (exact model, else exact
   // collection), so seeded data is consistent with createPromo/importPromos.

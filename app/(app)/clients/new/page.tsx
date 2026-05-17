@@ -32,6 +32,7 @@ export default function AddClientPage() {
     email: "",
     customerId: "",
     source: "Walk-in",
+    preferredContact: "",
     birthday: null,
     anniversary: null,
     onEmailList: false,

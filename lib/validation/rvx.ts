@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { productOfInterestSchema } from "./client";
+import { PREFERRED_CONTACT_VALUES } from "@/lib/db/schema";
 
 const nullableStr = (max: number) =>
   z.preprocess((v) => (v === "" ? null : v), z.string().max(max).nullable());
@@ -7,7 +8,10 @@ const nullableStr = (max: number) =>
 export const graduateProspectSchema = z.object({
   prospectId: z.string().min(1),
   firstName: z.string().min(1, "First name is required").max(100),
-  lastName: nullableStr(100).optional(),
+  lastName: z.string().min(1, "Last name is required").max(100),
+  preferredContact: z.enum(PREFERRED_CONTACT_VALUES, {
+    errorMap: () => ({ message: "Preferred contact method is required" }),
+  }),
   phone: nullableStr(20).optional(),
   email: z
     .preprocess((v) => (v === "" ? null : v), z.string().email("Invalid email").max(200).nullable())

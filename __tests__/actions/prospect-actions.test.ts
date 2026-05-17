@@ -250,6 +250,7 @@ describe("graduateProspect", () => {
       prospectId,
       firstName: "GradTest",
       lastName: "Graduate",
+      preferredContact: "call",
       productsOfInterest: [],
     });
 
@@ -269,7 +270,7 @@ describe("graduateProspect", () => {
     createdProspectIds.push(prospectId);
     createdBatchIds.push(batchId);
 
-    const result = await graduateProspect({ prospectId, firstName: "GradStatus", productsOfInterest: [] });
+    const result = await graduateProspect({ prospectId, firstName: "GradStatus", lastName: "T", preferredContact: "call", productsOfInterest: [] });
     if (result.type === "created") createdClientIds.push(result.clientId);
 
     const prospect = db.select().from(prospects).where(eq(prospects.id, prospectId)).get();
@@ -283,7 +284,7 @@ describe("graduateProspect", () => {
     createdProspectIds.push(prospectId);
     createdBatchIds.push(batchId);
 
-    const result = await graduateProspect({ prospectId, firstName: "GradEvent", productsOfInterest: [] });
+    const result = await graduateProspect({ prospectId, firstName: "GradEvent", lastName: "T", preferredContact: "call", productsOfInterest: [] });
     expect(result.type).toBe("created");
     if (result.type === "created") {
       createdClientIds.push(result.clientId);
@@ -324,6 +325,8 @@ describe("graduateProspect", () => {
     const result = await graduateProspect({
       prospectId,
       firstName: "DupGrad",
+      lastName: "T",
+      preferredContact: "call",
       email: uniqueEmail,
       productsOfInterest: [],
     });
@@ -360,6 +363,8 @@ describe("graduateProspect", () => {
     const result = await graduateProspect({
       prospectId,
       firstName: "PhoneGrad",
+      lastName: "T",
+      preferredContact: "call",
       phone: uniquePhone,
       productsOfInterest: [],
     });
@@ -372,6 +377,8 @@ describe("graduateProspect", () => {
     const result = await graduateProspect({
       prospectId: "00000000-0000-0000-0000-000000000000",
       firstName: "Ghost",
+      lastName: "T",
+      preferredContact: "call",
       productsOfInterest: [],
     });
     expect(result).toEqual({ type: "error", error: "Prospect not found" });
@@ -384,10 +391,10 @@ describe("graduateProspect", () => {
     createdBatchIds.push(batchId);
 
     // First graduate it, then try again
-    const result = await graduateProspect({ prospectId, firstName: "Rejected", productsOfInterest: [] });
+    const result = await graduateProspect({ prospectId, firstName: "Rejected", lastName: "T", preferredContact: "call", productsOfInterest: [] });
     if (result.type === "created") createdClientIds.push(result.clientId);
 
-    const result2 = await graduateProspect({ prospectId, firstName: "Rejected", productsOfInterest: [] });
+    const result2 = await graduateProspect({ prospectId, firstName: "Rejected", lastName: "T", preferredContact: "call", productsOfInterest: [] });
     expect(result2).toEqual({ type: "error", error: "Prospect is not active" });
   });
 
@@ -397,7 +404,7 @@ describe("graduateProspect", () => {
     createdProspectIds.push(prospectId);
     createdBatchIds.push(batchId);
 
-    const result = await graduateProspect({ prospectId, firstName: "AssocGrad", productsOfInterest: [] });
+    const result = await graduateProspect({ prospectId, firstName: "AssocGrad", lastName: "T", preferredContact: "call", productsOfInterest: [] });
     expect(result.type).toBe("created");
     if (result.type === "created") createdClientIds.push(result.clientId);
   });

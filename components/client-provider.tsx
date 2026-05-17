@@ -21,6 +21,7 @@ export interface FullClient {
   productsOfInterest: ProductOfInterest[];
   notes?: string | null;
   onEmailList: boolean;
+  preferredContact?: "call" | "text" | "email" | null;
   status: "active" | "inactive" | "banned" | "unsubscribed" | "deleted";
   source: ClientSource;
   birthday?: string | null;

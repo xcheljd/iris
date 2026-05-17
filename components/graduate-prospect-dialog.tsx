@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserCheck, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { graduateProspect, graduateProspectIntoExistingClient, correctCatalog } from "@/lib/actions";
@@ -43,6 +44,7 @@ export function GraduateProspectDialog({
   const [birthday, setBirthday] = useState(prospect.birthday ?? "");
   const [anniversary, setAnniversary] = useState(prospect.anniversary ?? "");
   const [notes, setNotes] = useState(prospect.notes ?? "");
+  const [preferredContact, setPreferredContact] = useState<"" | "call" | "text" | "email">("");
   const [productsOfInterest, setProductsOfInterest] = useState<ProductOfInterest[]>([]);
   const { catalogMap, isManager, refetchCatalog } = useCatalog();
   const handleCorrectCatalog = async (m: string, c: string) => {
@@ -63,12 +65,21 @@ export function GraduateProspectDialog({
       toast.error("First name is required");
       return;
     }
+    if (!lastName.trim()) {
+      toast.error("Last name is required");
+      return;
+    }
+    if (!preferredContact) {
+      toast.error("Preferred contact method is required");
+      return;
+    }
     startTransition(async () => {
       try {
         const result = await graduateProspect({
           prospectId: prospect.id,
           firstName: firstName.trim(),
-          lastName: lastName.trim() || null,
+          lastName: lastName.trim(),
+          preferredContact: preferredContact as "call" | "text" | "email",
           phone: phone.trim() || null,
           email: email.trim() || null,
           birthday: birthday.trim() || null,
@@ -95,6 +106,7 @@ export function GraduateProspectDialog({
   const handleGraduateIntoExisting = () => {
     startTransition(async () => {
       const result = await graduateProspectIntoExistingClient(prospect.id, duplicateClientId, {
+        preferredContact: preferredContact || undefined,
         phone: phone.trim() || null,
         email: email.trim() || null,
         birthday: birthday.trim() || null,
@@ -130,9 +142,21 @@ export function GraduateProspectDialog({
                   <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Last Name</Label>
+                  <Label>Last Name *</Label>
                   <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Preferred Contact *</Label>
+                <Select value={preferredContact || undefined} onValueChange={(v) => setPreferredContact(v as "call" | "text" | "email")}>
+                  <SelectTrigger><SelectValue placeholder="Select method" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="call">Call</SelectItem>
+                    <SelectItem value="text">Text</SelectItem>
+                    <SelectItem value="email">Email</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

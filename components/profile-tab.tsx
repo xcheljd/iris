@@ -151,6 +151,15 @@ export function ProfileTab({ client }: ProfileTabProps) {
           </div>
 
           <div className="space-y-2">
+            <h4 className="text-sm font-medium">Preferred Contact</h4>
+            <Badge variant="secondary">
+              {client.preferredContact
+                ? client.preferredContact.charAt(0).toUpperCase() + client.preferredContact.slice(1)
+                : "—"}
+            </Badge>
+          </div>
+
+          <div className="space-y-2">
             <h4 className="text-sm font-medium">Status</h4>
             <Badge
               variant={

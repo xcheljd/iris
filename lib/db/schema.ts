@@ -7,6 +7,13 @@ export type ClientSource = typeof CLIENT_SOURCE_VALUES[number];
 export const OUTREACH_METHOD_VALUES = ["call", "text", "email", "in-person"] as const;
 export type OutreachMethod = typeof OUTREACH_METHOD_VALUES[number];
 
+// How a client prefers to be reached. Deliberately NOT the outreach
+// method enum (no "in-person" — the store doesn't do in-person visits).
+// Required at the create/graduate validation layer; the DB column is
+// nullable so direct inserts / pre-reseed rows don't break.
+export const PREFERRED_CONTACT_VALUES = ["call", "text", "email"] as const;
+export type PreferredContact = typeof PREFERRED_CONTACT_VALUES[number];
+
 export const OUTREACH_OUTCOME_VALUES = [
   "no_answer", "voicemail", "voicemail_full",
   "responded", "not_interested", "wants_to_come_in", "purchased",
@@ -66,6 +73,9 @@ export const clients = sqliteTable("clients", {
   dateAdded: integer("date_added", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
   productsOfInterest: text("products_of_interest", { mode: "json" }).$type<ProductOfInterest[]>().notNull().default(sql`'[]'`),
   notes: text("notes"),
+  // Required at create/graduate validation; nullable here so direct
+  // inserts / pre-reseed rows don't break (reads render null as "—").
+  preferredContact: text("preferred_contact", { enum: PREFERRED_CONTACT_VALUES }),
   onEmailList: integer("on_email_list", { mode: "boolean" }).notNull().default(false),
   status: text("status", { enum: ["active", "inactive", "banned", "unsubscribed", "deleted"] }).notNull().default("active"),
   source: text("source", { enum: CLIENT_SOURCE_VALUES }).notNull().default("Walk-in"),
