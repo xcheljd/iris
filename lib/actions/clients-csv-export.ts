@@ -7,6 +7,7 @@ import { sql as rawSql } from "drizzle-orm";
 import { buildClientFilterConds, type ClientFilterParams } from "@/lib/client-filter-conds";
 import { LIST_QUERY_LIMIT } from "@/lib/constants";
 import { requireAuth } from "./_shared";
+import { toCsv } from "@/lib/csv";
 
 export interface ClientsCsvExportResult {
   csv: string;
@@ -18,9 +19,9 @@ export interface ClientsCsvExportResult {
 /**
  * Builds a CSV export of clients matching the current Clients-page filters.
  * Reuses buildClientFilterConds so the export tracks the listing 1:1.
- * Includes a header row and one row per client. Output respects RFC 4180
- * quoting: fields containing `,`, `"`, or newlines are wrapped in quotes
- * and embedded `"` is doubled.
+ * Includes a header row and one row per client. Output uses the shared
+ * `toCsv`/`csvCell`: RFC-4180 quoting plus spreadsheet formula-injection
+ * neutralization (cells starting `= + - @` are quote-prefixed).
  *
  * Scoping mirrors the Clients page: associates see only their own clients;
  * managers see everyone. Excludes banned and deleted clients.
@@ -80,46 +81,31 @@ export async function exportClientsCsv(filters: ClientFilterParams = {}): Promis
     "Notes",
   ];
 
-  const lines = [header.map(csvEscape).join(",")];
-  for (const r of capped) {
-    const tagStr = Array.isArray(r.tags) ? r.tags.join("; ") : "";
-    lines.push([
-      r.firstName ?? "",
-      r.lastName ?? "",
-      r.email ?? "",
-      r.phone ?? "",
-      r.status,
-      r.heatLevel,
-      String(r.heatScore),
-      r.ownerName ?? "",
-      tagStr,
-      r.onEmailList ? "Yes" : "No",
-      r.source,
-      r.birthday ?? "",
-      r.anniversary ?? "",
-      r.lastOutreachAt ? toIsoDate(r.lastOutreachAt) : "",
-      r.lastPurchaseAt ? toIsoDate(r.lastPurchaseAt) : "",
-      r.createdAt ? toIsoDate(r.createdAt) : "",
-      r.notes ?? "",
-    ].map(csvEscape).join(","));
-  }
+  const dataRows = capped.map((r) => [
+    r.firstName ?? "",
+    r.lastName ?? "",
+    r.email ?? "",
+    r.phone ?? "",
+    r.status,
+    r.heatLevel,
+    String(r.heatScore),
+    r.ownerName ?? "",
+    Array.isArray(r.tags) ? r.tags.join("; ") : "",
+    r.onEmailList ? "Yes" : "No",
+    r.source,
+    r.birthday ?? "",
+    r.anniversary ?? "",
+    r.lastOutreachAt ? toIsoDate(r.lastOutreachAt) : "",
+    r.lastPurchaseAt ? toIsoDate(r.lastPurchaseAt) : "",
+    r.createdAt ? toIsoDate(r.createdAt) : "",
+    r.notes ?? "",
+  ]);
 
   return {
-    csv: lines.join("\n"),
+    csv: toCsv(header, dataRows),
     rowCount: capped.length,
     truncated,
   };
-}
-
-// TODO(follow-up, plan-004): migrate to the shared `csvCell` in
-// `lib/csv.ts`, which also neutralizes spreadsheet formula injection
-// (cells starting `= + - @`). This escaper does RFC-4180 quoting only.
-function csvEscape(field: string): string {
-  if (field === "") return "";
-  if (/[",\n\r]/.test(field)) {
-    return `"${field.replace(/"/g, '""')}"`;
-  }
-  return field;
 }
 
 function toIsoDate(d: Date | number | string): string {
