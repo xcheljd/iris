@@ -64,4 +64,11 @@ describe("MatchedClientsTab", () => {
     render(<MatchedClientsTab clients={[]} isManager currentUserId="mgr" />);
     expect(screen.getByText("No matched clients")).toBeInTheDocument();
   });
+
+  it("opens the CSV export dialog from the header button", async () => {
+    const user = userEvent.setup();
+    render(<MatchedClientsTab clients={rows} isManager currentUserId="mgr" />);
+    await user.click(screen.getByRole("button", { name: /Export CSV/ }));
+    expect(await screen.findByText("Export Matched Clients to CSV")).toBeInTheDocument();
+  });
 });

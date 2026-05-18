@@ -11,3 +11,4 @@ export * from "./actions/prospects";
 export * from "./actions/onboarding";
 export * from "./actions/catalog";
 export * from "./actions/collections-csv-export";
+export * from "./actions/matched-clients-csv-export";

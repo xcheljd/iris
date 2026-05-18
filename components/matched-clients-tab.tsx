@@ -9,8 +9,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PaginationFooter } from "@/components/pagination-footer";
 import { EmptyState } from "@/components/empty-state";
-import { ArrowUpDown, Filter, Users } from "lucide-react";
+import { ArrowUpDown, Filter, Users, Download } from "lucide-react";
 import { brandLabel } from "@/lib/brand";
+import { MatchedClientsCsvExportDialog } from "@/components/matched-clients-csv-export-dialog";
 import type { MatchedClientRow } from "@/lib/queries";
 
 const PAGE_SIZE = 15;
@@ -34,6 +35,7 @@ export function MatchedClientsTab({ clients, isManager, currentUserId }: Props) 
   const [ownerFilter, setOwnerFilter] = useState<Set<string>>(new Set());
   const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set());
   const [brandFilter, setBrandFilter] = useState<Set<string>>(new Set());
+  const [exportOpen, setExportOpen] = useState(false);
 
   const toggleSort = (k: SortKey) => {
     if (sortKey === k) setSortDir((d) => (d === 1 ? -1 : 1));
@@ -123,6 +125,11 @@ export function MatchedClientsTab({ clients, isManager, currentUserId }: Props) 
             <Users className="h-5 w-5" />
             Matched Clients
           </CardTitle>
+          <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setExportOpen(true)}>
+            <Download className="h-4 w-4 mr-1.5" />
+            Export CSV
+          </Button>
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm">
@@ -144,6 +151,7 @@ export function MatchedClientsTab({ clients, isManager, currentUserId }: Props) 
               </Button>
             </PopoverContent>
           </Popover>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -206,6 +214,13 @@ export function MatchedClientsTab({ clients, isManager, currentUserId }: Props) 
           </div>
         )}
       </CardContent>
+      <MatchedClientsCsvExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        owners={[...ownerFilter]}
+        matchTypes={[...typeFilter]}
+        brands={[...brandFilter]}
+      />
     </Card>
   );
 }
