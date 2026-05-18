@@ -141,6 +141,7 @@ describe("POST /api/clients", () => {
     expect(client.firstName).toBe("Test");
     expect(client.lastName).toBe("Client");
     expect(client.email).toBe(`test-create-${uniqueSuffix}@example.com`);
+    expect(client.preferredContact).toBe("call"); // regression: was dropped on insert
   });
 
   it("should create a client with minimal fields", async () => {

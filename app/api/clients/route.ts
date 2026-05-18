@@ -60,6 +60,7 @@ export const POST = withAuth(async (_session, request: Request) => {
       customerId: data.customerId ?? null,
       productsOfInterest: data.productsOfInterest,
       notes: data.notes ?? null,
+      preferredContact: data.preferredContact,
       onEmailList: data.onEmailList,
       source: data.source,
       birthday: data.birthday ?? null,
