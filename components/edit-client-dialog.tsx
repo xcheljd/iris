@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Edit3 } from "lucide-react";
 import { toast } from "sonner";
+import { catalogConflictMessage } from "@/lib/catalog-conflicts";
 import type { FullClient } from "@/components/client-provider";
 import type { ProductOfInterest } from "@/lib/db/schema";
 import { ClientForm, type ClientFormData } from "@/components/client-form";
@@ -97,6 +98,9 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
 
         if (response.ok) {
           toast.success("Client updated successfully");
+          const data = await response.json().catch(() => ({}));
+          const conflictMsg = catalogConflictMessage(data.conflicts);
+          if (conflictMsg) toast.warning(conflictMsg);
           setOpen(false);
         } else if (response.status === 409) {
           const duplicateData = await response.json();

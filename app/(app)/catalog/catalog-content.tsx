@@ -54,7 +54,7 @@ export function CatalogContent({ rows }: { rows: CatalogRow[] }) {
     start(async () => {
       const res = await resolveFlag(model, accept);
       if ("error" in res) { toast.error(res.error); return; }
-      toast.success(accept ? "Promo value applied" : "Kept curated value");
+      toast.success(accept ? "Conflicting value applied" : "Kept current value");
       router.refresh();
     });
   };
@@ -67,27 +67,31 @@ export function CatalogContent({ rows }: { rows: CatalogRow[] }) {
           <Card className="border-amber-500/40">
             <CardHeader>
               <CardTitle className="text-base">
-                Pending promo conflicts ({flagged.length})
+                Pending catalog conflicts ({flagged.length})
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {flagged.map((r) => (
-                <div key={r.model} className="flex items-center justify-between gap-3 text-sm border rounded-md p-2">
-                  <div>
-                    <span className="font-mono">{r.model}</span> — curated{" "}
-                    <strong>{r.collection}</strong>, a promo import said{" "}
-                    <strong>{r.flaggedCollection}</strong>
+              {flagged.map((r) => {
+                const fromManual = r.flaggedSource === "manual";
+                const sourceLabel = fromManual ? "a manual entry" : "a promo import";
+                return (
+                  <div key={r.model} className="flex items-center justify-between gap-3 text-sm border rounded-md p-2">
+                    <div>
+                      <span className="font-mono">{r.model}</span> — current{" "}
+                      <strong>{r.collection}</strong> ({r.source}); {sourceLabel} said{" "}
+                      <strong>{r.flaggedCollection}</strong>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <Button size="sm" variant="outline" disabled={pending} onClick={() => handleFlag(r.model, true)}>
+                        <Check className="h-4 w-4 mr-1" />Use {fromManual ? "entry" : "promo"}
+                      </Button>
+                      <Button size="sm" variant="ghost" disabled={pending} onClick={() => handleFlag(r.model, false)}>
+                        <X className="h-4 w-4 mr-1" />Keep current
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex gap-2 shrink-0">
-                    <Button size="sm" variant="outline" disabled={pending} onClick={() => handleFlag(r.model, true)}>
-                      <Check className="h-4 w-4 mr-1" />Use promo
-                    </Button>
-                    <Button size="sm" variant="ghost" disabled={pending} onClick={() => handleFlag(r.model, false)}>
-                      <X className="h-4 w-4 mr-1" />Keep curated
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </CardContent>
           </Card>
         )}

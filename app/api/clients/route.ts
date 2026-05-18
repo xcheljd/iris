@@ -6,6 +6,7 @@ import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { clientCreateSchema, clientPatchSchema } from "@/lib/validation/client";
 import { applyClientPatch } from "@/lib/actions/clients";
+import { recordProductsOfInterest } from "@/lib/actions/model-catalog";
 
 // GET /api/clients — list all clients
 export const GET = withAuth(async (_session, request: Request) => {
@@ -68,6 +69,11 @@ export const POST = withAuth(async (_session, request: Request) => {
       tags: data.tags,
     }).run();
 
+    // Feed the durable model→collection catalog from the new client's
+    // interests (the create path previously skipped this entirely, so
+    // manual conflicts on creation were never detected or surfaced).
+    const conflicts = recordProductsOfInterest(db, data.productsOfInterest);
+
     db.insert(activityEvents).values({
       id: randomUUID(),
       clientId: id,
@@ -76,7 +82,7 @@ export const POST = withAuth(async (_session, request: Request) => {
     }).run();
 
     revalidatePath("/clients");
-    return Response.json({ id });
+    return Response.json({ id, conflicts });
   } catch (_error) {
     return Response.json({ error: "Failed to create client" }, { status: 500 });
   }
@@ -106,8 +112,8 @@ export const PUT = withAuth(async (session, request: Request) => {
       );
     }
 
-    await applyClientPatch(id, parsed.data as Record<string, unknown>);
-    return Response.json({ success: true });
+    const conflicts = await applyClientPatch(id, parsed.data as Record<string, unknown>);
+    return Response.json({ success: true, conflicts });
   } catch (_error) {
     return Response.json({ error: "Failed to update client" }, { status: 500 });
   }

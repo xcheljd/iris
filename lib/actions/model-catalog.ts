@@ -88,8 +88,17 @@ export function recordModelCollection(
     return {};
   }
 
-  // manual + already known: never overwrite; report disagreement only.
+  // manual + already known: never overwrite. Record the disagreement as a
+  // pending flag for manager review (so it surfaces on /catalog), but never
+  // stomp an already-pending flag — a frequent manual typo must not bury a
+  // rarer promo conflict, and repeated identical manual conflicts dedupe.
   if (existing.collection.toUpperCase() !== c.toUpperCase()) {
+    if (!existing.flaggedCollection) {
+      tx.update(modelCatalog)
+        .set({ flaggedCollection: c, flaggedSource: "manual", flaggedAt: new Date() })
+        .where(eq(modelCatalog.model, m))
+        .run();
+    }
     return { conflict: { model: m, existing: existing.collection, attempted: c } };
   }
   return {};

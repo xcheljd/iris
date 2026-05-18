@@ -123,8 +123,12 @@ export async function resolveFlag(
     let result = { affected: 0 };
     if (accept) {
       const flagged = row.flaggedCollection;
+      // Accepting a promo flag keeps it promo-tracked (a later promo import
+      // may legitimately update it again). Accepting a manual flag is a
+      // deliberate manager decision — bless it as curated/authoritative.
+      const adoptSource = row.flaggedSource === "manual" ? "curated" : "promo";
       db.transaction((tx) => {
-        result = applyCorrection(tx, m, flagged, "promo", user.id);
+        result = applyCorrection(tx, m, flagged, adoptSource, user.id);
       });
     } else {
       db.update(modelCatalog)

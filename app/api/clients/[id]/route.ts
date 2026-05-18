@@ -35,8 +35,8 @@ export const PUT = withAuth(async (session, request: Request, { params }: { para
       );
     }
 
-    await applyClientPatch(id, parsed.data as Record<string, unknown>);
-    return Response.json({ success: true });
+    const conflicts = await applyClientPatch(id, parsed.data as Record<string, unknown>);
+    return Response.json({ success: true, conflicts });
   } catch (_error) {
     return Response.json({ error: "Failed to update client" }, { status: 500 });
   }

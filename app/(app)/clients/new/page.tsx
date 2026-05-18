@@ -4,6 +4,7 @@ import { useRef, useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { catalogConflictMessage } from "@/lib/catalog-conflicts";
 import { Topbar } from "@/components/topbar";
 import { ClientForm } from "@/components/client-form";
 import type { ClientFormData } from "@/components/client-form";
@@ -119,6 +120,8 @@ export default function AddClientPage() {
         if (response.ok) {
           const data = await response.json();
           toast.success("Client created successfully");
+          const conflictMsg = catalogConflictMessage(data.conflicts);
+          if (conflictMsg) toast.warning(conflictMsg);
           router.push(`/clients/${data.id}`);
         } else if (response.status === 409) {
           const duplicateData = await response.json();
