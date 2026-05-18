@@ -17,6 +17,7 @@ export function ClientDetailContent({ client, currentUserRole }: { client: FullC
   // "Collections > [collection] > [client]" instead of "Clients > [client]".
   const fromCollection =
     searchParams.get("from") === "collections" ? searchParams.get("collection") : null;
+  const fromPromoMatches = searchParams.get("from") === "promo-matches";
 
   return (
     <div className="flex flex-col h-svh">
@@ -34,6 +35,16 @@ export function ClientDetailContent({ client, currentUserRole }: { client: FullC
                   <BreadcrumbLink href={`/analytics/collections?collection=${encodeURIComponent(fromCollection)}`}>
                     {fromCollection}
                   </BreadcrumbLink>
+                </BreadcrumbItem>
+              </>
+            ) : fromPromoMatches ? (
+              <>
+                <BreadcrumbItem>
+                  <BreadcrumbLink href="/promos">Promo Manager</BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbLink href="/promos?tab=matched">Matched Clients</BreadcrumbLink>
                 </BreadcrumbItem>
               </>
             ) : (

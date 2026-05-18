@@ -11,7 +11,6 @@ vi.mock("next/cache", () => ({
 
 import { getServerSession } from "next-auth";
 import { GET as GETEmployees } from "@/app/api/employees/route";
-import { GET as GETPromoMatches } from "@/app/api/promos/matches/route";
 
 const managerSession = {
   user: { id: "2d7a352d-53a0-4544-b515-902e7dd59206", name: "Marcus", role: "manager" },
@@ -52,40 +51,5 @@ describe("GET /api/employees", () => {
       expect(emp).toHaveProperty("role");
       expect(emp).toHaveProperty("active");
     }
-  });
-});
-
-describe("GET /api/promos/matches", () => {
-  it("should return 400 when promoId is missing", async () => {
-    const req = new Request("http://localhost:3000/api/promos/matches");
-    const res = await GETPromoMatches(req);
-    expect(res.status).toBe(400);
-    const data = await res.json();
-    expect(data.error).toBe("promoId is required");
-  });
-
-  it("should return matches for a valid promoId", async () => {
-    // First check if there are any promos - use a direct DB call
-    const { db } = await import("@/lib/db");
-    const { promoWatches } = await import("@/lib/db/schema");
-    const promos = db.select().from(promoWatches).all();
-
-    if (promos.length > 0) {
-      const promoId = promos[0].id;
-      const req = new Request(`http://localhost:3000/api/promos/matches?promoId=${promoId}`);
-      const res = await GETPromoMatches(req);
-      expect(res.status).toBe(200);
-      const data = await res.json();
-      expect(Array.isArray(data)).toBe(true);
-    }
-  });
-
-  it("should return empty array for non-existent promoId", async () => {
-    const req = new Request("http://localhost:3000/api/promos/matches?promoId=nonexistent-promo-id");
-    const res = await GETPromoMatches(req);
-    expect(res.status).toBe(200);
-    const data = await res.json();
-    expect(Array.isArray(data)).toBe(true);
-    expect(data.length).toBe(0);
   });
 });

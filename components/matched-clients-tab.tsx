@@ -1,0 +1,211 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { PaginationFooter } from "@/components/pagination-footer";
+import { EmptyState } from "@/components/empty-state";
+import { ArrowUpDown, Filter, Users } from "lucide-react";
+import { brandLabel } from "@/lib/brand";
+import type { MatchedClientRow } from "@/lib/queries";
+
+const PAGE_SIZE = 15;
+
+type SortKey =
+  | "client" | "owner" | "preferredContact" | "phone" | "email"
+  | "promoModel" | "promoCollection" | "promoBrand" | "msrp" | "discountPrice" | "matchType";
+
+interface Props {
+  clients: MatchedClientRow[];
+  isManager: boolean;
+  currentUserId: string;
+}
+
+const fullName = (r: MatchedClientRow) => `${r.clientFirstName} ${r.clientLastName ?? ""}`.trim();
+
+export function MatchedClientsTab({ clients, isManager, currentUserId }: Props) {
+  const [page, setPage] = useState(1);
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<1 | -1>(1);
+  const [ownerFilter, setOwnerFilter] = useState<Set<string>>(new Set());
+  const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set());
+  const [brandFilter, setBrandFilter] = useState<Set<string>>(new Set());
+
+  const toggleSort = (k: SortKey) => {
+    if (sortKey === k) setSortDir((d) => (d === 1 ? -1 : 1));
+    else { setSortKey(k); setSortDir(1); }
+  };
+  const toggleIn = (set: Set<string>, v: string, setter: (s: Set<string>) => void) => {
+    const next = new Set(set);
+    if (next.has(v)) next.delete(v); else next.add(v);
+    setter(next);
+    setPage(1);
+  };
+
+  const owners = useMemo(
+    () => Array.from(new Set(clients.map((c) => c.ownerName).filter((o): o is string => !!o))).sort(),
+    [clients],
+  );
+  const brands = useMemo(
+    () => Array.from(new Set(clients.map((c) => c.promoBrand).filter((b): b is string => !!b))).sort(),
+    [clients],
+  );
+
+  const rows = useMemo(() => {
+    let r = clients;
+    if (ownerFilter.size) r = r.filter((c) => c.ownerName && ownerFilter.has(c.ownerName));
+    if (typeFilter.size) r = r.filter((c) => typeFilter.has(c.matchType));
+    if (brandFilter.size) r = r.filter((c) => c.promoBrand && brandFilter.has(c.promoBrand));
+    if (sortKey) {
+      const val = (c: MatchedClientRow): string | number => {
+        switch (sortKey) {
+          case "client": return fullName(c).toLowerCase();
+          case "owner": return (c.ownerName ?? "").toLowerCase();
+          case "preferredContact": return c.preferredContact ?? "";
+          case "phone": return c.phone ?? "";
+          case "email": return (c.email ?? "").toLowerCase();
+          case "promoModel": return c.promoModel.toLowerCase();
+          case "promoCollection": return c.promoCollection.toLowerCase();
+          case "promoBrand": return c.promoBrand ?? "";
+          case "msrp": return c.msrp ?? -Infinity;
+          case "discountPrice": return c.discountPrice ?? -Infinity;
+          case "matchType": return c.matchType;
+        }
+      };
+      r = [...r].sort((a, b) => {
+        const av = val(a), bv = val(b);
+        if (typeof av === "number" && typeof bv === "number") return (av - bv) * sortDir;
+        return String(av).localeCompare(String(bv)) * sortDir;
+      });
+    }
+    return r;
+  }, [clients, ownerFilter, typeFilter, brandFilter, sortKey, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const current = Math.min(page, totalPages);
+  const paged = rows.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
+
+  const SortHead = ({ k, label, className }: { k: SortKey; label: string; className?: string }) => (
+    <TableHead className={className}>
+      <button className="inline-flex items-center gap-1 font-medium" onClick={() => toggleSort(k)}>
+        {label}
+        <ArrowUpDown className={`h-3 w-3 ${sortKey === k ? "text-foreground" : "text-muted-foreground/50"}`} />
+      </button>
+    </TableHead>
+  );
+
+  const Facet = ({ label, values, set, setter }: { label: string; values: string[]; set: Set<string>; setter: (s: Set<string>) => void }) => (
+    <div>
+      <div className="text-xs font-medium mb-1">{label}</div>
+      <div className="max-h-32 overflow-y-auto space-y-1">
+        {values.length === 0 && <div className="text-xs text-muted-foreground">none</div>}
+        {values.map((v) => (
+          <label key={v} className="flex items-center gap-1.5 text-sm">
+            <input type="checkbox" checked={set.has(v)} onChange={() => toggleIn(set, v, setter)} />
+            {label === "Brand" ? brandLabel(v) : v}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+
+  const filtersActive = ownerFilter.size || typeFilter.size || brandFilter.size;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Matched Clients
+          </CardTitle>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Filter className={`h-4 w-4 mr-1.5 ${filtersActive ? "text-primary" : ""}`} />
+                Filters
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 space-y-3" align="end">
+              <Facet label="Assigned associate" values={owners} set={ownerFilter} setter={setOwnerFilter} />
+              <Facet label="Match type" values={["model", "collection", "brand"]} set={typeFilter} setter={setTypeFilter} />
+              <Facet label="Brand" values={brands} set={brandFilter} setter={setBrandFilter} />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                onClick={() => { setOwnerFilter(new Set()); setTypeFilter(new Set()); setBrandFilter(new Set()); setPage(1); }}
+              >
+                Clear filters
+              </Button>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {rows.length === 0 ? (
+          <EmptyState icon={Users} title="No matched clients" compact />
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <SortHead k="client" label="Client" />
+                  <SortHead k="owner" label="Associate" />
+                  <SortHead k="preferredContact" label="Pref. contact" className="hidden md:table-cell" />
+                  <SortHead k="phone" label="Phone" className="hidden sm:table-cell" />
+                  <SortHead k="email" label="Email" className="hidden lg:table-cell" />
+                  <SortHead k="promoModel" label="Model" />
+                  <SortHead k="promoCollection" label="Collection" className="hidden sm:table-cell" />
+                  <SortHead k="promoBrand" label="Brand" className="hidden sm:table-cell" />
+                  <SortHead k="msrp" label="MSRP" className="text-right hidden md:table-cell" />
+                  <SortHead k="discountPrice" label="Sale" className="text-right hidden md:table-cell" />
+                  <SortHead k="matchType" label="Match" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paged.map((c, i) => {
+                  const canLink = isManager || c.clientEmployeeId === currentUserId;
+                  return (
+                    <TableRow key={`${c.clientId}|${c.promoModel}|${c.matchType}|${i}`}>
+                      <TableCell className="font-medium">
+                        {canLink ? (
+                          <Link href={`/clients/${c.clientId}?from=promo-matches`} className="hover:underline">
+                            {fullName(c)}
+                          </Link>
+                        ) : fullName(c)}
+                      </TableCell>
+                      <TableCell>{c.ownerName ?? "Unassigned"}</TableCell>
+                      <TableCell className="hidden md:table-cell capitalize">{c.preferredContact ?? "—"}</TableCell>
+                      <TableCell className="hidden sm:table-cell">{c.phone ?? "—"}</TableCell>
+                      <TableCell className="hidden lg:table-cell">{c.email ?? "—"}</TableCell>
+                      <TableCell className="font-mono text-sm">{c.promoModel}</TableCell>
+                      <TableCell className="hidden sm:table-cell">{c.promoCollection}</TableCell>
+                      <TableCell className="hidden sm:table-cell">{brandLabel(c.promoBrand)}</TableCell>
+                      <TableCell className="text-right hidden md:table-cell">{c.msrp != null ? `$${c.msrp.toFixed(2)}` : "—"}</TableCell>
+                      <TableCell className="text-right hidden md:table-cell text-green-500">{c.discountPrice != null ? `$${c.discountPrice.toFixed(2)}` : "—"}</TableCell>
+                      <TableCell><Badge variant={c.matchType === "model" ? "default" : "secondary"}>{c.matchType}</Badge></TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+            <PaginationFooter
+              currentPage={current}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              totalItems={rows.length}
+              pageSize={PAGE_SIZE}
+              variant="icons"
+              showBorder
+            />
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

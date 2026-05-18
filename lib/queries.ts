@@ -292,6 +292,58 @@ export async function getPromoMatchCounts(): Promise<Record<string, number>> {
   return map;
 }
 
+export interface MatchedClientRow {
+  clientId: string;
+  clientFirstName: string;
+  clientLastName: string | null;
+  clientEmployeeId: string | null;
+  ownerName: string | null;
+  preferredContact: string | null;
+  phone: string | null;
+  email: string | null;
+  promoModel: string;
+  promoCollection: string;
+  promoBrand: string | null;
+  msrp: number | null;
+  discountPrice: number | null;
+  matchType: string;
+}
+
+// One row per (client, promo) match for the Matched Clients tab.
+// Excludes soft-deleted/orphaned clients (same predicate as
+// getPromoMatchCounts). Employee-scoped like the CSV exports:
+// pass the associate's id to limit to their own clients.
+export async function getMatchedClients(employeeId?: string): Promise<MatchedClientRow[]> {
+  return db
+    .select({
+      clientId: clients.id,
+      clientFirstName: clients.firstName,
+      clientLastName: clients.lastName,
+      clientEmployeeId: clients.employeeId,
+      ownerName: rawSql<string | null>`NULLIF(TRIM(COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, '')), '')`.as("owner_name"),
+      preferredContact: clients.preferredContact,
+      phone: clients.phone,
+      email: clients.email,
+      promoModel: promoWatches.modelNumber,
+      promoCollection: promoWatches.collection,
+      promoBrand: promoWatches.brand,
+      msrp: promoWatches.msrp,
+      discountPrice: promoWatches.discountPrice,
+      matchType: promoMatches.matchType,
+    })
+    .from(promoMatches)
+    .innerJoin(clients, eq(promoMatches.clientId, clients.id))
+    .innerJoin(promoWatches, eq(promoMatches.promoId, promoWatches.id))
+    .leftJoin(employees, eq(clients.employeeId, employees.id))
+    .where(and(
+      isNull(clients.deletedAt),
+      notInArray(clients.status, ["deleted"]),
+      employeeId ? eq(clients.employeeId, employeeId) : undefined,
+    ))
+    .orderBy(clients.lastName, clients.firstName, promoWatches.modelNumber)
+    .all();
+}
+
 // Durable model → collection lookup from the model catalog (survives the
 // weekly promo reset). Used for input-time collection suggestion.
 export async function getModelCollectionMap(): Promise<Record<string, string>> {

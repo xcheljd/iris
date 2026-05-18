@@ -1,8 +1,7 @@
 "use client";
 
-import { Fragment, useState, useMemo, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatsCard } from "@/components/stats-card";
 import { Button } from "@/components/ui/button";
@@ -14,11 +13,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SearchInput } from "@/components/search-input";
 import { EmptyState } from "@/components/empty-state";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MatchedClientsTab } from "@/components/matched-clients-tab";
+import type { MatchedClientRow } from "@/lib/queries";
 import { PaginationFooter } from "@/components/pagination-footer";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  Tag, Plus, Trash2, Watch, Users,
+  Tag, Plus, Trash2, Watch,
   MoreHorizontal, ClipboardPaste,
   FileSpreadsheet, Trash, CalendarDays, Calendar,
 } from "lucide-react";
@@ -36,21 +38,25 @@ import { ImportPromoDialog } from "@/components/promo/import-promo-dialog";
 
 const PAGE_SIZE = 15;
 
-interface PromoClientMatch {
-  match: { id: string; matchType: string };
-  client?: { id: string; firstName: string; lastName: string | null; phone: string | null; employeeId: string | null };
-}
-
 interface PromosContentProps {
   promos: PromoWatch[];
   isManager: boolean;
   matchCounts?: Record<string, number>;
   currentUserId?: string;
+  matchedClients?: MatchedClientRow[];
 }
 
 
-export function PromosContent({ promos: initialPromos, isManager, matchCounts = {}, currentUserId = "" }: PromosContentProps) {
+export function PromosContent({ promos: initialPromos, isManager, matchCounts = {}, currentUserId = "", matchedClients = [] }: PromosContentProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const tab = searchParams.get("tab") === "matched" ? "matched" : "promos";
+  const onTabChange = (v: string) => {
+    const p = new URLSearchParams(Array.from(searchParams.entries()));
+    if (v === "matched") p.set("tab", "matched"); else p.delete("tab");
+    const qs = p.toString();
+    router.replace(`/promos${qs ? `?${qs}` : ""}`);
+  };
   const [promos, setPromos] = useState(initialPromos);
   // router.refresh() (after import/create) re-renders the server component with
   // fresh data, but useState keeps its initial value — sync when the prop changes.
@@ -58,8 +64,6 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
     setPromos(initialPromos);
   }, [initialPromos]);
   const [isCreating, setIsCreating] = useState(false);
-  const [showMatches, setShowMatches] = useState<string | null>(null);
-  const [matches, setMatches] = useState<PromoClientMatch[]>([]);
   const [newPromo, setNewPromo] = useState({ modelNumber: "", collection: "", brand: "", msrp: "", discountPercent: "", discountPrice: "", sizeOneQty: "", sizeTwoQty: "" });
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -195,17 +199,17 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
     } catch { toast.error("Failed to clear promos"); }
   };
 
-  const handleViewMatches = async (promoId: string) => {
-    if (showMatches === promoId) { setShowMatches(null); return; }
-    try {
-      const response = await fetch(`/api/promos/matches?promoId=${promoId}`);
-      if (response.ok) { const data = await response.json(); setMatches(data); setShowMatches(promoId); }
-    } catch { toast.error("Failed to load matches"); }
-  };
-
   return (
     <>
       <Topbar title="Promo Manager" />
+      <Tabs value={tab} onValueChange={onTabChange} className="flex-1 flex flex-col">
+        <div className="px-4 md:px-6 pt-4">
+          <TabsList>
+            <TabsTrigger value="promos">Promos</TabsTrigger>
+            <TabsTrigger value="matched">Matched Clients</TabsTrigger>
+          </TabsList>
+        </div>
+        <TabsContent value="promos" className="flex-1">
       <div className="flex-1 p-4 md:p-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div>
@@ -429,8 +433,7 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
                 </TableHeader>
                 <TableBody>
                   {paginated.map((promo) => (
-                    <Fragment key={promo.id}>
-                      <TableRow>
+                      <TableRow key={promo.id}>
                         <TableCell className="font-medium font-mono text-sm">{promo.modelNumber}</TableCell>
                         <TableCell><Badge variant="outline">{promo.collection}</Badge></TableCell>
                         <TableCell className="hidden sm:table-cell">{brandLabel(promo.brand)}</TableCell>
@@ -455,11 +458,6 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleViewMatches(promo.id)}>
-                                <Users className="h-4 w-4 mr-2" />
-                                View Matches
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
                               <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(promo)}>
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Delete
@@ -469,38 +467,6 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
                         </TableCell>
                         )}
                       </TableRow>
-                      {showMatches === promo.id && (
-                        <TableRow key={`${promo.id}-matches`}>
-                          <TableCell colSpan={isManager ? 10 : 9} className="bg-muted/30 p-4">
-                            <div className="space-y-2">
-                              <h4 className="text-sm font-medium">Matched Clients</h4>
-                              {matches.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">No client matches yet</p>
-                              ) : (
-                                <div className="space-y-1">
-                                  {matches.map((m) => (
-                                    <div key={m.match.id} className="flex items-center gap-2 text-sm">
-                                      <Badge variant="outline" className="text-xs">{m.match.matchType}</Badge>
-                                      {m.client && (isManager || m.client.employeeId === currentUserId) ? (
-                                        <Link
-                                          href={`/clients/${m.client.id}`}
-                                          className="font-medium hover:underline"
-                                        >
-                                          {m.client.firstName} {m.client.lastName || ""}
-                                        </Link>
-                                      ) : (
-                                        <span>{m.client?.firstName} {m.client?.lastName || ""}</span>
-                                      )}
-                                      {m.client?.phone && <span className="text-muted-foreground">{m.client.phone}</span>}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </Fragment>
                   ))}
                 </TableBody>
               </Table>
@@ -549,6 +515,13 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
       />
       )}
       </div>
+        </TabsContent>
+        <TabsContent value="matched" className="flex-1">
+          <div className="flex-1 p-4 md:p-6">
+            <MatchedClientsTab clients={matchedClients} isManager={isManager} currentUserId={currentUserId} />
+          </div>
+        </TabsContent>
+      </Tabs>
     </>
   );
 }
