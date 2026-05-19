@@ -201,6 +201,8 @@ export async function listCatalog({
   const totalRow = db.select({ n: sql<number>`count(*)` }).from(modelCatalog).where(filter).get();
   const needsReview = db.select().from(modelCatalog).where(eq(modelCatalog.needsReview, true)).orderBy(asc(modelCatalog.model)).all();
   const flagged = db.select().from(modelCatalog).where(isNotNull(modelCatalog.flaggedCollection)).orderBy(asc(modelCatalog.model)).all();
+  // Global (unfiltered) max so the slider's upper bound stays stable as filters change.
+  const ceilingRow = db.select({ m: sql<number>`max(${modelCatalog.msrp})` }).from(modelCatalog).get();
 
-  return { rows, total: Number(totalRow?.n ?? 0), needsReview, flagged };
+  return { rows, total: Number(totalRow?.n ?? 0), needsReview, flagged, msrpCeiling: Math.ceil(Number(ceilingRow?.m ?? 0)) };
 }

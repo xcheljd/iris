@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import { PaginationFooter } from "@/components/pagination-footer";
 import { EmptyState } from "@/components/empty-state";
 import { Topbar } from "@/components/topbar";
@@ -40,6 +41,7 @@ interface CatalogContentProps {
   brands: string[];
   msrpMin?: number;
   msrpMax?: number;
+  msrpCeiling: number;
   sort: "model" | "collection" | "brand";
   dir: "asc" | "desc";
   page: number;
@@ -47,13 +49,12 @@ interface CatalogContentProps {
 
 type SortKey = "model" | "collection" | "brand";
 
-export function CatalogContent({ rows, total, needsReview, flagged, mod, col, brands, msrpMin, msrpMax, sort, dir, page }: CatalogContentProps) {
+export function CatalogContent({ rows, total, needsReview, flagged, mod, col, brands, msrpMin, msrpMax, msrpCeiling, sort, dir, page }: CatalogContentProps) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [modLocal, setModLocal] = useState(mod);
   const [colLocal, setColLocal] = useState(col);
-  const [msrpMinLocal, setMsrpMinLocal] = useState(msrpMin != null ? String(msrpMin) : "");
-  const [msrpMaxLocal, setMsrpMaxLocal] = useState(msrpMax != null ? String(msrpMax) : "");
+  const [msrpRange, setMsrpRange] = useState<[number, number]>([msrpMin ?? 0, msrpMax ?? msrpCeiling]);
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [importOpen, setImportOpen] = useState(false);
@@ -63,14 +64,12 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
 
   function navigate(overrides: {
     mod?: string; col?: string; brands?: string[];
-    msrpMin?: string; msrpMax?: string;
     sort?: SortKey; dir?: "asc" | "desc"; page?: number;
   } = {}) {
     const nextMod = overrides.mod ?? modLocal;
     const nextCol = overrides.col ?? colLocal;
     const nextBrands = overrides.brands ?? brands;
-    const nextMsrpMin = overrides.msrpMin ?? msrpMinLocal;
-    const nextMsrpMax = overrides.msrpMax ?? msrpMaxLocal;
+    const [lo, hi] = msrpRange;
     const nextSort = overrides.sort ?? sort;
     const nextDir = overrides.dir ?? dir;
     const nextPage = overrides.page ?? page;
@@ -78,8 +77,8 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
     if (nextMod) sp.set("mod", nextMod);
     if (nextCol) sp.set("col", nextCol);
     if (nextBrands.length) sp.set("brands", nextBrands.join(","));
-    if (nextMsrpMin) sp.set("msrpMin", nextMsrpMin);
-    if (nextMsrpMax) sp.set("msrpMax", nextMsrpMax);
+    if (lo > 0) sp.set("msrpMin", String(lo));
+    if (hi < msrpCeiling) sp.set("msrpMax", String(hi));
     if (nextSort !== "model") sp.set("sort", nextSort);
     if (nextDir !== "asc") sp.set("dir", nextDir);
     if (nextPage > 1) sp.set("page", String(nextPage));
@@ -93,7 +92,7 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
     if (isFirstRender.current) { isFirstRender.current = false; return; }
     const id = setTimeout(() => navigateRef.current({ page: 1 }), 300);
     return () => clearTimeout(id);
-  }, [modLocal, colLocal, msrpMinLocal, msrpMaxLocal]);
+  }, [modLocal, colLocal, msrpRange]);
 
   const toggleBrand = (b: string) => {
     const next = brands.includes(b) ? brands.filter((x) => x !== b) : [...brands, b];
@@ -307,32 +306,45 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                           <Popover>
                             <PopoverTrigger asChild>
                               <button aria-label="Filter MSRP">
-                                <Filter className={`h-3 w-3 ${msrpMinLocal || msrpMaxLocal ? "text-primary" : "text-muted-foreground/50"}`} />
+                                <Filter className={`h-3 w-3 ${msrpRange[0] > 0 || msrpRange[1] < msrpCeiling ? "text-primary" : "text-muted-foreground/50"}`} />
                               </button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-44 space-y-3">
-                              <div className="space-y-1">
-                                <p className="text-xs text-muted-foreground">Min $</p>
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  placeholder="0"
-                                  value={msrpMinLocal}
-                                  onChange={(e) => setMsrpMinLocal(e.target.value)}
-                                  className="h-8"
+                            <PopoverContent className="w-64 space-y-4">
+                              <div className="flex items-center justify-between text-sm tabular-nums">
+                                <BoundField
+                                  value={msrpRange[0]}
+                                  align="left"
+                                  onCommit={(n) =>
+                                    setMsrpRange(([, hi]) => [Math.min(Math.max(0, n), hi), hi])
+                                  }
+                                />
+                                <BoundField
+                                  value={msrpRange[1]}
+                                  align="right"
+                                  plus={msrpRange[1] >= msrpCeiling}
+                                  onCommit={(n) =>
+                                    setMsrpRange(([lo]) => [lo, Math.max(Math.min(msrpCeiling, n), lo)])
+                                  }
                                 />
                               </div>
-                              <div className="space-y-1">
-                                <p className="text-xs text-muted-foreground">Max $</p>
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  placeholder="∞"
-                                  value={msrpMaxLocal}
-                                  onChange={(e) => setMsrpMaxLocal(e.target.value)}
-                                  className="h-8"
-                                />
-                              </div>
+                              <Slider
+                                min={0}
+                                max={msrpCeiling}
+                                step={Math.max(1, Math.round(msrpCeiling / 200))}
+                                value={msrpRange}
+                                onValueChange={(v) => setMsrpRange([v[0], v[1]] as [number, number])}
+                                disabled={msrpCeiling <= 0}
+                              />
+                              {(msrpRange[0] > 0 || msrpRange[1] < msrpCeiling) && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-full text-xs"
+                                  onClick={() => setMsrpRange([0, msrpCeiling])}
+                                >
+                                  Clear
+                                </Button>
+                              )}
                             </PopoverContent>
                           </Popover>
                         </div>
@@ -400,5 +412,50 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
       </div>
       <ImportCatalogDialog open={importOpen} onOpenChange={setImportOpen} />
     </>
+  );
+}
+
+function BoundField({
+  value,
+  onCommit,
+  align,
+  plus = false,
+}: {
+  value: number;
+  onCommit: (n: number) => void;
+  align: "left" | "right";
+  plus?: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  if (editing) {
+    return (
+      <input
+        type="number"
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => {
+          const n = parseFloat(draft);
+          onCommit(isNaN(n) ? value : n);
+          setEditing(false);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          if (e.key === "Escape") setEditing(false);
+        }}
+        className={`w-20 h-7 rounded border bg-background px-2 text-sm tabular-nums ${align === "right" ? "text-right" : ""}`}
+      />
+    );
+  }
+
+  return (
+    <button
+      className={`h-7 rounded px-1 text-sm tabular-nums hover:bg-muted ${align === "right" ? "text-muted-foreground" : ""}`}
+      onClick={() => { setDraft(String(value)); setEditing(true); }}
+    >
+      ${value.toLocaleString()}{plus ? "+" : ""}
+    </button>
   );
 }
