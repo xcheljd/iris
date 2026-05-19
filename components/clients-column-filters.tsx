@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
@@ -108,6 +109,186 @@ export function SingleSelectMenu({
         </CommandGroup>
       </CommandList>
     </Command>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Generic multi-select menu — used inside a ColumnFilterPopover               */
+/* -------------------------------------------------------------------------- */
+
+export function MultiSelectMenu({
+  options,
+  selected,
+  onChange,
+  placeholder = "Search…",
+}: {
+  options: SingleSelectOption[];
+  selected: string[];
+  onChange(next: string[]): void;
+  placeholder?: string;
+}) {
+  const toggle = (value: string) => {
+    const next = selected.includes(value)
+      ? selected.filter((v) => v !== value)
+      : [...selected, value];
+    onChange(next);
+  };
+
+  return (
+    <Command>
+      <CommandInput placeholder={placeholder} />
+      <CommandList>
+        <CommandEmpty>No results.</CommandEmpty>
+        <CommandGroup>
+          {options.map((opt) => {
+            const isSelected = selected.includes(opt.value);
+            return (
+              <CommandItem
+                key={opt.value}
+                value={opt.label}
+                onSelect={() => toggle(opt.value)}
+                className="flex items-center gap-2"
+              >
+                <div
+                  className={cn(
+                    "flex h-4 w-4 items-center justify-center rounded border",
+                    isSelected
+                      ? "bg-primary border-primary text-primary-foreground"
+                      : "border-muted-foreground/30",
+                  )}
+                >
+                  {isSelected && <Check className="h-3 w-3" />}
+                </div>
+                <span className="flex-1 truncate">{opt.label}</span>
+              </CommandItem>
+            );
+          })}
+        </CommandGroup>
+      </CommandList>
+    </Command>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Numeric range menu (dual-handle slider + editable bounds)                   */
+/* -------------------------------------------------------------------------- */
+
+/** Click-to-edit currency label that drives one end of the range. */
+function BoundField({
+  value,
+  onCommit,
+  align,
+  plus = false,
+}: {
+  value: number;
+  onCommit(n: number): void;
+  align: "left" | "right";
+  plus?: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  if (editing) {
+    return (
+      <input
+        type="number"
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => {
+          const n = parseFloat(draft);
+          onCommit(isNaN(n) ? value : n);
+          setEditing(false);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          if (e.key === "Escape") setEditing(false);
+        }}
+        className={cn(
+          "h-7 w-20 rounded border bg-background px-2 text-sm tabular-nums",
+          align === "right" && "text-right",
+        )}
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className={cn(
+        "h-7 rounded px-1 text-sm tabular-nums hover:bg-muted",
+        align === "right" && "text-muted-foreground",
+      )}
+      onClick={() => {
+        setDraft(String(value));
+        setEditing(true);
+      }}
+    >
+      ${value.toLocaleString()}
+      {plus ? "+" : ""}
+    </button>
+  );
+}
+
+/**
+ * Dual-handle range filter. `ceiling` is the upper bound (e.g. the global
+ * max). A min of 0 / max at ceiling means "unfiltered" — the caller decides
+ * how to translate that to URL params. Commits on slider release or when an
+ * edited bound is confirmed (not on every drag tick).
+ */
+export function RangeFilterMenu({
+  min,
+  max,
+  ceiling,
+  onChange,
+}: {
+  min: number;
+  max: number;
+  ceiling: number;
+  onChange(next: { min: number; max: number }): void;
+}) {
+  const [range, setRange] = useState<[number, number]>([min, max]);
+
+  useEffect(() => {
+    setRange([min, max]);
+  }, [min, max]);
+
+  const [lo, hi] = range;
+  const step = Math.max(1, Math.round(ceiling / 200));
+
+  return (
+    <div className="space-y-4 p-3">
+      <div className="flex items-center justify-between">
+        <BoundField
+          value={lo}
+          align="left"
+          onCommit={(n) => {
+            const clamped = Math.min(Math.max(0, n), hi);
+            setRange([clamped, hi]);
+            onChange({ min: clamped, max: hi });
+          }}
+        />
+        <BoundField
+          value={hi}
+          align="right"
+          plus={hi >= ceiling}
+          onCommit={(n) => {
+            const clamped = Math.max(Math.min(ceiling, n), lo);
+            setRange([lo, clamped]);
+            onChange({ min: lo, max: clamped });
+          }}
+        />
+      </div>
+      <Slider
+        min={0}
+        max={ceiling}
+        step={step}
+        value={range}
+        onValueChange={(v) => setRange([v[0], v[1]] as [number, number])}
+        onValueCommit={(v) => onChange({ min: v[0], max: v[1] })}
+        disabled={ceiling <= 0}
+      />
+    </div>
   );
 }
 

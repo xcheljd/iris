@@ -14,8 +14,8 @@ import { Topbar } from "@/components/topbar";
 import { formatPhone, daysAgo } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, ChevronUp, ChevronDown, ChevronsUpDown, MoreHorizontal, Eye, Edit, Ban, MailX, Trash2, Mail, BookmarkPlus, FileText } from "lucide-react";
-import type { ReactNode } from "react";
+import { Plus, MoreHorizontal, Eye, Edit, Ban, MailX, Trash2, Mail, BookmarkPlus, FileText } from "lucide-react";
+import { ColumnHeader } from "@/components/column-header";
 import { BanCustomerDialog, UnsubscribeCustomerDialog } from "@/components/client-status-actions";
 import { EmailRecipientsDialog } from "@/components/email-recipients-dialog";
 import { ClientsCsvExportDialog } from "@/components/clients-csv-export-dialog";
@@ -78,48 +78,6 @@ interface ClientRow {
     tags: string[];
   };
   employeeName: string | null;
-}
-
-/**
- * Header cell: label + optional sort affordance + optional filter trigger.
- * Sort is opt-in (pass sortKey/onSort); filter is opt-in (pass `filter` slot).
- */
-function ColumnHeader({
-  label,
-  sortKey,
-  currentSort,
-  currentDir,
-  onSort,
-  filter,
-}: {
-  label: string;
-  sortKey?: SortKey;
-  currentSort?: SortKey;
-  currentDir?: SortDir;
-  onSort?: (key: SortKey) => void;
-  filter?: ReactNode;
-}) {
-  const isActive = sortKey && currentSort === sortKey;
-  return (
-    <div className="flex items-center gap-1">
-      {sortKey ? (
-        <button
-          onClick={() => onSort?.(sortKey)}
-          className="flex items-center gap-1 hover:text-foreground transition-colors"
-        >
-          {label}
-          {isActive ? (
-            currentDir === "asc" ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />
-          ) : (
-            <ChevronsUpDown className="h-3.5 w-3.5 opacity-40" />
-          )}
-        </button>
-      ) : (
-        <span>{label}</span>
-      )}
-      {filter}
-    </div>
-  );
 }
 
 export function ClientListContent({

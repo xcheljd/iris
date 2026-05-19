@@ -1,22 +1,23 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Slider } from "@/components/ui/slider";
 import { PaginationFooter } from "@/components/pagination-footer";
 import { EmptyState } from "@/components/empty-state";
 import { Topbar } from "@/components/topbar";
-import { Library, Check, X, Pencil, Upload, ClipboardCheck, ArrowUpDown, Filter } from "lucide-react";
+import { Library, Check, X, Pencil, Upload, ClipboardCheck } from "lucide-react";
 import { toast } from "sonner";
 import { correctCatalog, resolveFlag, confirmCatalogRow } from "@/lib/actions";
 import { brandLabel } from "@/lib/brand";
 import { ImportCatalogDialog } from "@/components/catalog/import-catalog-dialog";
+import { ColumnHeader } from "@/components/column-header";
+import { ColumnFilterPopover } from "@/components/column-filter-popover";
+import { TextFilterMenu, MultiSelectMenu, RangeFilterMenu } from "@/components/clients-column-filters";
 import { BRAND_VALUES } from "@/lib/db/schema";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
@@ -52,67 +53,44 @@ type SortKey = "model" | "collection" | "brand";
 export function CatalogContent({ rows, total, needsReview, flagged, mod, col, brands, msrpMin, msrpMax, msrpCeiling, sort, dir, page }: CatalogContentProps) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [modLocal, setModLocal] = useState(mod);
-  const [colLocal, setColLocal] = useState(col);
-  const [msrpRange, setMsrpRange] = useState<[number, number]>([msrpMin ?? 0, msrpMax ?? msrpCeiling]);
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [importOpen, setImportOpen] = useState(false);
-  const isFirstRender = useRef(true);
 
   const totalPages = Math.ceil(total / DEFAULT_PAGE_SIZE);
 
-  function navigate(overrides: {
-    mod?: string; col?: string; brands?: string[];
-    sort?: SortKey; dir?: "asc" | "desc"; page?: number;
-  } = {}) {
-    const nextMod = overrides.mod ?? modLocal;
-    const nextCol = overrides.col ?? colLocal;
-    const nextBrands = overrides.brands ?? brands;
-    const [lo, hi] = msrpRange;
-    const nextSort = overrides.sort ?? sort;
-    const nextDir = overrides.dir ?? dir;
-    const nextPage = overrides.page ?? page;
+  function navigate(
+    overrides: Partial<{
+      mod: string;
+      col: string;
+      brands: string[];
+      msrpMin?: number;
+      msrpMax?: number;
+      sort: SortKey;
+      dir: "asc" | "desc";
+      page: number;
+    }> = {},
+  ) {
+    const next = { mod, col, brands, msrpMin, msrpMax, sort, dir, page, ...overrides };
     const sp = new URLSearchParams();
-    if (nextMod) sp.set("mod", nextMod);
-    if (nextCol) sp.set("col", nextCol);
-    if (nextBrands.length) sp.set("brands", nextBrands.join(","));
-    if (lo > 0) sp.set("msrpMin", String(lo));
-    if (hi < msrpCeiling) sp.set("msrpMax", String(hi));
-    if (nextSort !== "model") sp.set("sort", nextSort);
-    if (nextDir !== "asc") sp.set("dir", nextDir);
-    if (nextPage > 1) sp.set("page", String(nextPage));
+    if (next.mod) sp.set("mod", next.mod);
+    if (next.col) sp.set("col", next.col);
+    if (next.brands.length) sp.set("brands", next.brands.join(","));
+    if (next.msrpMin != null && next.msrpMin > 0) sp.set("msrpMin", String(next.msrpMin));
+    if (next.msrpMax != null && next.msrpMax < msrpCeiling) sp.set("msrpMax", String(next.msrpMax));
+    if (next.sort !== "model") sp.set("sort", next.sort);
+    if (next.dir !== "asc") sp.set("dir", next.dir);
+    if (next.page > 1) sp.set("page", String(next.page));
     router.replace(`/catalog${sp.toString() ? `?${sp.toString()}` : ""}`);
   }
 
-  const navigateRef = useRef(navigate);
-  navigateRef.current = navigate;
-
-  useEffect(() => {
-    if (isFirstRender.current) { isFirstRender.current = false; return; }
-    const id = setTimeout(() => navigateRef.current({ page: 1 }), 300);
-    return () => clearTimeout(id);
-  }, [modLocal, colLocal, msrpRange]);
-
-  const toggleBrand = (b: string) => {
-    const next = brands.includes(b) ? brands.filter((x) => x !== b) : [...brands, b];
-    navigate({ brands: next, page: 1 });
-  };
-
-  const toggleSort = (k: SortKey) => {
+  const handleSort = (k: SortKey) => {
     if (sort === k) {
       navigate({ dir: dir === "asc" ? "desc" : "asc", page: 1 });
     } else {
       navigate({ sort: k, dir: "asc", page: 1 });
     }
   };
-
-  const SortHead = ({ k, label }: { k: SortKey; label: string }) => (
-    <button className="flex items-center gap-1 font-medium" onClick={() => toggleSort(k)}>
-      {label}
-      <ArrowUpDown className={`h-3 w-3 ${sort === k ? "text-foreground" : "text-muted-foreground/50"}`} />
-    </button>
-  );
 
   const sourceBadge = (s: CatalogRow["source"]) =>
     s === "curated" ? "default" : s === "promo" ? "secondary" : "outline";
@@ -236,118 +214,99 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                   <TableHeader>
                     <TableRow>
                       <TableHead>
-                        <div className="flex items-center gap-1">
-                          <SortHead k="model" label="Model" />
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <button aria-label="Filter model">
-                                <Filter className={`h-3 w-3 ${modLocal ? "text-primary" : "text-muted-foreground/50"}`} />
-                              </button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-56">
-                              <Input
-                                placeholder="Model contains…"
-                                value={modLocal}
-                                onChange={(e) => setModLocal(e.target.value.toUpperCase())}
+                        <ColumnHeader
+                          label="Model"
+                          sortKey="model"
+                          currentSort={sort}
+                          currentDir={dir}
+                          onSort={handleSort}
+                          filter={
+                            <ColumnFilterPopover
+                              label="Model"
+                              active={!!mod}
+                              onClear={() => navigate({ mod: "", page: 1 })}
+                            >
+                              <TextFilterMenu
+                                value={mod}
+                                onChange={(v) => navigate({ mod: v, page: 1 })}
+                                placeholder="Filter model…"
                               />
-                            </PopoverContent>
-                          </Popover>
-                        </div>
+                            </ColumnFilterPopover>
+                          }
+                        />
                       </TableHead>
 
                       <TableHead>
-                        <div className="flex items-center gap-1">
-                          <SortHead k="collection" label="Collection" />
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <button aria-label="Filter collection">
-                                <Filter className={`h-3 w-3 ${colLocal ? "text-primary" : "text-muted-foreground/50"}`} />
-                              </button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-56">
-                              <Input
-                                placeholder="Collection contains…"
-                                value={colLocal}
-                                onChange={(e) => setColLocal(e.target.value)}
+                        <ColumnHeader
+                          label="Collection"
+                          sortKey="collection"
+                          currentSort={sort}
+                          currentDir={dir}
+                          onSort={handleSort}
+                          filter={
+                            <ColumnFilterPopover
+                              label="Collection"
+                              active={!!col}
+                              onClear={() => navigate({ col: "", page: 1 })}
+                            >
+                              <TextFilterMenu
+                                value={col}
+                                onChange={(v) => navigate({ col: v, page: 1 })}
+                                placeholder="Filter collection…"
                               />
-                            </PopoverContent>
-                          </Popover>
-                        </div>
+                            </ColumnFilterPopover>
+                          }
+                        />
                       </TableHead>
 
                       <TableHead>
-                        <div className="flex items-center gap-1">
-                          <SortHead k="brand" label="Brand" />
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <button aria-label="Filter brand">
-                                <Filter className={`h-3 w-3 ${brands.length ? "text-primary" : "text-muted-foreground/50"}`} />
-                              </button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-48 space-y-1">
-                              {BRAND_VALUES.map((b) => (
-                                <label key={b} className="flex items-center gap-2 text-sm">
-                                  <input
-                                    type="checkbox"
-                                    checked={brands.includes(b)}
-                                    onChange={() => toggleBrand(b)}
-                                  />
-                                  {brandLabel(b)}
-                                </label>
-                              ))}
-                            </PopoverContent>
-                          </Popover>
-                        </div>
+                        <ColumnHeader
+                          label="Brand"
+                          sortKey="brand"
+                          currentSort={sort}
+                          currentDir={dir}
+                          onSort={handleSort}
+                          filter={
+                            <ColumnFilterPopover
+                              label="Brand"
+                              active={brands.length > 0}
+                              onClear={() => navigate({ brands: [], page: 1 })}
+                            >
+                              <MultiSelectMenu
+                                options={BRAND_VALUES.map((b) => ({ value: b, label: brandLabel(b) }))}
+                                selected={brands}
+                                onChange={(next) => navigate({ brands: next, page: 1 })}
+                                placeholder="Search brands…"
+                              />
+                            </ColumnFilterPopover>
+                          }
+                        />
                       </TableHead>
 
-                      <TableHead className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          MSRP
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <button aria-label="Filter MSRP">
-                                <Filter className={`h-3 w-3 ${msrpRange[0] > 0 || msrpRange[1] < msrpCeiling ? "text-primary" : "text-muted-foreground/50"}`} />
-                              </button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-64 space-y-4">
-                              <div className="flex items-center justify-between text-sm tabular-nums">
-                                <BoundField
-                                  value={msrpRange[0]}
-                                  align="left"
-                                  onCommit={(n) =>
-                                    setMsrpRange(([, hi]) => [Math.min(Math.max(0, n), hi), hi])
-                                  }
-                                />
-                                <BoundField
-                                  value={msrpRange[1]}
-                                  align="right"
-                                  plus={msrpRange[1] >= msrpCeiling}
-                                  onCommit={(n) =>
-                                    setMsrpRange(([lo]) => [lo, Math.max(Math.min(msrpCeiling, n), lo)])
-                                  }
-                                />
-                              </div>
-                              <Slider
-                                min={0}
-                                max={msrpCeiling}
-                                step={Math.max(1, Math.round(msrpCeiling / 200))}
-                                value={msrpRange}
-                                onValueChange={(v) => setMsrpRange([v[0], v[1]] as [number, number])}
-                                disabled={msrpCeiling <= 0}
+                      <TableHead>
+                        <ColumnHeader
+                          label="MSRP"
+                          filter={
+                            <ColumnFilterPopover
+                              label="MSRP"
+                              active={msrpMin != null || msrpMax != null}
+                              onClear={() => navigate({ msrpMin: undefined, msrpMax: undefined, page: 1 })}
+                            >
+                              <RangeFilterMenu
+                                min={msrpMin ?? 0}
+                                max={msrpMax ?? msrpCeiling}
+                                ceiling={msrpCeiling}
+                                onChange={({ min, max }) =>
+                                  navigate({
+                                    msrpMin: min > 0 ? min : undefined,
+                                    msrpMax: max < msrpCeiling ? max : undefined,
+                                    page: 1,
+                                  })
+                                }
                               />
-                              {(msrpRange[0] > 0 || msrpRange[1] < msrpCeiling) && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 w-full text-xs"
-                                  onClick={() => setMsrpRange([0, msrpCeiling])}
-                                >
-                                  Clear
-                                </Button>
-                              )}
-                            </PopoverContent>
-                          </Popover>
-                        </div>
+                            </ColumnFilterPopover>
+                          }
+                        />
                       </TableHead>
 
                       <TableHead>Source</TableHead>
@@ -412,50 +371,5 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
       </div>
       <ImportCatalogDialog open={importOpen} onOpenChange={setImportOpen} />
     </>
-  );
-}
-
-function BoundField({
-  value,
-  onCommit,
-  align,
-  plus = false,
-}: {
-  value: number;
-  onCommit: (n: number) => void;
-  align: "left" | "right";
-  plus?: boolean;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-
-  if (editing) {
-    return (
-      <input
-        type="number"
-        autoFocus
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => {
-          const n = parseFloat(draft);
-          onCommit(isNaN(n) ? value : n);
-          setEditing(false);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-          if (e.key === "Escape") setEditing(false);
-        }}
-        className={`w-20 h-7 rounded border bg-background px-2 text-sm tabular-nums ${align === "right" ? "text-right" : ""}`}
-      />
-    );
-  }
-
-  return (
-    <button
-      className={`h-7 rounded px-1 text-sm tabular-nums hover:bg-muted ${align === "right" ? "text-muted-foreground" : ""}`}
-      onClick={() => { setDraft(String(value)); setEditing(true); }}
-    >
-      ${value.toLocaleString()}{plus ? "+" : ""}
-    </button>
   );
 }
