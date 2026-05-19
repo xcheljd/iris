@@ -1,5 +1,6 @@
 // Run `npx drizzle-kit push` before this script to ensure schema is up to date.
 import { sqlite } from "./index";
+import { BRAND_VALUES } from "./schema";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 
@@ -168,7 +169,7 @@ for (let i = 0; i < 22; i++) {
   // Mix of interest shapes: ~15% none (email-only), ~15% collection-only,
   // rest 1-3 structured {model, collection} pairs.
   const intents = ["interested", "promo", "arrival"] as const;
-  const brands = ["Meridian", "Ashford", "Voss", "Chamberlain"] as const;
+  const brands = BRAND_VALUES;
   const interestRoll = Math.random();
   const interests: { model: string | null; collection: string | null; brand: typeof brands[number] | null; intent: "interested" | "promo" | "arrival" }[] =
     interestRoll < 0.15

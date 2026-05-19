@@ -9,7 +9,9 @@ import { clients, promoWatches, promoMatches, modelCatalog } from "@/lib/db/sche
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { createPromo, clearAllPromos, correctCatalog, resolveFlag } from "@/lib/actions";
-import { recordModelCollection, getCatalogMap } from "@/lib/actions/model-catalog";
+import { recordModelCollection, getCatalogMap, getCatalogIndex } from "@/lib/actions/model-catalog";
+import { BRAND_VALUES } from "@/lib/db/schema";
+import { clientCreateSchema } from "@/lib/validation/client";
 
 const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
 const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23";
@@ -218,5 +220,28 @@ describe("model catalog", () => {
     vi.mocked(getServerSession).mockResolvedValue(associateSession as never);
     await expect(correctCatalog("ANY-1", "X")).rejects.toThrow();
     vi.mocked(getServerSession).mockResolvedValue(managerSession as never);
+  });
+
+  it("BRAND_VALUES includes Kinetic and the create schema accepts it", () => {
+    expect(BRAND_VALUES).toContain("Kinetic");
+    const parsed = clientCreateSchema.safeParse({
+      firstName: "Acc", lastName: "Test", preferredContact: "call",
+      productsOfInterest: [{ model: null, collection: null, brand: "Kinetic", intent: "interested" }],
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("getCatalogIndex returns collection + brand for a row", () => {
+    const model = `IDX-${Date.now()}`;
+    catalogModels.push(model);
+    db.insert(modelCatalog).values({
+      model, collection: "SENTINEL", source: "curated",
+      brand: "Kinetic", msrp: 495, needsReview: true,
+    }).run();
+    const idx = getCatalogIndex();
+    expect(idx.get(model)).toEqual({ collection: "SENTINEL", brand: "Kinetic" });
+    const row = db.select().from(modelCatalog).where(eq(modelCatalog.model, model)).get()!;
+    expect(row.msrp).toBe(495);
+    expect(row.needsReview).toBe(true);
   });
 });

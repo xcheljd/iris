@@ -19,6 +19,10 @@ export function ensureModelCatalog(sqlite: Database.Database) {
       source TEXT NOT NULL,
       first_seen_at INTEGER NOT NULL DEFAULT (unixepoch()),
       updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      brand TEXT,
+      msrp REAL,
+      msrp_seen_at INTEGER,
+      needs_review INTEGER NOT NULL DEFAULT 0,
       flagged_collection TEXT,
       flagged_source TEXT,
       flagged_at INTEGER
@@ -39,6 +43,14 @@ export function ensureModelCatalog(sqlite: Database.Database) {
     sqlite.exec("ALTER TABLE model_catalog ADD COLUMN flagged_source TEXT");
   if (!cols.has("flagged_at"))
     sqlite.exec("ALTER TABLE model_catalog ADD COLUMN flagged_at INTEGER");
+  if (!cols.has("brand"))
+    sqlite.exec("ALTER TABLE model_catalog ADD COLUMN brand TEXT");
+  if (!cols.has("msrp"))
+    sqlite.exec("ALTER TABLE model_catalog ADD COLUMN msrp REAL");
+  if (!cols.has("msrp_seen_at"))
+    sqlite.exec("ALTER TABLE model_catalog ADD COLUMN msrp_seen_at INTEGER");
+  if (!cols.has("needs_review"))
+    sqlite.exec("ALTER TABLE model_catalog ADD COLUMN needs_review INTEGER NOT NULL DEFAULT 0");
 }
 
 /**

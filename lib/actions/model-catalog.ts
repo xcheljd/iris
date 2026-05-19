@@ -129,3 +129,19 @@ export function getCatalogMap(): Record<string, string> {
   for (const r of rows) map[r.model] = r.collection;
   return map;
 }
+
+export type CatalogEntry = { collection: string; brand: string | null };
+
+/**
+ * Model → {collection, brand} index for derive-at-read. Keys are the
+ * stored (uppercase) model; callers look up via normalizeModel(poi.model).
+ */
+export function getCatalogIndex(): Map<string, CatalogEntry> {
+  const rows = db
+    .select({ model: modelCatalog.model, collection: modelCatalog.collection, brand: modelCatalog.brand })
+    .from(modelCatalog)
+    .all();
+  const idx = new Map<string, CatalogEntry>();
+  for (const r of rows) idx.set(r.model, { collection: r.collection, brand: r.brand ?? null });
+  return idx;
+}

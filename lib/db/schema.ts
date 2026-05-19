@@ -16,7 +16,7 @@ export type PreferredContact = typeof PREFERRED_CONTACT_VALUES[number];
 
 // Watch brands carried, shared by promo watches and a client's products
 // of interest. Stored verbatim (no accents — "Chamberlain").
-export const BRAND_VALUES = ["Meridian", "Ashford", "Voss", "Chamberlain"] as const;
+export const BRAND_VALUES = ["Meridian", "Ashford", "Voss", "Chamberlain", "Kinetic"] as const;
 export type Brand = typeof BRAND_VALUES[number];
 
 export const OUTREACH_OUTCOME_VALUES = [
@@ -193,6 +193,12 @@ export const modelCatalog = sqliteTable("model_catalog", {
   model: text("model").primaryKey(),
   collection: text("collection").notNull(),
   source: text("source", { enum: ["promo", "manual", "curated"] }).notNull(),
+  // Authoritative brand/MSRP, fed by the RVX catalog import.
+  brand: text("brand", { enum: BRAND_VALUES }),
+  msrp: real("msrp"),
+  msrpSeenAt: integer("msrp_seen_at", { mode: "timestamp" }),
+  // Provisional rows from uncatalogued POI entries await manager review.
+  needsReview: integer("needs_review", { mode: "boolean" }).notNull().default(false),
   firstSeenAt: integer("first_seen_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
   // Latest pending promo-vs-curated conflict (one per model).
