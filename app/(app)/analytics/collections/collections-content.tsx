@@ -19,6 +19,7 @@ import { Download } from "lucide-react";
 import { CollectionsCsvExportDialog } from "@/components/collections-csv-export-dialog";
 import Link from "next/link";
 import { PaginationFooter } from "@/components/pagination-footer";
+import { useCatalog } from "@/components/use-catalog";
 import type { ClientListRow } from "@/lib/queries";
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
@@ -37,16 +38,19 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
   );
   const [clientsPage, setClientsPage] = useState(1);
   const [exportOpen, setExportOpen] = useState(false);
+  const { resolve } = useCatalog();
 
   // Extract all collections from client products of interest
   const collectionData = useMemo(() => {
     const totals: Record<string, number> = {};
-    
+
     clients.forEach((client) => {
       const poi = client.productsOfInterest || [];
       poi.forEach((product) => {
-        if (product.collection) {
-          totals[product.collection] = (totals[product.collection] || 0) + 1;
+        // Derive-at-read: count by the catalog-authoritative collection.
+        const { collection } = resolve(product);
+        if (collection) {
+          totals[collection] = (totals[collection] || 0) + 1;
         }
       });
     });
@@ -54,7 +58,7 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
     return Object.entries(totals)
       .sort((a, b) => b[1] - a[1])
       .map(([name, count]) => ({ name, count }));
-  }, [clients]);
+  }, [clients, resolve]);
 
   const totalInterests = collectionData.reduce((sum, c) => sum + c.count, 0);
 
@@ -68,9 +72,9 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
     if (!selectedCollection) return [];
     return clients.filter((client) => {
       const poi = client.productsOfInterest || [];
-      return poi.some((p) => p.collection === selectedCollection);
+      return poi.some((p) => resolve(p).collection === selectedCollection);
     });
-  }, [clients, selectedCollection]);
+  }, [clients, selectedCollection, resolve]);
 
   const clientsTotalPages = Math.ceil(collectionClients.length / PAGE_SIZE);
   const pagedClients = collectionClients.slice((clientsPage - 1) * PAGE_SIZE, clientsPage * PAGE_SIZE);

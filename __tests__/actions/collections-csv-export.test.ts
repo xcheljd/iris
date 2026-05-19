@@ -5,10 +5,11 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 import { getServerSession } from "next-auth";
 import { db } from "@/lib/db";
-import { clients } from "@/lib/db/schema";
+import { clients, modelCatalog } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { exportCollectionsCsv } from "@/lib/actions/collections-csv-export";
+import { recordModelCollection } from "@/lib/actions/model-catalog";
 
 const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
 const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23";
@@ -17,11 +18,13 @@ const assoc = { user: { id: ASSOCIATE_ID, name: "Jordan", role: "associate" } };
 
 describe("exportCollectionsCsv", () => {
   const ids: string[] = [];
+  const catModels: string[] = [];
 
   beforeEach(() => vi.mocked(getServerSession).mockResolvedValue(mgr as never));
   afterEach(() => {
     for (const id of ids) { try { db.delete(clients).where(eq(clients.id, id)).run(); } catch { /* */ } }
-    ids.length = 0;
+    for (const m of catModels) { try { db.delete(modelCatalog).where(eq(modelCatalog.model, m)).run(); } catch { /* */ } }
+    ids.length = 0; catModels.length = 0;
   });
 
   function addClient(firstName: string, poi: { model: string | null; collection: string | null; brand: null, intent: "interested" | "promo" | "arrival" }[], employeeId?: string) {
@@ -39,26 +42,40 @@ describe("exportCollectionsCsv", () => {
     expect(csv.split("\n")[0]).toBe("Collection,Model,First Name,Last Name,Phone,Email,Owner,Intents");
   });
 
-  it("CRIMSON ACE: collection-only + model entry → two rows, intents aggregated", async () => {
+  it("CRIMSON ACE: collection-only + (uncatalogued) model entry → two rows, intents aggregated", async () => {
     const fn = `BA${Date.now()}`;
+    // Uncatalogued model → derive-at-read falls back to the stored
+    // collection, so both entries group under "CRIMSON ACE".
+    const m = `BAM-${Date.now()}`;
     addClient(fn, [
       { model: null, collection: "CRIMSON ACE", brand: null, intent: "interested" },
-      { model: "HX1005-01X", collection: "CRIMSON ACE", brand: null, intent: "promo" },
+      { model: m, collection: "CRIMSON ACE", brand: null, intent: "promo" },
     ]);
     const { csv } = await exportCollectionsCsv({ mode: "all" });
     const rows = rowsFor(csv, fn);
     expect(rows).toHaveLength(2);
-    // Both rows: collection CRIMSON ACE, aggregated intents "interested; promo"
     expect(rows.some((r) => r.startsWith("CRIMSON ACE,,"))).toBe(true);
-    expect(rows.some((r) => r.startsWith("CRIMSON ACE,HX1005-01X,"))).toBe(true);
+    expect(rows.some((r) => r.startsWith(`CRIMSON ACE,${m},`))).toBe(true);
     for (const r of rows) expect(r.endsWith(",interested; promo")).toBe(true);
   });
 
-  it("excludes model-only (no collection) entries", async () => {
+  it("excludes an uncatalogued model-only (no collection) entry", async () => {
     const fn = `MO${Date.now()}`;
-    addClient(fn, [{ model: "LX1012-01X", collection: null, brand: null, intent: "interested" }]);
+    addClient(fn, [{ model: `MOM-${Date.now()}`, collection: null, brand: null, intent: "interested" }]);
     const { csv } = await exportCollectionsCsv({ mode: "all" });
     expect(rowsFor(csv, fn)).toHaveLength(0);
+  });
+
+  it("derive-at-read: a cataloged model-only entry IS included under its catalog collection", async () => {
+    const fn = `DC${Date.now()}`;
+    const m = `DCM-${Date.now()}`;
+    catModels.push(m);
+    recordModelCollection(db, m, "SENTINEL", "manual");
+    addClient(fn, [{ model: m, collection: null, brand: null, intent: "promo" }]);
+    const { csv } = await exportCollectionsCsv({ mode: "all" });
+    const rows = rowsFor(csv, fn);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].startsWith(`SENTINEL,${m},`)).toBe(true);
   });
 
   it("aggregates distinct intents in canonical order", async () => {

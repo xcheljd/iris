@@ -7,6 +7,7 @@ import { randomUUID } from "crypto";
 import { requireManager } from "./_shared";
 import { normalizeModel } from "@/lib/normalize";
 import { buildPromoClientIndex, matchPromoToClients } from "@/lib/promo-match";
+import { getCatalogIndex } from "./model-catalog";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -73,7 +74,7 @@ function applyCorrection(
   if (affected.length > 0) {
     const ids = affected.map((a) => a.id);
     tx.delete(promoMatches).where(inArray(promoMatches.clientId, ids)).run();
-    const index = buildPromoClientIndex(affected);
+    const index = buildPromoClientIndex(affected, getCatalogIndex());
     const promos = tx.select().from(promoWatches).all();
     for (const promo of promos) {
       matchPromoToClients(tx, promo.id, promo.modelNumber, promo.collection, promo.brand, index);

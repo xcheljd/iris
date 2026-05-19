@@ -1,26 +1,38 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { resolveInterest } from "@/lib/resolve-interest";
+import type { CatalogEntry } from "@/lib/actions/model-catalog";
 
 /**
- * Fetches the model→collection catalog map (+ the viewer's manager flag)
- * for product-of-interest autofill. Hybrid delivery: load on mount and
- * `refetch()` after a catalog correction so open forms pick up the new
- * value without a full reload.
+ * Fetches the catalog for product-of-interest autofill AND client-side
+ * derive-at-read. Exposes the legacy model→collection `catalogMap` plus
+ * a `resolve(poi)` returning the catalog-authoritative {collection,
+ * brand} for a cataloged model (falling back to the POI's stored values
+ * for collection/brand-only or uncatalogued interests). Hybrid delivery:
+ * load on mount and `refetchCatalog()` after a catalog change so open
+ * views pick up new values without a full reload.
  */
 export function useCatalog() {
   const [map, setMap] = useState<Record<string, string>>({});
+  const [index, setIndex] = useState<Record<string, CatalogEntry>>({});
   const [isManager, setIsManager] = useState(false);
 
   const refetch = useCallback(async () => {
     try {
       const res = await fetch("/api/catalog");
       if (!res.ok) return;
-      const data = (await res.json()) as { map: Record<string, string>; isManager: boolean };
+      const data = (await res.json()) as {
+        map: Record<string, string>;
+        index: Record<string, CatalogEntry>;
+        isManager: boolean;
+      };
       setMap(data.map ?? {});
+      setIndex(data.index ?? {});
       setIsManager(!!data.isManager);
     } catch {
-      // Non-fatal: autofill simply won't suggest until a successful fetch.
+      // Non-fatal: autofill/resolution uses stored values until a
+      // successful fetch.
     }
   }, []);
 
@@ -28,5 +40,13 @@ export function useCatalog() {
     refetch();
   }, [refetch]);
 
-  return { catalogMap: map, isManager, refetchCatalog: refetch };
+  const indexMap = useMemo(() => new Map(Object.entries(index)), [index]);
+
+  const resolve = useCallback(
+    (poi: { model: string | null; collection: string | null; brand: string | null }) =>
+      resolveInterest(poi, indexMap),
+    [indexMap],
+  );
+
+  return { catalogMap: map, isManager, refetchCatalog: refetch, resolve };
 }

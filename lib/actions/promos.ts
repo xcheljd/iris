@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireManager } from "./_shared";
-import { recordModelCollection } from "./model-catalog";
+import { recordModelCollection, getCatalogIndex } from "./model-catalog";
 import { buildPromoClientIndex, matchPromoToClients } from "@/lib/promo-match";
 
 export async function createPromo(
@@ -23,7 +23,7 @@ export async function createPromo(
   if (!brand || !BRAND_VALUES.includes(brand)) return { error: "Brand is required" };
   try {
     const all = db.select({ id: clients.id, productsOfInterest: clients.productsOfInterest }).from(clients).all();
-    const index = buildPromoClientIndex(all);
+    const index = buildPromoClientIndex(all, getCatalogIndex());
     const id = randomUUID();
     db.transaction((tx) => {
       tx.insert(promoWatches).values({ id, modelNumber, collection, brand, sizeOneQty, sizeTwoQty, msrp: msrp ?? null, discountPercent: discountPercent ?? null, discountPrice: discountPrice ?? null }).run();
@@ -47,7 +47,7 @@ export async function importPromos(
   if (!brand || !BRAND_VALUES.includes(brand)) return { error: "Brand is required" };
   try {
     const all = db.select({ id: clients.id, productsOfInterest: clients.productsOfInterest }).from(clients).all();
-    const index = buildPromoClientIndex(all);
+    const index = buildPromoClientIndex(all, getCatalogIndex());
     let imported = 0;
     const matchedClients = new Set<string>();
     db.transaction((tx) => {

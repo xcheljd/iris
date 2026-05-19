@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { OutreachLogger } from "@/components/outreach-logger";
 import { EmptyState } from "@/components/empty-state";
 import { normalizeModel } from "@/lib/normalize";
+import { useCatalog } from "@/components/use-catalog";
 import { INTEREST_INTENT_VALUES, BRAND_VALUES, type InterestIntent } from "@/lib/db/schema";
 import type { FullClient, PromoMatchWithPromo } from "@/components/client-provider";
 
@@ -48,12 +49,18 @@ export function InterestsTab({ client }: InterestsTabProps) {
   const promoBrandLabel = (b: string | null | undefined) =>
     !b ? "" : b === "Chamberlain" ? "FC" : b;
 
+  const { resolve } = useCatalog();
+
   const rows: Row[] = useMemo(() => {
     return (client.productsOfInterest ?? []).map((p) => {
       const intent: InterestIntent = p.intent ?? "interested";
+      // Derive-at-read: a cataloged model's collection/brand are
+      // authoritative; stored values feed only collection/brand-only
+      // or not-yet-cataloged interests.
+      const resolved = resolve(p);
       const m = normalizeModel(p.model);
-      const coll = (p.collection ?? "").trim();
-      const br = (p.brand ?? "").trim();
+      const coll = (resolved.collection ?? "").trim();
+      const br = (resolved.brand ?? "").trim();
 
       // Model match: a matched promo with the same model number.
       const modelHit = m
@@ -98,9 +105,9 @@ export function InterestsTab({ client }: InterestsTabProps) {
         promoLabel = "On promo · brand";
       }
 
-      return { intent, model: p.model, collection: p.collection, brand: p.brand, promoLabel, promoModels, promoModelNumber, promoCollection };
+      return { intent, model: p.model, collection: resolved.collection, brand: resolved.brand, promoLabel, promoModels, promoModelNumber, promoCollection };
     });
-  }, [client.productsOfInterest, matched]);
+  }, [client.productsOfInterest, matched, resolve]);
 
   // --- sort + filter state ---
   const [sortKey, setSortKey] = useState<SortKey>("intent");

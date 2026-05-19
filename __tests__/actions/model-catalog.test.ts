@@ -216,6 +216,39 @@ describe("model catalog", () => {
     expect(row.flaggedCollection).toBeNull();
   });
 
+  it("derive-at-read: promo matching uses the catalog collection, not the stored POI value", async () => {
+    const ts = Date.now();
+    const dModel = `DAR-${ts}`;
+    const clientId = randomUUID();
+    catalogModels.push(dModel);
+    clientIds.push(clientId);
+
+    // Catalog says this model is REALCOLL; the client's POI stored a
+    // stale collection that derive-at-read must ignore.
+    recordModelCollection(db, dModel, "REALCOLL", "promo");
+    db.insert(clients).values({
+      id: clientId, firstName: "DeriveAtRead",
+      productsOfInterest: [{ model: dModel, collection: "STALECOLL", brand: null, intent: "promo" }],
+    }).run();
+
+    // A promo in the catalog-resolved collection (different model) must
+    // collection-match the client.
+    await createPromo(`PRM-${ts}`, "REALCOLL", "Meridian");
+    const p1 = db.select().from(promoWatches).where(eq(promoWatches.modelNumber, `PRM-${ts}`)).get()!;
+    promoIds.push(p1.id);
+    // A promo in the stale (stored-but-not-catalog) collection must NOT.
+    await createPromo(`PRS-${ts}`, "STALECOLL", "Ashford");
+    const p2 = db.select().from(promoWatches).where(eq(promoWatches.modelNumber, `PRS-${ts}`)).get()!;
+    promoIds.push(p2.id);
+
+    const m1 = db.select().from(promoMatches)
+      .where(eq(promoMatches.promoId, p1.id)).all().find((m) => m.clientId === clientId);
+    const m2 = db.select().from(promoMatches)
+      .where(eq(promoMatches.promoId, p2.id)).all().find((m) => m.clientId === clientId);
+    expect(m1?.matchType).toBe("collection"); // matched via catalog REALCOLL
+    expect(m2).toBeUndefined();                // stale STALECOLL ignored
+  });
+
   it("rejects catalog correction from an associate (manager only)", async () => {
     vi.mocked(getServerSession).mockResolvedValue(associateSession as never);
     await expect(correctCatalog("ANY-1", "X")).rejects.toThrow();

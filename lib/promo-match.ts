@@ -2,6 +2,8 @@ import { randomUUID } from "crypto";
 import type { db } from "@/lib/db";
 import { promoMatches, type ProductOfInterest } from "@/lib/db/schema";
 import { normalizeModel } from "@/lib/normalize";
+import { resolveInterest } from "@/lib/resolve-interest";
+import type { CatalogEntry } from "@/lib/actions/model-catalog";
 
 // Promo ↔ client matching, extracted so both promo create/import and a
 // catalog correction's re-match reuse the exact same logic (and so it can
@@ -20,6 +22,7 @@ export interface PromoClientIndex {
 
 export function buildPromoClientIndex(
   all: Array<{ id: string; productsOfInterest: ProductOfInterest[] | null }>,
+  catalog: Map<string, CatalogEntry>,
 ): PromoClientIndex {
   const modelMap = new Map<string, string[]>();
   const entries: PromoClientEntry[] = [];
@@ -33,8 +36,11 @@ export function buildPromoClientIndex(
         if (arr) arr.push(c.id);
         else modelMap.set(m, [c.id]);
       }
-      if (p.collection) collections.add(p.collection.trim().toUpperCase());
-      if (p.brand) brands.add(p.brand.trim().toUpperCase());
+      // Derive-at-read: catalog wins for cataloged models; the POI's
+      // stored collection/brand only feed collection/brand-only interests.
+      const { collection, brand } = resolveInterest(p, catalog);
+      if (collection) collections.add(collection.trim().toUpperCase());
+      if (brand) brands.add(brand.trim().toUpperCase());
     }
     entries.push({ id: c.id, collections, brands });
   }

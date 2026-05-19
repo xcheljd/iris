@@ -7,6 +7,8 @@ import { sql as rawSql } from "drizzle-orm";
 import { LIST_QUERY_LIMIT } from "@/lib/constants";
 import { toCsv } from "@/lib/csv";
 import { requireAuth } from "./_shared";
+import { getCatalogIndex } from "./model-catalog";
+import { resolveInterest } from "@/lib/resolve-interest";
 
 export type CollectionsCsvScope =
   | { mode: "all" }
@@ -72,14 +74,17 @@ export async function exportCollectionsCsv(
 
   const intentRank = (i: string) => INTEREST_INTENT_VALUES.indexOf(i as InterestIntent);
 
+  const catalog = getCatalogIndex();
   const out: string[][] = [];
   for (const r of capped) {
-    // Group this client's entries by collection.
+    // Group this client's entries by collection (catalog-resolved: a
+    // cataloged model's collection wins over any stored value).
     const byCollection = new Map<string, { models: Set<string>; intents: Set<string> }>();
     for (const p of r.productsOfInterest ?? []) {
-      if (!p.collection) continue; // collection interest only
-      let g = byCollection.get(p.collection);
-      if (!g) { g = { models: new Set(), intents: new Set() }; byCollection.set(p.collection, g); }
+      const { collection } = resolveInterest(p, catalog);
+      if (!collection) continue; // collection interest only
+      let g = byCollection.get(collection);
+      if (!g) { g = { models: new Set(), intents: new Set() }; byCollection.set(collection, g); }
       g.models.add(p.model ?? ""); // "" = collection-only row
       if (p.intent) g.intents.add(p.intent);
     }
