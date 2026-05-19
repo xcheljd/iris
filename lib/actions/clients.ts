@@ -7,7 +7,7 @@ import { randomUUID } from "crypto";
 import { requireAuth, requireManager } from "./_shared";
 import { recalcHeat } from "./outreach";
 import { fullName } from "@/lib/utils";
-import { recordProductsOfInterest, type CatalogConflict } from "./model-catalog";
+import { recordProductsOfInterest } from "./model-catalog";
 
 // Structural de-dupe for products of interest (objects, so Set won't dedupe).
 function dedupeProducts(list: ProductOfInterest[]): ProductOfInterest[] {
@@ -20,15 +20,14 @@ function dedupeProducts(list: ProductOfInterest[]): ProductOfInterest[] {
   return out;
 }
 
-export async function applyClientPatch(clientId: string, data: Record<string, unknown>): Promise<CatalogConflict[]> {
+export async function applyClientPatch(clientId: string, data: Record<string, unknown>): Promise<void> {
   const patch: Record<string, unknown> = { updatedAt: new Date() };
   for (const [k, v] of Object.entries(data)) {
     if (v !== undefined) patch[k] = v;
   }
   db.update(clients).set(patch).where(eq(clients.id, clientId)).run();
-  let conflicts: CatalogConflict[] = [];
   if (data.productsOfInterest !== undefined) {
-    conflicts = recordProductsOfInterest(db, data.productsOfInterest as ProductOfInterest[]);
+    recordProductsOfInterest(db, data.productsOfInterest as ProductOfInterest[]);
   }
   db.insert(activityEvents).values({
     id: randomUUID(),
@@ -39,7 +38,6 @@ export async function applyClientPatch(clientId: string, data: Record<string, un
   }).run();
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/clients");
-  return conflicts;
 }
 
 export async function banClient(clientId: string, category: "Reselling" | "Gift Card Fraud" | "Other", reason: string): Promise<{ error: string } | undefined> {

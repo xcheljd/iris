@@ -47,7 +47,6 @@ interface ClientFormProps {
   newTag: string;
   catalogMap?: Record<string, string>;
   isManager?: boolean;
-  onCorrectCatalog?: (model: string, collection: string) => Promise<void> | void;
   onFieldChange: (field: string, value: string | boolean | Date | null | undefined | string[]) => void;
   onNewTagChange: (value: string) => void;
   onProductsChange: (next: ProductOfInterest[]) => void;
@@ -75,7 +74,6 @@ export function ClientForm({
   newTag,
   catalogMap,
   isManager,
-  onCorrectCatalog,
   onFieldChange,
   onNewTagChange,
   onProductsChange,
@@ -351,7 +349,6 @@ export function ClientForm({
             onChange={onProductsChange}
             catalogMap={catalogMap}
             isManager={isManager}
-            onCorrectCatalog={onCorrectCatalog}
           />
         </CardContent>
       </Card>

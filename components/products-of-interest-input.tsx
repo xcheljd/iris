@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Plus, X } from "lucide-react";
 import { normalizeModel } from "@/lib/normalize";
 import { MERIDIAN_COLLECTIONS } from "@/lib/collections";
@@ -17,8 +16,6 @@ interface Props {
   onChange: (next: ProductOfInterest[]) => void;
   catalogMap?: Record<string, string>;
   isManager?: boolean;
-  /** Manager "fix catalog" — wire to correctCatalog + refetch in parent. */
-  onCorrectCatalog?: (model: string, collection: string) => Promise<void> | void;
   collectionSuggestions?: string[];
 }
 
@@ -50,14 +47,12 @@ export function ProductsOfInterestInput({
   onChange,
   catalogMap = {},
   isManager = false,
-  onCorrectCatalog,
   collectionSuggestions,
 }: Props) {
   const [model, setModel] = useState("");
   const [collection, setCollection] = useState("");
   const [brand, setBrand] = useState<Brand | "">("");
   const [intent, setIntent] = useState<InterestIntent | "">("");
-  const [conflict, setConflict] = useState<{ m: string; typed: string; cataloged: string; intent: InterestIntent } | null>(null);
   const listId = useId();
   const suggestions = collectionSuggestions ?? MERIDIAN_COLLECTIONS;
 
@@ -90,18 +85,12 @@ export function ProductsOfInterestInput({
 
     if (cataloged) {
       const sameCollection = c === "" || c.toUpperCase() === cataloged.toUpperCase();
-      if (sameCollection) {
+      // Associates are always coerced; managers can store a divergent value
+      // (the catalog is authoritative at read time anyway).
+      if (sameCollection || !isManager) {
         commit(m, cataloged, intent);
         return;
       }
-      if (!isManager) {
-        // Associates cannot diverge — coerce to the cataloged value.
-        commit(m, cataloged, intent);
-        return;
-      }
-      // Manager diverging from the catalog → resolve the conflict.
-      setConflict({ m, typed: c, cataloged, intent });
-      return;
     }
     commit(m || null, c || null, intent);
   };
@@ -185,46 +174,6 @@ export function ProductsOfInterestInput({
         ))}
       </div>
 
-      <Dialog open={!!conflict} onOpenChange={(o) => !o && setConflict(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Catalog conflict</DialogTitle>
-            <DialogDescription>
-              {conflict && (
-                <>
-                  <strong>{conflict.m}</strong> is cataloged as{" "}
-                  <strong>{conflict.cataloged}</strong>, but you entered{" "}
-                  <strong>{conflict.typed}</strong>. Fixing the catalog updates
-                  this model for all clients and re-runs promo matching.
-                </>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (conflict) commit(conflict.m, conflict.cataloged, conflict.intent);
-                setConflict(null);
-              }}
-            >
-              Use cataloged
-            </Button>
-            <Button
-              variant="gold"
-              onClick={async () => {
-                if (conflict) {
-                  await onCorrectCatalog?.(conflict.m, conflict.typed);
-                  commit(conflict.m, conflict.typed, conflict.intent);
-                }
-                setConflict(null);
-              }}
-            >
-              Fix catalog
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

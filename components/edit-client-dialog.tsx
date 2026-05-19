@@ -6,13 +6,11 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Edit3 } from "lucide-react";
 import { toast } from "sonner";
-import { catalogConflictMessage } from "@/lib/catalog-conflicts";
 import type { FullClient } from "@/components/client-provider";
 import type { ProductOfInterest } from "@/lib/db/schema";
 import { ClientForm, type ClientFormData } from "@/components/client-form";
 import { validateClientForm } from "@/lib/validation/client";
 import { useCatalog } from "@/components/use-catalog";
-import { correctCatalog } from "@/lib/actions";
 
 interface EditClientDialogProps {
   client: FullClient;
@@ -21,11 +19,7 @@ interface EditClientDialogProps {
 
 export function EditClientDialog({ client, children }: EditClientDialogProps) {
   const [open, setOpen] = useState(false);
-  const { catalogMap, isManager, refetchCatalog } = useCatalog();
-  const handleCorrectCatalog = async (m: string, c: string) => {
-    await correctCatalog(m, c);
-    await refetchCatalog();
-  };
+  const { catalogMap, isManager } = useCatalog();
   const [isPending, start] = useTransition();
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [duplicateClient, setDuplicateClient] = useState<{ id: string; firstName: string; lastName?: string | null; phone?: string | null; email?: string | null } | null>(null);
@@ -98,9 +92,6 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
 
         if (response.ok) {
           toast.success("Client updated successfully");
-          const data = await response.json().catch(() => ({}));
-          const conflictMsg = catalogConflictMessage(data.conflicts);
-          if (conflictMsg) toast.warning(conflictMsg);
           setOpen(false);
         } else if (response.status === 409) {
           const duplicateData = await response.json();
@@ -136,7 +127,6 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
           <ClientForm
             catalogMap={catalogMap}
             isManager={isManager}
-            onCorrectCatalog={handleCorrectCatalog}
             formData={formData}
             productsOfInterest={productsOfInterest}
             newTag={newTag}

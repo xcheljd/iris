@@ -7,12 +7,6 @@ import { normalizeModel } from "@/lib/normalize";
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type DbOrTx = typeof db | Tx;
 
-export type CatalogConflict = {
-  model: string;
-  existing: string;
-  attempted: string;
-};
-
 export type CatalogFlagged = {
   model: string;
   curated: string;
@@ -39,7 +33,7 @@ export function recordModelCollection(
   model: string | null | undefined,
   collection: string | null | undefined,
   source: "promo" | "manual" | "curated",
-): { conflict?: CatalogConflict; flagged?: CatalogFlagged } {
+): { flagged?: CatalogFlagged } {
   const m = normalizeModel(model);
   const c = (collection ?? "").trim();
   if (!m || !c) return {};
@@ -47,7 +41,12 @@ export function recordModelCollection(
   const existing = tx.select().from(modelCatalog).where(eq(modelCatalog.model, m)).get();
 
   if (!existing) {
-    tx.insert(modelCatalog).values({ model: m, collection: c, source }).run();
+    // An uncatalogued model entered on a client/prospect (manual) is
+    // provisional — the manager must confirm it from the catalog's
+    // "needs cataloging" queue. Promo/curated seeds are authoritative.
+    tx.insert(modelCatalog)
+      .values({ model: m, collection: c, source, needsReview: source === "manual" })
+      .run();
     return {};
   }
 
@@ -88,38 +87,25 @@ export function recordModelCollection(
     return {};
   }
 
-  // manual + already known: never overwrite. Record the disagreement as a
-  // pending flag for manager review (so it surfaces on /catalog), but never
-  // stomp an already-pending flag — a frequent manual typo must not bury a
-  // rarer promo conflict, and repeated identical manual conflicts dedupe.
-  if (existing.collection.toUpperCase() !== c.toUpperCase()) {
-    if (!existing.flaggedCollection) {
-      tx.update(modelCatalog)
-        .set({ flaggedCollection: c, flaggedSource: "manual", flaggedAt: new Date() })
-        .where(eq(modelCatalog.model, m))
-        .run();
-    }
-    return { conflict: { model: m, existing: existing.collection, attempted: c } };
-  }
+  // manual + already known: no-op. The catalog is authoritative and
+  // derive-at-read makes any divergent stored value irrelevant, so a
+  // manual entry for a known model neither overwrites nor flags.
   return {};
 }
 
 /**
- * Record every model+collection pair from a client's interests as a `manual`
- * catalog entry. Entries missing either field contribute nothing. Returns any
- * conflicts (model already known with a different collection) for the caller
- * to surface — the stored value is kept.
+ * Record every model+collection pair from a client's interests as a
+ * `manual` catalog entry. Entries missing either field contribute
+ * nothing. An uncatalogued model becomes a provisional (needs-review)
+ * row; a known model is a no-op (the catalog is authoritative).
  */
 export function recordProductsOfInterest(
   tx: DbOrTx,
   products: ProductOfInterest[] | null | undefined,
-): CatalogConflict[] {
-  const conflicts: CatalogConflict[] = [];
+): void {
   for (const p of products ?? []) {
-    const { conflict } = recordModelCollection(tx, p.model, p.collection, "manual");
-    if (conflict) conflicts.push(conflict);
+    recordModelCollection(tx, p.model, p.collection, "manual");
   }
-  return conflicts;
 }
 
 /** Full model → collection lookup (uppercase keys), durable across promo resets. */

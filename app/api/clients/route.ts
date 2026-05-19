@@ -69,10 +69,9 @@ export const POST = withAuth(async (_session, request: Request) => {
       tags: data.tags,
     }).run();
 
-    // Feed the durable model→collection catalog from the new client's
-    // interests (the create path previously skipped this entirely, so
-    // manual conflicts on creation were never detected or surfaced).
-    const conflicts = recordProductsOfInterest(db, data.productsOfInterest);
+    // Feed the durable catalog from the new client's interests — an
+    // uncatalogued model becomes a provisional needs-review row.
+    recordProductsOfInterest(db, data.productsOfInterest);
 
     db.insert(activityEvents).values({
       id: randomUUID(),
@@ -82,7 +81,7 @@ export const POST = withAuth(async (_session, request: Request) => {
     }).run();
 
     revalidatePath("/clients");
-    return Response.json({ id, conflicts });
+    return Response.json({ id });
   } catch (_error) {
     return Response.json({ error: "Failed to create client" }, { status: 500 });
   }
@@ -112,8 +111,8 @@ export const PUT = withAuth(async (session, request: Request) => {
       );
     }
 
-    const conflicts = await applyClientPatch(id, parsed.data as Record<string, unknown>);
-    return Response.json({ success: true, conflicts });
+    await applyClientPatch(id, parsed.data as Record<string, unknown>);
+    return Response.json({ success: true });
   } catch (_error) {
     return Response.json({ error: "Failed to update client" }, { status: 500 });
   }

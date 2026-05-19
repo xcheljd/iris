@@ -4,7 +4,6 @@ import { useRef, useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { catalogConflictMessage } from "@/lib/catalog-conflicts";
 import { Topbar } from "@/components/topbar";
 import { ClientForm } from "@/components/client-form";
 import type { ClientFormData } from "@/components/client-form";
@@ -12,7 +11,6 @@ import type { ProductOfInterest } from "@/lib/db/schema";
 import { MergeFromFormDialog } from "@/components/merge-client-dialog";
 import { validateClientForm } from "@/lib/validation/client";
 import { useCatalog } from "@/components/use-catalog";
-import { correctCatalog } from "@/lib/actions";
 
 export default function AddClientPage() {
   const router = useRouter();
@@ -20,11 +18,7 @@ export default function AddClientPage() {
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [duplicateClient, setDuplicateClient] = useState<{ id: string; firstName: string; lastName?: string | null; phone?: string | null; email?: string | null } | null>(null);
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
-  const { catalogMap, isManager, refetchCatalog } = useCatalog();
-  const handleCorrectCatalog = async (m: string, c: string) => {
-    await correctCatalog(m, c);
-    await refetchCatalog();
-  };
+  const { catalogMap, isManager } = useCatalog();
 
   const [formData, setFormData] = useState<ClientFormData>({
     firstName: "",
@@ -120,8 +114,6 @@ export default function AddClientPage() {
         if (response.ok) {
           const data = await response.json();
           toast.success("Client created successfully");
-          const conflictMsg = catalogConflictMessage(data.conflicts);
-          if (conflictMsg) toast.warning(conflictMsg);
           router.push(`/clients/${data.id}`);
         } else if (response.status === 409) {
           const duplicateData = await response.json();
@@ -167,7 +159,6 @@ export default function AddClientPage() {
           <ClientForm
             catalogMap={catalogMap}
             isManager={isManager}
-            onCorrectCatalog={handleCorrectCatalog}
             formData={formData}
             productsOfInterest={productsOfInterest}
             newTag={newTag}

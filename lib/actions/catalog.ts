@@ -32,7 +32,7 @@ function applyCorrection(
   const existing = tx.select().from(modelCatalog).where(eq(modelCatalog.model, m)).get();
   if (existing) {
     tx.update(modelCatalog)
-      .set({ collection: c, source, updatedAt: new Date(), flaggedCollection: null, flaggedSource: null, flaggedAt: null })
+      .set({ collection: c, source, updatedAt: new Date(), needsReview: false, flaggedCollection: null, flaggedSource: null, flaggedAt: null })
       .where(eq(modelCatalog.model, m))
       .run();
   } else {
@@ -144,6 +144,18 @@ export async function resolveFlag(
     console.error("resolveFlag failed:", err);
     return { error: "Failed to resolve flag" };
   }
+}
+
+export async function confirmCatalogRow(model: string): Promise<{ error: string } | { ok: true }> {
+  await requireManager();
+  const m = normalizeModel(model);
+  if (!m) return { error: "Model is required" };
+  db.update(modelCatalog)
+    .set({ needsReview: false, source: "curated", updatedAt: new Date() })
+    .where(eq(modelCatalog.model, m))
+    .run();
+  revalidatePath("/catalog");
+  return { ok: true };
 }
 
 export async function listCatalog() {

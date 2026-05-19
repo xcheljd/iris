@@ -10,9 +10,9 @@ import { Input } from "@/components/ui/input";
 import { SearchInput } from "@/components/search-input";
 import { EmptyState } from "@/components/empty-state";
 import { Topbar } from "@/components/topbar";
-import { Library, Check, X, Pencil, Upload } from "lucide-react";
+import { Library, Check, X, Pencil, Upload, ClipboardCheck } from "lucide-react";
 import { toast } from "sonner";
-import { correctCatalog, resolveFlag } from "@/lib/actions";
+import { correctCatalog, resolveFlag, confirmCatalogRow } from "@/lib/actions";
 import { brandLabel } from "@/lib/brand";
 import { ImportCatalogDialog } from "@/components/catalog/import-catalog-dialog";
 
@@ -22,6 +22,7 @@ interface CatalogRow {
   source: "promo" | "manual" | "curated";
   brand: string | null;
   msrp: number | null;
+  needsReview: boolean;
   flaggedCollection: string | null;
   flaggedSource: string | null;
 }
@@ -35,6 +36,7 @@ export function CatalogContent({ rows }: { rows: CatalogRow[] }) {
   const [importOpen, setImportOpen] = useState(false);
 
   const flagged = rows.filter((r) => r.flaggedCollection);
+  const needsReview = rows.filter((r) => r.needsReview);
   const filtered = useMemo(() => {
     const q = query.trim().toUpperCase();
     if (!q) return rows;
@@ -60,6 +62,15 @@ export function CatalogContent({ rows }: { rows: CatalogRow[] }) {
     });
   };
 
+  const handleConfirm = (model: string) => {
+    start(async () => {
+      const res = await confirmCatalogRow(model);
+      if ("error" in res) { toast.error(res.error); return; }
+      toast.success("Entry confirmed as curated");
+      router.refresh();
+    });
+  };
+
   const handleFlag = (model: string, accept: boolean) => {
     start(async () => {
       const res = await resolveFlag(model, accept);
@@ -73,6 +84,40 @@ export function CatalogContent({ rows }: { rows: CatalogRow[] }) {
     <>
       <Topbar title="Model Catalog" />
       <div className="flex-1 p-4 md:p-6 space-y-6">
+        {needsReview.length > 0 && (
+          <Card className="border-blue-500/40">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <ClipboardCheck className="h-4 w-4" />
+                Needs cataloging ({needsReview.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {needsReview.map((r) => (
+                <div key={r.model} className="flex items-center justify-between gap-3 text-sm border rounded-md p-2">
+                  <div>
+                    <span className="font-mono">{r.model}</span> — entered as{" "}
+                    <strong>{r.collection}</strong>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <Button size="sm" variant="outline" disabled={pending} onClick={() => handleConfirm(r.model)}>
+                      <Check className="h-4 w-4 mr-1" />Confirm
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={pending}
+                      onClick={() => { setEditing(r.model); setDraft(r.collection); }}
+                    >
+                      <Pencil className="h-4 w-4 mr-1" />Correct
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
         {flagged.length > 0 && (
           <Card className="border-amber-500/40">
             <CardHeader>
@@ -81,27 +126,23 @@ export function CatalogContent({ rows }: { rows: CatalogRow[] }) {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {flagged.map((r) => {
-                const fromManual = r.flaggedSource === "manual";
-                const sourceLabel = fromManual ? "a manual entry" : "a promo import";
-                return (
-                  <div key={r.model} className="flex items-center justify-between gap-3 text-sm border rounded-md p-2">
-                    <div>
-                      <span className="font-mono">{r.model}</span> — current{" "}
-                      <strong>{r.collection}</strong> ({r.source}); {sourceLabel} said{" "}
-                      <strong>{r.flaggedCollection}</strong>
-                    </div>
-                    <div className="flex gap-2 shrink-0">
-                      <Button size="sm" variant="outline" disabled={pending} onClick={() => handleFlag(r.model, true)}>
-                        <Check className="h-4 w-4 mr-1" />Use {fromManual ? "entry" : "promo"}
-                      </Button>
-                      <Button size="sm" variant="ghost" disabled={pending} onClick={() => handleFlag(r.model, false)}>
-                        <X className="h-4 w-4 mr-1" />Keep current
-                      </Button>
-                    </div>
+              {flagged.map((r) => (
+                <div key={r.model} className="flex items-center justify-between gap-3 text-sm border rounded-md p-2">
+                  <div>
+                    <span className="font-mono">{r.model}</span> — current{" "}
+                    <strong>{r.collection}</strong> ({r.source}); a promo import said{" "}
+                    <strong>{r.flaggedCollection}</strong>
                   </div>
-                );
-              })}
+                  <div className="flex gap-2 shrink-0">
+                    <Button size="sm" variant="outline" disabled={pending} onClick={() => handleFlag(r.model, true)}>
+                      <Check className="h-4 w-4 mr-1" />Use promo
+                    </Button>
+                    <Button size="sm" variant="ghost" disabled={pending} onClick={() => handleFlag(r.model, false)}>
+                      <X className="h-4 w-4 mr-1" />Keep current
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
         )}

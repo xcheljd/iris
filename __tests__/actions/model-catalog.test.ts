@@ -43,52 +43,28 @@ describe("model catalog", () => {
     promoIds.length = clientIds.length = catalogModels.length = 0;
   });
 
-  it("manual entry fills an unknown model, then never overwrites it", () => {
+  it("manual entry for an unknown model creates a provisional needs-review row", () => {
     const model = `CAT-${Date.now()}`;
     catalogModels.push(model);
 
-    expect(recordModelCollection(db, model, "Solaris", "manual").conflict).toBeUndefined();
+    recordModelCollection(db, model, "Solaris", "manual");
     expect(getCatalogMap()[model]).toBe("Solaris");
-
-    // Conflicting manual entry: kept, reported, not overwritten — and now
-    // also flagged for manager review on /catalog.
-    const res = recordModelCollection(db, model, "Sentinel", "manual");
-    expect(res.conflict).toEqual({ model, existing: "Solaris", attempted: "Sentinel" });
-    expect(getCatalogMap()[model]).toBe("Solaris");
-    const flaggedRow = db.select().from(modelCatalog).where(eq(modelCatalog.model, model)).get()!;
-    expect(flaggedRow.flaggedCollection).toBe("Sentinel");
-    expect(flaggedRow.flaggedSource).toBe("manual");
-  });
-
-  it("a manual conflict never stomps an already-pending promo flag", async () => {
-    const model = `MFP-${Date.now()}`;
-    catalogModels.push(model);
-    await correctCatalog(model, "CURATEDCOLL"); // curated row
-    await createPromo(model, "PROMOCOLL", "Meridian"); // promo disagrees → promo flag
-    const promo = db.select().from(promoWatches).where(eq(promoWatches.modelNumber, model)).get();
-    if (promo) promoIds.push(promo.id);
-
-    // A disagreeing manual entry arrives while the promo flag is pending.
-    const res = recordModelCollection(db, model, "MANUALCOLL", "manual");
-    expect(res.conflict).toEqual({ model, existing: "CURATEDCOLL", attempted: "MANUALCOLL" });
     const row = db.select().from(modelCatalog).where(eq(modelCatalog.model, model)).get()!;
-    expect(row.flaggedCollection).toBe("PROMOCOLL"); // promo flag preserved
-    expect(row.flaggedSource).toBe("promo");
+    expect(row.source).toBe("manual");
+    expect(row.needsReview).toBe(true);
   });
 
-  it("resolveFlag(accept) on a manual flag blesses the value as curated", async () => {
-    const model = `MFA-${Date.now()}`;
+  it("manual entry for a known model is a no-op (no overwrite, no flag)", async () => {
+    const model = `MNO-${Date.now()}`;
     catalogModels.push(model);
-    recordModelCollection(db, model, "FIRSTCOLL", "manual"); // seeds the row
-    recordModelCollection(db, model, "BETTERCOLL", "manual"); // disagree → manual flag
-    let row = db.select().from(modelCatalog).where(eq(modelCatalog.model, model)).get()!;
-    expect(row.flaggedSource).toBe("manual");
+    await correctCatalog(model, "CURATEDCOLL"); // curated, needsReview=false
 
-    await resolveFlag(model, true);
-    row = db.select().from(modelCatalog).where(eq(modelCatalog.model, model)).get()!;
-    expect(row.collection).toBe("BETTERCOLL");
-    expect(row.source).toBe("curated"); // manager blessing, not "promo"
-    expect(row.flaggedCollection).toBeNull();
+    recordModelCollection(db, model, "SOMETHINGELSE", "manual");
+    const row = db.select().from(modelCatalog).where(eq(modelCatalog.model, model)).get()!;
+    expect(row.collection).toBe("CURATEDCOLL"); // unchanged
+    expect(row.source).toBe("curated");
+    expect(row.needsReview).toBe(false);
+    expect(row.flaggedCollection).toBeNull(); // manual never flags
   });
 
   it("promo source is authoritative and overwrites", () => {
@@ -100,8 +76,8 @@ describe("model catalog", () => {
   });
 
   it("ignores entries missing model or collection", () => {
-    expect(recordModelCollection(db, null, "Solaris", "manual").conflict).toBeUndefined();
-    expect(recordModelCollection(db, "ABC-1", null, "manual").conflict).toBeUndefined();
+    expect(recordModelCollection(db, null, "Solaris", "manual")).toEqual({});
+    expect(recordModelCollection(db, "ABC-1", null, "manual")).toEqual({});
   });
 
   it("survives clearAllPromos", async () => {
