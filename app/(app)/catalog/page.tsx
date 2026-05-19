@@ -28,7 +28,7 @@ async function CatalogFetcher({ searchParams }: { searchParams: SearchParams }) 
   const msrpMaxRaw = typeof sp.msrpMax === "string" ? parseFloat(sp.msrpMax) : NaN;
   const msrpMin = isNaN(msrpMinRaw) || msrpMinRaw < 0 ? undefined : msrpMinRaw;
   const msrpMax = isNaN(msrpMaxRaw) || msrpMaxRaw < 0 ? undefined : msrpMaxRaw;
-  const sort = (typeof sp.sort === "string" && ["model", "collection", "brand"].includes(sp.sort)) ? sp.sort as "model" | "collection" | "brand" : "model";
+  const sort = (typeof sp.sort === "string" && ["model", "collection", "brand", "msrp"].includes(sp.sort)) ? sp.sort as "model" | "collection" | "brand" | "msrp" : "model";
   const dir = (typeof sp.dir === "string" && (sp.dir === "asc" || sp.dir === "desc")) ? sp.dir : ("asc" as const);
   const page = Math.max(1, parseInt(typeof sp.page === "string" ? sp.page : "1") || 1);
   const data = await listCatalog({ mod, col, brands, msrpMin, msrpMax, sort, dir, page });

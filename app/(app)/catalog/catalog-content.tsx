@@ -17,7 +17,7 @@ import { brandLabel } from "@/lib/brand";
 import { ImportCatalogDialog } from "@/components/catalog/import-catalog-dialog";
 import { ColumnHeader } from "@/components/column-header";
 import { ColumnFilterPopover } from "@/components/column-filter-popover";
-import { TextFilterMenu, MultiSelectMenu, RangeFilterMenu } from "@/components/clients-column-filters";
+import { TextFilterMenu, MultiSelectMenu, RangeFilterMenu } from "@/components/column-filters";
 import { BRAND_VALUES } from "@/lib/db/schema";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
@@ -43,12 +43,12 @@ interface CatalogContentProps {
   msrpMin?: number;
   msrpMax?: number;
   msrpCeiling: number;
-  sort: "model" | "collection" | "brand";
+  sort: "model" | "collection" | "brand" | "msrp";
   dir: "asc" | "desc";
   page: number;
 }
 
-type SortKey = "model" | "collection" | "brand";
+type SortKey = "model" | "collection" | "brand" | "msrp";
 
 export function CatalogContent({ rows, total, needsReview, flagged, mod, col, brands, msrpMin, msrpMax, msrpCeiling, sort, dir, page }: CatalogContentProps) {
   const router = useRouter();
@@ -286,6 +286,10 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                       <TableHead>
                         <ColumnHeader
                           label="MSRP"
+                          sortKey="msrp"
+                          currentSort={sort}
+                          currentDir={dir}
+                          onSort={handleSort}
                           filter={
                             <ColumnFilterPopover
                               label="MSRP"

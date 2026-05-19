@@ -165,7 +165,7 @@ export async function listCatalog({
   brands = [] as string[],
   msrpMin,
   msrpMax,
-  sort = "model" as "model" | "collection" | "brand",
+  sort = "model" as "model" | "collection" | "brand" | "msrp",
   dir = "asc" as "asc" | "desc",
   page = 1,
 }: {
@@ -174,7 +174,7 @@ export async function listCatalog({
   brands?: string[];
   msrpMin?: number;
   msrpMax?: number;
-  sort?: "model" | "collection" | "brand";
+  sort?: "model" | "collection" | "brand" | "msrp";
   dir?: "asc" | "desc";
   page?: number;
 } = {}) {
@@ -193,8 +193,14 @@ export async function listCatalog({
   const sortCol =
     sort === "collection" ? modelCatalog.collection
     : sort === "brand" ? modelCatalog.brand
+    : sort === "msrp" ? modelCatalog.msrp
     : modelCatalog.model;
-  const order = dir === "desc" ? desc(sortCol) : asc(sortCol);
+  // MSRP is nullable; keep unpriced rows at the bottom in both directions
+  // rather than letting SQLite's default surface them first on ascending.
+  const order =
+    sort === "msrp"
+      ? sql`${modelCatalog.msrp} ${sql.raw(dir === "desc" ? "desc" : "asc")} nulls last`
+      : dir === "desc" ? desc(sortCol) : asc(sortCol);
   const offset = (page - 1) * DEFAULT_PAGE_SIZE;
 
   const rows = db.select().from(modelCatalog).where(filter).orderBy(order).limit(DEFAULT_PAGE_SIZE).offset(offset).all();

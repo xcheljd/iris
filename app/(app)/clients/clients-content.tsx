@@ -25,7 +25,7 @@ import {
   SingleSelectMenu,
   TagsFilterMenu,
   DatesFilterButton,
-} from "@/components/clients-column-filters";
+} from "@/components/column-filters";
 import { SaveCurrentFilterDialog } from "@/components/smart-lists/save-current-filter-dialog";
 import {
   describeClientFilters,
