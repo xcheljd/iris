@@ -46,7 +46,7 @@ export function GraduateProspectDialog({
   const [notes, setNotes] = useState(prospect.notes ?? "");
   const [preferredContact, setPreferredContact] = useState<"" | "call" | "text" | "email">("");
   const [productsOfInterest, setProductsOfInterest] = useState<ProductOfInterest[]>([]);
-  const { catalogMap, isManager } = useCatalog();
+  const { catalogIndex, isManager } = useCatalog();
 
   const [duplicateClientId, setDuplicateClientId] = useState("");
   const [duplicateClientName, setDuplicateClientName] = useState("");
@@ -195,7 +195,7 @@ export function GraduateProspectDialog({
                 <ProductsOfInterestInput
                   value={productsOfInterest}
                   onChange={setProductsOfInterest}
-                  catalogMap={catalogMap}
+                  catalogIndex={catalogIndex}
                   isManager={isManager}
                 />
               </div>

@@ -15,6 +15,7 @@ import { Plus, X, AlertCircle } from "lucide-react";
 import { CLIENT_SOURCE_VALUES, type ProductOfInterest } from "@/lib/db/schema";
 import { ProductsOfInterestInput } from "@/components/products-of-interest-input";
 import { COMMON_TAGS } from "@/lib/constants";
+import type { CatalogEntry } from "@/lib/actions/model-catalog";
 
 interface DuplicateClient {
   id: string;
@@ -45,7 +46,7 @@ interface ClientFormProps {
   formData: ClientFormData;
   productsOfInterest: ProductOfInterest[];
   newTag: string;
-  catalogMap?: Record<string, string>;
+  catalogIndex?: Record<string, CatalogEntry> | null;
   isManager?: boolean;
   onFieldChange: (field: string, value: string | boolean | Date | null | undefined | string[]) => void;
   onNewTagChange: (value: string) => void;
@@ -72,7 +73,7 @@ export function ClientForm({
   formData,
   productsOfInterest,
   newTag,
-  catalogMap,
+  catalogIndex,
   isManager,
   onFieldChange,
   onNewTagChange,
@@ -347,7 +348,7 @@ export function ClientForm({
           <ProductsOfInterestInput
             value={productsOfInterest}
             onChange={onProductsChange}
-            catalogMap={catalogMap}
+            catalogIndex={catalogIndex}
             isManager={isManager}
           />
         </CardContent>

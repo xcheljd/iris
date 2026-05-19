@@ -1,20 +1,23 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { SearchInput } from "@/components/search-input";
+import { PaginationFooter } from "@/components/pagination-footer";
 import { EmptyState } from "@/components/empty-state";
 import { Topbar } from "@/components/topbar";
-import { Library, Check, X, Pencil, Upload, ClipboardCheck } from "lucide-react";
+import { Library, Check, X, Pencil, Upload, ClipboardCheck, ArrowUpDown, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { correctCatalog, resolveFlag, confirmCatalogRow } from "@/lib/actions";
 import { brandLabel } from "@/lib/brand";
 import { ImportCatalogDialog } from "@/components/catalog/import-catalog-dialog";
+import { BRAND_VALUES } from "@/lib/db/schema";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
 interface CatalogRow {
   model: string;
@@ -27,26 +30,90 @@ interface CatalogRow {
   flaggedSource: string | null;
 }
 
-export function CatalogContent({ rows }: { rows: CatalogRow[] }) {
+interface CatalogContentProps {
+  rows: CatalogRow[];
+  total: number;
+  needsReview: CatalogRow[];
+  flagged: CatalogRow[];
+  mod: string;
+  col: string;
+  brands: string[];
+  msrpMin?: number;
+  msrpMax?: number;
+  sort: "model" | "collection" | "brand";
+  dir: "asc" | "desc";
+  page: number;
+}
+
+type SortKey = "model" | "collection" | "brand";
+
+export function CatalogContent({ rows, total, needsReview, flagged, mod, col, brands, msrpMin, msrpMax, sort, dir, page }: CatalogContentProps) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [query, setQuery] = useState("");
+  const [modLocal, setModLocal] = useState(mod);
+  const [colLocal, setColLocal] = useState(col);
+  const [msrpMinLocal, setMsrpMinLocal] = useState(msrpMin != null ? String(msrpMin) : "");
+  const [msrpMaxLocal, setMsrpMaxLocal] = useState(msrpMax != null ? String(msrpMax) : "");
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [importOpen, setImportOpen] = useState(false);
+  const isFirstRender = useRef(true);
 
-  const flagged = rows.filter((r) => r.flaggedCollection);
-  const needsReview = rows.filter((r) => r.needsReview);
-  const filtered = useMemo(() => {
-    const q = query.trim().toUpperCase();
-    if (!q) return rows;
-    return rows.filter(
-      (r) =>
-        r.model.includes(q) ||
-        r.collection.toUpperCase().includes(q) ||
-        (r.brand ?? "").toUpperCase().includes(q),
-    );
-  }, [rows, query]);
+  const totalPages = Math.ceil(total / DEFAULT_PAGE_SIZE);
+
+  function navigate(overrides: {
+    mod?: string; col?: string; brands?: string[];
+    msrpMin?: string; msrpMax?: string;
+    sort?: SortKey; dir?: "asc" | "desc"; page?: number;
+  } = {}) {
+    const nextMod = overrides.mod ?? modLocal;
+    const nextCol = overrides.col ?? colLocal;
+    const nextBrands = overrides.brands ?? brands;
+    const nextMsrpMin = overrides.msrpMin ?? msrpMinLocal;
+    const nextMsrpMax = overrides.msrpMax ?? msrpMaxLocal;
+    const nextSort = overrides.sort ?? sort;
+    const nextDir = overrides.dir ?? dir;
+    const nextPage = overrides.page ?? page;
+    const sp = new URLSearchParams();
+    if (nextMod) sp.set("mod", nextMod);
+    if (nextCol) sp.set("col", nextCol);
+    if (nextBrands.length) sp.set("brands", nextBrands.join(","));
+    if (nextMsrpMin) sp.set("msrpMin", nextMsrpMin);
+    if (nextMsrpMax) sp.set("msrpMax", nextMsrpMax);
+    if (nextSort !== "model") sp.set("sort", nextSort);
+    if (nextDir !== "asc") sp.set("dir", nextDir);
+    if (nextPage > 1) sp.set("page", String(nextPage));
+    router.replace(`/catalog${sp.toString() ? `?${sp.toString()}` : ""}`);
+  }
+
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
+
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    const id = setTimeout(() => navigateRef.current({ page: 1 }), 300);
+    return () => clearTimeout(id);
+  }, [modLocal, colLocal, msrpMinLocal, msrpMaxLocal]);
+
+  const toggleBrand = (b: string) => {
+    const next = brands.includes(b) ? brands.filter((x) => x !== b) : [...brands, b];
+    navigate({ brands: next, page: 1 });
+  };
+
+  const toggleSort = (k: SortKey) => {
+    if (sort === k) {
+      navigate({ dir: dir === "asc" ? "desc" : "asc", page: 1 });
+    } else {
+      navigate({ sort: k, dir: "asc", page: 1 });
+    }
+  };
+
+  const SortHead = ({ k, label }: { k: SortKey; label: string }) => (
+    <button className="flex items-center gap-1 font-medium" onClick={() => toggleSort(k)}>
+      {label}
+      <ArrowUpDown className={`h-3 w-3 ${sort === k ? "text-foreground" : "text-muted-foreground/50"}`} />
+    </button>
+  );
 
   const sourceBadge = (s: CatalogRow["source"]) =>
     s === "curated" ? "default" : s === "promo" ? "secondary" : "outline";
@@ -158,32 +225,125 @@ export function CatalogContent({ rows }: { rows: CatalogRow[] }) {
                 <Upload className="h-4 w-4 mr-1" />Import Catalog
               </Button>
             </div>
-            <div className="mt-3">
-              <SearchInput placeholder="Search model, collection, or brand…" value={query} onChange={setQuery} className="max-w-sm" />
-            </div>
           </CardHeader>
           <CardContent>
-            {filtered.length === 0 ? (
-              <EmptyState
-                icon={Library}
-                title={rows.length === 0 ? "No catalog entries" : `No matches for “${query.trim()}”`}
-                compact
-              />
+            {rows.length === 0 && total === 0 && !mod && !col && !brands.length && msrpMin == null && msrpMax == null ? (
+              <EmptyState icon={Library} title="No catalog entries" compact />
+            ) : rows.length === 0 ? (
+              <EmptyState icon={Library} title="No matches for current filters" compact />
             ) : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Model</TableHead>
-                      <TableHead>Collection</TableHead>
-                      <TableHead>Brand</TableHead>
-                      <TableHead className="text-right">MSRP</TableHead>
+                      <TableHead>
+                        <div className="flex items-center gap-1">
+                          <SortHead k="model" label="Model" />
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button aria-label="Filter model">
+                                <Filter className={`h-3 w-3 ${modLocal ? "text-primary" : "text-muted-foreground/50"}`} />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-56">
+                              <Input
+                                placeholder="Model contains…"
+                                value={modLocal}
+                                onChange={(e) => setModLocal(e.target.value.toUpperCase())}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </TableHead>
+
+                      <TableHead>
+                        <div className="flex items-center gap-1">
+                          <SortHead k="collection" label="Collection" />
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button aria-label="Filter collection">
+                                <Filter className={`h-3 w-3 ${colLocal ? "text-primary" : "text-muted-foreground/50"}`} />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-56">
+                              <Input
+                                placeholder="Collection contains…"
+                                value={colLocal}
+                                onChange={(e) => setColLocal(e.target.value)}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </TableHead>
+
+                      <TableHead>
+                        <div className="flex items-center gap-1">
+                          <SortHead k="brand" label="Brand" />
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button aria-label="Filter brand">
+                                <Filter className={`h-3 w-3 ${brands.length ? "text-primary" : "text-muted-foreground/50"}`} />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-48 space-y-1">
+                              {BRAND_VALUES.map((b) => (
+                                <label key={b} className="flex items-center gap-2 text-sm">
+                                  <input
+                                    type="checkbox"
+                                    checked={brands.includes(b)}
+                                    onChange={() => toggleBrand(b)}
+                                  />
+                                  {brandLabel(b)}
+                                </label>
+                              ))}
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </TableHead>
+
+                      <TableHead className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          MSRP
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button aria-label="Filter MSRP">
+                                <Filter className={`h-3 w-3 ${msrpMinLocal || msrpMaxLocal ? "text-primary" : "text-muted-foreground/50"}`} />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-44 space-y-3">
+                              <div className="space-y-1">
+                                <p className="text-xs text-muted-foreground">Min $</p>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  placeholder="0"
+                                  value={msrpMinLocal}
+                                  onChange={(e) => setMsrpMinLocal(e.target.value)}
+                                  className="h-8"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-xs text-muted-foreground">Max $</p>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  placeholder="∞"
+                                  value={msrpMaxLocal}
+                                  onChange={(e) => setMsrpMaxLocal(e.target.value)}
+                                  className="h-8"
+                                />
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </TableHead>
+
                       <TableHead>Source</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filtered.map((r) => (
+                    {rows.map((r) => (
                       <TableRow key={r.model}>
                         <TableCell className="font-mono text-sm">{r.model}</TableCell>
                         <TableCell>
@@ -228,6 +388,15 @@ export function CatalogContent({ rows }: { rows: CatalogRow[] }) {
             )}
           </CardContent>
         </Card>
+
+        <PaginationFooter
+          currentPage={page}
+          totalPages={totalPages}
+          onPageChange={(p) => navigate({ page: p })}
+          totalItems={total}
+          pageSize={DEFAULT_PAGE_SIZE}
+          itemLabel="models"
+        />
       </div>
       <ImportCatalogDialog open={importOpen} onOpenChange={setImportOpen} />
     </>

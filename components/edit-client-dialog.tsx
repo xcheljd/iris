@@ -19,7 +19,7 @@ interface EditClientDialogProps {
 
 export function EditClientDialog({ client, children }: EditClientDialogProps) {
   const [open, setOpen] = useState(false);
-  const { catalogMap, isManager } = useCatalog();
+  const { catalogIndex, isManager } = useCatalog();
   const [isPending, start] = useTransition();
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [duplicateClient, setDuplicateClient] = useState<{ id: string; firstName: string; lastName?: string | null; phone?: string | null; email?: string | null } | null>(null);
@@ -125,7 +125,7 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
         </DialogHeader>
         <ScrollArea className="max-h-[70vh]">
           <ClientForm
-            catalogMap={catalogMap}
+            catalogIndex={catalogIndex}
             isManager={isManager}
             formData={formData}
             productsOfInterest={productsOfInterest}

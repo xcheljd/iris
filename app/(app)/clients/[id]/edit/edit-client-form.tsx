@@ -45,7 +45,7 @@ interface EditClientFormProps {
 
 export function EditClientForm({ initialClient, clientId, employees }: EditClientFormProps) {
   const router = useRouter();
-  const { catalogMap, isManager } = useCatalog();
+  const { catalogIndex, isManager } = useCatalog();
   const [isPending, start] = useTransition();
   const [_isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
@@ -187,7 +187,7 @@ export function EditClientForm({ initialClient, clientId, employees }: EditClien
           </div>
 
           <ClientForm
-            catalogMap={catalogMap}
+            catalogIndex={catalogIndex}
             isManager={isManager}
             formData={formData}
             productsOfInterest={productsOfInterest}

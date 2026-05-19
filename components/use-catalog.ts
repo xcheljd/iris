@@ -15,7 +15,7 @@ import type { CatalogEntry } from "@/lib/actions/model-catalog";
  */
 export function useCatalog() {
   const [map, setMap] = useState<Record<string, string>>({});
-  const [index, setIndex] = useState<Record<string, CatalogEntry>>({});
+  const [index, setIndex] = useState<Record<string, CatalogEntry> | null>(null);
   const [isManager, setIsManager] = useState(false);
 
   const refetch = useCallback(async () => {
@@ -40,7 +40,7 @@ export function useCatalog() {
     refetch();
   }, [refetch]);
 
-  const indexMap = useMemo(() => new Map(Object.entries(index)), [index]);
+  const indexMap = useMemo(() => new Map(Object.entries(index ?? {})), [index]);
 
   const resolve = useCallback(
     (poi: { model: string | null; collection: string | null; brand: string | null }) =>
@@ -48,5 +48,5 @@ export function useCatalog() {
     [indexMap],
   );
 
-  return { catalogMap: map, isManager, refetchCatalog: refetch, resolve };
+  return { catalogMap: map, catalogIndex: index, isManager, refetchCatalog: refetch, resolve };
 }

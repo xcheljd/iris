@@ -1,10 +1,11 @@
 "use server";
 import { db } from "@/lib/db";
-import { clients, promoWatches, promoMatches, modelCatalog, activityEvents, type ProductOfInterest } from "@/lib/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { clients, promoWatches, promoMatches, modelCatalog, activityEvents, type ProductOfInterest, type Brand } from "@/lib/db/schema";
+import { and, asc, desc, eq, gte, inArray, isNotNull, like, lte, sql, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireManager } from "./_shared";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import { normalizeModel } from "@/lib/normalize";
 import { buildPromoClientIndex, matchPromoToClients } from "@/lib/promo-match";
 import { getCatalogIndex } from "./model-catalog";
@@ -158,7 +159,48 @@ export async function confirmCatalogRow(model: string): Promise<{ error: string 
   return { ok: true };
 }
 
-export async function listCatalog() {
+export async function listCatalog({
+  mod = "",
+  col = "",
+  brands = [] as string[],
+  msrpMin,
+  msrpMax,
+  sort = "model" as "model" | "collection" | "brand",
+  dir = "asc" as "asc" | "desc",
+  page = 1,
+}: {
+  mod?: string;
+  col?: string;
+  brands?: string[];
+  msrpMin?: number;
+  msrpMax?: number;
+  sort?: "model" | "collection" | "brand";
+  dir?: "asc" | "desc";
+  page?: number;
+} = {}) {
   await requireManager();
-  return db.select().from(modelCatalog).orderBy(modelCatalog.model).all();
+
+  const conditions: SQL[] = [];
+  const modU = mod.trim().toUpperCase();
+  const colU = col.trim().toUpperCase();
+  if (modU) conditions.push(like(modelCatalog.model, `%${modU}%`));
+  if (colU) conditions.push(like(modelCatalog.collection, `%${colU}%`));
+  if (brands.length) conditions.push(inArray(modelCatalog.brand, brands as Brand[]));
+  if (msrpMin != null) conditions.push(gte(modelCatalog.msrp, msrpMin));
+  if (msrpMax != null) conditions.push(lte(modelCatalog.msrp, msrpMax));
+  const filter = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const sortCol =
+    sort === "collection" ? modelCatalog.collection
+    : sort === "brand" ? modelCatalog.brand
+    : modelCatalog.model;
+  const order = dir === "desc" ? desc(sortCol) : asc(sortCol);
+  const offset = (page - 1) * DEFAULT_PAGE_SIZE;
+
+  const rows = db.select().from(modelCatalog).where(filter).orderBy(order).limit(DEFAULT_PAGE_SIZE).offset(offset).all();
+  const totalRow = db.select({ n: sql<number>`count(*)` }).from(modelCatalog).where(filter).get();
+  const needsReview = db.select().from(modelCatalog).where(eq(modelCatalog.needsReview, true)).orderBy(asc(modelCatalog.model)).all();
+  const flagged = db.select().from(modelCatalog).where(isNotNull(modelCatalog.flaggedCollection)).orderBy(asc(modelCatalog.model)).all();
+
+  return { rows, total: Number(totalRow?.n ?? 0), needsReview, flagged };
 }

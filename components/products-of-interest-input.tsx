@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,11 +10,12 @@ import { normalizeModel } from "@/lib/normalize";
 import { MERIDIAN_COLLECTIONS } from "@/lib/collections";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { INTEREST_INTENT_VALUES, BRAND_VALUES, type ProductOfInterest, type InterestIntent, type Brand } from "@/lib/db/schema";
+import type { CatalogEntry } from "@/lib/actions/model-catalog";
 
 interface Props {
   value: ProductOfInterest[];
   onChange: (next: ProductOfInterest[]) => void;
-  catalogMap?: Record<string, string>;
+  catalogIndex?: Record<string, CatalogEntry> | null;
   isManager?: boolean;
   collectionSuggestions?: string[];
 }
@@ -39,13 +40,14 @@ function describe(p: ProductOfInterest) {
  * Structured products-of-interest editor. Each entry is
  * { model, collection, intent }; intent must be picked explicitly (no
  * default) and ≥1 of model/collection is required. When the entered model
- * is already in the catalog, the collection autofills; associates are
- * locked to it, managers may diverge which fixes the catalog (cascades).
+ * is already in the catalog, the collection autofills and brand autofills
+ * if the catalog has one; associates are locked to both. For unknown models
+ * (not yet in catalog) brand is required before the entry can be added.
  */
 export function ProductsOfInterestInput({
   value,
   onChange,
-  catalogMap = {},
+  catalogIndex = null,
   isManager = false,
   collectionSuggestions,
 }: Props) {
@@ -57,8 +59,24 @@ export function ProductsOfInterestInput({
   const suggestions = collectionSuggestions ?? MERIDIAN_COLLECTIONS;
 
   const m = normalizeModel(model);
-  const cataloged = m ? catalogMap[m] : undefined;
-  const collectionLocked = !!cataloged && !isManager;
+  const catalogEntry = m && catalogIndex != null ? catalogIndex[m] : undefined;
+  const catalogedCollection = catalogEntry?.collection;
+  const catalogedBrand = catalogEntry?.brand ?? null;
+
+  const collectionLocked = !!catalogedCollection && !isManager;
+  // Lock brand when catalog says there's a brand and user is an associate
+  const brandLocked = catalogedBrand !== null && !isManager;
+  // Brand is required when a model is entered and it's not in the (loaded) catalog
+  const brandRequired = !!m && catalogIndex !== null && !catalogEntry;
+
+  // Autofill brand from catalog when model changes or catalog updates
+  useEffect(() => {
+    if (!m || catalogIndex === null) return;
+    const entry = catalogIndex[m];
+    if (entry !== undefined) {
+      setBrand((entry.brand ?? "") as Brand | "");
+    }
+  }, [m, catalogIndex]);
 
   function reset() {
     setModel("");
@@ -82,18 +100,21 @@ export function ProductsOfInterestInput({
     if (!intent) return;
     const c = collection.trim();
     if (!m && !c && !brand) return;
+    if (brandRequired && !brand) return;
 
-    if (cataloged) {
-      const sameCollection = c === "" || c.toUpperCase() === cataloged.toUpperCase();
+    if (catalogedCollection) {
+      const sameCollection = c === "" || c.toUpperCase() === catalogedCollection.toUpperCase();
       // Associates are always coerced; managers can store a divergent value
       // (the catalog is authoritative at read time anyway).
       if (sameCollection || !isManager) {
-        commit(m, cataloged, intent);
+        commit(m, catalogedCollection, intent);
         return;
       }
     }
     commit(m || null, c || null, intent);
   };
+
+  const addDisabled = !intent || (!m && !collection.trim() && !brand) || (brandRequired && !brand);
 
   const remove = (entry: ProductOfInterest) =>
     onChange(value.filter((p) => keyOf(p) !== keyOf(entry)));
@@ -111,8 +132,8 @@ export function ProductsOfInterestInput({
           aria-label="Model number"
         />
         <Input
-          placeholder={collectionLocked ? cataloged : "Collection"}
-          value={collectionLocked ? cataloged : collection}
+          placeholder={collectionLocked ? catalogedCollection : "Collection"}
+          value={collectionLocked ? catalogedCollection : collection}
           list={listId}
           readOnly={collectionLocked}
           onChange={(e) => setCollection(e.target.value)}
@@ -122,15 +143,19 @@ export function ProductsOfInterestInput({
         <datalist id={listId}>
           {suggestions.map((s) => <option key={s} value={s} />)}
         </datalist>
-        <Select value={brand || undefined} onValueChange={(v) => setBrand(v as Brand)}>
-          <SelectTrigger className="sm:w-44" aria-label="Brand (optional)">
-            <SelectValue placeholder="Brand (optional)" />
+        <Select
+          value={brand || undefined}
+          onValueChange={(v) => setBrand(v as Brand)}
+          disabled={brandLocked}
+        >
+          <SelectTrigger className="sm:w-44" aria-label={brandRequired ? "Brand (required)" : "Brand (optional)"}>
+            <SelectValue placeholder={brandRequired ? "Brand (required)" : "Brand (optional)"} />
           </SelectTrigger>
           <SelectContent>
             {BRAND_VALUES.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Button type="button" onClick={add} variant="outline" className="shrink-0" disabled={!intent || (!m && !collection.trim() && !brand)}>
+        <Button type="button" onClick={add} variant="outline" className="shrink-0" disabled={addDisabled}>
           <Plus className="h-4 w-4" />
         </Button>
       </div>
@@ -152,7 +177,8 @@ export function ProductsOfInterestInput({
 
       <p className="text-xs text-muted-foreground">
         Pick an intent and enter a model and/or collection.
-        {cataloged && ` ${m} is cataloged as ${cataloged}.`}
+        {catalogedCollection && ` ${m} is cataloged as ${catalogedCollection}.`}
+        {brandRequired && " Brand required for new models."}
         {" "}Vague interests belong in notes.
       </p>
 

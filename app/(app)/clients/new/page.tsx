@@ -18,7 +18,7 @@ export default function AddClientPage() {
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [duplicateClient, setDuplicateClient] = useState<{ id: string; firstName: string; lastName?: string | null; phone?: string | null; email?: string | null } | null>(null);
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
-  const { catalogMap, isManager } = useCatalog();
+  const { catalogIndex, isManager } = useCatalog();
 
   const [formData, setFormData] = useState<ClientFormData>({
     firstName: "",
@@ -157,7 +157,7 @@ export default function AddClientPage() {
           </div>
 
           <ClientForm
-            catalogMap={catalogMap}
+            catalogIndex={catalogIndex}
             isManager={isManager}
             formData={formData}
             productsOfInterest={productsOfInterest}
