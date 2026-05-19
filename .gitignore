@@ -39,3 +39,7 @@ remotion-demo/
 *.log
 *.png
 
+# Vendor data dumps (RVX exports — not committed)
+Selling_Analysis_By_Style*
+*.txt.htm.xls
+

@@ -10,14 +10,18 @@ import { Input } from "@/components/ui/input";
 import { SearchInput } from "@/components/search-input";
 import { EmptyState } from "@/components/empty-state";
 import { Topbar } from "@/components/topbar";
-import { Library, Check, X, Pencil } from "lucide-react";
+import { Library, Check, X, Pencil, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { correctCatalog, resolveFlag } from "@/lib/actions";
+import { brandLabel } from "@/lib/brand";
+import { ImportCatalogDialog } from "@/components/catalog/import-catalog-dialog";
 
 interface CatalogRow {
   model: string;
   collection: string;
   source: "promo" | "manual" | "curated";
+  brand: string | null;
+  msrp: number | null;
   flaggedCollection: string | null;
   flaggedSource: string | null;
 }
@@ -28,12 +32,18 @@ export function CatalogContent({ rows }: { rows: CatalogRow[] }) {
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [importOpen, setImportOpen] = useState(false);
 
   const flagged = rows.filter((r) => r.flaggedCollection);
   const filtered = useMemo(() => {
     const q = query.trim().toUpperCase();
     if (!q) return rows;
-    return rows.filter((r) => r.model.includes(q) || r.collection.toUpperCase().includes(q));
+    return rows.filter(
+      (r) =>
+        r.model.includes(q) ||
+        r.collection.toUpperCase().includes(q) ||
+        (r.brand ?? "").toUpperCase().includes(q),
+    );
   }, [rows, query]);
 
   const sourceBadge = (s: CatalogRow["source"]) =>
@@ -98,17 +108,26 @@ export function CatalogContent({ rows }: { rows: CatalogRow[] }) {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Library className="h-5 w-5" />
-              Model Catalog
-            </CardTitle>
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2">
+                <Library className="h-5 w-5" />
+                Model Catalog
+              </CardTitle>
+              <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+                <Upload className="h-4 w-4 mr-1" />Import Catalog
+              </Button>
+            </div>
             <div className="mt-3">
-              <SearchInput placeholder="Search model or collection…" value={query} onChange={setQuery} className="max-w-sm" />
+              <SearchInput placeholder="Search model, collection, or brand…" value={query} onChange={setQuery} className="max-w-sm" />
             </div>
           </CardHeader>
           <CardContent>
             {filtered.length === 0 ? (
-              <EmptyState icon={Library} title="No catalog entries" compact />
+              <EmptyState
+                icon={Library}
+                title={rows.length === 0 ? "No catalog entries" : `No matches for “${query.trim()}”`}
+                compact
+              />
             ) : (
               <div className="overflow-x-auto">
                 <Table>
@@ -116,6 +135,8 @@ export function CatalogContent({ rows }: { rows: CatalogRow[] }) {
                     <TableRow>
                       <TableHead>Model</TableHead>
                       <TableHead>Collection</TableHead>
+                      <TableHead>Brand</TableHead>
+                      <TableHead className="text-right">MSRP</TableHead>
                       <TableHead>Source</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -136,6 +157,10 @@ export function CatalogContent({ rows }: { rows: CatalogRow[] }) {
                           ) : (
                             r.collection
                           )}
+                        </TableCell>
+                        <TableCell>{r.brand ? brandLabel(r.brand) : <span className="text-muted-foreground">—</span>}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {r.msrp != null ? `$${r.msrp.toFixed(2)}` : <span className="text-muted-foreground">—</span>}
                         </TableCell>
                         <TableCell><Badge variant={sourceBadge(r.source)}>{r.source}</Badge></TableCell>
                         <TableCell className="text-right">
@@ -163,6 +188,7 @@ export function CatalogContent({ rows }: { rows: CatalogRow[] }) {
           </CardContent>
         </Card>
       </div>
+      <ImportCatalogDialog open={importOpen} onOpenChange={setImportOpen} />
     </>
   );
 }

@@ -10,5 +10,6 @@ export * from "./actions/rvx-import";
 export * from "./actions/prospects";
 export * from "./actions/onboarding";
 export * from "./actions/catalog";
+export * from "./actions/catalog-import";
 export * from "./actions/collections-csv-export";
 export * from "./actions/matched-clients-csv-export";
