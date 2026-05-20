@@ -4,7 +4,10 @@ import { clients, promoWatches, promoMatches, modelCatalog, activityEvents, type
 import { and, asc, desc, eq, gte, inArray, isNotNull, like, lte, sql, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
-import { requireManager } from "./_shared";
+import { requireManager, isSessionEmployeeStale } from "./_shared";
+
+const STALE_SESSION_ERROR =
+  "Your session is out of sync with the employee record. Sign out and sign back in, then retry.";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import { normalizeModel } from "@/lib/normalize";
 import { buildPromoClientIndex, matchPromoToClients } from "@/lib/promo-match";
@@ -100,6 +103,7 @@ export async function correctCatalog(
   collection: string,
 ): Promise<{ error: string } | { affected: number }> {
   const user = await requireManager();
+  if (await isSessionEmployeeStale(user.id)) return { error: STALE_SESSION_ERROR };
   if (!model?.trim() || !collection?.trim()) {
     return { error: "Model and collection are required" };
   }
@@ -127,6 +131,7 @@ export async function resolveFlag(
   accept: boolean,
 ): Promise<{ error: string } | { affected: number }> {
   const user = await requireManager();
+  if (await isSessionEmployeeStale(user.id)) return { error: STALE_SESSION_ERROR };
   try {
     const m = normalizeModel(model);
     const row = db.select().from(modelCatalog).where(eq(modelCatalog.model, m)).get();
@@ -199,6 +204,7 @@ export async function deleteCatalogRows(
   models: string[],
 ): Promise<{ error: string } | { deleted: number; affected: number }> {
   const user = await requireManager();
+  if (await isSessionEmployeeStale(user.id)) return { error: STALE_SESSION_ERROR };
   const normalized = Array.from(new Set(models.map(normalizeModel).filter(Boolean)));
   if (normalized.length === 0) return { error: "No models provided" };
 
@@ -266,6 +272,7 @@ export async function deleteCatalogRow(
   model: string,
 ): Promise<{ error: string } | { affected: number }> {
   const user = await requireManager();
+  if (await isSessionEmployeeStale(user.id)) return { error: STALE_SESSION_ERROR };
   const m = normalizeModel(model);
   if (!m) return { error: "Model is required" };
 
