@@ -101,6 +101,33 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
   const sourceBadge = (s: CatalogRow["source"]) =>
     s === "curated" ? "default" : s === "promo" ? "secondary" : "outline";
 
+  const filterChips: { key: string; label: string; onRemove: () => void }[] = [];
+  if (mod) {
+    filterChips.push({ key: "mod", label: `Model: ${mod}`, onRemove: () => navigate({ mod: "", page: 1 }) });
+  }
+  if (col) {
+    filterChips.push({ key: "col", label: `Collection: ${col}`, onRemove: () => navigate({ col: "", page: 1 }) });
+  }
+  if (brands.length > 0) {
+    filterChips.push({
+      key: "brands",
+      label: `Brand: ${brands.map((b) => brandLabel(b)).join(", ")}`,
+      onRemove: () => navigate({ brands: [], page: 1 }),
+    });
+  }
+  if (msrpMin != null || msrpMax != null) {
+    const lo = msrpMin != null ? `$${msrpMin.toLocaleString()}` : "$0";
+    const hi = msrpMax != null ? `$${msrpMax.toLocaleString()}` : `$${msrpCeiling.toLocaleString()}+`;
+    filterChips.push({
+      key: "msrp",
+      label: `MSRP: ${lo} – ${hi}`,
+      onRemove: () => navigate({ msrpMin: undefined, msrpMax: undefined, page: 1 }),
+    });
+  }
+
+  const clearAllFilters = () =>
+    navigate({ mod: "", col: "", brands: [], msrpMin: undefined, msrpMax: undefined, page: 1 });
+
   const saveCorrection = (model: string, collection: string) => {
     if (!collection.trim()) return;
     start(async () => {
@@ -245,6 +272,35 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
             </div>
           </CardHeader>
           <CardContent>
+            {filterChips.length > 0 && (
+              <div
+                className="flex flex-wrap items-center gap-1.5 rounded-md border bg-muted/30 px-3 py-2 text-xs mb-4"
+                role="region"
+                aria-label="Active filters"
+              >
+                <span className="text-muted-foreground font-medium mr-1">Filters:</span>
+                {filterChips.map((chip) => (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    onClick={chip.onRemove}
+                    className="group inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 hover:bg-accent transition-colors"
+                    aria-label={`Remove filter: ${chip.label}`}
+                  >
+                    <span>{chip.label}</span>
+                    <X className="h-3 w-3 opacity-60 group-hover:opacity-100" />
+                  </button>
+                ))}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-xs ml-auto"
+                  onClick={clearAllFilters}
+                >
+                  Clear all
+                </Button>
+              </div>
+            )}
             {rows.length === 0 && total === 0 && !mod && !col && !brands.length && msrpMin == null && msrpMax == null ? (
               <EmptyState icon={Library} title="No catalog entries" compact />
             ) : rows.length === 0 ? (
