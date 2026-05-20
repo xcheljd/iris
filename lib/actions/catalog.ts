@@ -91,7 +91,7 @@ function rematchClientPromos(
   const index = buildPromoClientIndex(affected, getCatalogIndex());
   const promos = tx.select().from(promoWatches).all();
   for (const promo of promos) {
-    matchPromoToClients(tx, promo.id, promo.modelNumber, promo.collection, promo.brand, index);
+    matchPromoToClients(tx, promo.id, promo.modelNumber, promo.collection, index);
   }
 }
 

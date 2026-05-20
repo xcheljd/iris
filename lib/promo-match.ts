@@ -13,11 +13,10 @@ import type { CatalogEntry } from "@/lib/actions/model-catalog";
 interface PromoClientEntry {
   id: string;
   collections: Set<string>;
-  brands: Set<string>;
 }
 export interface PromoClientIndex {
   modelMap: Map<string, string[]>; // normalized model → clientIds (exact lookup)
-  entries: PromoClientEntry[];     // for exact collection / brand match
+  entries: PromoClientEntry[];     // for exact collection match
 }
 
 export function buildPromoClientIndex(
@@ -28,7 +27,6 @@ export function buildPromoClientIndex(
   const entries: PromoClientEntry[] = [];
   for (const c of all) {
     const collections = new Set<string>();
-    const brands = new Set<string>();
     for (const p of c.productsOfInterest ?? []) {
       const m = normalizeModel(p.model);
       if (m) {
@@ -37,28 +35,29 @@ export function buildPromoClientIndex(
         else modelMap.set(m, [c.id]);
       }
       // Derive-at-read: catalog wins for cataloged models; the POI's
-      // stored collection/brand only feed collection/brand-only interests.
-      const { collection, brand } = resolveInterest(p, catalog);
+      // stored collection only feeds collection-only interests.
+      const { collection } = resolveInterest(p, catalog);
       if (collection) collections.add(collection.trim().toUpperCase());
-      if (brand) brands.add(brand.trim().toUpperCase());
     }
-    entries.push({ id: c.id, collections, brands });
+    entries.push({ id: c.id, collections });
   }
   return { modelMap, entries };
 }
 
+// Brand-level matches were dropped — they fired indiscriminately for every
+// client owning the brand. "Interested in a brand" is now expressed via tags
+// (e.g., "Meridian", "Ashford") and surfaced through Smart Lists / tag filters,
+// not the promo matcher.
 export function matchPromoToClients(
   tx: Pick<typeof db, "insert">,
   promoId: string,
   modelNumber: string,
   collection: string,
-  brand: string | null,
   index: PromoClientIndex,
 ) {
   const model = normalizeModel(modelNumber);
   const coll = collection.trim().toUpperCase();
-  const br = (brand ?? "").trim().toUpperCase();
-  const matches: { id: string; clientId: string; promoId: string; matchType: "model" | "collection" | "brand" }[] = [];
+  const matches: { id: string; clientId: string; promoId: string; matchType: "model" | "collection" }[] = [];
 
   const modelClientIds = model ? index.modelMap.get(model) ?? [] : [];
   const matched = new Set(modelClientIds);
@@ -70,15 +69,6 @@ export function matchPromoToClients(
     for (const entry of index.entries) {
       if (!matched.has(entry.id) && entry.collections.has(coll)) {
         matches.push({ id: randomUUID(), clientId: entry.id, promoId, matchType: "collection" });
-        matched.add(entry.id);
-      }
-    }
-  }
-
-  if (br) {
-    for (const entry of index.entries) {
-      if (!matched.has(entry.id) && entry.brands.has(br)) {
-        matches.push({ id: randomUUID(), clientId: entry.id, promoId, matchType: "brand" });
         matched.add(entry.id);
       }
     }

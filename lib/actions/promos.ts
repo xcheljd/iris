@@ -28,7 +28,7 @@ export async function createPromo(
     db.transaction((tx) => {
       tx.insert(promoWatches).values({ id, modelNumber, collection, brand, sizeOneQty, sizeTwoQty, msrp: msrp ?? null, discountPercent: discountPercent ?? null, discountPrice: discountPrice ?? null }).run();
       recordModelCollection(tx, modelNumber, collection, "promo");
-      matchPromoToClients(tx, id, modelNumber, collection, brand, index);
+      matchPromoToClients(tx, id, modelNumber, collection, index);
     });
     revalidatePath("/promos");
   } catch (err) {
@@ -70,7 +70,7 @@ export async function importPromos(
           promoEnd: promoEnd ?? null,
         }).run();
         recordModelCollection(tx, modelNumber, collection, "promo");
-        for (const cid of matchPromoToClients(tx, id, modelNumber, collection, brand, index)) {
+        for (const cid of matchPromoToClients(tx, id, modelNumber, collection, index)) {
           matchedClients.add(cid);
         }
         imported++;
