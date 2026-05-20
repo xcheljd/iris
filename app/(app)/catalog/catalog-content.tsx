@@ -174,7 +174,10 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
     start(async () => {
       const res = await clearCatalog();
       if ("error" in res) { toast.error(res.error); return; }
-      toast.success(`Catalog cleared (${res.cleared.toLocaleString()} row${res.cleared !== 1 ? "s" : ""})`);
+      const provisioned = res.provisioned > 0
+        ? ` — ${res.provisioned.toLocaleString()} provisional row${res.provisioned !== 1 ? "s" : ""} reseeded from client POIs`
+        : "";
+      toast.success(`Catalog cleared (${res.cleared.toLocaleString()} row${res.cleared !== 1 ? "s" : ""})${provisioned}`);
       setClearOpen(false);
       setClearTyped("");
       router.refresh();
@@ -509,10 +512,12 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
           <span className="block space-y-3">
             <span className="block">
               This deletes all <strong>{total.toLocaleString()}</strong> catalog
-              {" "}entries. Clients keep their products of interest, but no model will
-              resolve a collection or brand until the catalog is re-imported. Promo
-              matches will <strong>not</strong> be recomputed — the next RVX import
-              will repair them.
+              {" "}entries, then re-seeds the catalog with provisional
+              {" "}<em>needs-review</em> rows from every client&apos;s products of
+              interest so no model the sales team has entered gets lost. The next
+              RVX import overrides these; anything the import doesn&apos;t cover
+              stays in the <strong>Needs cataloging</strong> queue. Promo matches
+              are <strong>not</strong> recomputed — the next import repairs them.
             </span>
             <span className="block">
               Type <code className="rounded bg-muted px-1 py-0.5 text-xs">{CLEAR_PHRASE}</code> to confirm:

@@ -8,7 +8,7 @@ import { requireManager } from "./_shared";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import { normalizeModel } from "@/lib/normalize";
 import { buildPromoClientIndex, matchPromoToClients } from "@/lib/promo-match";
-import { getCatalogIndex } from "./model-catalog";
+import { getCatalogIndex, recordProductsOfInterest } from "./model-catalog";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -224,22 +224,36 @@ export async function deleteCatalogRow(
 }
 
 /**
- * Wipe the entire catalog. Intended as a reset before a fresh RVX import.
- * Deliberately does NOT recompute promo matches — they'll be repaired by
- * the next import / correction. Returns the number of rows cleared.
+ * Wipe the entire catalog, then re-seed provisional `needsReview` rows
+ * from every client's products of interest so no model the sales team
+ * already entered gets silently lost. The next RVX import overrides
+ * these; anything the import doesn't cover stays in the Needs cataloging
+ * queue for manager review. Deliberately does NOT recompute promo matches
+ * — those are repaired by the next import / correction.
  */
-export async function clearCatalog(): Promise<{ error: string } | { cleared: number }> {
+export async function clearCatalog(): Promise<{ error: string } | { cleared: number; provisioned: number }> {
   await requireManager();
   try {
     let cleared = 0;
+    let provisioned = 0;
     db.transaction((tx) => {
       const countRow = tx.select({ n: sql<number>`count(*)` }).from(modelCatalog).get();
       cleared = Number(countRow?.n ?? 0);
       tx.delete(modelCatalog).run();
+
+      const poiRows = tx
+        .select({ poi: clients.productsOfInterest })
+        .from(clients)
+        .all();
+      for (const row of poiRows) {
+        recordProductsOfInterest(tx, row.poi);
+      }
+      const afterRow = tx.select({ n: sql<number>`count(*)` }).from(modelCatalog).get();
+      provisioned = Number(afterRow?.n ?? 0);
     });
     revalidatePath("/catalog");
     revalidatePath("/clients");
-    return { cleared };
+    return { cleared, provisioned };
   } catch (err) {
     console.error("clearCatalog failed:", err);
     return { error: "Failed to clear catalog" };
