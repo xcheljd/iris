@@ -169,6 +169,92 @@ export async function confirmCatalogRow(model: string): Promise<{ error: string 
   return { ok: true };
 }
 
+/** Bulk version — confirm many rows in one statement. No promo re-match
+ * needed; confirm only flips needsReview/source and doesn't change the
+ * collection. */
+export async function confirmCatalogRows(
+  models: string[],
+): Promise<{ error: string } | { confirmed: number }> {
+  await requireManager();
+  const normalized = Array.from(new Set(models.map(normalizeModel).filter(Boolean)));
+  if (normalized.length === 0) return { error: "No models provided" };
+  try {
+    const r = db
+      .update(modelCatalog)
+      .set({ needsReview: false, source: "curated", updatedAt: new Date() })
+      .where(inArray(modelCatalog.model, normalized))
+      .run();
+    revalidatePath("/catalog");
+    return { confirmed: r.changes ?? 0 };
+  } catch (err) {
+    console.error("confirmCatalogRows failed:", err);
+    return { error: "Failed to confirm catalog rows" };
+  }
+}
+
+/** Bulk version — delete many rows, then re-match the union of affected
+ * clients exactly once (cheaper than calling deleteCatalogRow N times,
+ * which would do N re-match cycles). */
+export async function deleteCatalogRows(
+  models: string[],
+): Promise<{ error: string } | { deleted: number; affected: number }> {
+  const user = await requireManager();
+  const normalized = Array.from(new Set(models.map(normalizeModel).filter(Boolean)));
+  if (normalized.length === 0) return { error: "No models provided" };
+
+  try {
+    let deleted = 0;
+    let affectedCount = 0;
+    db.transaction((tx) => {
+      const existing = tx
+        .select({ model: modelCatalog.model })
+        .from(modelCatalog)
+        .where(inArray(modelCatalog.model, normalized))
+        .all();
+      const presentModels = new Set(existing.map((r) => r.model));
+      if (presentModels.size === 0) return;
+
+      const delResult = tx
+        .delete(modelCatalog)
+        .where(inArray(modelCatalog.model, Array.from(presentModels)))
+        .run();
+      deleted = delResult.changes ?? 0;
+
+      const all = tx
+        .select({ id: clients.id, productsOfInterest: clients.productsOfInterest })
+        .from(clients)
+        .all();
+      const affected: { id: string; productsOfInterest: ProductOfInterest[] }[] = [];
+      for (const row of all) {
+        const poi = row.productsOfInterest ?? [];
+        const hits = poi.filter((p) => presentModels.has(normalizeModel(p.model)));
+        if (hits.length === 0) continue;
+        affected.push({ id: row.id, productsOfInterest: poi });
+        for (const h of hits) {
+          const m = normalizeModel(h.model);
+          tx.insert(activityEvents).values({
+            id: randomUUID(),
+            clientId: row.id,
+            eventType: "edited",
+            description: `Catalog entry removed for ${m}`,
+            employeeId: user.id,
+            metadata: { source: "catalog_delete", model: m },
+          }).run();
+        }
+      }
+
+      rematchClientPromos(tx, affected);
+      affectedCount = affected.length;
+    });
+    revalidatePath("/catalog");
+    revalidatePath("/clients");
+    return { deleted, affected: affectedCount };
+  } catch (err) {
+    console.error("deleteCatalogRows failed:", err);
+    return { error: "Failed to delete catalog rows" };
+  }
+}
+
 /**
  * Delete one catalog row. The model stays on any client's products of
  * interest (that's their data) — only the authoritative collection/brand

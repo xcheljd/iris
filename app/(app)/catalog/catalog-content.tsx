@@ -12,7 +12,8 @@ import { EmptyState } from "@/components/empty-state";
 import { Topbar } from "@/components/topbar";
 import { Library, Check, X, Pencil, Upload, ClipboardCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { correctCatalog, resolveFlag, confirmCatalogRow, deleteCatalogRow, clearCatalog } from "@/lib/actions";
+import { correctCatalog, resolveFlag, confirmCatalogRow, confirmCatalogRows, deleteCatalogRow, deleteCatalogRows, clearCatalog } from "@/lib/actions";
+import { Checkbox } from "@/components/ui/checkbox";
 import { brandLabel } from "@/lib/brand";
 import { ImportCatalogDialog } from "@/components/catalog/import-catalog-dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -60,6 +61,8 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [clearOpen, setClearOpen] = useState(false);
   const [clearTyped, setClearTyped] = useState("");
+  const [selectedReview, setSelectedReview] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   const CLEAR_PHRASE = "CLEAR CATALOG";
 
@@ -170,6 +173,44 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
     });
   };
 
+  const toggleReviewSelection = (model: string, checked: boolean) => {
+    setSelectedReview((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(model); else next.delete(model);
+      return next;
+    });
+  };
+
+  const toggleAllReview = (checked: boolean) => {
+    setSelectedReview(checked ? new Set(needsReview.map((r) => r.model)) : new Set());
+  };
+
+  const handleBulkConfirm = () => {
+    const models = Array.from(selectedReview);
+    if (models.length === 0) return;
+    start(async () => {
+      const res = await confirmCatalogRows(models);
+      if ("error" in res) { toast.error(res.error); return; }
+      toast.success(`Confirmed ${res.confirmed} entr${res.confirmed === 1 ? "y" : "ies"} as curated`);
+      setSelectedReview(new Set());
+      router.refresh();
+    });
+  };
+
+  const handleBulkDelete = () => {
+    const models = Array.from(selectedReview);
+    if (models.length === 0) return;
+    start(async () => {
+      const res = await deleteCatalogRows(models);
+      if ("error" in res) { toast.error(res.error); return; }
+      const suffix = res.affected > 0 ? ` — ${res.affected} client${res.affected !== 1 ? "s" : ""} re-matched` : "";
+      toast.success(`Deleted ${res.deleted} entr${res.deleted === 1 ? "y" : "ies"}${suffix}`);
+      setSelectedReview(new Set());
+      setBulkDeleteOpen(false);
+      router.refresh();
+    });
+  };
+
   const handleClear = () => {
     start(async () => {
       const res = await clearCatalog();
@@ -191,17 +232,54 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
         {needsReview.length > 0 && (
           <Card className="border-blue-500/40">
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <ClipboardCheck className="h-4 w-4" />
-                Needs cataloging ({needsReview.length})
-              </CardTitle>
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ClipboardCheck className="h-4 w-4" />
+                  Needs cataloging ({needsReview.length})
+                </CardTitle>
+                {selectedReview.size > 0 && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">{selectedReview.size} selected</span>
+                    <Button size="sm" variant="outline" disabled={pending} onClick={handleBulkConfirm}>
+                      <Check className="h-4 w-4 mr-1" />Confirm {selectedReview.size}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-destructive hover:text-destructive"
+                      disabled={pending}
+                      onClick={() => setBulkDeleteOpen(true)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />Delete {selectedReview.size}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setSelectedReview(new Set())}>
+                      Clear
+                    </Button>
+                  </div>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-2">
+              <div className="flex items-center gap-2 px-2 pb-2 text-xs text-muted-foreground border-b">
+                <Checkbox
+                  checked={needsReview.length > 0 && selectedReview.size === needsReview.length}
+                  onCheckedChange={(checked) => toggleAllReview(checked === true)}
+                  aria-label="Select all needs-review rows"
+                />
+                <span>Select all</span>
+              </div>
               {needsReview.map((r) => (
                 <div key={r.model} className="flex items-center justify-between gap-3 text-sm border rounded-md p-2">
-                  <div>
-                    <span className="font-mono">{r.model}</span> — entered as{" "}
-                    <strong>{r.collection}</strong>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Checkbox
+                      checked={selectedReview.has(r.model)}
+                      onCheckedChange={(checked) => toggleReviewSelection(r.model, checked === true)}
+                      aria-label={`Select ${r.model}`}
+                    />
+                    <div className="truncate">
+                      <span className="font-mono">{r.model}</span> — entered as{" "}
+                      <strong>{r.collection}</strong>
+                    </div>
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <Button size="sm" variant="outline" disabled={pending} onClick={() => handleConfirm(r.model)}>
@@ -485,6 +563,24 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
         />
       </div>
       <ImportCatalogDialog open={importOpen} onOpenChange={setImportOpen} />
+
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={(open) => !open && setBulkDeleteOpen(false)}
+        title={`Delete ${selectedReview.size} catalog entr${selectedReview.size === 1 ? "y" : "ies"}?`}
+        description={
+          <>
+            Removing these from the catalog. Clients with these models in products
+            of interest keep their entries, but collection and brand will no longer
+            resolve from the catalog. Promo matches for affected clients will be
+            rebuilt.
+          </>
+        }
+        confirmLabel={`Delete ${selectedReview.size}`}
+        variant="destructive"
+        onConfirm={handleBulkDelete}
+        disabled={pending || selectedReview.size === 0}
+      />
 
       <ConfirmDialog
         open={!!deleteTarget}
