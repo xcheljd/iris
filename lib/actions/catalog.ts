@@ -70,19 +70,29 @@ function applyCorrection(
     }).run();
   }
 
-  // Re-match: drop affected clients' promo matches and rebuild from the
-  // corrected data against all active promos (index over only those clients).
-  if (affected.length > 0) {
-    const ids = affected.map((a) => a.id);
-    tx.delete(promoMatches).where(inArray(promoMatches.clientId, ids)).run();
-    const index = buildPromoClientIndex(affected, getCatalogIndex());
-    const promos = tx.select().from(promoWatches).all();
-    for (const promo of promos) {
-      matchPromoToClients(tx, promo.id, promo.modelNumber, promo.collection, promo.brand, index);
-    }
-  }
+  rematchClientPromos(tx, affected);
 
   return { affected: affected.length };
+}
+
+/**
+ * Drop the given clients' promo matches and rebuild them from the current
+ * catalog state against all active promos. Cheap re-index over only the
+ * affected clients — call after any catalog mutation that could change a
+ * cataloged model's derived collection/brand.
+ */
+function rematchClientPromos(
+  tx: Tx,
+  affected: { id: string; productsOfInterest: ProductOfInterest[] }[],
+): void {
+  if (affected.length === 0) return;
+  const ids = affected.map((a) => a.id);
+  tx.delete(promoMatches).where(inArray(promoMatches.clientId, ids)).run();
+  const index = buildPromoClientIndex(affected, getCatalogIndex());
+  const promos = tx.select().from(promoWatches).all();
+  for (const promo of promos) {
+    matchPromoToClients(tx, promo.id, promo.modelNumber, promo.collection, promo.brand, index);
+  }
 }
 
 export async function correctCatalog(
@@ -157,6 +167,83 @@ export async function confirmCatalogRow(model: string): Promise<{ error: string 
     .run();
   revalidatePath("/catalog");
   return { ok: true };
+}
+
+/**
+ * Delete one catalog row. The model stays on any client's products of
+ * interest (that's their data) — only the authoritative collection/brand
+ * mapping is removed; derive-at-read will fall back to whatever was
+ * stored on the POI. Promo matches for affected clients are rebuilt so
+ * stale collection-based matches don't linger.
+ */
+export async function deleteCatalogRow(
+  model: string,
+): Promise<{ error: string } | { affected: number }> {
+  const user = await requireManager();
+  const m = normalizeModel(model);
+  if (!m) return { error: "Model is required" };
+
+  try {
+    let affectedCount = 0;
+    db.transaction((tx) => {
+      const existing = tx.select().from(modelCatalog).where(eq(modelCatalog.model, m)).get();
+      if (!existing) return;
+
+      tx.delete(modelCatalog).where(eq(modelCatalog.model, m)).run();
+
+      const all = tx.select({ id: clients.id, productsOfInterest: clients.productsOfInterest }).from(clients).all();
+      const affected: { id: string; productsOfInterest: ProductOfInterest[] }[] = [];
+      for (const row of all) {
+        const poi = row.productsOfInterest ?? [];
+        if (poi.some((p) => normalizeModel(p.model) === m)) {
+          affected.push({ id: row.id, productsOfInterest: poi });
+        }
+      }
+
+      for (const a of affected) {
+        tx.insert(activityEvents).values({
+          id: randomUUID(),
+          clientId: a.id,
+          eventType: "edited",
+          description: `Catalog entry removed for ${m}`,
+          employeeId: user.id,
+          metadata: { source: "catalog_delete", model: m },
+        }).run();
+      }
+
+      rematchClientPromos(tx, affected);
+      affectedCount = affected.length;
+    });
+    revalidatePath("/catalog");
+    revalidatePath("/clients");
+    return { affected: affectedCount };
+  } catch (err) {
+    console.error("deleteCatalogRow failed:", err);
+    return { error: "Failed to delete catalog entry" };
+  }
+}
+
+/**
+ * Wipe the entire catalog. Intended as a reset before a fresh RVX import.
+ * Deliberately does NOT recompute promo matches — they'll be repaired by
+ * the next import / correction. Returns the number of rows cleared.
+ */
+export async function clearCatalog(): Promise<{ error: string } | { cleared: number }> {
+  await requireManager();
+  try {
+    let cleared = 0;
+    db.transaction((tx) => {
+      const countRow = tx.select({ n: sql<number>`count(*)` }).from(modelCatalog).get();
+      cleared = Number(countRow?.n ?? 0);
+      tx.delete(modelCatalog).run();
+    });
+    revalidatePath("/catalog");
+    revalidatePath("/clients");
+    return { cleared };
+  } catch (err) {
+    console.error("clearCatalog failed:", err);
+    return { error: "Failed to clear catalog" };
+  }
 }
 
 export async function listCatalog({

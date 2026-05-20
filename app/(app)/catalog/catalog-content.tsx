@@ -10,11 +10,12 @@ import { Input } from "@/components/ui/input";
 import { PaginationFooter } from "@/components/pagination-footer";
 import { EmptyState } from "@/components/empty-state";
 import { Topbar } from "@/components/topbar";
-import { Library, Check, X, Pencil, Upload, ClipboardCheck } from "lucide-react";
+import { Library, Check, X, Pencil, Upload, ClipboardCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { correctCatalog, resolveFlag, confirmCatalogRow } from "@/lib/actions";
+import { correctCatalog, resolveFlag, confirmCatalogRow, deleteCatalogRow, clearCatalog } from "@/lib/actions";
 import { brandLabel } from "@/lib/brand";
 import { ImportCatalogDialog } from "@/components/catalog/import-catalog-dialog";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ColumnHeader } from "@/components/column-header";
 import { ColumnFilterPopover } from "@/components/column-filter-popover";
 import { TextFilterMenu, MultiSelectMenu, RangeFilterMenu } from "@/components/column-filters";
@@ -56,6 +57,11 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [importOpen, setImportOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [clearOpen, setClearOpen] = useState(false);
+  const [clearTyped, setClearTyped] = useState("");
+
+  const CLEAR_PHRASE = "CLEAR CATALOG";
 
   const totalPages = Math.ceil(total / DEFAULT_PAGE_SIZE);
 
@@ -120,6 +126,30 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
       const res = await resolveFlag(model, accept);
       if ("error" in res) { toast.error(res.error); return; }
       toast.success(accept ? "Conflicting value applied" : "Kept current value");
+      router.refresh();
+    });
+  };
+
+  const handleDelete = () => {
+    const model = deleteTarget;
+    if (!model) return;
+    start(async () => {
+      const res = await deleteCatalogRow(model);
+      if ("error" in res) { toast.error(res.error); return; }
+      const suffix = res.affected > 0 ? ` — ${res.affected} client${res.affected !== 1 ? "s" : ""} re-matched` : "";
+      toast.success(`Deleted ${model}${suffix}`);
+      setDeleteTarget(null);
+      router.refresh();
+    });
+  };
+
+  const handleClear = () => {
+    start(async () => {
+      const res = await clearCatalog();
+      if ("error" in res) { toast.error(res.error); return; }
+      toast.success(`Catalog cleared (${res.cleared.toLocaleString()} row${res.cleared !== 1 ? "s" : ""})`);
+      setClearOpen(false);
+      setClearTyped("");
       router.refresh();
     });
   };
@@ -198,9 +228,20 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                 <Library className="h-5 w-5" />
                 Model Catalog
               </CardTitle>
-              <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
-                <Upload className="h-4 w-4 mr-1" />Import Catalog
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => { setClearTyped(""); setClearOpen(true); }}
+                  disabled={total === 0}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />Clear Catalog
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+                  <Upload className="h-4 w-4 mr-1" />Import Catalog
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -346,13 +387,24 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                               <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
                             </div>
                           ) : (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => { setEditing(r.model); setDraft(r.collection); }}
-                            >
-                              <Pencil className="h-4 w-4 mr-1" />Correct
-                            </Button>
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => { setEditing(r.model); setDraft(r.collection); }}
+                              >
+                                <Pencil className="h-4 w-4 mr-1" />Correct
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive"
+                                aria-label={`Delete ${r.model}`}
+                                onClick={() => setDeleteTarget(r.model)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           )}
                         </TableCell>
                       </TableRow>
@@ -374,6 +426,55 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
         />
       </div>
       <ImportCatalogDialog open={importOpen} onOpenChange={setImportOpen} />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete catalog entry"
+        description={
+          <>
+            Remove <strong>{deleteTarget}</strong> from the catalog? Clients with this
+            model in products of interest keep the entry, but its collection and brand
+            will no longer resolve from the catalog. Promo matches for affected clients
+            will be rebuilt.
+          </>
+        }
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={handleDelete}
+        disabled={pending}
+      />
+
+      <ConfirmDialog
+        open={clearOpen}
+        onOpenChange={(open) => { if (!open) { setClearOpen(false); setClearTyped(""); } }}
+        title="Clear the entire catalog?"
+        description={
+          <span className="block space-y-3">
+            <span className="block">
+              This deletes all <strong>{total.toLocaleString()}</strong> catalog
+              {" "}entries. Clients keep their products of interest, but no model will
+              resolve a collection or brand until the catalog is re-imported. Promo
+              matches will <strong>not</strong> be recomputed — the next RVX import
+              will repair them.
+            </span>
+            <span className="block">
+              Type <code className="rounded bg-muted px-1 py-0.5 text-xs">{CLEAR_PHRASE}</code> to confirm:
+            </span>
+            <Input
+              autoFocus
+              value={clearTyped}
+              onChange={(e) => setClearTyped(e.target.value)}
+              placeholder={CLEAR_PHRASE}
+              className="h-9"
+            />
+          </span>
+        }
+        confirmLabel="Clear Catalog"
+        variant="destructive"
+        onConfirm={handleClear}
+        disabled={pending || clearTyped !== CLEAR_PHRASE}
+      />
     </>
   );
 }
