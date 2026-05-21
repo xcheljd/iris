@@ -5,10 +5,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/empty-state";
 import { SearchInput } from "@/components/search-input";
 import { Topbar } from "@/components/topbar";
 import { ProspectActionsMenu } from "@/components/prospect-actions-menu";
+import { ProspectsBulkToolbar } from "@/components/prospects-bulk-actions";
 import { RvxImportDialog } from "@/components/rvx-import-dialog";
 import { Upload, UserSearch, DollarSign } from "lucide-react";
 import Link from "next/link";
@@ -59,6 +61,7 @@ export function ProspectsContent({
 }: ProspectsContentProps) {
   const [search, setSearch] = useState("");
   const [importOpen, setImportOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const filter = (rows: ProspectListRow[]) => {
     if (!search.trim()) return rows;
@@ -71,6 +74,36 @@ export function ProspectsContent({
         p.email?.toLowerCase().includes(q),
     );
   };
+
+  const filteredActive = filter(active);
+
+  const toggleOne = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    const allIds = filteredActive.map((p) => p.id);
+    const allSelected = allIds.every((id) => selected.has(id));
+    if (allSelected) {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        allIds.forEach((id) => next.delete(id));
+        return next;
+      });
+    } else {
+      setSelected((prev) => new Set([...prev, ...allIds]));
+    }
+  };
+
+  const clearSelected = () => setSelected(new Set());
+
+  const selectedInView = filteredActive.filter((p) => selected.has(p.id)).map((p) => p.id);
+  const allInViewSelected = filteredActive.length > 0 && filteredActive.every((p) => selected.has(p.id));
+  const someInViewSelected = filteredActive.some((p) => selected.has(p.id)) && !allInViewSelected;
 
   return (
     <>
@@ -107,7 +140,79 @@ export function ProspectsContent({
           </TabsList>
 
           <TabsContent value="active" className="mt-4">
-            <ProspectListCard rows={filter(active)} status="active" search={search} showActions />
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>{TAB_LABELS.active}</CardTitle>
+                  {filteredActive.length > 0 && (
+                    <Badge variant="secondary">
+                      {filteredActive.length} prospect{filteredActive.length !== 1 ? "s" : ""}
+                    </Badge>
+                  )}
+                </div>
+                {selected.size > 0 && (
+                  <ProspectsBulkToolbar
+                    selectedIds={selectedInView.length > 0 ? Array.from(selected) : []}
+                    onClearAction={clearSelected}
+                  />
+                )}
+              </CardHeader>
+              <CardContent>
+                {filteredActive.length === 0 ? (
+                  <EmptyState
+                    icon={UserSearch}
+                    title={search.trim() ? "No matching prospects" : EMPTY_COPY.active.title}
+                    description={search.trim() ? "Try a different search term" : EMPTY_COPY.active.description}
+                  />
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3 px-1 pb-1">
+                      <Checkbox
+                        checked={allInViewSelected ? true : someInViewSelected ? "indeterminate" : false}
+                        onCheckedChange={toggleAll}
+                        aria-label="Select all"
+                      />
+                      <span className="text-xs text-muted-foreground">Select all</span>
+                    </div>
+                    {filteredActive.map((prospect) => (
+                      <div
+                        key={prospect.id}
+                        className="border rounded-lg p-4 flex items-center gap-3"
+                      >
+                        <Checkbox
+                          checked={selected.has(prospect.id)}
+                          onCheckedChange={() => toggleOne(prospect.id)}
+                          aria-label={`Select ${prospect.firstName} ${prospect.lastName ?? ""}`}
+                        />
+                        <Link
+                          href={`/prospects/${prospect.id}`}
+                          className="flex-1 min-w-0 hover:underline"
+                        >
+                          <p className="font-medium truncate">
+                            {prospect.firstName} {prospect.lastName ?? ""}
+                          </p>
+                          <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-0.5">
+                            {prospect.phone && (
+                              <span className="text-xs text-muted-foreground">{prospect.phone}</span>
+                            )}
+                            {prospect.email && (
+                              <span className="text-xs text-muted-foreground truncate">{prospect.email}</span>
+                            )}
+                            {prospect.rvxSpend !== null && prospect.rvxSpend !== undefined && (
+                              <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                                <DollarSign className="h-3 w-3" />
+                                {prospect.rvxSpend.toFixed(2)}
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                        <ProspectActionsMenu prospect={prospect} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
           <TabsContent value="graduated" className="mt-4">
             <ProspectListCard rows={filter(graduated)} status="graduated" search={search} />
@@ -130,12 +235,10 @@ function ProspectListCard({
   rows,
   status,
   search,
-  showActions = false,
 }: {
   rows: ProspectListRow[];
   status: ProspectStatus;
   search: string;
-  showActions?: boolean;
 }) {
   const filtered = search.trim().length > 0;
   const copy = EMPTY_COPY[status];
@@ -188,7 +291,6 @@ function ProspectListCard({
                     )}
                   </div>
                 </Link>
-                {showActions && <ProspectActionsMenu prospect={prospect} />}
               </div>
             ))}
           </div>

@@ -8,6 +8,7 @@ export * from "./actions/employees";
 export * from "./actions/approvals";
 export * from "./actions/rvx-import";
 export * from "./actions/prospects";
+export * from "./actions/bulk-prospects";
 export * from "./actions/onboarding";
 export * from "./actions/catalog";
 export * from "./actions/catalog-import";

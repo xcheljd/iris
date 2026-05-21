@@ -185,6 +185,7 @@ export async function importPromos(
       }
     });
     revalidatePath("/promos");
+    revalidatePath("/", "layout");
     return { imported, matchedClients: matchedClients.size, skippedNoModel };
   } catch (err) {
     console.error("importPromos failed:", err);

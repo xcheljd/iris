@@ -44,24 +44,23 @@ const baseNav = [
 
 interface AppSidebarProps {
   initialPendingCount?: number;
+  initialCatalogFlagCount?: number;
 }
 
-export function AppSidebar({ initialPendingCount = 0 }: AppSidebarProps = {}) {
+export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 0 }: AppSidebarProps = {}) {
   const pathname = usePathname();
   const { state } = useSidebar();
   const { data: session } = useSession();
   const collapsed = state === "collapsed";
   const isManager = session?.user?.role === "manager";
   const [pendingCount, setPendingCount] = useState(initialPendingCount);
+  const [catalogFlagCount, setCatalogFlagCount] = useState(initialCatalogFlagCount);
 
-  // Sync local state when SSR-passed prop changes (e.g., a server action called
-  // revalidatePath and the layout re-rendered with a fresh count).
-  useEffect(() => {
-    setPendingCount(initialPendingCount);
-  }, [initialPendingCount]);
+  useEffect(() => { setPendingCount(initialPendingCount); }, [initialPendingCount]);
+  useEffect(() => { setCatalogFlagCount(initialCatalogFlagCount); }, [initialCatalogFlagCount]);
 
-  // SSR provides the initial count, so skip the mount fetch; refetch only on
-  // subsequent client-side navigations to keep the badge fresh.
+  // SSR provides the initial counts, so skip the mount fetch; refetch only on
+  // subsequent client-side navigations to keep the badges fresh.
   const skipNextFetch = useRef(true);
   useEffect(() => {
     if (!isManager) return;
@@ -70,6 +69,7 @@ export function AppSidebar({ initialPendingCount = 0 }: AppSidebarProps = {}) {
       return;
     }
     fetch("/api/approvals/count").then(r => r.ok ? r.json() : { count: 0 }).then(d => setPendingCount(d.count)).catch(() => {});
+    fetch("/api/catalog/flags/count").then(r => r.ok ? r.json() : { count: 0 }).then(d => setCatalogFlagCount(d.count)).catch(() => {});
   }, [isManager, pathname]);
 
   return (
@@ -98,6 +98,7 @@ export function AppSidebar({ initialPendingCount = 0 }: AppSidebarProps = {}) {
                   {visibleItems.map((item) => {
                     const active = pathname === item.href;
                     const isApprovals = item.href === "/approvals";
+                    const isCatalog = item.href === "/catalog";
                     return (
                       <SidebarMenuItem key={item.href}>
                         {collapsed ? (
@@ -118,6 +119,9 @@ export function AppSidebar({ initialPendingCount = 0 }: AppSidebarProps = {}) {
                               <span>{item.label}</span>
                               {isApprovals && pendingCount > 0 && (
                                 <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1.5 text-[10px]">{pendingCount}</Badge>
+                              )}
+                              {isCatalog && catalogFlagCount > 0 && (
+                                <Badge variant="secondary" className="ml-auto h-5 min-w-5 px-1.5 text-[10px]">{catalogFlagCount}</Badge>
                               )}
                             </Link>
                           </SidebarMenuButton>

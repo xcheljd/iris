@@ -1,7 +1,7 @@
 "use server";
 import { db } from "@/lib/db";
 import { clients, promoWatches, promoMatches, modelCatalog, activityEvents, type ProductOfInterest, type Brand } from "@/lib/db/schema";
-import { and, asc, desc, eq, gte, inArray, isNotNull, like, lte, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, like, lte, or, sql, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireManager, isSessionEmployeeStale } from "./_shared";
@@ -155,6 +155,7 @@ export async function resolveFlag(
     }
     revalidatePath("/catalog");
     revalidatePath("/clients");
+    revalidatePath("/", "layout");
     return result;
   } catch (err) {
     console.error("resolveFlag failed:", err);
@@ -171,6 +172,7 @@ export async function confirmCatalogRow(model: string): Promise<{ error: string 
     .where(eq(modelCatalog.model, m))
     .run();
   revalidatePath("/catalog");
+  revalidatePath("/", "layout");
   return { ok: true };
 }
 
@@ -190,6 +192,7 @@ export async function confirmCatalogRows(
       .where(inArray(modelCatalog.model, normalized))
       .run();
     revalidatePath("/catalog");
+    revalidatePath("/", "layout");
     return { confirmed: r.changes ?? 0 };
   } catch (err) {
     console.error("confirmCatalogRows failed:", err);
@@ -351,6 +354,16 @@ export async function clearCatalog(): Promise<{ error: string } | { cleared: num
     console.error("clearCatalog failed:", err);
     return { error: "Failed to clear catalog" };
   }
+}
+
+export async function getCatalogFlagCount(): Promise<number> {
+  await requireManager();
+  const result = db
+    .select({ c: sql<number>`count(*)` })
+    .from(modelCatalog)
+    .where(or(eq(modelCatalog.needsReview, true), isNotNull(modelCatalog.flaggedCollection)))
+    .get();
+  return Number(result?.c ?? 0);
 }
 
 export async function listCatalog({
