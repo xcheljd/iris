@@ -880,6 +880,52 @@ export async function getProspects(status: "active" | "graduated" | "unsubscribe
 
 export type ProspectListRow = Awaited<ReturnType<typeof getProspects>>[number];
 
+export async function getProspectFunnelStats() {
+  const statusRows = db
+    .select({
+      status: prospects.status,
+      count: rawSql<number>`count(*)`,
+      avgSpend: rawSql<number | null>`round(avg(case when ${prospects.rvxSpend} is not null then ${prospects.rvxSpend} end), 2)`,
+    })
+    .from(prospects)
+    .groupBy(prospects.status)
+    .all();
+
+  const batches = db
+    .select({
+      id: rvxImportBatches.id,
+      reportStartDate: rvxImportBatches.reportStartDate,
+      reportEndDate: rvxImportBatches.reportEndDate,
+      totalRows: rvxImportBatches.totalRows,
+      importedCount: rvxImportBatches.importedCount,
+      createdAt: rvxImportBatches.createdAt,
+      importerName: rawSql<string | null>`NULLIF(TRIM(COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, '')), '')`,
+    })
+    .from(rvxImportBatches)
+    .leftJoin(employees, eq(rvxImportBatches.importedBy, employees.id))
+    .orderBy(desc(rvxImportBatches.createdAt))
+    .limit(5)
+    .all();
+
+  const byStatus: Record<string, { count: number; avgSpend: number | null }> = {};
+  for (const r of statusRows) {
+    byStatus[r.status] = { count: Number(r.count), avgSpend: r.avgSpend };
+  }
+
+  return {
+    active: byStatus.active?.count ?? 0,
+    graduated: byStatus.graduated?.count ?? 0,
+    rejected: byStatus.rejected?.count ?? 0,
+    unsubscribed: byStatus.unsubscribed?.count ?? 0,
+    avgSpendActive: byStatus.active?.avgSpend ?? null,
+    avgSpendGraduated: byStatus.graduated?.avgSpend ?? null,
+    avgSpendRejected: byStatus.rejected?.avgSpend ?? null,
+    batches,
+  };
+}
+
+export type ProspectFunnelStats = Awaited<ReturnType<typeof getProspectFunnelStats>>;
+
 export async function getProspect(id: string) {
   return db.select().from(prospects).where(eq(prospects.id, id)).get();
 }

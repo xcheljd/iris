@@ -10,7 +10,9 @@ import { Topbar } from "@/components/topbar";
 import { AnalyticsOverviewTab } from "./analytics-overview-tab";
 import { AnalyticsOutreachTab } from "./analytics-outreach-tab";
 import { AnalyticsHeatTab } from "./analytics-heat-tab";
+import { AnalyticsProspectsTab } from "./analytics-prospects-tab";
 import { isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
+import type { ProspectFunnelStats } from "@/lib/queries";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
 interface Stats {
@@ -55,11 +57,12 @@ interface AnalyticsContentProps {
   recentOutreach: OutreachRow[];
   employees?: EmployeeRow[];
   selectedEmployeeId?: string;
+  prospectFunnel: ProspectFunnelStats;
 }
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
-export function AnalyticsContent({ stats, recentOutreach, employees, selectedEmployeeId }: AnalyticsContentProps) {
+export function AnalyticsContent({ stats, recentOutreach, employees, selectedEmployeeId, prospectFunnel }: AnalyticsContentProps) {
   const router = useRouter();
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
@@ -170,6 +173,7 @@ export function AnalyticsContent({ stats, recentOutreach, employees, selectedEmp
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="outreach">Outreach</TabsTrigger>
             <TabsTrigger value="heat">Heat Distribution</TabsTrigger>
+            <TabsTrigger value="prospects">Prospects</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
@@ -196,6 +200,10 @@ export function AnalyticsContent({ stats, recentOutreach, employees, selectedEmp
 
           <TabsContent value="heat">
             <AnalyticsHeatTab stats={stats} />
+          </TabsContent>
+
+          <TabsContent value="prospects">
+            <AnalyticsProspectsTab funnel={prospectFunnel} />
           </TabsContent>
         </Tabs>
       </div>

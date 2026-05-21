@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getStats, getRecentOutreach, getEmployees } from "@/lib/queries";
+import { getStats, getRecentOutreach, getEmployees, getProspectFunnelStats } from "@/lib/queries";
 import { AnalyticsContent } from "./analytics-content";
 import { AnalyticsSkeleton } from "@/components/skeletons";
 import { getSession } from "@/lib/auth";
@@ -30,14 +30,18 @@ async function AnalyticsFetcher({ searchParams }: { searchParams: SearchParams }
     employeeId = session?.user?.id ?? undefined;
   }
 
-  const stats = await getStats(employeeId);
-  const recentOutreach = await getRecentOutreach(50, employeeId);
+  const [stats, recentOutreach, prospectFunnel] = await Promise.all([
+    getStats(employeeId),
+    getRecentOutreach(50, employeeId),
+    getProspectFunnelStats(),
+  ]);
   return (
     <AnalyticsContent
       stats={stats}
       recentOutreach={recentOutreach}
       employees={employees}
       selectedEmployeeId={employeeId}
+      prospectFunnel={prospectFunnel}
     />
   );
 }
