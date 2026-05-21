@@ -39,30 +39,40 @@ app/                  # Next.js App Router pages
     analytics/        # Outreach analytics + collection insights
     approvals/        # Manager approval queue (ban, unsubscribe, delete)
     banned/           # Banned customer management
+    catalog/          # Model catalog: RVX import, corrections, flag queue
     change-password/  # Self-service password change
     clients/          # Client list, detail, new, edit
     follow-ups/       # Follow-up manager
-    promos/           # Promo watch management
-    prospects/        # RVX prospect import + graduation flow
-    settings/         # Employee, tag, template, and backup management
+    promos/           # Promo watches: PDF import, matched-clients tab, CSV export
+    prospects/        # RVX customer-CSV import + graduation flow
+    settings/         # Employee, tag, template, backup, onboarding
     smart-lists/      # Saved filter management
     unsubscribed/     # Unsubscribe list management
-  api/                # REST API routes
-    backup/           # Backup download + restore endpoints
+  api/                # REST API routes (auth, backup, search, notes, etc.)
   login/              # Authentication page
-components/           # React components (non-shadcn)
-  ui/                 # shadcn/ui primitives (34+ components)
+components/           # React components
+  ui/                 # shadcn/ui primitives
+  catalog/            # Catalog import dialog
+  promo/              # Promo PDF import dialog
+  merge/              # Client merge resolution panel + dialog
+  onboarding/         # Tour + hints
 lib/                  # Shared logic
-  actions.ts          # Server actions (mutations)
+  actions.ts          # Server-actions barrel (re-exports lib/actions/*.ts)
+  actions/            # Per-domain action modules (clients, promos, catalog, …)
   auth.ts             # NextAuth configuration
-  backup-client.ts    # Backup download + localStorage reminder logic
-  db/                 # Schema, migrations, seed, connection
-  heat-score.ts       # Client engagement scoring algorithm
-  rvx-parser.ts       # RVX CSV parser (dedup, normalization, export)
-  queries.ts          # Database query functions
-  utils.ts            # Utility functions
+  backup-client.ts    # Backup download + localStorage reminder
+  db/                 # Schema, connection, ensure-schema, seed, FTS setup
+  heat-score.ts       # Client engagement scoring
+  rvx-parser.ts       # RVX customer-CSV parser (prospects)
+  rvx-catalog-parser.ts # RVX Selling Analysis SpreadsheetML parser (catalog)
+  promo-pdf-parser.ts # pdfjs-dist text-layer parser for promo PDFs
+  promo-csv-parser.ts # Tab-delimited paste parser (legacy)
+  promo-match.ts      # Promo-client matching (model + collection, via catalog)
+  queries.ts          # Read-side database queries
+  normalize.ts        # normalizeModel (uppercase model identifiers)
   validation/         # Zod schemas (client, outreach, rvx)
 data/                 # SQLite database file (gitignored)
+public/               # Static assets, including pdf.worker.min.mjs (copied via postinstall)
 docs/                 # Project documentation
 ```
 
@@ -83,7 +93,7 @@ docs/                 # Project documentation
 
 | Role | Access |
 |------|--------|
-| **Manager** | Full CRUD, dashboard, employee management, promo config, analytics, banned/unsubscribed, approval queue, RVX import, database backup/restore |
+| **Manager** | Full CRUD, dashboard, employee management, promo + catalog config (PDF/RVX imports), analytics, banned/unsubscribed, approval queue, prospect import, database backup/restore |
 | **Associate** | CRUD on own clients, view all clients, outreach logging, personal smart lists, prospect graduation/reject/unsubscribe |
 
 ## Backup & Restore
