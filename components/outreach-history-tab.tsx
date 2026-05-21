@@ -4,12 +4,11 @@ import { useState, useTransition } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Phone, Calendar, Clock, CheckCircle, ChevronDown, CalendarClock, RotateCcw } from "lucide-react";
+import { Phone, Calendar, Clock, CheckCircle, ChevronDown, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/empty-state";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { DatePicker } from "@/components/date-picker";
 import type { FullClient } from "@/components/client-provider";
 import type { OutreachLog } from "@/lib/db/schema";
 import { getMethodIcon, isFollowUpOverdue, isFollowUpUpcoming } from "@/lib/outreach-helpers";
@@ -225,22 +224,11 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
                         </div>
                         {!log.completed && (
                           <div className="flex items-center gap-2">
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button variant="outline" size="sm" disabled={isPending}>
-                                  <CalendarClock className="h-4 w-4 mr-1" />
-                                  Reschedule
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="end">
-                                <CalendarPicker
-                                  mode="single"
-                                  selected={new Date(log.followUpDate)}
-                                  onSelect={(d) => d && handleReschedule(log.id, d)}
-                                  initialFocus
-                                />
-                              </PopoverContent>
-                            </Popover>
+                            <DatePicker
+                              date={new Date(log.followUpDate)}
+                              onSelectAction={(d) => d && handleReschedule(log.id, d)}
+                              disabled={isPending}
+                            />
                             <Button
                               size="sm"
                               disabled={isPending}

@@ -10,9 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { DatePicker } from "@/components/date-picker";
 import { PaginationFooter } from "@/components/pagination-footer";
 import { 
   Clock, 
@@ -78,7 +77,7 @@ function getRelativeTime(date: Date) {
 function FollowUpCard({ row, isOverdue, onDetail }: { row: FollowUpRow; isOverdue: boolean; onDetail: () => void }) {
   const [isCompleting, setIsCompleting] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
-  const [newDate, setNewDate] = useState("");
+  const [newDate, setNewDate] = useState<Date | undefined>(undefined);
 
   const handleComplete = async () => {
     setIsCompleting(true);
@@ -95,7 +94,7 @@ function FollowUpCard({ row, isOverdue, onDetail }: { row: FollowUpRow; isOverdu
   const handleReschedule = async () => {
     if (!newDate) return;
     try {
-      await rescheduleFollowUp(row.log.id, newDate);
+      await rescheduleFollowUp(row.log.id, format(newDate, "yyyy-MM-dd"));
       toast.success("Follow-up rescheduled");
       setRescheduleOpen(false);
     } catch {
@@ -194,7 +193,7 @@ function FollowUpCard({ row, isOverdue, onDetail }: { row: FollowUpRow; isOverdu
                 <Button size="sm" variant="outline" onClick={() => {
                   const d = new Date();
                   d.setDate(d.getDate() + 3);
-                  setNewDate(d.toISOString().split("T")[0]);
+                  setNewDate(d);
                   setRescheduleOpen(true);
                 }} className="h-7 text-xs gap-1">
                   <CalendarClock className="h-3 w-3" />
@@ -234,16 +233,8 @@ function FollowUpCard({ row, isOverdue, onDetail }: { row: FollowUpRow; isOverdu
               Pick a new date for the follow-up with {row.client.firstName} {row.client.lastName || ""}.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="reschedule-date">New Date</Label>
-              <Input
-                id="reschedule-date"
-                type="date"
-                value={newDate}
-                onChange={(e) => setNewDate(e.target.value)}
-              />
-            </div>
+          <div className="py-2">
+            <DatePicker date={newDate} onSelectAction={setNewDate} className="w-full" />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRescheduleOpen(false)}>Cancel</Button>

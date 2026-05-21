@@ -11,13 +11,14 @@ interface DatePickerProps {
   onSelectAction: (date?: Date) => void;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 }
 
-export function DatePicker({ date, onSelectAction, placeholder = "Pick a date", className }: DatePickerProps) {
+export function DatePicker({ date, onSelectAction, placeholder = "Pick a date", className, disabled }: DatePickerProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" className={`justify-start text-left font-normal gap-2 ${className ?? ""}`}>
+        <Button variant="outline" className={`justify-start text-left font-normal gap-2 ${className ?? ""}`} disabled={disabled}>
           <CalendarIcon className="h-4 w-4" />
           {date ? format(date, "MMM d, yyyy") : placeholder}
         </Button>
