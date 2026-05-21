@@ -9,6 +9,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { exportMatchedClientsCsv, type MatchedClientsCsvExportResult, type MatchedClientsCsvScope } from "@/lib/actions/matched-clients-csv-export";
 import { LIST_QUERY_LIMIT } from "@/lib/constants";
 
@@ -113,14 +114,14 @@ export function MatchedClientsCsvExportDialog({ open, onOpenChange, owners, matc
         </DialogHeader>
 
         {options.length > 1 && (
-          <div className="flex flex-wrap gap-3 text-sm">
+          <RadioGroup value={mode} onValueChange={(v) => setMode(v as Mode)} className="flex flex-wrap gap-3">
             {options.map((o) => (
-              <label key={o.mode} className="flex items-center gap-1.5">
-                <input type="radio" name="matchedExportScope" checked={mode === o.mode} onChange={() => setMode(o.mode)} />
-                {o.label}
-              </label>
+              <div key={o.mode} className="flex items-center gap-1.5">
+                <RadioGroupItem value={o.mode} id={`matched-export-${o.mode}`} />
+                <label htmlFor={`matched-export-${o.mode}`} className="text-sm cursor-pointer">{o.label}</label>
+              </div>
             ))}
-          </div>
+          </RadioGroup>
         )}
 
         {data?.truncated && (

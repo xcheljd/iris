@@ -9,6 +9,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { exportCollectionsCsv, type CollectionsCsvExportResult, type CollectionsCsvScope } from "@/lib/actions/collections-csv-export";
 import { LIST_QUERY_LIMIT } from "@/lib/constants";
 
@@ -109,14 +110,14 @@ export function CollectionsCsvExportDialog({ open, onOpenChange, selectedCollect
         </DialogHeader>
 
         {options.length > 1 && (
-          <div className="flex flex-wrap gap-3 text-sm">
+          <RadioGroup value={mode} onValueChange={(v) => setMode(v as Mode)} className="flex flex-wrap gap-3">
             {options.map((o) => (
-              <label key={o.mode} className="flex items-center gap-1.5">
-                <input type="radio" name="collExportScope" checked={mode === o.mode} onChange={() => setMode(o.mode)} />
-                {o.label}
-              </label>
+              <div key={o.mode} className="flex items-center gap-1.5">
+                <RadioGroupItem value={o.mode} id={`coll-export-${o.mode}`} />
+                <label htmlFor={`coll-export-${o.mode}`} className="text-sm cursor-pointer">{o.label}</label>
+              </div>
             ))}
-          </div>
+          </RadioGroup>
         )}
 
         {data?.truncated && (
