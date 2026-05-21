@@ -9,6 +9,7 @@ import { requireManager } from "./_shared";
 export interface RvxAnalysisResult {
   newCount: number;
   alreadyClientCount: number;
+  alreadyProspectCount: number;
   bannedCount: number;
   unsubscribedCount: number;
   deletedCount: number;
@@ -23,11 +24,12 @@ export interface RvxAnalysisResult {
 async function categorizeRvxRows(rows: RvxRawRow[]): Promise<{
   newRows: RvxRawRow[];
   alreadyClientCount: number;
+  alreadyProspectCount: number;
   bannedCount: number;
   unsubscribedCount: number;
   deletedCount: number;
 }> {
-  // Batch-load all comparison sets (4 queries total)
+  // Batch-load all comparison sets
   const allBanned = db.select({ email: bannedCustomers.email, phone: bannedCustomers.phone }).from(bannedCustomers).all();
   const bannedEmails = new Set(allBanned.map((r) => r.email?.toLowerCase()).filter(Boolean) as string[]);
   const bannedPhones = new Set(allBanned.map((r) => r.phone?.replace(/\D/g, "")).filter(Boolean) as string[]);
@@ -53,8 +55,13 @@ async function categorizeRvxRows(rows: RvxRawRow[]): Promise<{
     }
   }
 
+  const allProspects = db.select({ email: prospects.email, phone: prospects.phone }).from(prospects).all();
+  const prospectEmails = new Set(allProspects.map((r) => r.email?.toLowerCase()).filter(Boolean) as string[]);
+  const prospectPhones = new Set(allProspects.map((r) => r.phone?.replace(/\D/g, "")).filter(Boolean) as string[]);
+
   const newRows: RvxRawRow[] = [];
   let alreadyClientCount = 0;
+  let alreadyProspectCount = 0;
   let bannedCount = 0;
   let unsubscribedCount = 0;
   let deletedCount = 0;
@@ -77,12 +84,17 @@ async function categorizeRvxRows(rows: RvxRawRow[]): Promise<{
       (phone && activeClientPhones.has(phone))
     ) {
       alreadyClientCount++;
+    } else if (
+      (email && prospectEmails.has(email)) ||
+      (phone && prospectPhones.has(phone))
+    ) {
+      alreadyProspectCount++;
     } else {
       newRows.push(row);
     }
   }
 
-  return { newRows, alreadyClientCount, bannedCount, unsubscribedCount, deletedCount };
+  return { newRows, alreadyClientCount, alreadyProspectCount, bannedCount, unsubscribedCount, deletedCount };
 }
 
 function deduplicateRvxRows(
@@ -124,12 +136,13 @@ export async function analyzeRvxImport(csvText: string): Promise<RvxAnalysisResu
   const { deduped, dupeRows } = deduplicateRvxRows(rows, findWithinImportDuplicates(rows));
 
   try {
-    const { newRows, alreadyClientCount, bannedCount, unsubscribedCount, deletedCount } =
+    const { newRows, alreadyClientCount, alreadyProspectCount, bannedCount, unsubscribedCount, deletedCount } =
       await categorizeRvxRows(deduped);
 
     return {
       newCount: newRows.length,
       alreadyClientCount,
+      alreadyProspectCount,
       bannedCount,
       unsubscribedCount,
       deletedCount,

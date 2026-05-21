@@ -144,6 +144,7 @@ export function RvxImportDialog({ open, onOpenChangeAction }: RvxImportDialogPro
               <div className="grid grid-cols-2 gap-2">
                 <AnalysisBadge label="New" count={analysis.newCount} variant="success" />
                 <AnalysisBadge label="Already a Client" count={analysis.alreadyClientCount} variant="info" />
+                <AnalysisBadge label="Already a Prospect" count={analysis.alreadyProspectCount} variant="info" />
                 <AnalysisBadge label="Banned" count={analysis.bannedCount} variant="destructive" />
                 <AnalysisBadge label="Unsubscribed" count={analysis.unsubscribedCount} variant="warning" />
                 <AnalysisBadge label="Deleted" count={analysis.deletedCount} variant="secondary" />
