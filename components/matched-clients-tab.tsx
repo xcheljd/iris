@@ -9,7 +9,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PaginationFooter } from "@/components/pagination-footer";
 import { EmptyState } from "@/components/empty-state";
-import { ArrowUpDown, Filter, Users, Download } from "lucide-react";
+import { Filter, Users, Download } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ColumnHeader } from "@/components/column-header";
 import { brandLabel } from "@/lib/brand";
 import { MatchedClientsCsvExportDialog } from "@/components/matched-clients-csv-export-dialog";
 import type { MatchedClientRow } from "@/lib/queries";
@@ -31,15 +33,15 @@ const fullName = (r: MatchedClientRow) => `${r.clientFirstName} ${r.clientLastNa
 export function MatchedClientsTab({ clients, isManager, currentUserId }: Props) {
   const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
-  const [sortDir, setSortDir] = useState<1 | -1>(1);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [ownerFilter, setOwnerFilter] = useState<Set<string>>(new Set());
   const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set());
   const [brandFilter, setBrandFilter] = useState<Set<string>>(new Set());
   const [exportOpen, setExportOpen] = useState(false);
 
   const toggleSort = (k: SortKey) => {
-    if (sortKey === k) setSortDir((d) => (d === 1 ? -1 : 1));
-    else { setSortKey(k); setSortDir(1); }
+    if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(k); setSortDir("asc"); }
   };
   const toggleIn = (set: Set<string>, v: string, setter: (s: Set<string>) => void) => {
     const next = new Set(set);
@@ -80,8 +82,9 @@ export function MatchedClientsTab({ clients, isManager, currentUserId }: Props) 
       };
       r = [...r].sort((a, b) => {
         const av = val(a), bv = val(b);
-        if (typeof av === "number" && typeof bv === "number") return (av - bv) * sortDir;
-        return String(av).localeCompare(String(bv)) * sortDir;
+        const dir = sortDir === "asc" ? 1 : -1;
+        if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
+        return String(av).localeCompare(String(bv)) * dir;
       });
     }
     return r;
@@ -91,23 +94,14 @@ export function MatchedClientsTab({ clients, isManager, currentUserId }: Props) 
   const current = Math.min(page, totalPages);
   const paged = rows.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
 
-  const SortHead = ({ k, label, className }: { k: SortKey; label: string; className?: string }) => (
-    <TableHead className={className}>
-      <button className="inline-flex items-center gap-1 font-medium" onClick={() => toggleSort(k)}>
-        {label}
-        <ArrowUpDown className={`h-3 w-3 ${sortKey === k ? "text-foreground" : "text-muted-foreground/50"}`} />
-      </button>
-    </TableHead>
-  );
-
   const Facet = ({ label, values, set, setter }: { label: string; values: string[]; set: Set<string>; setter: (s: Set<string>) => void }) => (
     <div>
       <div className="text-xs font-medium mb-1">{label}</div>
       <div className="max-h-32 overflow-y-auto space-y-1">
         {values.length === 0 && <div className="text-xs text-muted-foreground">none</div>}
         {values.map((v) => (
-          <label key={v} className="flex items-center gap-1.5 text-sm">
-            <input type="checkbox" checked={set.has(v)} onChange={() => toggleIn(set, v, setter)} />
+          <label key={v} className="flex items-center gap-1.5 text-sm cursor-pointer">
+            <Checkbox checked={set.has(v)} onCheckedChange={() => toggleIn(set, v, setter)} />
             {label === "Brand" ? brandLabel(v) : v}
           </label>
         ))}
@@ -162,17 +156,17 @@ export function MatchedClientsTab({ clients, isManager, currentUserId }: Props) 
             <Table>
               <TableHeader>
                 <TableRow>
-                  <SortHead k="client" label="Client" />
-                  <SortHead k="owner" label="Associate" />
-                  <SortHead k="preferredContact" label="Pref. contact" className="hidden md:table-cell" />
-                  <SortHead k="phone" label="Phone" className="hidden sm:table-cell" />
-                  <SortHead k="email" label="Email" className="hidden lg:table-cell" />
-                  <SortHead k="promoModel" label="Model" />
-                  <SortHead k="promoCollection" label="Collection" className="hidden sm:table-cell" />
-                  <SortHead k="promoBrand" label="Brand" className="hidden sm:table-cell" />
-                  <SortHead k="msrp" label="MSRP" className="text-right hidden md:table-cell" />
-                  <SortHead k="discountPrice" label="Sale" className="text-right hidden md:table-cell" />
-                  <SortHead k="matchType" label="Match" />
+                  <TableHead><ColumnHeader label="Client" sortKey="client" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                  <TableHead><ColumnHeader label="Associate" sortKey="owner" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                  <TableHead className="hidden md:table-cell"><ColumnHeader label="Pref. contact" sortKey="preferredContact" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                  <TableHead className="hidden sm:table-cell"><ColumnHeader label="Phone" sortKey="phone" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                  <TableHead className="hidden lg:table-cell"><ColumnHeader label="Email" sortKey="email" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                  <TableHead><ColumnHeader label="Model" sortKey="promoModel" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                  <TableHead className="hidden sm:table-cell"><ColumnHeader label="Collection" sortKey="promoCollection" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                  <TableHead className="hidden sm:table-cell"><ColumnHeader label="Brand" sortKey="promoBrand" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                  <TableHead className="hidden md:table-cell"><ColumnHeader label="MSRP" sortKey="msrp" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                  <TableHead className="hidden md:table-cell"><ColumnHeader label="Sale" sortKey="discountPrice" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                  <TableHead><ColumnHeader label="Match" sortKey="matchType" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

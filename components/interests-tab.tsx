@@ -8,7 +8,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Filter, ArrowUpDown, MoreHorizontal, Tag } from "lucide-react";
+import { MoreHorizontal, Tag } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ColumnHeader } from "@/components/column-header";
+import { ColumnFilterPopover } from "@/components/column-filter-popover";
 import { toast } from "sonner";
 import { OutreachLogger } from "@/components/outreach-logger";
 import { EmptyState } from "@/components/empty-state";
@@ -111,7 +115,7 @@ export function InterestsTab({ client }: InterestsTabProps) {
 
   // --- sort + filter state ---
   const [sortKey, setSortKey] = useState<SortKey>("intent");
-  const [sortDir, setSortDir] = useState<1 | -1>(1);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [intentFilter, setIntentFilter] = useState<Set<InterestIntent>>(new Set());
   const [modelFilter, setModelFilter] = useState("");
   const [collectionFilter, setCollectionFilter] = useState("");
@@ -119,8 +123,8 @@ export function InterestsTab({ client }: InterestsTabProps) {
   const [promoOnly, setPromoOnly] = useState<"" | "has" | "none">("");
 
   const toggleSort = (k: SortKey) => {
-    if (sortKey === k) setSortDir((d) => (d === 1 ? -1 : 1));
-    else { setSortKey(k); setSortDir(1); }
+    if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(k); setSortDir("asc"); }
   };
 
   const visible = useMemo(() => {
@@ -137,7 +141,7 @@ export function InterestsTab({ client }: InterestsTabProps) {
         : sortKey === "collection" ? (x.collection ?? "")
         : sortKey === "brand" ? (x.brand ?? "")
         : x.promoLabel;
-    return [...r].sort((a, b) => val(a).localeCompare(val(b)) * sortDir);
+    return [...r].sort((a, b) => val(a).localeCompare(val(b)) * (sortDir === "asc" ? 1 : -1));
   }, [rows, intentFilter, modelFilter, collectionFilter, brandFilter, promoOnly, sortKey, sortDir]);
 
   const copyTemplate = (model: string, collection: string) => {
@@ -146,13 +150,6 @@ export function InterestsTab({ client }: InterestsTabProps) {
     );
     toast.success("Outreach template copied");
   };
-
-  const SortHead = ({ k, label }: { k: SortKey; label: string }) => (
-    <button className="flex items-center gap-1 font-medium" onClick={() => toggleSort(k)}>
-      {label}
-      <ArrowUpDown className={`h-3 w-3 ${sortKey === k ? "text-foreground" : "text-muted-foreground/50"}`} />
-    </button>
-  );
 
   return (
     <Card>
@@ -171,100 +168,72 @@ export function InterestsTab({ client }: InterestsTabProps) {
               <TableHeader>
                 <TableRow>
                   <TableHead>
-                    <div className="flex items-center gap-1">
-                      <SortHead k="intent" label="Intent" />
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <button aria-label="Filter intent"><Filter className={`h-3 w-3 ${intentFilter.size ? "text-primary" : "text-muted-foreground/50"}`} /></button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-44 space-y-1">
+                    <ColumnHeader label="Intent" sortKey="intent" currentSort={sortKey} currentDir={sortDir} onSortAction={toggleSort} filter={
+                      <ColumnFilterPopover label="intent" active={intentFilter.size > 0} onClear={() => setIntentFilter(new Set())} contentWidth="w-44">
+                        <div className="p-3 space-y-1">
                           {INTEREST_INTENT_VALUES.map((it) => (
-                            <label key={it} className="flex items-center gap-2 text-sm">
-                              <input
-                                type="checkbox"
-                                checked={intentFilter.has(it)}
-                                onChange={(e) => {
-                                  const next = new Set(intentFilter);
-                                  if (e.target.checked) next.add(it); else next.delete(it);
-                                  setIntentFilter(next);
-                                }}
-                              />
+                            <label key={it} className="flex items-center gap-2 text-sm cursor-pointer">
+                              <Checkbox checked={intentFilter.has(it)} onCheckedChange={(checked) => {
+                                const next = new Set(intentFilter);
+                                if (checked === true) next.add(it); else next.delete(it);
+                                setIntentFilter(next);
+                              }} />
                               {INTENT_LABEL[it]}
                             </label>
                           ))}
-                        </PopoverContent>
-                      </Popover>
-                    </div>
+                        </div>
+                      </ColumnFilterPopover>
+                    } />
                   </TableHead>
                   <TableHead>
-                    <div className="flex items-center gap-1">
-                      <SortHead k="model" label="Model" />
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <button aria-label="Filter model"><Filter className={`h-3 w-3 ${modelFilter ? "text-primary" : "text-muted-foreground/50"}`} /></button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-56">
+                    <ColumnHeader label="Model" sortKey="model" currentSort={sortKey} currentDir={sortDir} onSortAction={toggleSort} filter={
+                      <ColumnFilterPopover label="model" active={!!modelFilter} onClear={() => setModelFilter("")} contentWidth="w-56">
+                        <div className="p-2">
                           <Input placeholder="Model contains…" value={modelFilter} onChange={(e) => setModelFilter(e.target.value)} />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
+                        </div>
+                      </ColumnFilterPopover>
+                    } />
                   </TableHead>
                   <TableHead>
-                    <div className="flex items-center gap-1">
-                      <SortHead k="collection" label="Collection" />
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <button aria-label="Filter collection"><Filter className={`h-3 w-3 ${collectionFilter ? "text-primary" : "text-muted-foreground/50"}`} /></button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-56">
+                    <ColumnHeader label="Collection" sortKey="collection" currentSort={sortKey} currentDir={sortDir} onSortAction={toggleSort} filter={
+                      <ColumnFilterPopover label="collection" active={!!collectionFilter} onClear={() => setCollectionFilter("")} contentWidth="w-56">
+                        <div className="p-2">
                           <Input placeholder="Collection contains…" value={collectionFilter} onChange={(e) => setCollectionFilter(e.target.value)} />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
+                        </div>
+                      </ColumnFilterPopover>
+                    } />
                   </TableHead>
                   <TableHead>
-                    <div className="flex items-center gap-1">
-                      <SortHead k="brand" label="Brand" />
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <button aria-label="Filter brand"><Filter className={`h-3 w-3 ${brandFilter.size ? "text-primary" : "text-muted-foreground/50"}`} /></button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-48 space-y-1">
+                    <ColumnHeader label="Brand" sortKey="brand" currentSort={sortKey} currentDir={sortDir} onSortAction={toggleSort} filter={
+                      <ColumnFilterPopover label="brand" active={brandFilter.size > 0} onClear={() => setBrandFilter(new Set())} contentWidth="w-44">
+                        <div className="p-3 space-y-1">
                           {BRAND_VALUES.map((b) => (
-                            <label key={b} className="flex items-center gap-2 text-sm">
-                              <input
-                                type="checkbox"
-                                checked={brandFilter.has(b)}
-                                onChange={(e) => {
-                                  const next = new Set(brandFilter);
-                                  if (e.target.checked) next.add(b); else next.delete(b);
-                                  setBrandFilter(next);
-                                }}
-                              />
+                            <label key={b} className="flex items-center gap-2 text-sm cursor-pointer">
+                              <Checkbox checked={brandFilter.has(b)} onCheckedChange={(checked) => {
+                                const next = new Set(brandFilter);
+                                if (checked === true) next.add(b); else next.delete(b);
+                                setBrandFilter(next);
+                              }} />
                               {promoBrandLabel(b)}
                             </label>
                           ))}
-                        </PopoverContent>
-                      </Popover>
-                    </div>
+                        </div>
+                      </ColumnFilterPopover>
+                    } />
                   </TableHead>
                   <TableHead>
-                    <div className="flex items-center gap-1">
-                      <SortHead k="promo" label="Promo" />
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <button aria-label="Filter promo"><Filter className={`h-3 w-3 ${promoOnly ? "text-primary" : "text-muted-foreground/50"}`} /></button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-40 space-y-1">
+                    <ColumnHeader label="Promo" sortKey="promo" currentSort={sortKey} currentDir={sortDir} onSortAction={toggleSort} filter={
+                      <ColumnFilterPopover label="promo" active={promoOnly !== ""} onClear={() => setPromoOnly("")} contentWidth="w-44">
+                        <RadioGroup value={promoOnly} onValueChange={(v) => setPromoOnly(v as "" | "has" | "none")} className="p-3 space-y-1">
                           {([["", "All"], ["has", "On promo"], ["none", "Not on promo"]] as const).map(([v, l]) => (
-                            <label key={v} className="flex items-center gap-2 text-sm">
-                              <input type="radio" name="promoFilter" checked={promoOnly === v} onChange={() => setPromoOnly(v)} />
-                              {l}
-                            </label>
+                            <div key={v} className="flex items-center gap-2">
+                              <RadioGroupItem value={v} id={`promo-filter-${v}`} />
+                              <label htmlFor={`promo-filter-${v}`} className="text-sm cursor-pointer">{l}</label>
+                            </div>
                           ))}
-                        </PopoverContent>
-                      </Popover>
-                    </div>
+                        </RadioGroup>
+                      </ColumnFilterPopover>
+                    } />
                   </TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>

@@ -32,7 +32,9 @@ import { BRAND_VALUES, type Brand } from "@/lib/db/schema";
 import { brandLabel } from "@/lib/brand";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ArrowUpDown, Filter } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Filter } from "lucide-react";
+import { ColumnHeader } from "@/components/column-header";
 import { Topbar } from "@/components/topbar";
 import { ImportPromoDialog } from "@/components/promo/import-promo-dialog";
 
@@ -73,7 +75,7 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
 
   type SortKey = "modelNumber" | "collection" | "brand" | "msrp" | "discountPercent" | "discountPrice" | "sizeOneQty" | "sizeTwoQty";
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
-  const [sortDir, setSortDir] = useState<1 | -1>(1);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [brandFilter, setBrandFilter] = useState<Set<string>>(new Set());
   const [collectionFilter, setCollectionFilter] = useState<Set<string>>(new Set());
   const [priceMax, setPriceMax] = useState("");
@@ -82,22 +84,13 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
   const [size2Pos, setSize2Pos] = useState(false);
 
   const toggleSort = (k: SortKey) => {
-    if (sortKey === k) setSortDir((d) => (d === 1 ? -1 : 1));
-    else { setSortKey(k); setSortDir(1); }
+    if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(k); setSortDir("asc"); }
   };
 
   const distinctCollections = useMemo(
     () => Array.from(new Set(promos.map((p) => p.collection))).sort(),
     [promos],
-  );
-
-  const SortHead = ({ k, label, className }: { k: SortKey; label: string; className?: string }) => (
-    <TableHead className={className}>
-      <button className="inline-flex items-center gap-1 font-medium" onClick={() => toggleSort(k)}>
-        {label}
-        <ArrowUpDown className={`h-3 w-3 ${sortKey === k ? "text-foreground" : "text-muted-foreground/50"}`} />
-      </button>
-    </TableHead>
   );
 
   const toggleIn = (set: Set<string>, v: string, setter: (s: Set<string>) => void) => {
@@ -125,8 +118,9 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
       };
       r = [...r].sort((a, b) => {
         const av = val(a), bv = val(b);
-        if (typeof av === "string" || typeof bv === "string") return String(av).localeCompare(String(bv)) * sortDir;
-        return ((av as number) - (bv as number)) * sortDir;
+        const dir = sortDir === "asc" ? 1 : -1;
+        if (typeof av === "string" || typeof bv === "string") return String(av).localeCompare(String(bv)) * dir;
+        return ((av as number) - (bv as number)) * dir;
       });
     }
     return r;
@@ -355,8 +349,8 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
                   <div className="text-xs font-medium mb-1">Brand</div>
                   <div className="flex flex-wrap gap-x-3 gap-y-1">
                     {BRAND_VALUES.map((b) => (
-                      <label key={b} className="flex items-center gap-1.5 text-sm">
-                        <input type="checkbox" checked={brandFilter.has(b)} onChange={() => { toggleIn(brandFilter, b, setBrandFilter); setPage(1); }} />
+                      <label key={b} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                        <Checkbox checked={brandFilter.has(b)} onCheckedChange={() => { toggleIn(brandFilter, b, setBrandFilter); setPage(1); }} />
                         {brandLabel(b)}
                       </label>
                     ))}
@@ -366,8 +360,8 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
                   <div className="text-xs font-medium mb-1">Collection</div>
                   <div className="max-h-32 overflow-y-auto space-y-1">
                     {distinctCollections.map((c) => (
-                      <label key={c} className="flex items-center gap-1.5 text-sm">
-                        <input type="checkbox" checked={collectionFilter.has(c)} onChange={() => { toggleIn(collectionFilter, c, setCollectionFilter); setPage(1); }} />
+                      <label key={c} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                        <Checkbox checked={collectionFilter.has(c)} onCheckedChange={() => { toggleIn(collectionFilter, c, setCollectionFilter); setPage(1); }} />
                         {c}
                       </label>
                     ))}
@@ -384,11 +378,11 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
                   </div>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="flex items-center gap-1.5 text-sm">
-                    <input type="checkbox" checked={size1Pos} onChange={(e) => { setSize1Pos(e.target.checked); setPage(1); }} /> Size 1 in stock (&gt;0)
+                  <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                    <Checkbox checked={size1Pos} onCheckedChange={(c) => { setSize1Pos(c === true); setPage(1); }} /> Size 1 in stock (&gt;0)
                   </label>
-                  <label className="flex items-center gap-1.5 text-sm">
-                    <input type="checkbox" checked={size2Pos} onChange={(e) => { setSize2Pos(e.target.checked); setPage(1); }} /> Size 2 in stock (&gt;0)
+                  <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                    <Checkbox checked={size2Pos} onCheckedChange={(c) => { setSize2Pos(c === true); setPage(1); }} /> Size 2 in stock (&gt;0)
                   </label>
                 </div>
                 <Button
@@ -419,14 +413,14 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <SortHead k="modelNumber" label="Model Number" />
-                    <SortHead k="collection" label="Collection" />
-                    <SortHead k="brand" label="Brand" className="hidden sm:table-cell" />
-                    <SortHead k="msrp" label="MSRP" className="text-right hidden sm:table-cell" />
-                    <SortHead k="discountPercent" label="Disc." className="text-right hidden md:table-cell" />
-                    <SortHead k="discountPrice" label="Sale Price" className="text-right hidden sm:table-cell" />
-                    <SortHead k="sizeOneQty" label="Size 1" className="text-right hidden md:table-cell" />
-                    <SortHead k="sizeTwoQty" label="Size 2" className="text-right hidden md:table-cell" />
+                    <TableHead><ColumnHeader label="Model Number" sortKey="modelNumber" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                    <TableHead><ColumnHeader label="Collection" sortKey="collection" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                    <TableHead className="hidden sm:table-cell"><ColumnHeader label="Brand" sortKey="brand" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                    <TableHead className="hidden sm:table-cell"><ColumnHeader label="MSRP" sortKey="msrp" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                    <TableHead className="hidden md:table-cell"><ColumnHeader label="Disc." sortKey="discountPercent" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                    <TableHead className="hidden sm:table-cell"><ColumnHeader label="Sale Price" sortKey="discountPrice" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                    <TableHead className="hidden md:table-cell"><ColumnHeader label="Size 1" sortKey="sizeOneQty" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                    <TableHead className="hidden md:table-cell"><ColumnHeader label="Size 2" sortKey="sizeTwoQty" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
                     <TableHead className="text-right">Clients</TableHead>
                     {isManager && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
