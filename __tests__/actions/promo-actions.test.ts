@@ -166,9 +166,9 @@ describe("Promo Actions", () => {
       // "Meridian" batch — legitimate — so assert deterministic
       // properties about THIS client, not brittle global totals.)
       const res = await importPromos([
-        { modelNumber: model, collection },
-        { modelNumber: model, collection },
-      ], "Meridian");
+        { modelNumber: model, collection, brand: "Meridian" },
+        { modelNumber: model, collection, brand: "Meridian" },
+      ]);
       expect("imported" in res && res.imported).toBe(2);
       // Distinct-client dedup: the client matched both promos but counts once.
       expect("matchedClients" in res && (res.matchedClients as number) >= 1).toBe(true);

@@ -48,25 +48,25 @@ interface ClientFormProps {
   newTag: string;
   catalogIndex?: Record<string, CatalogEntry> | null;
   isManager?: boolean;
-  onFieldChange: (field: string, value: string | boolean | Date | null | undefined | string[]) => void;
-  onNewTagChange: (value: string) => void;
-  onProductsChange: (next: ProductOfInterest[]) => void;
-  onAddTag: () => void;
-  onRemoveTag: (tag: string) => void;
+  onFieldChangeAction: (field: string, value: string | boolean | Date | null | undefined | string[]) => void;
+  onNewTagChangeAction: (value: string) => void;
+  onProductsChangeAction: (next: ProductOfInterest[]) => void;
+  onAddTagAction: () => void;
+  onRemoveTagAction: (tag: string) => void;
   // Duplicate warning
   showDuplicateWarning: boolean;
   duplicateClient: DuplicateClient | null;
-  onDismissDuplicate: () => void;
-  onEditExisting: () => void;
-  onMergeWithDuplicate?: () => void;
+  onDismissDuplicateAction: () => void;
+  onEditExistingAction: () => void;
+  onMergeWithDuplicateAction?: () => void;
   // Edit-only
   employees?: { id: string; name: string; role: string }[];
   showCommonTags?: boolean;
   // Submit
   isLoading: boolean;
   submitLabel: string;
-  onSubmit: () => void;
-  onCancel: () => void;
+  onSubmitAction: () => void;
+  onCancelAction: () => void;
 }
 
 export function ClientForm({
@@ -75,22 +75,22 @@ export function ClientForm({
   newTag,
   catalogIndex,
   isManager,
-  onFieldChange,
-  onNewTagChange,
-  onProductsChange,
-  onAddTag,
-  onRemoveTag,
+  onFieldChangeAction,
+  onNewTagChangeAction,
+  onProductsChangeAction,
+  onAddTagAction,
+  onRemoveTagAction,
   showDuplicateWarning,
   duplicateClient,
-  onDismissDuplicate,
-  onEditExisting,
-  onMergeWithDuplicate,
+  onDismissDuplicateAction,
+  onEditExistingAction,
+  onMergeWithDuplicateAction,
   employees,
   showCommonTags = false,
   isLoading,
   submitLabel,
-  onSubmit,
-  onCancel,
+  onSubmitAction,
+  onCancelAction,
 }: ClientFormProps) {
   return (
     <div className="space-y-6">
@@ -113,15 +113,15 @@ export function ClientForm({
               )}
             </div>
             <div className="flex gap-2 mt-3 flex-wrap">
-              <Button onClick={onEditExisting} variant="default" size="sm">
+              <Button onClick={onEditExistingAction} variant="default" size="sm">
                 Edit Existing
               </Button>
-              {onMergeWithDuplicate && (
-                <Button onClick={onMergeWithDuplicate} variant="outline" size="sm">
+              {onMergeWithDuplicateAction && (
+                <Button onClick={onMergeWithDuplicateAction} variant="outline" size="sm">
                   Merge Records
                 </Button>
               )}
-              <Button onClick={onDismissDuplicate} variant="outline" size="sm">
+              <Button onClick={onDismissDuplicateAction} variant="outline" size="sm">
                 Create New Record
               </Button>
             </div>
@@ -142,7 +142,7 @@ export function ClientForm({
                 id="firstName"
                 placeholder="Enter first name"
                 value={formData.firstName}
-                onChange={(e) => onFieldChange("firstName", e.target.value)}
+                onChange={(e) => onFieldChangeAction("firstName", e.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -151,14 +151,14 @@ export function ClientForm({
                 id="lastName"
                 placeholder="Enter last name"
                 value={formData.lastName}
-                onChange={(e) => onFieldChange("lastName", e.target.value)}
+                onChange={(e) => onFieldChangeAction("lastName", e.target.value)}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="preferredContact">Preferred Contact *</Label>
               <Select
                 value={formData.preferredContact || undefined}
-                onValueChange={(v) => onFieldChange("preferredContact", v)}
+                onValueChange={(v) => onFieldChangeAction("preferredContact", v)}
               >
                 <SelectTrigger id="preferredContact">
                   <SelectValue placeholder="Select method" />
@@ -176,7 +176,7 @@ export function ClientForm({
                 id="customerId"
                 placeholder="e.g. 100600045"
                 value={formData.customerId}
-                onChange={(e) => onFieldChange("customerId", e.target.value)}
+                onChange={(e) => onFieldChangeAction("customerId", e.target.value)}
               />
             </div>
           </div>
@@ -196,7 +196,7 @@ export function ClientForm({
                 id="phone"
                 placeholder="(XXX) XXX-XXXX"
                 value={formData.phone}
-                onChange={(e) => onFieldChange("phone", e.target.value)}
+                onChange={(e) => onFieldChangeAction("phone", e.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -206,7 +206,7 @@ export function ClientForm({
                 type="email"
                 placeholder="client@example.com"
                 value={formData.email}
-                onChange={(e) => onFieldChange("email", e.target.value)}
+                onChange={(e) => onFieldChangeAction("email", e.target.value)}
               />
             </div>
           </div>
@@ -216,7 +216,7 @@ export function ClientForm({
               <Label htmlFor="employeeId">Employee Assignment</Label>
               <Select
                 value={formData.employeeId || "__none__"}
-                onValueChange={(value) => onFieldChange("employeeId", value === "__none__" ? "" : value)}
+                onValueChange={(value) => onFieldChangeAction("employeeId", value === "__none__" ? "" : value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select employee" />
@@ -249,7 +249,7 @@ export function ClientForm({
                 <Label htmlFor="status">Status</Label>
                 <Select
                   value={formData.status}
-                  onValueChange={(value) => onFieldChange("status", value)}
+                  onValueChange={(value) => onFieldChangeAction("status", value)}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -265,7 +265,7 @@ export function ClientForm({
 
               <div className="space-y-2">
                 <Label htmlFor="source">Source</Label>
-                <Select value={formData.source} onValueChange={(value) => onFieldChange("source", value)}>
+                <Select value={formData.source} onValueChange={(value) => onFieldChangeAction("source", value)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -284,7 +284,7 @@ export function ClientForm({
           {formData.status === undefined && (
             <div className="space-y-2">
               <Label htmlFor="source">Source</Label>
-              <Select value={formData.source} onValueChange={(value) => onFieldChange("source", value)}>
+              <Select value={formData.source} onValueChange={(value) => onFieldChangeAction("source", value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -306,7 +306,7 @@ export function ClientForm({
             </div>
             <Switch
               checked={formData.onEmailList}
-              onCheckedChange={(checked) => onFieldChange("onEmailList", checked)}
+              onCheckedChange={(checked) => onFieldChangeAction("onEmailList", checked)}
             />
           </div>
         </CardContent>
@@ -323,7 +323,7 @@ export function ClientForm({
               <Label>Birthday (optional)</Label>
               <DatePicker
                 date={formData.birthday ?? undefined}
-                onSelect={(date) => onFieldChange("birthday", date)}
+                onSelectAction={(date) => onFieldChangeAction("birthday", date)}
                 className="w-full"
               />
             </div>
@@ -331,7 +331,7 @@ export function ClientForm({
               <Label>Anniversary (optional)</Label>
               <DatePicker
                 date={formData.anniversary ?? undefined}
-                onSelect={(date) => onFieldChange("anniversary", date)}
+                onSelectAction={(date) => onFieldChangeAction("anniversary", date)}
                 className="w-full"
               />
             </div>
@@ -347,7 +347,7 @@ export function ClientForm({
         <CardContent className="space-y-4">
           <ProductsOfInterestInput
             value={productsOfInterest}
-            onChange={onProductsChange}
+            onChangeAction={onProductsChangeAction}
             catalogIndex={catalogIndex}
             isManager={isManager}
           />
@@ -365,14 +365,14 @@ export function ClientForm({
               <Input
                 placeholder="Add tag..."
                 value={newTag}
-                onChange={(e) => onNewTagChange(e.target.value)}
+                onChange={(e) => onNewTagChangeAction(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    onAddTag();
+                    onAddTagAction();
                   }
                 }}
               />
-              <Button onClick={onAddTag} variant="outline">
+              <Button onClick={onAddTagAction} variant="outline">
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
@@ -388,7 +388,7 @@ export function ClientForm({
                       className="cursor-pointer hover:bg-primary hover:text-primary-foreground"
                       onClick={() => {
                         if (!formData.tags.includes(tag)) {
-                          onFieldChange("tags", [...formData.tags, tag]);
+                          onFieldChangeAction("tags", [...formData.tags, tag]);
                         }
                       }}
                     >
@@ -407,7 +407,7 @@ export function ClientForm({
                     variant="ghost"
                     size="sm"
                     className="h-5 w-5 ml-1"
-                    onClick={() => onRemoveTag(tag)}
+                    onClick={() => onRemoveTagAction(tag)}
                     aria-label={`Remove tag ${tag}`}
                   >
                     <X className="h-3 w-3" />
@@ -428,7 +428,7 @@ export function ClientForm({
           <Textarea
             placeholder="Add any additional notes about this client..."
             value={formData.notes}
-            onChange={(e) => onFieldChange("notes", e.target.value)}
+            onChange={(e) => onFieldChangeAction("notes", e.target.value)}
             rows={4}
           />
         </CardContent>
@@ -436,10 +436,10 @@ export function ClientForm({
 
       {/* Submit */}
       <div className="flex justify-end gap-4 pt-4 border-t">
-        <Button variant="outline" onClick={onCancel}>
+        <Button variant="outline" onClick={onCancelAction}>
           Cancel
         </Button>
-        <Button onClick={onSubmit} disabled={isLoading}>
+        <Button onClick={onSubmitAction} disabled={isLoading}>
           {isLoading ? "Saving..." : submitLabel}
         </Button>
       </div>

@@ -397,7 +397,7 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                           sortKey="model"
                           currentSort={sort}
                           currentDir={dir}
-                          onSort={handleSort}
+                          onSortAction={handleSort}
                           filter={
                             <ColumnFilterPopover
                               label="Model"
@@ -420,7 +420,7 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                           sortKey="collection"
                           currentSort={sort}
                           currentDir={dir}
-                          onSort={handleSort}
+                          onSortAction={handleSort}
                           filter={
                             <ColumnFilterPopover
                               label="Collection"
@@ -443,7 +443,7 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                           sortKey="brand"
                           currentSort={sort}
                           currentDir={dir}
-                          onSort={handleSort}
+                          onSortAction={handleSort}
                           filter={
                             <ColumnFilterPopover
                               label="Brand"
@@ -467,7 +467,7 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                           sortKey="msrp"
                           currentSort={sort}
                           currentDir={dir}
-                          onSort={handleSort}
+                          onSortAction={handleSort}
                           filter={
                             <ColumnFilterPopover
                               label="MSRP"
@@ -556,17 +556,17 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
         <PaginationFooter
           currentPage={page}
           totalPages={totalPages}
-          onPageChange={(p) => navigate({ page: p })}
+          onPageChangeAction={(p) => navigate({ page: p })}
           totalItems={total}
           pageSize={DEFAULT_PAGE_SIZE}
           itemLabel="models"
         />
       </div>
-      <ImportCatalogDialog open={importOpen} onOpenChange={setImportOpen} />
+      <ImportCatalogDialog open={importOpen} onOpenChangeAction={setImportOpen} />
 
       <ConfirmDialog
         open={bulkDeleteOpen}
-        onOpenChange={(open) => !open && setBulkDeleteOpen(false)}
+        onOpenChangeAction={(open) => !open && setBulkDeleteOpen(false)}
         title={`Delete ${selectedReview.size} catalog entr${selectedReview.size === 1 ? "y" : "ies"}?`}
         description={
           <>
@@ -578,13 +578,13 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
         }
         confirmLabel={`Delete ${selectedReview.size}`}
         variant="destructive"
-        onConfirm={handleBulkDelete}
+        onConfirmAction={handleBulkDelete}
         disabled={pending || selectedReview.size === 0}
       />
 
       <ConfirmDialog
         open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onOpenChangeAction={(open) => !open && setDeleteTarget(null)}
         title="Delete catalog entry"
         description={
           <>
@@ -596,13 +596,13 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
         }
         confirmLabel="Delete"
         variant="destructive"
-        onConfirm={handleDelete}
+        onConfirmAction={handleDelete}
         disabled={pending}
       />
 
       <ConfirmDialog
         open={clearOpen}
-        onOpenChange={(open) => { if (!open) { setClearOpen(false); setClearTyped(""); } }}
+        onOpenChangeAction={(open) => { if (!open) { setClearOpen(false); setClearTyped(""); } }}
         title="Clear the entire catalog?"
         description={
           <span className="block space-y-3">
@@ -629,7 +629,7 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
         }
         confirmLabel="Clear Catalog"
         variant="destructive"
-        onConfirm={handleClear}
+        onConfirmAction={handleClear}
         disabled={pending || clearTyped !== CLEAR_PHRASE}
       />
     </>

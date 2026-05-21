@@ -8,12 +8,12 @@ import { format } from "date-fns";
 
 interface DatePickerProps {
   date?: Date;
-  onSelect: (date?: Date) => void;
+  onSelectAction: (date?: Date) => void;
   placeholder?: string;
   className?: string;
 }
 
-export function DatePicker({ date, onSelect, placeholder = "Pick a date", className }: DatePickerProps) {
+export function DatePicker({ date, onSelectAction, placeholder = "Pick a date", className }: DatePickerProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -26,7 +26,7 @@ export function DatePicker({ date, onSelect, placeholder = "Pick a date", classN
         <Calendar
           mode="single"
           selected={date}
-          onSelect={onSelect}
+          onSelect={onSelectAction}
           initialFocus
         />
       </PopoverContent>

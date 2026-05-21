@@ -30,19 +30,19 @@ function createProps(overrides: Record<string, unknown> = {}) {
     formData: baseFormData,
     productsOfInterest: [{ model: "KX1023-01X", collection: null, brand: null, intent: "interested" }] as ProductOfInterest[],
     newTag: "",
-    onFieldChange: vi.fn(),
-    onNewTagChange: vi.fn(),
-    onProductsChange: vi.fn(),
-    onAddTag: vi.fn(),
-    onRemoveTag: vi.fn(),
+    onFieldChangeAction: vi.fn(),
+    onNewTagChangeAction: vi.fn(),
+    onProductsChangeAction: vi.fn(),
+    onAddTagAction: vi.fn(),
+    onRemoveTagAction: vi.fn(),
     showDuplicateWarning: false,
     duplicateClient: null,
-    onDismissDuplicate: vi.fn(),
-    onEditExisting: vi.fn(),
+    onDismissDuplicateAction: vi.fn(),
+    onEditExistingAction: vi.fn(),
     isLoading: false,
     submitLabel: "Create Client",
-    onSubmit: vi.fn(),
-    onCancel: vi.fn(),
+    onSubmitAction: vi.fn(),
+    onCancelAction: vi.fn(),
     ...overrides,
   };
 }
@@ -84,27 +84,27 @@ describe("ClientForm", () => {
     expect(screen.getByText("Saving...")).toBeInTheDocument();
   });
 
-  it("calls onFieldChange when first name input changes", async () => {
-    const onFieldChange = vi.fn();
+  it("calls onFieldChangeAction when first name input changes", async () => {
+    const onFieldChangeAction = vi.fn();
     const user = userEvent.setup();
-    render(<ClientForm {...createProps({ onFieldChange })} />);
+    render(<ClientForm {...createProps({ onFieldChangeAction })} />);
     const input = screen.getByPlaceholderText("Enter first name");
     await user.clear(input);
     await user.type(input, "Jane");
-    expect(onFieldChange).toHaveBeenCalled();
+    expect(onFieldChangeAction).toHaveBeenCalled();
   });
 
-  it("calls onAddTag when tag add button clicked", async () => {
-    const onAddTag = vi.fn();
+  it("calls onAddTagAction when tag add button clicked", async () => {
+    const onAddTagAction = vi.fn();
     const user = userEvent.setup();
-    render(<ClientForm {...createProps({ newTag: "new-tag", onAddTag })} />);
+    render(<ClientForm {...createProps({ newTag: "new-tag", onAddTagAction })} />);
     // The Tags card has an input with placeholder "Add tag..." and a sibling Plus button
     const tagInput = screen.getByPlaceholderText("Add tag...");
     // The Plus button is a sibling in the same flex container
     const flexContainer = tagInput.parentElement!;
     const plusBtn = flexContainer.querySelector("button")!;
     await user.click(plusBtn);
-    expect(onAddTag).toHaveBeenCalled();
+    expect(onAddTagAction).toHaveBeenCalled();
   });
 
   it("shows duplicate warning when enabled", () => {

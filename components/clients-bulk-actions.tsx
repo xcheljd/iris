@@ -55,7 +55,7 @@ import { cn } from "@/lib/utils";
 
 interface BulkActionsToolbarProps {
   selectedIds: string[];
-  onClear(): void;
+  onClearAction(): void;
   allTags: { name: string; usageCount: number }[];
   /** Owner picker options — same shape as the Owner column filter. */
   owners: { id: string; name: string }[];
@@ -75,7 +75,7 @@ type DialogKind =
 
 export function BulkActionsToolbar({
   selectedIds,
-  onClear,
+  onClearAction,
   allTags,
   owners,
   isManager,
@@ -101,7 +101,7 @@ export function BulkActionsToolbar({
       } else {
         toast.success(successLabel(result.ok));
         onSuccess?.();
-        onClear();
+        onClearAction();
         router.refresh();
         close();
       }
@@ -164,7 +164,7 @@ export function BulkActionsToolbar({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Button variant="ghost" size="sm" onClick={onClear}>Clear</Button>
+      <Button variant="ghost" size="sm" onClick={onClearAction}>Clear</Button>
 
       {/* Add tags */}
       {dialog?.kind === "addTags" && (
@@ -220,11 +220,11 @@ export function BulkActionsToolbar({
       {dialog?.kind === "emailListOn" && (
         <ConfirmDialog
           open
-          onOpenChange={(o) => !o && close()}
+          onOpenChangeAction={(o) => !o && close()}
           title={`Mark ${count} as opted in?`}
           description="These clients will be added to the email list and included in promo blasts."
           confirmLabel="Mark opted in"
-          onConfirm={() =>
+          onConfirmAction={() =>
             runBulk(
               () => bulkSetEmailList(selectedIds, true),
               (ok) => `Marked ${ok} client${ok === 1 ? "" : "s"} as opted in`,
@@ -235,11 +235,11 @@ export function BulkActionsToolbar({
       {dialog?.kind === "emailListOff" && (
         <ConfirmDialog
           open
-          onOpenChange={(o) => !o && close()}
+          onOpenChangeAction={(o) => !o && close()}
           title={`Mark ${count} as opted out?`}
           description="These clients will be removed from the email list. (Use Unsubscribe if they explicitly asked off.)"
           confirmLabel="Mark opted out"
-          onConfirm={() =>
+          onConfirmAction={() =>
             runBulk(
               () => bulkSetEmailList(selectedIds, false),
               (ok) => `Marked ${ok} client${ok === 1 ? "" : "s"} as opted out`,
@@ -266,12 +266,12 @@ export function BulkActionsToolbar({
       {dialog?.kind === "unsubscribe" && (
         <ConfirmDialog
           open
-          onOpenChange={(o) => !o && close()}
+          onOpenChangeAction={(o) => !o && close()}
           title={`Unsubscribe ${count} client${count === 1 ? "" : "s"}?`}
           description="They'll be marked as unsubscribed and removed from the email list. Their email is added to the unsubscribe list."
           confirmLabel="Unsubscribe"
           variant="destructive"
-          onConfirm={() =>
+          onConfirmAction={() =>
             runBulk(
               () => bulkUnsubscribeClients(selectedIds),
               (ok) => `Unsubscribed ${ok} client${ok === 1 ? "" : "s"}`,
@@ -284,12 +284,12 @@ export function BulkActionsToolbar({
       {dialog?.kind === "delete" && (
         <ConfirmDialog
           open
-          onOpenChange={(o) => !o && close()}
+          onOpenChangeAction={(o) => !o && close()}
           title={`Delete ${count} client${count === 1 ? "" : "s"}?`}
           description="They'll be soft-deleted and hidden from views. Managers can restore them from Settings."
           confirmLabel="Delete"
           variant="destructive"
-          onConfirm={() =>
+          onConfirmAction={() =>
             runBulk(
               () => bulkDeleteClients(selectedIds),
               (ok) => `Deleted ${ok} client${ok === 1 ? "" : "s"}`,

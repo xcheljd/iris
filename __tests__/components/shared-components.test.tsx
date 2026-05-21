@@ -12,11 +12,11 @@ import { EmptyState } from "@/components/empty-state";
 describe("ConfirmDialog", () => {
   const defaults = {
     open: true,
-    onOpenChange: vi.fn(),
+    onOpenChangeAction: vi.fn(),
     title: "Delete item?",
     description: "This action cannot be undone.",
     confirmLabel: "Delete",
-    onConfirm: vi.fn(),
+    onConfirmAction: vi.fn(),
   };
 
   it("renders title and description when open=true", () => {
@@ -30,12 +30,12 @@ describe("ConfirmDialog", () => {
     expect(screen.getByRole("button", { name: "Confirm" })).toBeInTheDocument();
   });
 
-  it("calls onConfirm when confirm button is clicked", async () => {
-    const onConfirm = vi.fn();
+  it("calls onConfirmAction when confirm button is clicked", async () => {
+    const onConfirmAction = vi.fn();
     const user = userEvent.setup();
-    render(<ConfirmDialog {...defaults} onConfirm={onConfirm} />);
+    render(<ConfirmDialog {...defaults} onConfirmAction={onConfirmAction} />);
     await user.click(screen.getByRole("button", { name: "Delete" }));
-    expect(onConfirm).toHaveBeenCalledOnce();
+    expect(onConfirmAction).toHaveBeenCalledOnce();
   });
 
   it("renders a Cancel button", () => {
@@ -63,7 +63,7 @@ describe("PaginationFooter", () => {
   const defaults = {
     currentPage: 1,
     totalPages: 5,
-    onPageChange: vi.fn(),
+    onPageChangeAction: vi.fn(),
     totalItems: 50,
     pageSize: 10,
     itemLabel: "clients",
@@ -112,7 +112,7 @@ describe("PaginationFooter", () => {
         {...defaults}
         currentPage={2}
         totalPages={5}
-        onPageChange={onPageChange}
+        onPageChangeAction={onPageChange}
       />,
     );
     await user.click(screen.getByRole("button", { name: "Go to previous page" }));
@@ -148,7 +148,7 @@ describe("PaginationFooter", () => {
 describe("SearchInput", () => {
   it("renders input with value and placeholder", () => {
     render(
-      <SearchInput value="hello" onChange={vi.fn()} placeholder="Find…" />,
+      <SearchInput value="hello" onChangeAction={vi.fn()} placeholder="Find…" />,
     );
     const input = screen.getByPlaceholderText("Find…") as HTMLInputElement;
     expect(input).toBeInTheDocument();
@@ -158,7 +158,7 @@ describe("SearchInput", () => {
   it("calls onChange when typing", async () => {
     const onChange = vi.fn();
     const user = userEvent.setup();
-    render(<SearchInput value="" onChange={onChange} />);
+    render(<SearchInput value="" onChangeAction={onChange} />);
     await user.type(screen.getByRole("textbox"), "ab");
     // called once per character
     expect(onChange).toHaveBeenCalledTimes(2);
@@ -167,19 +167,19 @@ describe("SearchInput", () => {
   });
 
   it("shows clear button when value is non-empty", () => {
-    render(<SearchInput value="search term" onChange={vi.fn()} />);
+    render(<SearchInput value="search term" onChangeAction={vi.fn()} />);
     expect(screen.getByLabelText("Clear search")).toBeInTheDocument();
   });
 
   it("hides clear button when value is empty", () => {
-    render(<SearchInput value="" onChange={vi.fn()} />);
+    render(<SearchInput value="" onChangeAction={vi.fn()} />);
     expect(screen.queryByLabelText("Clear search")).not.toBeInTheDocument();
   });
 
   it('calls onChange("") when clear button is clicked', async () => {
     const onChange = vi.fn();
     const user = userEvent.setup();
-    render(<SearchInput value="term" onChange={onChange} />);
+    render(<SearchInput value="term" onChangeAction={onChange} />);
     await user.click(screen.getByLabelText("Clear search"));
     expect(onChange).toHaveBeenCalledWith("");
   });

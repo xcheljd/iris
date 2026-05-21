@@ -67,12 +67,39 @@ describe("model catalog", () => {
     expect(row.flaggedCollection).toBeNull(); // manual never flags
   });
 
-  it("promo source is authoritative and overwrites", () => {
+  it("promo overwrites a manual (provisional) row", () => {
     const model = `CAT-${Date.now()}-P`;
     catalogModels.push(model);
     recordModelCollection(db, model, "Solaris", "manual");
     recordModelCollection(db, model, "Sentinel", "promo");
     expect(getCatalogMap()[model]).toBe("Sentinel");
+    const row = db.select().from(modelCatalog).where(eq(modelCatalog.model, model)).get()!;
+    expect(row.source).toBe("promo");
+    expect(row.needsReview).toBe(false);
+  });
+
+  it("promo does NOT overwrite an existing promo row when they disagree — it flags", () => {
+    const model = `CAT-${Date.now()}-PP`;
+    catalogModels.push(model);
+    recordModelCollection(db, model, "SENTINEL DEEP", "promo");
+    const res = recordModelCollection(db, model, "SENTINEL TIDE", "promo");
+    expect(res.flagged).toEqual({ model, curated: "SENTINEL DEEP", attempted: "SENTINEL TIDE" });
+    const row = db.select().from(modelCatalog).where(eq(modelCatalog.model, model)).get()!;
+    expect(row.collection).toBe("SENTINEL DEEP"); // unchanged — sticky
+    expect(row.flaggedCollection).toBe("SENTINEL TIDE");
+    expect(row.flaggedSource).toBe("promo");
+  });
+
+  it("promo-vs-promo agreement is a no-op (case-insensitive)", () => {
+    const model = `CAT-${Date.now()}-PA`;
+    catalogModels.push(model);
+    recordModelCollection(db, model, "SENTINEL", "promo");
+    const before = db.select().from(modelCatalog).where(eq(modelCatalog.model, model)).get()!;
+    const res = recordModelCollection(db, model, "sentinel", "promo");
+    expect(res).toEqual({});
+    const after = db.select().from(modelCatalog).where(eq(modelCatalog.model, model)).get()!;
+    expect(after.updatedAt.getTime()).toBe(before.updatedAt.getTime()); // no write
+    expect(after.flaggedCollection).toBeNull();
   });
 
   it("ignores entries missing model or collection", () => {

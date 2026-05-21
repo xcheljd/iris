@@ -44,6 +44,9 @@ export function CollectionsCsvExportDialog({ open, onOpenChange, selectedCollect
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<CollectionsCsvExportResult | null>(null);
 
+  const scopeMode = scope.mode;
+  const scopeCollection = (scope as { collection?: string }).collection;
+  const scopeQuery = (scope as { query?: string }).query;
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -57,7 +60,11 @@ export function CollectionsCsvExportDialog({ open, onOpenChange, selectedCollect
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [open, scope.mode, (scope as { collection?: string }).collection, (scope as { query?: string }).query]);
+    // scope is destructured into stable primitives above so the effect
+    // doesn't refire on every render. `scope` itself is intentionally
+    // excluded — its object identity changes per render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, scopeMode, scopeCollection, scopeQuery]);
 
   const csv = data?.csv ?? "";
   const rowCount = data?.rowCount ?? 0;

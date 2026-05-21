@@ -148,13 +148,13 @@ export function AnalyticsContent({ stats, recentOutreach, employees, selectedEmp
             )}
             <DatePicker
               date={dateFrom}
-              onSelect={(d) => { setDateFrom(d); setOutreachPage(1); }}
+              onSelectAction={(d) => { setDateFrom(d); setOutreachPage(1); }}
               placeholder="From"
             />
             <span className="text-muted-foreground text-sm">to</span>
             <DatePicker
               date={dateTo}
-              onSelect={(d) => { setDateTo(d); setOutreachPage(1); }}
+              onSelectAction={(d) => { setDateTo(d); setOutreachPage(1); }}
               placeholder="To"
             />
             {(dateFrom || dateTo) && (

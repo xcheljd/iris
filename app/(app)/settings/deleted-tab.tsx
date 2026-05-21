@@ -115,7 +115,7 @@ export function DeletedTab({ deletedClients, isManager }: DeletedTabProps) {
             <PaginationFooter
               currentPage={page}
               totalPages={totalPages}
-              onPageChange={setPage}
+              onPageChangeAction={setPage}
               totalItems={deletedClients.length}
               pageSize={PAGE_SIZE}
               itemLabel="clients"
@@ -127,21 +127,21 @@ export function DeletedTab({ deletedClients, isManager }: DeletedTabProps) {
 
       <ConfirmDialog
         open={!!restoreTarget}
-        onOpenChange={(open) => !open && setRestoreTarget(null)}
+        onOpenChangeAction={(open) => !open && setRestoreTarget(null)}
         title="Restore Client"
         description={<>Are you sure you want to restore <strong>{restoreTarget?.firstName} {restoreTarget?.lastName}</strong>? They will reappear in the client list with their previous status.</>}
         confirmLabel="Restore"
-        onConfirm={handleRestore}
+        onConfirmAction={handleRestore}
       />
 
       <ConfirmDialog
         open={!!purgeTarget}
-        onOpenChange={(open) => !open && setPurgeTarget(null)}
+        onOpenChangeAction={(open) => !open && setPurgeTarget(null)}
         title="Permanently Delete Client"
         description={<>Are you sure you want to permanently delete <strong>{purgeTarget?.firstName} {purgeTarget?.lastName}</strong>? This permanently removes the client and all their data. This cannot be undone.</>}
         confirmLabel="Purge"
         variant="destructive"
-        onConfirm={handlePurge}
+        onConfirmAction={handlePurge}
       />
     </>
   );

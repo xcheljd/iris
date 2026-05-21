@@ -43,14 +43,19 @@ describe("exportMatchedClientsCsv", () => {
     const other = randomUUID();
     clientIds.push(own, other);
 
+    // Associate's client with a model interest → model match.
     db.insert(clients).values({
       id: own, firstName: "Owned", lastName: "A", employeeId: ASSOCIATE_ID,
       phone: "555-1", email: "o@x.com", preferredContact: "text",
       productsOfInterest: [{ model, collection: null, brand: null, intent: "promo" }],
     }).run();
+    // Manager's client with a collection interest → collection match.
+    // (Brand-only interest used to brand-match; commit ffee6fc dropped
+    // brand-level matches, so we exercise the scope/filter logic with a
+    // collection match instead.)
     db.insert(clients).values({
       id: other, firstName: "Mgr", lastName: "B", employeeId: MANAGER_ID,
-      productsOfInterest: [{ model: null, collection: null, brand: "Meridian", intent: "promo" }],
+      productsOfInterest: [{ model: null, collection, brand: null, intent: "promo" }],
     }).run();
 
     await createPromo(model, collection, "Meridian");
@@ -65,10 +70,10 @@ describe("exportMatchedClientsCsv", () => {
     expect(ownRow).toBeDefined();
     expect(ownRow).toContain(",Owned,A,");
     expect(ownRow!.endsWith(",model")).toBe(true);
-    const brandRow = lines.find((l) => l.startsWith(`${other},`));
-    expect(brandRow!.endsWith(",brand")).toBe(true);
+    const otherRow = lines.find((l) => l.startsWith(`${other},`));
+    expect(otherRow!.endsWith(",collection")).toBe(true);
 
-    // Filter scope: only model matches → excludes the brand row.
+    // Filter scope: only model matches → excludes the collection row.
     const filtered = await exportMatchedClientsCsv({ mode: "filter", owners: [], matchTypes: ["model"], brands: [] });
     expect(filtered.csv).toContain(`${own},`);
     expect(filtered.csv).not.toContain(`${other},`);

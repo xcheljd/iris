@@ -2,6 +2,9 @@
 const nextConfig = {
   typescript: { ignoreBuildErrors: false },
   serverExternalPackages: ["better-sqlite3"],
+  // RVX Selling Analysis (Client=All) is ~13MB. Default Server Action body
+  // limit is 1MB, which silently 413s before reaching the action.
+  experimental: { serverActions: { bodySizeLimit: "25mb" } },
   async headers() {
     return [
       {

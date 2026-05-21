@@ -14,6 +14,11 @@ export type CatalogImportAnalysis = {
   // Sample of collection changes RVX will overwrite (model: old → new).
   collectionChanges: { model: string; from: string; to: string }[];
   parseErrors: string[];
+  // Heuristic narrowness check: how many already-curated models the new
+  // file is missing. If high vs the existing curated count, the manager
+  // likely ran the report with too narrow a filter (e.g. Client != All).
+  prevCuratedCount: number;
+  prevCuratedMissingFromFile: number;
 };
 
 function diffRow(
@@ -37,11 +42,12 @@ function existingIndex() {
       collection: modelCatalog.collection,
       brand: modelCatalog.brand,
       msrp: modelCatalog.msrp,
+      source: modelCatalog.source,
     })
     .from(modelCatalog)
     .all();
-  const m = new Map<string, { collection: string; brand: string | null; msrp: number | null }>();
-  for (const r of rows) m.set(r.model, { collection: r.collection, brand: r.brand ?? null, msrp: r.msrp ?? null });
+  const m = new Map<string, { collection: string; brand: string | null; msrp: number | null; source: string }>();
+  for (const r of rows) m.set(r.model, { collection: r.collection, brand: r.brand ?? null, msrp: r.msrp ?? null, source: r.source });
   return m;
 }
 
@@ -57,7 +63,9 @@ export async function analyzeCatalogRvx(
     const idx = existingIndex();
     let newCount = 0, updatedCount = 0, unchangedCount = 0;
     const collectionChanges: CatalogImportAnalysis["collectionChanges"] = [];
+    const filModels = new Set<string>();
     for (const row of rows) {
+      filModels.add(row.model);
       const ex = idx.get(row.model);
       const d = diffRow(row, ex);
       if (d === "new") newCount++;
@@ -67,7 +75,19 @@ export async function analyzeCatalogRvx(
           collectionChanges.push({ model: row.model, from: ex.collection, to: row.collection });
       } else unchangedCount++;
     }
-    return { total: rows.length, newCount, updatedCount, unchangedCount, collectionChanges, parseErrors };
+    let prevCuratedCount = 0;
+    let prevCuratedMissingFromFile = 0;
+    for (const [model, ex] of idx) {
+      if (ex.source !== "curated") continue;
+      prevCuratedCount++;
+      if (!filModels.has(model)) prevCuratedMissingFromFile++;
+    }
+    return {
+      total: rows.length,
+      newCount, updatedCount, unchangedCount,
+      collectionChanges, parseErrors,
+      prevCuratedCount, prevCuratedMissingFromFile,
+    };
   } catch (err) {
     console.error("analyzeCatalogRvx failed:", err);
     return { error: "Failed to analyze the catalog file. Please try again." };

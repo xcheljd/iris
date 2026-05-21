@@ -170,7 +170,7 @@ function SpotlightTooltip({
       // so the tooltip positions relative to the top portion rather than the full extent.
       const vh = window.innerHeight;
       const clampThreshold = vh * 0.7;
-      let top = rect.top;
+      const top = rect.top;
       let height = rect.height;
       if (rect.height > clampThreshold) {
         height = Math.min(rect.height, 80);

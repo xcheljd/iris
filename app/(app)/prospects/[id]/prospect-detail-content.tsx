@@ -198,7 +198,7 @@ export function ProspectDetailContent({
       <GraduateProspectDialog
         prospect={toProspectListRow(prospect)}
         open={graduateOpen}
-        onOpenChange={setGraduateOpen}
+        onOpenChangeAction={setGraduateOpen}
       />
     </div>
   );

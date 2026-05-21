@@ -411,7 +411,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
             <PaginationFooter
               currentPage={overduePage}
               totalPages={overdueTotalPages}
-              onPageChange={setOverduePage}
+              onPageChangeAction={setOverduePage}
               totalItems={overdue.length}
               pageSize={PAGE_SIZE}
               itemLabel="follow-ups"
@@ -441,7 +441,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
             <PaginationFooter
               currentPage={upcomingPage}
               totalPages={upcomingTotalPages}
-              onPageChange={setUpcomingPage}
+              onPageChangeAction={setUpcomingPage}
               totalItems={upcoming.length}
               pageSize={PAGE_SIZE}
               itemLabel="follow-ups"
@@ -474,7 +474,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
             <PaginationFooter
               currentPage={allPage}
               totalPages={allTotalPages}
-              onPageChange={setAllPage}
+              onPageChangeAction={setAllPage}
               totalItems={uniqueAll.length}
               pageSize={PAGE_SIZE}
               itemLabel="follow-ups"

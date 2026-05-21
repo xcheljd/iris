@@ -102,7 +102,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                   description={<>Are you sure you want to remove <strong>{client.firstName} {client.lastName}</strong> from the email list? They will no longer receive marketing emails.</>}
                   confirmLabel="Remove"
                   variant="destructive"
-                  onConfirm={async () => { const r = await toggleEmailList(client.id); if (r?.error) { toast.error(r.error); } else { toast.success("Removed from email list"); } }}
+                  onConfirmAction={async () => { const r = await toggleEmailList(client.id); if (r?.error) { toast.error(r.error); } else { toast.success("Removed from email list"); } }}
                 >
                   <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={(e) => e.preventDefault()}>
                     <Mail className="h-4 w-4 mr-2" /> Remove from Email List
@@ -136,7 +136,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                     title="Unban Customer"
                     description={<>Are you sure you want to unban <strong>{client.firstName} {client.lastName}</strong>? This will restore their status to active.</>}
                     confirmLabel="Unban"
-                    onConfirm={() => unbanClient(client.id).then(() => { toast.success("Customer unbanned"); }).catch(() => { toast.error("Failed to unban"); })}
+                    onConfirmAction={() => unbanClient(client.id).then(() => { toast.success("Customer unbanned"); }).catch(() => { toast.error("Failed to unban"); })}
                   >
                     <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                       <ShieldOff className="h-4 w-4 mr-2" /> Unban Customer
@@ -151,7 +151,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                     title="Resubscribe Customer"
                     description={<>Are you sure you want to resubscribe <strong>{client.firstName} {client.lastName}</strong>? This will allow all forms of contact again.</>}
                     confirmLabel="Resubscribe"
-                    onConfirm={() => resubscribeClient(client.id).then(() => { toast.success("Customer resubscribed"); }).catch(() => { toast.error("Failed to resubscribe"); })}
+                    onConfirmAction={() => resubscribeClient(client.id).then(() => { toast.success("Customer resubscribed"); }).catch(() => { toast.error("Failed to resubscribe"); })}
                   >
                     <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                       <UserCheck className="h-4 w-4 mr-2" /> Resubscribe

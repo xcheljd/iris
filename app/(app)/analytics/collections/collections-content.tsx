@@ -115,7 +115,7 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
               <SearchInput
                 placeholder="Search collections..."
                 value={searchQuery}
-                onChange={setSearchQuery}
+                onChangeAction={setSearchQuery}
                 className="mb-4"
               />
 
@@ -211,7 +211,7 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
                   <PaginationFooter
                     currentPage={clientsPage}
                     totalPages={clientsTotalPages}
-                    onPageChange={setClientsPage}
+                    onPageChangeAction={setClientsPage}
                     totalItems={collectionClients.length}
                     pageSize={PAGE_SIZE}
                     itemLabel="clients"

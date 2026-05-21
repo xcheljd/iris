@@ -5,7 +5,7 @@ import { ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 
 /**
  * Header cell: label + optional sort affordance + optional filter trigger.
- * Sort is opt-in (pass sortKey/onSort); filter is opt-in (pass `filter` slot).
+ * Sort is opt-in (pass sortKey/onSortAction); filter is opt-in (pass `filter` slot).
  * The chevron shows sort direction: up = asc, down = desc, faded = inactive.
  */
 export function ColumnHeader<K extends string>({
@@ -13,14 +13,14 @@ export function ColumnHeader<K extends string>({
   sortKey,
   currentSort,
   currentDir,
-  onSort,
+  onSortAction,
   filter,
 }: {
   label: string;
   sortKey?: K;
   currentSort?: K;
   currentDir?: "asc" | "desc";
-  onSort?: (key: K) => void;
+  onSortAction?: (key: K) => void;
   filter?: ReactNode;
 }) {
   const isActive = sortKey != null && currentSort === sortKey;
@@ -28,7 +28,7 @@ export function ColumnHeader<K extends string>({
     <div className="flex items-center gap-1">
       {sortKey != null ? (
         <button
-          onClick={() => onSort?.(sortKey)}
+          onClick={() => onSortAction?.(sortKey)}
           className="flex items-center gap-1 hover:text-foreground transition-colors"
         >
           {label}

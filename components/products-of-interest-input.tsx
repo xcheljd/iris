@@ -14,7 +14,7 @@ import type { CatalogEntry } from "@/lib/actions/model-catalog";
 
 interface Props {
   value: ProductOfInterest[];
-  onChange: (next: ProductOfInterest[]) => void;
+  onChangeAction: (next: ProductOfInterest[]) => void;
   catalogIndex?: Record<string, CatalogEntry> | null;
   isManager?: boolean;
   collectionSuggestions?: string[];
@@ -46,7 +46,7 @@ function describe(p: ProductOfInterest) {
  */
 export function ProductsOfInterestInput({
   value,
-  onChange,
+  onChangeAction,
   catalogIndex = null,
   isManager = false,
   collectionSuggestions,
@@ -92,7 +92,7 @@ export function ProductsOfInterestInput({
       brand: brand || null,
       intent: it,
     };
-    if (!value.some((p) => keyOf(p) === keyOf(entry))) onChange([...value, entry]);
+    if (!value.some((p) => keyOf(p) === keyOf(entry))) onChangeAction([...value, entry]);
     reset();
   }
 
@@ -117,7 +117,7 @@ export function ProductsOfInterestInput({
   const addDisabled = !intent || (!m && !collection.trim() && !brand) || (brandRequired && !brand);
 
   const remove = (entry: ProductOfInterest) =>
-    onChange(value.filter((p) => keyOf(p) !== keyOf(entry)));
+    onChangeAction(value.filter((p) => keyOf(p) !== keyOf(entry)));
 
   return (
     <div className="space-y-3">

@@ -264,7 +264,7 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
           <SearchInput
             placeholder="Search by name, email, or phone..."
             value={searchQuery}
-            onChange={(v) => { setSearchQuery(v); setPage(1); }}
+            onChangeAction={(v) => { setSearchQuery(v); setPage(1); }}
           />
         </CardHeader>
         <CardContent>
@@ -389,7 +389,7 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
             <PaginationFooter
               currentPage={page}
               totalPages={totalPages}
-              onPageChange={setPage}
+              onPageChangeAction={setPage}
               totalItems={filteredBanned.length}
               pageSize={PAGE_SIZE}
               itemLabel="records"
@@ -403,7 +403,7 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
       {isManager && (
       <ConfirmDialog
         open={!!unbanTarget}
-        onOpenChange={(open) => !open && setUnbanTarget(null)}
+        onOpenChangeAction={(open) => !open && setUnbanTarget(null)}
         title="Unban Customer"
         description={
           <>
@@ -415,7 +415,7 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
           </>
         }
         confirmLabel="Unban"
-        onConfirm={() => unbanTarget && handleUnban(unbanTarget)}
+        onConfirmAction={() => unbanTarget && handleUnban(unbanTarget)}
       />
       )}
       </div>

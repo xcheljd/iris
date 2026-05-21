@@ -247,7 +247,7 @@ export function ApprovalsContent({ requests: initialRequests }: ApprovalsContent
       {/* Confirm Dialog */}
       <ConfirmDialog
         open={!!confirmAction}
-        onOpenChange={(open) => !open && setConfirmAction(null)}
+        onOpenChangeAction={(open) => !open && setConfirmAction(null)}
         title={
           confirmAction?.action === "approve"
             ? "Approve Request"
@@ -262,7 +262,7 @@ export function ApprovalsContent({ requests: initialRequests }: ApprovalsContent
           </>
         }
         confirmLabel={confirmAction?.action === "approve" ? "Approve" : "Reject"}
-        onConfirm={() =>
+        onConfirmAction={() =>
           confirmAction &&
           handleReview(confirmAction.id, confirmAction.action === "approve")
         }

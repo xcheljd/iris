@@ -317,7 +317,7 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
             <SearchInput
               placeholder="Search employees..."
               value={employeeSearch}
-              onChange={setEmployeeSearch}
+              onChangeAction={setEmployeeSearch}
               className="max-w-sm flex-1"
             />
             <label className="flex items-center gap-2 text-sm whitespace-nowrap">
@@ -571,7 +571,7 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
       {/* Delete (soft) — only enabled from the dropdown when inactive */}
       <ConfirmDialog
         open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onOpenChangeAction={(open) => !open && setDeleteTarget(null)}
         title={`Delete ${deleteTarget ? fullName(deleteTarget) : "employee"}?`}
         description={
           <>
@@ -582,7 +582,7 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
         }
         confirmLabel="Delete"
         variant="destructive"
-        onConfirm={handleDelete}
+        onConfirmAction={handleDelete}
       />
 
       {/* Edit Employee Dialog */}

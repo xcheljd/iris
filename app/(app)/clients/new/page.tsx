@@ -162,21 +162,21 @@ export default function AddClientPage() {
             formData={formData}
             productsOfInterest={productsOfInterest}
             newTag={newTag}
-            onFieldChange={handleFieldChange}
-            onNewTagChange={setNewTag}
-            onProductsChange={setProductsOfInterest}
-            onAddTag={handleAddTag}
-            onRemoveTag={handleRemoveTag}
+            onFieldChangeAction={handleFieldChange}
+            onNewTagChangeAction={setNewTag}
+            onProductsChangeAction={setProductsOfInterest}
+            onAddTagAction={handleAddTag}
+            onRemoveTagAction={handleRemoveTag}
             showDuplicateWarning={showDuplicateWarning}
             duplicateClient={duplicateClient}
-            onDismissDuplicate={() => setShowDuplicateWarning(false)}
-            onEditExisting={handleEditExisting}
-            onMergeWithDuplicate={duplicateClient ? handleMergeWithDuplicate : undefined}
+            onDismissDuplicateAction={() => setShowDuplicateWarning(false)}
+            onEditExistingAction={handleEditExisting}
+            onMergeWithDuplicateAction={duplicateClient ? handleMergeWithDuplicate : undefined}
             showCommonTags
             isLoading={isPending}
             submitLabel="Create Client"
-            onSubmit={handleSubmit}
-            onCancel={() => router.back()}
+            onSubmitAction={handleSubmit}
+            onCancelAction={() => router.back()}
           />
           {duplicateClient && (
             <MergeFromFormDialog
@@ -184,8 +184,8 @@ export default function AddClientPage() {
               formData={formData}
               productsOfInterest={productsOfInterest}
               open={mergeDialogOpen}
-              onOpenChange={setMergeDialogOpen}
-              onMerged={(winnerId) => router.push(`/clients/${winnerId}`)}
+              onOpenChangeAction={setMergeDialogOpen}
+              onMergedAction={(winnerId) => router.push(`/clients/${winnerId}`)}
             />
           )}
         </div>

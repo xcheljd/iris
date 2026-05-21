@@ -23,15 +23,15 @@ export function MergeFromFormDialog({
   formData,
   productsOfInterest,
   open,
-  onOpenChange,
-  onMerged,
+  onOpenChangeAction,
+  onMergedAction,
 }: {
   existingClientId: string;
   formData: ClientFormData;
   productsOfInterest: ProductOfInterest[];
   open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onMerged: (winnerId: string) => void;
+  onOpenChangeAction: (open: boolean) => void;
+  onMergedAction: (winnerId: string) => void;
 }) {
   const [existingClient, setExistingClient] = useState<MergeableClient | null>(null);
   const [choices, setChoices] = useState<Record<string, "a" | "b">>({});
@@ -83,14 +83,14 @@ export function MergeFromFormDialog({
         toast.error(result.error);
       } else {
         toast.success("Records merged successfully");
-        onOpenChange(false);
-        onMerged(existingClientId);
+        onOpenChangeAction(false);
+        onMergedAction(existingClientId);
       }
     });
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChangeAction}>
       <DialogContent className="max-w-2xl flex flex-col max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -122,7 +122,7 @@ export function MergeFromFormDialog({
         )}
 
         <DialogFooter className="pt-2 border-t">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" onClick={() => onOpenChangeAction(false)}>
             Cancel
           </Button>
           <Button type="button" disabled={pending || !existingClient} onClick={handleMerge}>

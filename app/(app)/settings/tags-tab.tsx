@@ -186,11 +186,11 @@ export function SettingsTagsTab({ tags: initialTags, isManager }: SettingsTagsTa
       {isManager && (
       <ConfirmDialog
         open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onOpenChangeAction={(open) => !open && setDeleteTarget(null)}
         title="Delete Tag"
         description={<>Are you sure you want to delete the <strong>{deleteTarget?.name}</strong> tag? This will remove it from all clients.</>}
         confirmLabel="Delete"
-        onConfirm={() => deleteTarget && handleDelete(deleteTarget.id)}
+        onConfirmAction={() => deleteTarget && handleDelete(deleteTarget.id)}
         variant="destructive"
       />
       )}

@@ -293,7 +293,7 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
                   <SearchInput
                     placeholder="Search within list..."
                     value={searchQuery}
-                    onChange={(v) => { setSearchQuery(v); setClientPage(1); }}
+                    onChangeAction={(v) => { setSearchQuery(v); setClientPage(1); }}
                   />
                   {filteredClients.length === 0 ? (
                     <EmptyState icon={Users} description="No clients match this filter" compact />
@@ -307,7 +307,7 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
                   <PaginationFooter
                     currentPage={clientPage}
                     totalPages={totalPages}
-                    onPageChange={setClientPage}
+                    onPageChangeAction={setClientPage}
                     totalItems={filteredClients.length}
                     pageSize={PAGE_SIZE}
                     itemLabel="clients"
@@ -333,11 +333,11 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
 
         <ConfirmDialog
           open={!!deleteTarget}
-          onOpenChange={(open) => !open && setDeleteTarget(null)}
+          onOpenChangeAction={(open) => !open && setDeleteTarget(null)}
           title="Delete Smart List?"
           description={`This will permanently delete "${deleteTarget?.name}". This action cannot be undone.`}
           confirmLabel={isPending ? "Deleting..." : "Delete"}
-          onConfirm={handleDelete}
+          onConfirmAction={handleDelete}
           variant="destructive"
           disabled={isPending}
         />

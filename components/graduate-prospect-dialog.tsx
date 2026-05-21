@@ -24,7 +24,7 @@ import { useCatalog } from "@/components/use-catalog";
 interface GraduateProspectDialogProps {
   prospect: ProspectListRow;
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChangeAction: (open: boolean) => void;
 }
 
 type Step = "enrich" | "duplicate";
@@ -32,7 +32,7 @@ type Step = "enrich" | "duplicate";
 export function GraduateProspectDialog({
   prospect,
   open,
-  onOpenChange,
+  onOpenChangeAction,
 }: GraduateProspectDialogProps) {
   const [step, setStep] = useState<Step>("enrich");
   const [pending, startTransition] = useTransition();
@@ -52,7 +52,7 @@ export function GraduateProspectDialog({
   const [duplicateClientName, setDuplicateClientName] = useState("");
 
   const handleClose = () => {
-    onOpenChange(false);
+    onOpenChangeAction(false);
     setStep("enrich");
   };
 
@@ -194,7 +194,7 @@ export function GraduateProspectDialog({
                 )}
                 <ProductsOfInterestInput
                   value={productsOfInterest}
-                  onChange={setProductsOfInterest}
+                  onChangeAction={setProductsOfInterest}
                   catalogIndex={catalogIndex}
                   isManager={isManager}
                 />

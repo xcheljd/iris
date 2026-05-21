@@ -78,7 +78,7 @@ export function ProspectActionsMenu({ prospect }: ProspectActionsMenuProps) {
       <GraduateProspectDialog
         prospect={prospect}
         open={graduateOpen}
-        onOpenChange={setGraduateOpen}
+        onOpenChangeAction={setGraduateOpen}
       />
     </>
   );

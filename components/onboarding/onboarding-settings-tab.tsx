@@ -194,7 +194,7 @@ export function OnboardingSettingsTab({ initialState }: OnboardingSettingsTabPro
       {/* Confirmation dialog */}
       <ConfirmDialog
         open={confirmOpen}
-        onOpenChange={setConfirmOpen}
+        onOpenChangeAction={setConfirmOpen}
         title={showReplay ? "Replay Tour?" : "Start Tour?"}
         description={
           showReplay
@@ -202,7 +202,7 @@ export function OnboardingSettingsTab({ initialState }: OnboardingSettingsTabPro
             : "This will start a guided tour of the app from the beginning."
         }
         confirmLabel={showReplay ? "Replay" : "Start"}
-        onConfirm={handleConfirm}
+        onConfirmAction={handleConfirm}
         disabled={resetting}
       />
     </div>

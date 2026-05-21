@@ -258,7 +258,7 @@ export function AnalyticsOutreachTab({
           <PaginationFooter
             currentPage={page}
             totalPages={totalPages}
-            onPageChange={setPage}
+            onPageChangeAction={setPage}
             totalItems={totalFiltered}
             pageSize={20}
             itemLabel="records"

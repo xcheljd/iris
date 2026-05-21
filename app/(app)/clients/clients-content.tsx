@@ -297,7 +297,7 @@ export function ClientListContent({
         {/* Bulk actions */}
         <BulkActionsToolbar
           selectedIds={Array.from(selected)}
-          onClear={() => setSelected(new Set())}
+          onClearAction={() => setSelected(new Set())}
           allTags={allTags}
           owners={employeeOptions}
           isManager={currentUserRole === "manager"}
@@ -323,7 +323,7 @@ export function ClientListContent({
                     sortKey="name"
                     currentSort={currentFilters.sort}
                     currentDir={currentFilters.sortDir}
-                    onSort={handleSort}
+                    onSortAction={handleSort}
                     filter={
                       <ColumnFilterPopover
                         label="Name"
@@ -363,7 +363,7 @@ export function ClientListContent({
                     sortKey="heat"
                     currentSort={currentFilters.sort}
                     currentDir={currentFilters.sortDir}
-                    onSort={handleSort}
+                    onSortAction={handleSort}
                     filter={
                       <ColumnFilterPopover
                         label="Heat"
@@ -409,7 +409,7 @@ export function ClientListContent({
                     sortKey="owner"
                     currentSort={currentFilters.sort}
                     currentDir={currentFilters.sortDir}
-                    onSort={handleSort}
+                    onSortAction={handleSort}
                     filter={
                       <ColumnFilterPopover
                         label="Owner"
@@ -436,7 +436,7 @@ export function ClientListContent({
                     sortKey="lastContact"
                     currentSort={currentFilters.sort}
                     currentDir={currentFilters.sortDir}
-                    onSort={handleSort}
+                    onSortAction={handleSort}
                   />
                 </TableHead>
                 <TableHead className="w-10"><span className="sr-only">Actions</span></TableHead>
@@ -531,7 +531,7 @@ export function ClientListContent({
         <PaginationFooter
           currentPage={currentFilters.page}
           totalPages={totalPages}
-          onPageChange={(p) => navigate({ page: p })}
+          onPageChangeAction={(p) => navigate({ page: p })}
           totalItems={total}
           pageSize={PAGE_SIZE}
           itemLabel="clients"
@@ -540,12 +540,12 @@ export function ClientListContent({
 
       <ConfirmDialog
         open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onOpenChangeAction={(open) => !open && setDeleteTarget(null)}
         title="Delete Client"
         description={<>Are you sure you want to delete <strong>{deleteTarget?.client.firstName} {deleteTarget?.client.lastName}</strong>? This hides the client from all views. It can be restored by a manager from Settings.</>}
         confirmLabel="Delete"
         variant="destructive"
-        onConfirm={handleDelete}
+        onConfirmAction={handleDelete}
       />
 
       <EmailRecipientsDialog

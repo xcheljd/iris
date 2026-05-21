@@ -205,7 +205,7 @@ export function MatchedClientsTab({ clients, isManager, currentUserId }: Props) 
             <PaginationFooter
               currentPage={current}
               totalPages={totalPages}
-              onPageChange={setPage}
+              onPageChangeAction={setPage}
               totalItems={rows.length}
               pageSize={PAGE_SIZE}
               variant="icons"

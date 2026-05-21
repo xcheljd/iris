@@ -132,5 +132,17 @@ export function parseRvxCatalogXml(xml: string): CatalogParseResult {
   }
 
   if (!header) return { rows: [], parseErrors: ['No header row (could not find a "Vendor Style" column)'] };
-  return { rows: out, parseErrors };
+
+  // RVX emits one row per (style, color-code) tuple. With a wider client
+  // filter the same Vendor Style can repeat across colors — the model
+  // catalog is keyed by Vendor Style alone, so dedupe here and prefer
+  // whichever copy has the most information (non-null brand, then msrp).
+  const byModel = new Map<string, CatalogImportRow>();
+  for (const r of out) {
+    const cur = byModel.get(r.model);
+    if (!cur) { byModel.set(r.model, r); continue; }
+    const score = (x: CatalogImportRow) => (x.brand ? 2 : 0) + (x.msrp != null ? 1 : 0);
+    if (score(r) > score(cur)) byModel.set(r.model, r);
+  }
+  return { rows: [...byModel.values()], parseErrors };
 }

@@ -161,7 +161,7 @@ export function OutreachLogger({
 
           <div className="space-y-2">
             <Label>Follow-up date (optional)</Label>
-            <DatePicker date={followUp ?? undefined} onSelect={(d) => setFollowUp(d ?? null)} />
+            <DatePicker date={followUp ?? undefined} onSelectAction={(d) => setFollowUp(d ?? null)} />
             <div className="flex flex-wrap gap-2">
               {quickFollowUpPresets.map((p) => (
                 <Button key={p.label} type="button" variant="outline" size="sm" onClick={() => quickPick(p.days)}>

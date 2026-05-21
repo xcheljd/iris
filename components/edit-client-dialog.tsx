@@ -130,19 +130,19 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
             formData={formData}
             productsOfInterest={productsOfInterest}
             newTag={newTag}
-            onFieldChange={handleFieldChange}
-            onNewTagChange={setNewTag}
-            onProductsChange={setProductsOfInterest}
-            onAddTag={handleAddTag}
-            onRemoveTag={handleRemoveTag}
+            onFieldChangeAction={handleFieldChange}
+            onNewTagChangeAction={setNewTag}
+            onProductsChangeAction={setProductsOfInterest}
+            onAddTagAction={handleAddTag}
+            onRemoveTagAction={handleRemoveTag}
             showDuplicateWarning={showDuplicateWarning}
             duplicateClient={duplicateClient}
-            onDismissDuplicate={() => setShowDuplicateWarning(false)}
-            onEditExisting={() => { setOpen(false); window.location.href = `/clients/${duplicateClient!.id}`; }}
+            onDismissDuplicateAction={() => setShowDuplicateWarning(false)}
+            onEditExistingAction={() => { setOpen(false); window.location.href = `/clients/${duplicateClient!.id}`; }}
             isLoading={isPending}
             submitLabel="Save Changes"
-            onSubmit={handleSubmit}
-            onCancel={() => setOpen(false)}
+            onSubmitAction={handleSubmit}
+            onCancelAction={() => setOpen(false)}
           />
         </ScrollArea>
       </DialogContent>

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { modelCatalog, type ProductOfInterest } from "@/lib/db/schema";
+import { modelCatalog, type ProductOfInterest, type Brand } from "@/lib/db/schema";
 import { normalizeModel } from "@/lib/normalize";
 
 // drizzle better-sqlite3 transaction handle (same shape as `db`).
@@ -19,9 +19,12 @@ export type CatalogFlagged = {
  * Precedence: curated > promo > manual.
  *  - `curated` (manager correction) is authoritative: always (re)writes
  *    and clears any pending flag.
- *  - `promo` overwrites a `promo`/`manual` row, but NEVER a `curated` one
- *    — a disagreeing promo import records the latest pending conflict in
- *    the flagged* columns and returns `{ flagged }` for review.
+ *  - `promo` overwrites a `manual` row (manual is provisional). It does
+ *    NOT overwrite a `curated` row OR a `promo` row — HQ relabels the
+ *    same SKU week-to-week, and silent overwrites would erase the
+ *    catalog's stability. A disagreeing promo records the pending
+ *    conflict in the flagged* columns and returns `{ flagged }` for
+ *    review; the catalog row stays put until a manager resolves it.
  *  - `manual` only fills when the model is unknown; it never overwrites.
  *    A disagreeing manual entry keeps the stored value and returns
  *    `{ conflict }`.
@@ -66,25 +69,21 @@ export function recordModelCollection(
   }
 
   if (source === "promo") {
-    if (existing.source === "curated") {
-      // Never overwrite a manager correction; record the latest pending
-      // conflict for review when it actually disagrees.
-      if (existing.collection.toUpperCase() !== c.toUpperCase()) {
-        tx.update(modelCatalog)
-          .set({ flaggedCollection: c, flaggedSource: "promo", flaggedAt: new Date() })
-          .where(eq(modelCatalog.model, m))
-          .run();
-        return { flagged: { model: m, curated: existing.collection, attempted: c } };
-      }
-      return {};
-    }
-    if (existing.collection !== c || existing.source !== "promo") {
+    // Promo doesn't touch a curated or prior promo row — both are sticky.
+    // Manual is provisional and gets overwritten.
+    if (existing.source === "manual") {
       tx.update(modelCatalog)
-        .set({ collection: c, source: "promo", updatedAt: new Date() })
+        .set({ collection: c, source: "promo", needsReview: false, updatedAt: new Date() })
         .where(eq(modelCatalog.model, m))
         .run();
+      return {};
     }
-    return {};
+    if (existing.collection.toUpperCase() === c.toUpperCase()) return {};
+    tx.update(modelCatalog)
+      .set({ flaggedCollection: c, flaggedSource: "promo", flaggedAt: new Date() })
+      .where(eq(modelCatalog.model, m))
+      .run();
+    return { flagged: { model: m, curated: existing.collection, attempted: c } };
   }
 
   // manual + already known: no-op. The catalog is authoritative and
@@ -116,7 +115,8 @@ export function getCatalogMap(): Record<string, string> {
   return map;
 }
 
-export type CatalogEntry = { collection: string; brand: string | null };
+export type CatalogEntry = { collection: string; brand: Brand | null };
+export type CatalogEntryWithMsrp = { collection: string; brand: Brand | null; msrp: number | null };
 
 /**
  * Model → {collection, brand} index for derive-at-read. Keys are the
@@ -129,5 +129,16 @@ export function getCatalogIndex(): Map<string, CatalogEntry> {
     .all();
   const idx = new Map<string, CatalogEntry>();
   for (const r of rows) idx.set(r.model, { collection: r.collection, brand: r.brand ?? null });
+  return idx;
+}
+
+/** Same as {@link getCatalogIndex} but also carries authoritative MSRP. */
+export function getCatalogIndexWithMsrp(): Map<string, CatalogEntryWithMsrp> {
+  const rows = db
+    .select({ model: modelCatalog.model, collection: modelCatalog.collection, brand: modelCatalog.brand, msrp: modelCatalog.msrp })
+    .from(modelCatalog)
+    .all();
+  const idx = new Map<string, CatalogEntryWithMsrp>();
+  for (const r of rows) idx.set(r.model, { collection: r.collection, brand: r.brand ?? null, msrp: r.msrp ?? null });
   return idx;
 }

@@ -15,12 +15,12 @@ import { analyzeRvxImport, importProspectsFromRvx, type RvxAnalysisResult } from
 
 interface RvxImportDialogProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChangeAction: (open: boolean) => void;
 }
 
 type Step = "upload" | "preview" | "importing" | "done";
 
-export function RvxImportDialog({ open, onOpenChange }: RvxImportDialogProps) {
+export function RvxImportDialog({ open, onOpenChangeAction }: RvxImportDialogProps) {
   const [step, setStep] = useState<Step>("upload");
   const [csvText, setCsvText] = useState<string | null>(null);
   const [fileName, setFileName] = useState("");
@@ -30,7 +30,7 @@ export function RvxImportDialog({ open, onOpenChange }: RvxImportDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleClose = () => {
-    onOpenChange(false);
+    onOpenChangeAction(false);
     setStep("upload");
     setCsvText(null);
     setFileName("");

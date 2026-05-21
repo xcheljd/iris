@@ -39,6 +39,24 @@ describe("catalog RVX import", () => {
     expect(a.collectionChanges).toEqual([{ model, from: "OLDCOLL", to: "BELGRAVE" }]);
   });
 
+  it("analyze flags a narrow RVX export (curated models missing from file)", async () => {
+    // Seed 4 curated models. The new file covers only 1 of them →
+    // 3 missing, well over the 30% threshold the dialog warns on.
+    const stamp = Date.now();
+    const keep = `NRW-K-${stamp}`;
+    const drop = [`NRW-D1-${stamp}`, `NRW-D2-${stamp}`, `NRW-D3-${stamp}`];
+    for (const m of [keep, ...drop]) {
+      models.push(m);
+      db.insert(modelCatalog).values({ model: m, collection: "X", source: "curated", brand: "Ashford", msrp: 100 }).run();
+    }
+    const a = await analyzeCatalogRvx(fixture(keep, "ASH-ASHFORD", "SUT-BELGRAVE", "500"));
+    if ("error" in a) throw new Error(a.error);
+    expect(a.prevCuratedCount).toBeGreaterThanOrEqual(4);
+    expect(a.prevCuratedMissingFromFile).toBeGreaterThanOrEqual(3);
+    // Heuristic check the dialog uses
+    expect(a.prevCuratedMissingFromFile).toBeGreaterThan(a.prevCuratedCount * 0.3);
+  });
+
   it("import upserts authoritatively (collection/brand/msrp, source=curated)", async () => {
     const model = `CIMP2-${Date.now()}`;
     models.push(model);

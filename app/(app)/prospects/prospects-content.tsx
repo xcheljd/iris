@@ -86,7 +86,7 @@ export function ProspectsContent({
       <div className="flex-1 p-4 md:p-6 space-y-4" data-tour="prospects">
         <SearchInput
           value={search}
-          onChange={setSearch}
+          onChangeAction={setSearch}
           placeholder="Search by name, phone, or email..."
           className="max-w-sm"
         />
@@ -120,7 +120,7 @@ export function ProspectsContent({
           </TabsContent>
         </Tabs>
 
-        <RvxImportDialog open={importOpen} onOpenChange={setImportOpen} />
+        <RvxImportDialog open={importOpen} onOpenChangeAction={setImportOpen} />
       </div>
     </>
   );

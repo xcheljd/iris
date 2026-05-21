@@ -11,7 +11,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 interface PaginationFooterProps {
   currentPage: number;
   totalPages: number;
-  onPageChange: (page: number) => void;
+  onPageChangeAction: (page: number) => void;
   totalItems: number;
   pageSize: number;
   itemLabel?: string;
@@ -23,7 +23,7 @@ interface PaginationFooterProps {
 export function PaginationFooter({
   currentPage,
   totalPages,
-  onPageChange,
+  onPageChangeAction,
   totalItems,
   pageSize,
   itemLabel,
@@ -52,7 +52,7 @@ export function PaginationFooter({
             variant="outline"
             size="sm"
             disabled={currentPage <= 1}
-            onClick={() => onPageChange(currentPage - 1)}
+            onClick={() => onPageChangeAction(currentPage - 1)}
             aria-label="Go to previous page"
           >
             {variant === "icons" ? <ChevronLeft className="h-4 w-4" /> : "Previous"}
@@ -66,7 +66,7 @@ export function PaginationFooter({
             variant="outline"
             size="sm"
             disabled={currentPage >= totalPages}
-            onClick={() => onPageChange(currentPage + 1)}
+            onClick={() => onPageChangeAction(currentPage + 1)}
             aria-label="Go to next page"
           >
             {variant === "icons" ? <ChevronRight className="h-4 w-4" /> : "Next"}

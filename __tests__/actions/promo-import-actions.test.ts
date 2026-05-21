@@ -9,16 +9,17 @@ vi.mock("next/cache", () => ({
 }));
 
 import { getServerSession } from "next-auth";
-import { importPromos, clearAllPromos, createPromo } from "@/lib/actions";
+import { importPromos, clearAllPromos, createPromo, resolvePromoRows } from "@/lib/actions";
 
 const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
 const managerSession = { user: { id: MANAGER_ID, name: "Marcus", role: "manager" } };
 import { db } from "@/lib/db";
-import { promoWatches, promoMatches } from "@/lib/db/schema";
+import { promoWatches, promoMatches, modelCatalog } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
 describe("Promo Import Actions", () => {
   const createdPromoIds: string[] = [];
+  const catalogModels: string[] = [];
 
   beforeEach(() => {
     vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
@@ -33,17 +34,21 @@ describe("Promo Import Actions", () => {
         // ignore
       }
     }
+    for (const m of catalogModels) {
+      try { db.delete(modelCatalog).where(eq(modelCatalog.model, m)).run(); } catch { /* ignore */ }
+    }
     createdPromoIds.length = 0;
+    catalogModels.length = 0;
   });
 
   describe("importPromos", () => {
     it("should import multiple valid rows", async () => {
       const prefix = `IMP-${Date.now()}`;
       const result = await importPromos([
-        { modelNumber: `${prefix}-A`, collection: "TestCol1" },
-        { modelNumber: `${prefix}-B`, collection: "TestCol2" },
-        { modelNumber: `${prefix}-C`, collection: "TestCol3" },
-      ], "Meridian");
+        { modelNumber: `${prefix}-A`, collection: "TestCol1", brand: "Meridian" },
+        { modelNumber: `${prefix}-B`, collection: "TestCol2", brand: "Meridian" },
+        { modelNumber: `${prefix}-C`, collection: "TestCol3", brand: "Meridian" },
+      ]);
 
       expect(result.imported).toBe(3);
 
@@ -60,12 +65,12 @@ describe("Promo Import Actions", () => {
     it("should skip rows with empty modelNumber or collection", async () => {
       const prefix = `SKIP-${Date.now()}`;
       const result = await importPromos([
-        { modelNumber: `${prefix}-A`, collection: "ValidCol" },
-        { modelNumber: "", collection: "EmptyModel" },
-        { modelNumber: "   ", collection: "WhitespaceModel" },
-        { modelNumber: `${prefix}-D`, collection: "" },
-        { modelNumber: `${prefix}-E`, collection: "   " },
-      ], "Meridian");
+        { modelNumber: `${prefix}-A`, collection: "ValidCol", brand: "Meridian" },
+        { modelNumber: "", collection: "EmptyModel", brand: "Meridian" },
+        { modelNumber: "   ", collection: "WhitespaceModel", brand: "Meridian" },
+        { modelNumber: `${prefix}-D`, collection: "", brand: "Meridian" },
+        { modelNumber: `${prefix}-E`, collection: "   ", brand: "Meridian" },
+      ]);
 
       expect(result.imported).toBe(1); // Only the first row is valid
 
@@ -79,8 +84,7 @@ describe("Promo Import Actions", () => {
     it("should set promoStart and promoEnd when provided", async () => {
       const prefix = `DATE-${Date.now()}`;
       const result = await importPromos(
-        [{ modelNumber: `${prefix}-A`, collection: "DateCol" }],
-        "Meridian",
+        [{ modelNumber: `${prefix}-A`, collection: "DateCol", brand: "Meridian" }],
         "2026-01-01",
         "2026-06-30"
       );
@@ -100,7 +104,7 @@ describe("Promo Import Actions", () => {
       const { revalidatePath } = await import("next/cache");
       const prefix = `REVAL-${Date.now()}`;
 
-      await importPromos([{ modelNumber: `${prefix}-A`, collection: "RevalCol" }], "Meridian");
+      await importPromos([{ modelNumber: `${prefix}-A`, collection: "RevalCol", brand: "Meridian" }]);
 
       expect(revalidatePath).toHaveBeenCalledWith("/promos");
 
@@ -112,11 +116,115 @@ describe("Promo Import Actions", () => {
 
     it("should return imported count of 0 for all invalid rows", async () => {
       const result = await importPromos([
-        { modelNumber: "", collection: "" },
-        { modelNumber: "   ", collection: "   " },
-      ], "Meridian");
+        { modelNumber: "", collection: "", brand: "Meridian" },
+        { modelNumber: "   ", collection: "   ", brand: "Meridian" },
+      ]);
 
       expect(result.imported).toBe(0);
+    });
+
+    it("uses catalog brand and collection when the model is catalogued, ignoring PDF labels", async () => {
+      const model = `CATKNOWN-${Date.now()}`;
+      catalogModels.push(model);
+      db.insert(modelCatalog).values({
+        model, collection: "SENTINEL DEEP", source: "curated",
+        brand: "Meridian", msrp: 895,
+      }).run();
+
+      const result = await importPromos([
+        // PDF "lies" — different collection/brand from catalog. Catalog wins.
+        { modelNumber: model.toLowerCase(), collection: "SENTINEL TIDE", brand: "Ashford", msrp: 895, discountPrice: 358 },
+      ]);
+      expect("imported" in result && result.imported).toBe(1);
+
+      const promo = db.select().from(promoWatches).where(eq(promoWatches.modelNumber, model)).get()!;
+      createdPromoIds.push(promo.id);
+      expect(promo.collection).toBe("SENTINEL DEEP"); // catalog beat PDF
+      expect(promo.brand).toBe("Meridian");             // catalog beat PDF-row brand
+      // Curated catalog row gets a flag noting the disagreement.
+      const cat = db.select().from(modelCatalog).where(eq(modelCatalog.model, model)).get()!;
+      expect(cat.collection).toBe("SENTINEL DEEP");
+      expect(cat.flaggedCollection).toBe("SENTINEL TIDE");
+    });
+
+    it("uses the per-row brand fallback when the model isn't catalogued", async () => {
+      const model = `CATNEW-${Date.now()}`;
+      catalogModels.push(model);
+
+      const result = await importPromos([
+        { modelNumber: model, collection: "SOLARIS", brand: "Meridian" },
+      ]);
+      expect("imported" in result && result.imported).toBe(1);
+
+      const promo = db.select().from(promoWatches).where(eq(promoWatches.modelNumber, model)).get()!;
+      createdPromoIds.push(promo.id);
+      expect(promo.collection).toBe("SOLARIS");
+      expect(promo.brand).toBe("Meridian");
+      // The promo seeds a new catalog row at source=promo with the PDF collection.
+      const cat = db.select().from(modelCatalog).where(eq(modelCatalog.model, model)).get()!;
+      expect(cat.collection).toBe("SOLARIS");
+      expect(cat.source).toBe("promo");
+    });
+
+    it("imports uncatalogued rows with brand=null when no override is supplied", async () => {
+      const model = `CATNB-${Date.now()}`;
+      catalogModels.push(model);
+
+      const result = await importPromos([
+        { modelNumber: model, collection: "SOLARIS" },
+      ]);
+      expect("imported" in result && result.imported).toBe(1);
+
+      const promo = db.select().from(promoWatches).where(eq(promoWatches.modelNumber, model)).get()!;
+      createdPromoIds.push(promo.id);
+      expect(promo.brand).toBeNull();
+    });
+  });
+
+  describe("resolvePromoRows", () => {
+    it("classifies catalogued, uncatalogued, mismatch, and msrp-low rows", async () => {
+      const ts = Date.now();
+      const ok = `RES-OK-${ts}`;
+      const mismatch = `RES-MM-${ts}`;
+      const low = `RES-LO-${ts}`;
+      const unCat = `RES-NEW-${ts}`;
+      const noBrand = `RES-NB-${ts}`;
+      catalogModels.push(ok, mismatch, low, unCat, noBrand);
+
+      db.insert(modelCatalog).values([
+        { model: ok, collection: "RIVIERA", source: "curated", brand: "Meridian", msrp: 525 },
+        { model: mismatch, collection: "SENTINEL DEEP", source: "curated", brand: "Meridian", msrp: 895 },
+        { model: low, collection: "RIVIERA", source: "curated", brand: "Meridian", msrp: 500 },
+        { model: noBrand, collection: "RIVIERA", source: "promo", brand: null, msrp: null },
+      ]).run();
+
+      const out = await resolvePromoRows([
+        { modelNumber: ok, collection: "RIVIERA", msrp: 525, discountPrice: 210 },
+        { modelNumber: mismatch, collection: "SENTINEL TIDE", msrp: 895, discountPrice: 358 },
+        { modelNumber: low, collection: "RIVIERA", msrp: 250, discountPrice: 200 }, // PDF MSRP below catalog
+        { modelNumber: unCat, collection: "SOLARIS", msrp: 395, discountPrice: 158 },
+        { modelNumber: noBrand, collection: "RIVIERA", msrp: 525, discountPrice: 210 },
+      ]);
+      if ("error" in out) throw new Error(out.error);
+
+      const byModel = Object.fromEntries(out.resolved.map((r) => [r.modelNumber, r]));
+      expect(byModel[ok].isUncatalogued).toBe(false);
+      expect(byModel[ok].collectionMismatch).toBe(false);
+      expect(byModel[ok].msrpLow).toBe(false);
+      expect(byModel[ok].effectiveBrand).toBe("Meridian");
+      expect(byModel[ok].effectiveCollection).toBe("RIVIERA");
+
+      expect(byModel[mismatch].collectionMismatch).toBe(true);
+      expect(byModel[mismatch].effectiveCollection).toBe("SENTINEL DEEP");
+
+      expect(byModel[low].msrpLow).toBe(true);
+
+      expect(byModel[unCat].isUncatalogued).toBe(true);
+      expect(byModel[unCat].effectiveBrand).toBeNull();
+      expect(byModel[unCat].effectiveCollection).toBe("SOLARIS"); // PDF fallback
+
+      // Catalog row exists but brand is null → still treated as uncatalogued.
+      expect(byModel[noBrand].isUncatalogued).toBe(true);
     });
   });
 

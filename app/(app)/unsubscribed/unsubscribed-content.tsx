@@ -296,7 +296,7 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
           <SearchInput
             placeholder="Search by email, name, or customer ID..."
             value={searchQuery}
-            onChange={(v) => { setSearchQuery(v); setPage(1); }}
+            onChangeAction={(v) => { setSearchQuery(v); setPage(1); }}
           />
         </CardHeader>
         <CardContent>
@@ -443,7 +443,7 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
               <PaginationFooter
                 currentPage={page}
                 totalPages={totalPages}
-                onPageChange={setPage}
+                onPageChangeAction={setPage}
                 totalItems={filteredList.length}
                 pageSize={PAGE_SIZE}
                 itemLabel="records"
@@ -457,7 +457,7 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
       {isManager && (
       <ConfirmDialog
         open={!!removeTarget}
-        onOpenChange={(open) => !open && setRemoveTarget(null)}
+        onOpenChangeAction={(open) => !open && setRemoveTarget(null)}
         title="Remove from Unsubscribe List"
         description={
           <>
@@ -467,7 +467,7 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
           </>
         }
         confirmLabel="Remove"
-        onConfirm={() => removeTarget && handleRemove(removeTarget)}
+        onConfirmAction={() => removeTarget && handleRemove(removeTarget)}
         variant="destructive"
       />
       )}
@@ -476,11 +476,11 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
       {isManager && (
       <ConfirmDialog
         open={batchRemoveOpen}
-        onOpenChange={setBatchRemoveOpen}
+        onOpenChangeAction={setBatchRemoveOpen}
         title={`Remove ${selected.size} Records`}
         description={`Are you sure you want to remove ${selected.size} email${selected.size !== 1 ? "s" : ""} from the unsubscribe list? They may receive marketing emails again.`}
         confirmLabel="Remove All"
-        onConfirm={handleBatchRemove}
+        onConfirmAction={handleBatchRemove}
         variant="destructive"
       />
       )}

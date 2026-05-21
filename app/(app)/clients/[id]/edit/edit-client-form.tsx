@@ -192,20 +192,20 @@ export function EditClientForm({ initialClient, clientId, employees }: EditClien
             formData={formData}
             productsOfInterest={productsOfInterest}
             newTag={newTag}
-            onFieldChange={handleFieldChange}
-            onNewTagChange={setNewTag}
-            onProductsChange={setProductsOfInterest}
-            onAddTag={handleAddTag}
-            onRemoveTag={handleRemoveTag}
+            onFieldChangeAction={handleFieldChange}
+            onNewTagChangeAction={setNewTag}
+            onProductsChangeAction={setProductsOfInterest}
+            onAddTagAction={handleAddTag}
+            onRemoveTagAction={handleRemoveTag}
             showDuplicateWarning={showDuplicateWarning}
             duplicateClient={duplicateClient}
-            onDismissDuplicate={() => setShowDuplicateWarning(false)}
-            onEditExisting={handleEditExisting}
+            onDismissDuplicateAction={() => setShowDuplicateWarning(false)}
+            onEditExistingAction={handleEditExisting}
             employees={employees}
             isLoading={isPending}
             submitLabel="Save Changes"
-            onSubmit={handleSubmit}
-            onCancel={() => router.back()}
+            onSubmitAction={handleSubmit}
+            onCancelAction={() => router.back()}
           />
         </div>
       </div>

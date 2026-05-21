@@ -135,7 +135,7 @@ export function BackupTab() {
 
               <ConfirmDialog
                 open={restoreOpen}
-                onOpenChange={setRestoreOpen}
+                onOpenChangeAction={setRestoreOpen}
                 title="Restore database?"
                 description={
                   <>
@@ -147,7 +147,7 @@ export function BackupTab() {
                 confirmLabel={restoring ? "Restoring…" : "Yes, Restore"}
                 variant="destructive"
                 disabled={restoring}
-                onConfirm={handleRestore}
+                onConfirmAction={handleRestore}
               />
 
               <Button

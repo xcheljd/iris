@@ -196,11 +196,11 @@ export function TemplatesTab({ templates: initialTemplates, isManager }: Templat
       {isManager && (
       <ConfirmDialog
         open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onOpenChangeAction={(open) => !open && setDeleteTarget(null)}
         title="Delete Template"
         description={<>Are you sure you want to delete the <strong>{deleteTarget?.name}</strong> template? This action cannot be undone.</>}
         confirmLabel="Delete"
-        onConfirm={() => deleteTarget && handleDelete(deleteTarget.id)}
+        onConfirmAction={() => deleteTarget && handleDelete(deleteTarget.id)}
         variant="destructive"
       />
       )}

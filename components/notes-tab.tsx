@@ -193,12 +193,12 @@ export function NotesTab({ client }: NotesTabProps) {
 
       <ConfirmDialog
         open={deleteTarget !== null}
-        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        onOpenChangeAction={(open) => { if (!open) setDeleteTarget(null); }}
         title="Delete Note"
         description="Are you sure you want to delete this note? This action cannot be undone."
         confirmLabel="Delete"
         variant="destructive"
-        onConfirm={() => { if (deleteTarget) handleDeleteNote(deleteTarget); }}
+        onConfirmAction={() => { if (deleteTarget) handleDeleteNote(deleteTarget); }}
       />
     </div>
   );

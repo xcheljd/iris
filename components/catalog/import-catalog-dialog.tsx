@@ -8,16 +8,16 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileSpreadsheet, Upload, AlertCircle, CheckCircle2 } from "lucide-react";
+import { FileSpreadsheet, Upload, AlertCircle, CheckCircle2, Info, AlertTriangle } from "lucide-react";
 import { analyzeCatalogRvx, importCatalogRvx, type CatalogImportAnalysis } from "@/lib/actions";
 import { toast } from "sonner";
 
 interface ImportCatalogDialogProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChangeAction: (open: boolean) => void;
 }
 
-export function ImportCatalogDialog({ open, onOpenChange }: ImportCatalogDialogProps) {
+export function ImportCatalogDialog({ open, onOpenChangeAction }: ImportCatalogDialogProps) {
   const router = useRouter();
   const [xml, setXml] = useState("");
   const [fileName, setFileName] = useState("");
@@ -53,14 +53,14 @@ export function ImportCatalogDialog({ open, onOpenChange }: ImportCatalogDialogP
       if ("error" in res) { toast.error(res.error); return; }
       toast.success(`Catalog imported — ${res.created} new, ${res.updated} updated`);
       reset();
-      onOpenChange(false);
+      onOpenChangeAction(false);
       router.refresh();
     } catch { toast.error("Catalog import failed"); }
     finally { setBusy(false); }
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChangeAction(v); }}>
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -76,6 +76,22 @@ export function ImportCatalogDialog({ open, onOpenChange }: ImportCatalogDialogP
         <ScrollArea className="max-h-[70vh]">
         {!analysis ? (
           <div className="space-y-4">
+            <div className="rounded-md border bg-muted/40 p-3 text-sm space-y-1.5">
+              <div className="flex items-center gap-1.5 font-medium">
+                <Info className="h-4 w-4" />
+                Before exporting from RVX
+              </div>
+              <p className="text-xs text-muted-foreground">
+                In the <em>Selling Analysis By Style</em> report, set these
+                filters so every available SKU is included:
+              </p>
+              <ul className="text-xs text-muted-foreground list-disc ml-5 space-y-0.5">
+                <li><strong>Client: All</strong> — required; otherwise the export is scoped to one client/division</li>
+                <li><strong>Suppress Zeros: No</strong> — includes zero-activity carryover</li>
+                <li><strong>Stores: All</strong> — if RVX prompts for a store</li>
+                <li><strong>Date range: widest available</strong> — catches long-tail / clearance styles</li>
+              </ul>
+            </div>
             <div className="space-y-2">
               <Label>RVX export file (.xls / .xml)</Label>
               <input
@@ -103,6 +119,22 @@ export function ImportCatalogDialog({ open, onOpenChange }: ImportCatalogDialogP
                 {analysis.updatedCount} updated, {analysis.unchangedCount} unchanged
               </span>
             </div>
+            {analysis.prevCuratedCount > 0 &&
+             analysis.prevCuratedMissingFromFile > analysis.prevCuratedCount * 0.3 && (
+              <div className="rounded-md border border-yellow-500/40 bg-yellow-50/60 dark:bg-yellow-950/20 p-3 text-sm flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-yellow-600" />
+                <div className="space-y-1">
+                  <div className="font-medium text-yellow-700 dark:text-yellow-400">
+                    This file is missing {analysis.prevCuratedMissingFromFile} of {analysis.prevCuratedCount} previously-imported models.
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Looks narrower than your last import. Re-check the RVX filters —
+                    especially <strong>Client = All</strong>. You can still import
+                    this file; the missing models stay in the catalog untouched.
+                  </p>
+                </div>
+              </div>
+            )}
             {analysis.parseErrors.length > 0 && (
               <div className="text-xs text-yellow-500 flex items-start gap-2">
                 <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />

@@ -340,7 +340,7 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
             <SearchInput
               placeholder="Search model or collection..."
               value={searchQuery}
-              onChange={(v) => { setSearchQuery(v); setPage(1); }}
+              onChangeAction={(v) => { setSearchQuery(v); setPage(1); }}
               className="max-w-sm"
             />
             <Popover>
@@ -475,7 +475,7 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
               <PaginationFooter
                 currentPage={currentPage}
                 totalPages={totalPages}
-                onPageChange={setPage}
+                onPageChangeAction={setPage}
                 totalItems={filtered.length}
                 pageSize={PAGE_SIZE}
                 variant="icons"
@@ -487,17 +487,17 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
       </Card>
 
       {/* Import Dialog */}
-      {isManager && <ImportPromoDialog open={importOpen} onOpenChange={setImportOpen} />}
+      {isManager && <ImportPromoDialog open={importOpen} onOpenChangeAction={setImportOpen} />}
 
       {/* Delete Confirmation */}
       {isManager && (
       <ConfirmDialog
         open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onOpenChangeAction={(open) => !open && setDeleteTarget(null)}
         title="Delete Promo Watch"
         description={<>Remove <strong>{deleteTarget?.modelNumber}</strong> from the current promo list?</>}
         confirmLabel="Delete"
-        onConfirm={() => deleteTarget && handleDelete(deleteTarget.id)}
+        onConfirmAction={() => deleteTarget && handleDelete(deleteTarget.id)}
         variant="destructive"
       />
       )}
@@ -506,11 +506,11 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
       {isManager && (
       <ConfirmDialog
         open={clearAllOpen}
-        onOpenChange={setClearAllOpen}
+        onOpenChangeAction={setClearAllOpen}
         title="Clear All Promos"
         description={`This will permanently delete all ${promos.length} promo watches and their client matches. Use this to reset before importing next week's promo list.`}
         confirmLabel="Clear All"
-        onConfirm={handleClearAll}
+        onConfirmAction={handleClearAll}
         variant="destructive"
       />
       )}

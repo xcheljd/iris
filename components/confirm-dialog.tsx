@@ -15,31 +15,31 @@ import {
 
 type ControlledProps = {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChangeAction: (open: boolean) => void;
   children?: never;
 };
 
 type UncontrolledProps = {
   children: ReactNode;
   open?: never;
-  onOpenChange?: never;
+  onOpenChangeAction?: never;
 };
 
 type ConfirmDialogProps = (ControlledProps | UncontrolledProps) & {
   title: ReactNode;
   description: ReactNode;
   confirmLabel: string;
-  onConfirm: () => void;
+  onConfirmAction: () => void;
   variant?: "default" | "destructive";
   disabled?: boolean;
 };
 
 export function ConfirmDialog(props: ConfirmDialogProps) {
-  const { title, description, confirmLabel, onConfirm, variant = "default", disabled } = props;
+  const { title, description, confirmLabel, onConfirmAction, variant = "default", disabled } = props;
   const isUncontrolled = "children" in props && props.children !== undefined;
   const [internalOpen, setInternalOpen] = useState(false);
   const open = isUncontrolled ? internalOpen : props.open;
-  const setOpen = isUncontrolled ? setInternalOpen : props.onOpenChange;
+  const setOpen = isUncontrolled ? setInternalOpen : props.onOpenChangeAction;
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
@@ -57,7 +57,7 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={() => {
-              onConfirm();
+              onConfirmAction();
               if (isUncontrolled) setInternalOpen(false);
             }}
             disabled={disabled}
