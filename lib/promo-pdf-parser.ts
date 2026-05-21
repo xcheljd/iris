@@ -19,7 +19,10 @@ export interface ParsedPromoPdf {
   pagesWithoutDiscount: number[]; // 1-indexed pages where the X% OFF header was missing
 }
 
-const MODEL_RX = /^[A-Z][A-Z0-9]{1,}-[A-Z0-9]+$/;
+// Matches both Meridian-style (letter-prefix + dash: KX1023-01X) and
+// Ashford-style (digit-prefix, no dash: 70Z001) model numbers.
+// Requirements: 4–20 chars, alphanumeric + dash only, at least one letter and one digit.
+const MODEL_RX = /^(?=[A-Z0-9-]{4,20}$)(?=.*[A-Z])(?=.*[0-9])[A-Z0-9-]+$/;
 const PCT_OFF_RX = /(\d+)\s*%\s*OFF/i;
 const DATE_RANGE_RX = /(\d{1,2}\/\d{1,2}\/\d{2,4})\s*[-–]\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/;
 

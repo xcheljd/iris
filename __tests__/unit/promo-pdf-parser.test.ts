@@ -126,6 +126,19 @@ describe("extractRowsFromPage", () => {
     const out = extractRowsFromPage(items);
     expect(out.rows.map((r) => r.modelNumber)).toEqual(["KX1003-01X"]);
   });
+
+  it("accepts Ashford-style digit-leading models without a dash (e.g. 70Z001)", () => {
+    const items = buildPage({
+      pctOff: 60,
+      rows: [
+        { model: "70Z001", collection: "ASHFORD CLASSIC", msrp: "295.00", sale: "118.00" },
+        { model: "70Z002", collection: "ASHFORD CLASSIC", msrp: "275.00", sale: "110.00" },
+      ],
+    });
+    const out = extractRowsFromPage(items);
+    expect(out.rows.map((r) => r.modelNumber)).toEqual(["70Z001", "70Z002"]);
+    expect(out.rows[0]).toMatchObject({ msrp: 295, discountPercent: 60, discountPrice: 118 });
+  });
 });
 
 describe("combinePageResults", () => {
