@@ -100,7 +100,7 @@ export function HintManager() {
 
 function HintOverlay({ hint }: { hint: HintDefinition }) {
   // Subscribe to full onboarding context (useOnboarding returns everything)
-  const { onboardingState } = useOnboarding();
+  const { onboardingState, refreshOnboardingState } = useOnboarding();
   const [dismissed, setDismissed] = useState(false);
   const [targetRect, setTargetRect] = useState<Rect | null>(null);
   const [side, setSide] = useState<"top" | "bottom">("bottom");
@@ -160,16 +160,18 @@ function HintOverlay({ hint }: { hint: HintDefinition }) {
     try {
       const existing = onboardingState?.hintsDismissed ?? [];
       if (!existing.includes(hint.id)) {
-        await updateOnboardingState({
+        const updated = await updateOnboardingState({
           hintsDismissed: [...existing, hint.id] as HintId[],
         });
+        // Sync the provider's state so hints don't reappear on page navigation
+        refreshOnboardingState(updated);
       }
     } catch (err) {
       // Optimistic dismissal failed — visual state already updated, surface to user
       console.error("[HintManager] Failed to persist hint dismissal:", err);
       toast.error("Hint dismissed, but we couldn't save it. It may reappear later.");
     }
-  }, [hint.id, onboardingState?.hintsDismissed]);
+  }, [hint.id, onboardingState?.hintsDismissed, refreshOnboardingState]);
 
   /* ---- Escape key handler ---- */
   useEffect(() => {

@@ -189,6 +189,10 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
             }
             setCurrentStepIndex(state.currentStep);
             setTourStatus("active");
+          } else if (state.tourCompleted || state.tourSkipped) {
+            // Tour already completed or skipped — ensure tourStatus stays idle
+            setTourStatus("idle");
+            setCurrentStepIndex(0);
           }
         }
       } catch (err) {
@@ -319,6 +323,18 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     if (currentStepIndex >= totalSteps) {
       setTourStatus("completed");
       setCurrentStepIndex(0);
+      // Optimistically update local state
+      setOnboardingState((prev) => prev ? {
+        ...prev,
+        tourCompleted: true,
+        completedSteps: rawSteps.map((s) => s.id),
+      } : {
+        tourCompleted: true,
+        currentStep: totalSteps,
+        completedSteps: rawSteps.map((s) => s.id),
+        hintsDismissed: [],
+        tourSkipped: false,
+      });
       try {
         const updated = await updateOnboardingState({
           tourCompleted: true,
@@ -367,6 +383,20 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     setTourStatus("idle");
     setCurrentStepIndex(0);
 
+    // Optimistically update local state so the tour can't re-trigger
+    // on a hard navigation before the server persist completes.
+    setOnboardingState((prev) => prev ? {
+      ...prev,
+      tourCompleted: true,
+      tourSkipped: true,
+    } : {
+      tourCompleted: true,
+      currentStep: 0,
+      completedSteps: [],
+      hintsDismissed: [],
+      tourSkipped: true,
+    });
+
     try {
       const updated = await updateOnboardingState({
         tourCompleted: true,
@@ -393,6 +423,19 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     clearStepResidue();
     setTourStatus("completed");
     setCurrentStepIndex(0);
+
+    // Optimistically update local state
+    setOnboardingState((prev) => prev ? {
+      ...prev,
+      tourCompleted: true,
+      completedSteps: rawSteps.map((s) => s.id),
+    } : {
+      tourCompleted: true,
+      currentStep: totalSteps,
+      completedSteps: rawSteps.map((s) => s.id),
+      hintsDismissed: [],
+      tourSkipped: false,
+    });
 
     try {
       const updated = await updateOnboardingState({
