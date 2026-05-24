@@ -3,12 +3,14 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { listCatalog } from "@/lib/actions";
 import { CatalogContent } from "./catalog-content";
+import { Topbar } from "@/components/topbar";
+import { CatalogSkeleton } from "@/components/skeletons";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 export default function CatalogPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<><Topbar title="Model Catalog" /><CatalogSkeleton /></>}>
       <CatalogFetcher searchParams={searchParams} />
     </Suspense>
   );

@@ -400,3 +400,73 @@ export function ProspectDetailSkeleton() {
     </div>
   );
 }
+
+export function CatalogSkeleton() {
+  return (
+    <div className="flex-1 p-4 md:p-6 space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-3">
+            <Skeleton className="h-5 w-40" />
+            <div className="flex gap-2">
+              <Skeleton className="h-8 w-28" />
+              <Skeleton className="h-8 w-32" />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <div className="space-y-1">
+              <div className="flex gap-4 pb-3 border-b">
+                {Array.from({ length: 6 }).map((_, j) => (
+                  <Skeleton key={j} className="h-4 flex-1" />
+                ))}
+              </div>
+              <TableSkeleton rows={8} cols={6} />
+            </div>
+          </div>
+          <div className="flex justify-between pt-4">
+            <Skeleton className="h-3 w-24" />
+            <div className="flex gap-1">
+              <Skeleton className="h-8 w-8" />
+              <Skeleton className="h-8 w-8" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export function ClientFormSkeleton() {
+  return (
+    <div className="flex-1 p-4 md:p-6 max-w-4xl mx-auto">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-3 w-48" />
+          </div>
+          <Skeleton className="h-9 w-20" />
+        </div>
+        <Card>
+          <CardHeader><Skeleton className="h-5 w-28" /></CardHeader>
+          <CardContent className="space-y-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-9 w-full" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-9 w-full" />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

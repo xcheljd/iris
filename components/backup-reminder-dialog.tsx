@@ -5,14 +5,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { DatabaseBackup, Clock } from "lucide-react";
 import { shouldShowBackupReminder, downloadBackup, setLastBackupDate } from "@/lib/backup-client";
+import { useSession } from "next-auth/react";
 
 export function BackupReminderDialog() {
+  const { data: session } = useSession();
+  const isManager = session?.user?.role === "manager";
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (shouldShowBackupReminder()) setOpen(true);
-  }, []);
+    if (isManager && shouldShowBackupReminder()) setOpen(true);
+  }, [isManager]);
 
   function snooze() {
     // Snooze by setting the last backup date to today — next Monday it'll check again

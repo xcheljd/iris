@@ -8,19 +8,25 @@ import { Search, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { useCommandPalette } from "@/components/command-palette";
+import { useNavigationTransition } from "@/components/navigation-transition";
 
 export function Topbar({ title, children }: { title?: string; children?: React.ReactNode }) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const { setOpen: setPaletteOpen } = useCommandPalette();
+  const { state, targetTitle } = useNavigationTransition();
+
+  const navigating = state === "navigating" && targetTitle;
+  const displayTitle = navigating ? targetTitle : title;
+  const showChildren = !navigating;
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/95 backdrop-blur px-4">
       <SidebarTrigger />
       <Separator orientation="vertical" className="mx-1 h-4" />
-      {title && <h1 className="text-sm font-medium">{title}</h1>}
-      {children}
+      {displayTitle && <h1 className="text-sm font-medium">{displayTitle}</h1>}
+      {showChildren && children}
       <div className="flex-1" />
       <Button variant="outline" size="sm" className="gap-2 text-muted-foreground h-8" onClick={() => setPaletteOpen(true)} data-tour="command-palette-trigger" data-hint="command-palette">
         <Search className="h-3.5 w-3.5" />
