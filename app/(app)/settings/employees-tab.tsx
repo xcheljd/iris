@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field, FieldGroup, FieldSet, FieldLegend, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
+import { PasswordInput } from "@/components/password-input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { SearchInput } from "@/components/search-input";
 import {
@@ -24,8 +25,6 @@ import {
   Shield,
   UserPlus,
   MoreHorizontal,
-  Eye,
-  EyeOff,
   Pencil,
   ChevronUp,
   ChevronDown,
@@ -59,8 +58,6 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
   const [newEmployee, setNewEmployee] = useState({ firstName: "", lastName: "", username: "", password: "", role: "associate" as "associate" | "manager" });
   const [resetPasswordEmployee, setResetPasswordEmployee] = useState<(typeof employees)[number] | null>(null);
   const [newPassword, setNewPassword] = useState("");
-  const [showEmpPw, setShowEmpPw] = useState(false);
-  const [showResetPw, setShowResetPw] = useState(false);
   const [deactivateTarget, setDeactivateTarget] = useState<(typeof employees)[number] | null>(null);
   const [deactivateMode, setDeactivateMode] = useState<"keep" | "reassign" | "unassign">("keep");
   const [reassignToId, setReassignToId] = useState<string>("");
@@ -274,42 +271,37 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
                   <DialogTitle>Add Employee</DialogTitle>
                   <DialogDescription>Create a new team member account.</DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="empFirstName">First Name</Label>
+                <FieldGroup className="gap-4">
+                  <Field>
+                    <FieldLabel htmlFor="empFirstName">First Name</FieldLabel>
                     <Input id="empFirstName" placeholder="First name" value={newEmployee.firstName} onChange={(e) => setNewEmployee({ ...newEmployee, firstName: e.target.value })} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="empLastName">Last Name</Label>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="empLastName">Last Name</FieldLabel>
                     <Input id="empLastName" placeholder="Last name" value={newEmployee.lastName} onChange={(e) => setNewEmployee({ ...newEmployee, lastName: e.target.value })} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="empUsername">Username</Label>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="empUsername">Username</FieldLabel>
                     <Input id="empUsername" placeholder="Login username" value={newEmployee.username} onChange={(e) => setNewEmployee({ ...newEmployee, username: e.target.value })} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="empPassword">Temporary Password</Label>
-                    <div className="relative flex items-center">
-                      <Input id="empPassword" type={showEmpPw ? "text" : "password"} placeholder="Temporary password" value={newEmployee.password} onChange={(e) => setNewEmployee({ ...newEmployee, password: e.target.value })} className="pr-9" />
-                      <button type="button" className="absolute right-0 flex h-9 w-9 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground" onClick={() => setShowEmpPw(!showEmpPw)} aria-label={showEmpPw ? "Hide password" : "Show password"}>
-                        {showEmpPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="empRole">Role</Label>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="empPassword">Temporary Password</FieldLabel>
+                    <PasswordInput id="empPassword" placeholder="Temporary password" value={newEmployee.password} onChange={(e) => setNewEmployee({ ...newEmployee, password: e.target.value })} />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="empRole">Role</FieldLabel>
                     <Select value={newEmployee.role} onValueChange={(value) => setNewEmployee({ ...newEmployee, role: value as "associate" | "manager" })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger id="empRole"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="associate">Associate</SelectItem>
                         <SelectItem value="manager">Manager</SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
-                  <DialogFooter>
-                    <Button onClick={handleCreateEmployee} className="w-full">Create Employee</Button>
-                  </DialogFooter>
-                </div>
+                  </Field>
+                </FieldGroup>
+                <DialogFooter className="mt-4">
+                  <Button onClick={handleCreateEmployee} className="w-full">Create Employee</Button>
+                </DialogFooter>
               </DialogContent>
             </Dialog>
           </div>
@@ -465,20 +457,15 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
             <DialogTitle>Reset Password for {resetPasswordEmployee ? fullName(resetPasswordEmployee) : ""}</DialogTitle>
             <DialogDescription>Set a new temporary password for this account.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="newPassword">New Password</Label>
-              <div className="relative flex items-center">
-                <Input id="newPassword" type={showResetPw ? "text" : "password"} placeholder="Enter new password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="pr-9" />
-                <button type="button" className="absolute right-0 flex h-9 w-9 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground" onClick={() => setShowResetPw(!showResetPw)} aria-label={showResetPw ? "Hide password" : "Show password"}>
-                  {showResetPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button onClick={handleResetPassword} className="w-full">Reset Password</Button>
-            </DialogFooter>
-          </div>
+          <FieldGroup className="gap-4">
+            <Field>
+              <FieldLabel htmlFor="newPassword">New Password</FieldLabel>
+              <PasswordInput id="newPassword" placeholder="Enter new password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+            </Field>
+          </FieldGroup>
+          <DialogFooter className="mt-4">
+            <Button onClick={handleResetPassword} className="w-full">Reset Password</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -505,20 +492,20 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
             </DialogDescription>
           </DialogHeader>
           {deactivateTarget && deactivateTarget.activeClientCount > 0 ? (
-            <div className="space-y-3 py-2">
-              <Label className="text-sm font-medium">What about their clients?</Label>
+            <FieldSet className="space-y-3 py-2">
+              <FieldLegend variant="label">What about their clients?</FieldLegend>
               <RadioGroup value={deactivateMode} onValueChange={(v) => setDeactivateMode(v as "keep" | "reassign" | "unassign")}>
                 <div className="flex items-start gap-2">
                   <RadioGroupItem value="keep" id="deactivate-keep" className="mt-1" />
                   <div className="flex-1">
-                    <Label htmlFor="deactivate-keep" className="font-normal cursor-pointer">Keep with this employee</Label>
-                    <p className="text-xs text-muted-foreground">Clients stay assigned. Useful if they may return.</p>
+                    <FieldLabel htmlFor="deactivate-keep" className="font-normal cursor-pointer">Keep with this employee</FieldLabel>
+                    <FieldDescription className="text-xs">Clients stay assigned. Useful if they may return.</FieldDescription>
                   </div>
                 </div>
                 <div className="flex items-start gap-2">
                   <RadioGroupItem value="reassign" id="deactivate-reassign" className="mt-1" />
                   <div className="flex-1 space-y-2">
-                    <Label htmlFor="deactivate-reassign" className="font-normal cursor-pointer">Reassign to another employee</Label>
+                    <FieldLabel htmlFor="deactivate-reassign" className="font-normal cursor-pointer">Reassign to another employee</FieldLabel>
                     {deactivateMode === "reassign" && (
                       <Select value={reassignToId} onValueChange={setReassignToId}>
                         <SelectTrigger className="h-9"><SelectValue placeholder="Pick an employee…" /></SelectTrigger>
@@ -538,12 +525,12 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
                 <div className="flex items-start gap-2">
                   <RadioGroupItem value="unassign" id="deactivate-unassign" className="mt-1" />
                   <div className="flex-1">
-                    <Label htmlFor="deactivate-unassign" className="font-normal cursor-pointer">Unassign for later</Label>
-                    <p className="text-xs text-muted-foreground">Clients become unowned — reassign manually from the Clients page.</p>
+                    <FieldLabel htmlFor="deactivate-unassign" className="font-normal cursor-pointer">Unassign for later</FieldLabel>
+                    <FieldDescription className="text-xs">Clients become unowned — reassign manually from the Clients page.</FieldDescription>
                   </div>
                 </div>
               </RadioGroup>
-            </div>
+            </FieldSet>
           ) : null}
           <DialogFooter>
             <Button
@@ -592,37 +579,37 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
             <DialogTitle>Edit Employee</DialogTitle>
             <DialogDescription>Update {editEmployeeTarget ? fullName(editEmployeeTarget) : ""}&apos;s information.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="editEmpFirstName">First Name</Label>
+          <FieldGroup className="gap-4">
+            <Field>
+              <FieldLabel htmlFor="editEmpFirstName">First Name</FieldLabel>
               <Input id="editEmpFirstName" value={editEmployee.firstName} onChange={(e) => setEditEmployee({ ...editEmployee, firstName: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="editEmpLastName">Last Name</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="editEmpLastName">Last Name</FieldLabel>
               <Input id="editEmpLastName" value={editEmployee.lastName} onChange={(e) => setEditEmployee({ ...editEmployee, lastName: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="editEmpUsername">Username</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="editEmpUsername">Username</FieldLabel>
               <Input id="editEmpUsername" value={editEmployee.username} onChange={(e) => setEditEmployee({ ...editEmployee, username: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="editEmpRole">Role</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="editEmpRole">Role</FieldLabel>
               <Select value={editEmployee.role} onValueChange={(value) => setEditEmployee({ ...editEmployee, role: value as "associate" | "manager" })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger id="editEmpRole"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="associate">Associate</SelectItem>
                   <SelectItem value="manager">Manager</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="editEmpActive">Active</Label>
+            </Field>
+            <Field orientation="horizontal">
+              <FieldLabel htmlFor="editEmpActive">Active</FieldLabel>
               <Switch id="editEmpActive" checked={editEmployee.active} onCheckedChange={(checked) => setEditEmployee({ ...editEmployee, active: checked })} />
-            </div>
-            <DialogFooter>
-              <Button onClick={handleEditEmployee} className="w-full">Save Changes</Button>
-            </DialogFooter>
-          </div>
+            </Field>
+          </FieldGroup>
+          <DialogFooter className="mt-4">
+            <Button onClick={handleEditEmployee} className="w-full">Save Changes</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { EmptyState } from "@/components/empty-state";
@@ -95,13 +95,13 @@ export function SettingsTagsTab({ tags: initialTags, isManager }: SettingsTagsTa
                   <DialogTitle>Create Tag</DialogTitle>
                   <DialogDescription>Add a new tag to categorize clients.</DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="tagName">Tag Name</Label>
+                <FieldGroup className="gap-4">
+                  <Field>
+                    <FieldLabel htmlFor="tagName">Tag Name</FieldLabel>
                     <Input id="tagName" placeholder="e.g., VIP" value={newTag.name} onChange={(e) => setNewTag({ ...newTag, name: e.target.value })} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Color</Label>
+                  </Field>
+                  <Field>
+                    <FieldLabel>Color</FieldLabel>
                     <div className="flex flex-wrap gap-2">
                       {tagColors.map((color) => (
                         <button
@@ -113,11 +113,11 @@ export function SettingsTagsTab({ tags: initialTags, isManager }: SettingsTagsTa
                         />
                       ))}
                     </div>
-                  </div>
-                  <DialogFooter>
-                    <Button onClick={handleCreate} className="w-full">Create Tag</Button>
-                  </DialogFooter>
-                </div>
+                  </Field>
+                </FieldGroup>
+                <DialogFooter className="mt-4">
+                  <Button onClick={handleCreate} className="w-full">Create Tag</Button>
+                </DialogFooter>
               </DialogContent>
             </Dialog>
             )}

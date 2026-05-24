@@ -28,7 +28,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { Label } from "@/components/ui/label";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -410,11 +410,11 @@ function ReassignOwnerDialog({
           <DialogTitle>Reassign {count} client{count === 1 ? "" : "s"}</DialogTitle>
           <DialogDescription>Pick a new owner or leave unassigned.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-2 py-2">
-          <Label>Owner</Label>
+        <Field className="py-2">
+          <FieldLabel htmlFor="reassign-owner">Owner</FieldLabel>
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full justify-between font-normal">
+              <Button id="reassign-owner" variant="outline" className="w-full justify-between font-normal">
                 {label}
                 <ChevronDown className="h-4 w-4 opacity-50" />
               </Button>
@@ -445,7 +445,7 @@ function ReassignOwnerDialog({
               </Command>
             </PopoverContent>
           </Popover>
-        </div>
+        </Field>
         <DialogFooter>
           <Button variant="outline" onClick={onCancel}>Cancel</Button>
           <Button
@@ -486,35 +486,39 @@ function BanDialog({
             The same category and reason will be applied to every selected client.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-3 py-2">
-          <div className="space-y-2">
-            <Label>Category</Label>
+        <FieldGroup className="gap-3 py-2">
+          <Field>
+            <FieldLabel htmlFor="bulk-ban-category">Category</FieldLabel>
             <Select value={category} onValueChange={(v) => setCategory(v as typeof category)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger id="bulk-ban-category"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="Reselling">Reselling</SelectItem>
                 <SelectItem value="Gift Card Fraud">Gift Card Fraud</SelectItem>
                 <SelectItem value="Other">Other</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Reason</Label>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="bulk-ban-reason">Reason</FieldLabel>
             <Textarea
+              id="bulk-ban-reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Describe the reason for banning…"
               rows={3}
             />
-          </div>
-          <label className="flex items-center gap-2 text-sm">
+          </Field>
+          <Field orientation="horizontal">
             <Checkbox
+              id="bulk-ban-ack"
               checked={acknowledged}
               onCheckedChange={(c) => setAcknowledged(c === true)}
             />
-            <span>I understand this will ban all {count} selected clients.</span>
-          </label>
-        </div>
+            <FieldLabel htmlFor="bulk-ban-ack" className="text-sm font-normal cursor-pointer">
+              I understand this will ban all {count} selected clients.
+            </FieldLabel>
+          </Field>
+        </FieldGroup>
         <DialogFooter>
           <Button variant="outline" onClick={onCancel}>Cancel</Button>
           <Button

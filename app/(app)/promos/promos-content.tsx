@@ -7,7 +7,7 @@ import { StatsCard } from "@/components/stats-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -231,57 +231,57 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
                 <DialogTitle>Add Promo Watch</DialogTitle>
                 <DialogDescription>Add a single model to the current promo list.</DialogDescription>
               </DialogHeader>
-              <div className="space-y-4">
+              <FieldGroup className="gap-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="modelNumber">Model Number</Label>
+                  <Field>
+                    <FieldLabel htmlFor="modelNumber">Model Number</FieldLabel>
                     <Input id="modelNumber" placeholder="e.g., HX1009-01X" value={newPromo.modelNumber} onChange={(e) => setNewPromo({ ...newPromo, modelNumber: e.target.value })} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="collection">Collection</Label>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="collection">Collection</FieldLabel>
                     <Input id="collection" placeholder="e.g., Solaris" value={newPromo.collection} onChange={(e) => setNewPromo({ ...newPromo, collection: e.target.value })} />
-                  </div>
+                  </Field>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="space-y-2">
-                    <Label>Brand *</Label>
+                  <Field>
+                    <FieldLabel htmlFor="promo-brand">Brand *</FieldLabel>
                     <Select value={newPromo.brand || undefined} onValueChange={(v) => setNewPromo({ ...newPromo, brand: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select brand" /></SelectTrigger>
+                      <SelectTrigger id="promo-brand"><SelectValue placeholder="Select brand" /></SelectTrigger>
                       <SelectContent>
                         {BRAND_VALUES.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="size1">Size 1 qty</Label>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="size1">Size 1 qty</FieldLabel>
                     <Input id="size1" type="number" min="0" placeholder="0" value={newPromo.sizeOneQty} onChange={(e) => setNewPromo({ ...newPromo, sizeOneQty: e.target.value })} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="size2">Size 2 qty</Label>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="size2">Size 2 qty</FieldLabel>
                     <Input id="size2" type="number" min="0" placeholder="0" value={newPromo.sizeTwoQty} onChange={(e) => setNewPromo({ ...newPromo, sizeTwoQty: e.target.value })} />
-                  </div>
+                  </Field>
                 </div>
                 <Separator />
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="msrp">MSRP ($)</Label>
+                  <Field>
+                    <FieldLabel htmlFor="msrp">MSRP ($)</FieldLabel>
                     <Input id="msrp" type="number" step="0.01" placeholder="395.00" value={newPromo.msrp} onChange={(e) => setNewPromo({ ...newPromo, msrp: e.target.value })} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="discountPct">Discount (%)</Label>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="discountPct">Discount (%)</FieldLabel>
                     <Input id="discountPct" type="number" step="0.1" placeholder="25" value={newPromo.discountPercent} onChange={(e) => setNewPromo({ ...newPromo, discountPercent: e.target.value })} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="discountPrice">Sale Price ($)</Label>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="discountPrice">Sale Price ($)</FieldLabel>
                     <Input id="discountPrice" type="number" step="0.01" placeholder="296.25" value={newPromo.discountPrice} onChange={(e) => setNewPromo({ ...newPromo, discountPrice: e.target.value })} />
-                  </div>
+                  </Field>
                 </div>
-                <DialogFooter>
-                  <Button onClick={handleCreatePromo} disabled={isCreating} className="w-full">
-                    {isCreating ? "Adding..." : "Add Promo Watch"}
-                  </Button>
-                </DialogFooter>
-              </div>
+              </FieldGroup>
+              <DialogFooter className="mt-4">
+                <Button onClick={handleCreatePromo} disabled={isCreating} className="w-full">
+                  {isCreating ? "Adding..." : "Add Promo Watch"}
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>

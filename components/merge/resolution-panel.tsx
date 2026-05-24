@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -224,8 +224,9 @@ export function ResolutionPanel({
           </div>
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Final Notes</Label>
+          <FieldLabel htmlFor="rp-final-notes" className="text-xs">Final Notes</FieldLabel>
           <Textarea
+            id="rp-final-notes"
             value={finalNotes}
             onChange={(e) => setFinalNotes(e.target.value)}
             className="h-20 text-sm resize-none"

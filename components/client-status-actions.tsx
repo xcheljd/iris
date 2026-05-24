@@ -12,7 +12,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -109,20 +109,21 @@ function ApprovalActionDialog({
             </DialogTitle>
             <DialogDescription>{associateDescription}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <FieldGroup className="gap-4 py-2">
             <div className="rounded-lg border p-3 text-sm">
               <span className="font-medium">{clientName}</span>
             </div>
-            <div className="space-y-2">
-              <Label>{associateReasonLabel}</Label>
+            <Field>
+              <FieldLabel htmlFor="csa-reason">{associateReasonLabel}</FieldLabel>
               <Textarea
+                id="csa-reason"
                 value={reportReason}
                 onChange={(e) => setReportReason(e.target.value)}
                 placeholder={associatePlaceholder}
                 rows={3}
               />
-            </div>
-          </div>
+            </Field>
+          </FieldGroup>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button
@@ -149,7 +150,7 @@ function ApprovalActionDialog({
           </DialogTitle>
           <DialogDescription>{managerDescription}</DialogDescription>
         </DialogHeader>
-        {managerBody && <div className="space-y-4 py-2">{managerBody}</div>}
+        {managerBody && <FieldGroup className="gap-4 py-2">{managerBody}</FieldGroup>}
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
           <Button variant="destructive" disabled={pending} onClick={handleManagerAction}>
@@ -185,29 +186,30 @@ export function BanCustomerDialog({
       }
       managerBody={
         <>
-          <div className="space-y-2">
-            <Label>Category</Label>
+          <Field>
+            <FieldLabel htmlFor="ban-category">Category</FieldLabel>
             <Select
               value={category}
               onValueChange={(v) => setCategory(v as "Reselling" | "Gift Card Fraud" | "Other")}
             >
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger id="ban-category"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="Reselling">Reselling</SelectItem>
                 <SelectItem value="Gift Card Fraud">Gift Card Fraud</SelectItem>
                 <SelectItem value="Other">Other</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Reason</Label>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="ban-reason">Reason</FieldLabel>
             <Textarea
+              id="ban-reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Describe the reason for banning…"
               rows={3}
             />
-          </div>
+          </Field>
         </>
       }
       managerActionLabel="Ban Customer"

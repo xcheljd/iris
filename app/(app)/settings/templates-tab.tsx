@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -98,30 +98,30 @@ export function TemplatesTab({ templates: initialTemplates, isManager }: Templat
                   <DialogTitle>Create Template</DialogTitle>
                   <DialogDescription>Write a reusable outreach message template.</DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="templateName">Template Name</Label>
+                <FieldGroup className="gap-4">
+                  <Field>
+                    <FieldLabel htmlFor="templateName">Template Name</FieldLabel>
                     <Input id="templateName" placeholder="e.g., Birthday Follow-up" value={newTemplate.name} onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="templateChannel">Channel</Label>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="templateChannel">Channel</FieldLabel>
                     <Select value={newTemplate.channel} onValueChange={(value) => setNewTemplate({ ...newTemplate, channel: value as "text" | "email" | "general" })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger id="templateChannel"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="text">Text</SelectItem>
                         <SelectItem value="email">Email</SelectItem>
                         <SelectItem value="general">General</SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
+                  </Field>
                   {newTemplate.channel === "email" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="templateSubject">Subject</Label>
+                    <Field>
+                      <FieldLabel htmlFor="templateSubject">Subject</FieldLabel>
                       <Input id="templateSubject" placeholder="Email subject line..." value={newTemplate.subject} onChange={(e) => setNewTemplate({ ...newTemplate, subject: e.target.value })} />
-                    </div>
+                    </Field>
                   )}
-                  <div className="space-y-2">
-                    <Label htmlFor="templateBody">Body</Label>
+                  <Field>
+                    <FieldLabel htmlFor="templateBody">Body</FieldLabel>
                     <Textarea
                       id="templateBody"
                       placeholder="Template body... Use {{first_name}}, {{last_name}}, {{employee_name}} for personalization"
@@ -129,11 +129,11 @@ export function TemplatesTab({ templates: initialTemplates, isManager }: Templat
                       onChange={(e) => setNewTemplate({ ...newTemplate, body: e.target.value })}
                       rows={6}
                     />
-                  </div>
-                  <DialogFooter>
-                    <Button onClick={handleCreate} className="w-full">Create Template</Button>
-                  </DialogFooter>
-                </div>
+                  </Field>
+                </FieldGroup>
+                <DialogFooter className="mt-4">
+                  <Button onClick={handleCreate} className="w-full">Create Template</Button>
+                </DialogFooter>
               </DialogContent>
             </Dialog>
             )}

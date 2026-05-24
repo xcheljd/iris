@@ -26,7 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Label } from "@/components/ui/label";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
@@ -169,29 +169,29 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
               <DialogTitle>Ban Customer</DialogTitle>
               <DialogDescription>Add a customer to the banned list with a reason and category.</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <FieldGroup className="gap-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="banFirstName">First Name *</Label>
+                <Field>
+                  <FieldLabel htmlFor="banFirstName">First Name *</FieldLabel>
                   <Input
                     id="banFirstName"
                     placeholder="Required"
                     value={banForm.firstName}
                     onChange={(e) => setBanForm({ ...banForm, firstName: e.target.value })}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="banLastName">Last Name</Label>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="banLastName">Last Name</FieldLabel>
                   <Input
                     id="banLastName"
                     placeholder="Optional"
                     value={banForm.lastName}
                     onChange={(e) => setBanForm({ ...banForm, lastName: e.target.value })}
                   />
-                </div>
+                </Field>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="banEmail">Email</Label>
+              <Field>
+                <FieldLabel htmlFor="banEmail">Email</FieldLabel>
                 <Input
                   id="banEmail"
                   type="email"
@@ -199,23 +199,23 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
                   value={banForm.email}
                   onChange={(e) => setBanForm({ ...banForm, email: e.target.value })}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="banPhone">Phone</Label>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="banPhone">Phone</FieldLabel>
                 <Input
                   id="banPhone"
                   placeholder="Optional"
                   value={banForm.phone}
                   onChange={(e) => setBanForm({ ...banForm, phone: e.target.value })}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label>Category</Label>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="banCategory">Category</FieldLabel>
                 <Select
                   value={banForm.category}
                   onValueChange={(value) => setBanForm({ ...banForm, category: value as typeof banForm.category })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="banCategory">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -224,9 +224,9 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
                     <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="banReason">Reason / Details</Label>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="banReason">Reason / Details</FieldLabel>
                 <Textarea
                   id="banReason"
                   placeholder="Describe the reason for this ban..."
@@ -234,12 +234,12 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
                   onChange={(e) => setBanForm({ ...banForm, reason: e.target.value })}
                   rows={3}
                 />
-              </div>
+              </Field>
               <Separator />
               <Button onClick={handleBan} variant="destructive" className="w-full" disabled={banSubmitting}>
                 {banSubmitting ? "Banning..." : "Ban Customer"}
               </Button>
-            </div>
+            </FieldGroup>
           </DialogContent>
         </Dialog>
         )}

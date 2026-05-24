@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Pencil } from "lucide-react";
@@ -91,23 +91,23 @@ export function ProfileTab({ currentUser, currentUserId }: ProfileTabProps) {
             <DialogTitle>Edit Profile</DialogTitle>
             <DialogDescription>Update your name and username.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="profileFirstName">First Name</Label>
+          <FieldGroup className="gap-4">
+            <Field>
+              <FieldLabel htmlFor="profileFirstName">First Name</FieldLabel>
               <Input id="profileFirstName" value={editProfile.firstName} onChange={(e) => setEditProfile({ ...editProfile, firstName: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="profileLastName">Last Name</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="profileLastName">Last Name</FieldLabel>
               <Input id="profileLastName" value={editProfile.lastName} onChange={(e) => setEditProfile({ ...editProfile, lastName: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="profileUsername">Username</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="profileUsername">Username</FieldLabel>
               <Input id="profileUsername" value={editProfile.username} onChange={(e) => setEditProfile({ ...editProfile, username: e.target.value })} />
-            </div>
-            <DialogFooter>
-              <Button onClick={handleEditProfile} className="w-full">Save Changes</Button>
-            </DialogFooter>
-          </div>
+            </Field>
+          </FieldGroup>
+          <DialogFooter className="mt-4">
+            <Button onClick={handleEditProfile} className="w-full">Save Changes</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
