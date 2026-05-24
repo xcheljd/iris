@@ -390,7 +390,7 @@ export async function getEmployees() {
     createdAt: employees.createdAt,
     activeClientCount: rawSql<number>`(
       SELECT count(*) FROM clients
-      WHERE clients.employee_id = ${employees.id}
+      WHERE clients.employee_id = employees.id
         AND clients.status NOT IN ('deleted', 'banned')
     )`.as("active_client_count"),
   })
@@ -412,7 +412,7 @@ export async function getEmployee(id: string) {
     createdAt: employees.createdAt,
     activeClientCount: rawSql<number>`(
       SELECT count(*) FROM clients
-      WHERE clients.employee_id = ${employees.id}
+      WHERE clients.employee_id = employees.id
         AND clients.status NOT IN ('deleted', 'banned')
     )`.as("active_client_count"),
   })
