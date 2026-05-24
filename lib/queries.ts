@@ -776,16 +776,16 @@ export async function searchClients(query: string, employeeId?: string): Promise
     lastName: clients.lastName,
     phone: clients.phone,
     email: clients.email,
-    snippet: rawSql<string>`(SELECT snippet(clients_fts, -1, ${HL_OPEN}, ${HL_CLOSE}, '…', 10) FROM clients_fts WHERE client_id = ${clients.id} AND clients_fts MATCH ${fts})`.as("snippet"),
+    snippet: rawSql<string>`(SELECT snippet(clients_fts, -1, ${HL_OPEN}, ${HL_CLOSE}, '…', 10) FROM clients_fts WHERE client_id = clients.id AND clients_fts MATCH ${fts})`.as("snippet"),
   })
     .from(clients)
     .where(and(
       notInArray(clients.status, ["banned", "deleted"]),
-      rawSql`${clients.id} IN (SELECT client_id FROM clients_fts WHERE clients_fts MATCH ${fts})`,
+      rawSql`clients.id IN (SELECT client_id FROM clients_fts WHERE clients_fts MATCH ${fts})`,
       employeeFilter,
     ))
     .orderBy(
-      rawSql`(SELECT rank FROM clients_fts WHERE client_id = ${clients.id} AND clients_fts MATCH ${fts})`,
+      rawSql`(SELECT rank FROM clients_fts WHERE client_id = clients.id AND clients_fts MATCH ${fts})`,
       desc(rawSql`COALESCE(${clients.lastViewedAt}, 0)`),
     )
     .limit(10)

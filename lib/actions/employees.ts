@@ -39,7 +39,7 @@ export async function createEmployee(data: {
   return { success: true as const };
 }
 
-export async function updateEmployee(employeeId: string, data: { firstName: string; lastName: string; username: string; role?: "manager" | "associate"; active?: boolean }) {
+export async function updateEmployee(employeeId: string, data: { firstName: string; lastName: string; username: string; role?: "manager" | "associate" }) {
   const user = await getSessionUser();
   if (!user) return { error: "Not authenticated" };
   const isSelf = user.id === employeeId;
@@ -68,7 +68,8 @@ export async function updateEmployee(employeeId: string, data: { firstName: stri
   };
   if (isManager && !isSelf) {
     if (data.role) updates.role = data.role;
-    if (data.active !== undefined) updates.active = data.active;
+    // active status changes must go through deactivateEmployee/toggleEmployeeActive
+    // to ensure client transfer handling
   }
 
   db.update(employees).set(updates).where(eq(employees.id, employeeId)).run();
@@ -248,7 +249,7 @@ export async function deactivateEmployee(
 
     revalidatePath("/settings");
     revalidatePath("/clients");
-    return { success: true as const, clientsAffected: target ? undefined : 0 };
+    return { success: true as const };
   } catch {
     return { error: "Failed to deactivate employee" };
   }

@@ -64,7 +64,7 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
   const [deactivating, setDeactivating] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<(typeof employees)[number] | null>(null);
   const [editEmployeeTarget, setEditEmployeeTarget] = useState<(typeof employees)[number] | null>(null);
-  const [editEmployee, setEditEmployee] = useState({ firstName: "", lastName: "", username: "", role: "associate" as "associate" | "manager", active: true });
+  const [editEmployee, setEditEmployee] = useState({ firstName: "", lastName: "", username: "", role: "associate" as "associate" | "manager" });
 
   const filteredEmployees = useMemo(() => {
     let list = employees;
@@ -234,7 +234,6 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
         lastName: editEmployee.lastName,
         username: editEmployee.username,
         role: editEmployee.role,
-        active: editEmployee.active,
       });
       if (result?.error) {
         toast.error(result.error);
@@ -396,7 +395,7 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => {
                           setEditEmployeeTarget(employee);
-                          setEditEmployee({ firstName: employee.firstName, lastName: employee.lastName ?? "", username: employee.username, role: employee.role as "associate" | "manager", active: employee.active });
+                          setEditEmployee({ firstName: employee.firstName, lastName: employee.lastName ?? "", username: employee.username, role: employee.role as "associate" | "manager" });
                         }}>
                           <Pencil className="h-4 w-4 mr-2" />
                           Edit
@@ -601,10 +600,6 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
                   <SelectItem value="manager">Manager</SelectItem>
                 </SelectContent>
               </Select>
-            </Field>
-            <Field orientation="horizontal">
-              <FieldLabel htmlFor="editEmpActive">Active</FieldLabel>
-              <Switch id="editEmpActive" checked={editEmployee.active} onCheckedChange={(checked) => setEditEmployee({ ...editEmployee, active: checked })} />
             </Field>
           </FieldGroup>
           <DialogFooter className="mt-4">
