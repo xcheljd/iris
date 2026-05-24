@@ -71,7 +71,7 @@ const promos = [
   { model: "FC-220", collection: "HERITAGE", brand: "Chamberlain", s1: 1, s2: 1 },
 ];
 const insPromo = sqlite.prepare(
-  "INSERT INTO promo_watches (id,model_number,collection,brand,size_one_qty,size_two_qty,active,date_added) VALUES (?,?,?,?,?,?,1,?)",
+  "INSERT INTO promo_watches (id,model_number,collection,brand,size_one_qty,size_two_qty,date_added) VALUES (?,?,?,?,?,?,?)",
 );
 const promoIds: { id: string; model: string; collection: string; brand: string }[] = [];
 for (const p of promos) {

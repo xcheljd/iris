@@ -109,9 +109,10 @@ export function ProspectsContent({
     <>
       <Topbar title="Prospects">
         {isManager && (
-          <Button onClick={() => setImportOpen(true)} size="sm">
+          <Button size="sm" disabled>
             <Upload className="h-4 w-4 mr-2" />
             Import RVX
+            <Badge variant="secondary" className="ml-2 text-[10px]">Coming Soon</Badge>
           </Button>
         )}
       </Topbar>
@@ -225,7 +226,8 @@ export function ProspectsContent({
           </TabsContent>
         </Tabs>
 
-        <RvxImportDialog open={importOpen} onOpenChangeAction={setImportOpen} />
+        {/* RVX Import disabled for demo — Coming Soon */}
+        {/* <RvxImportDialog open={importOpen} onOpenChangeAction={setImportOpen} /> */}
       </div>
     </>
   );

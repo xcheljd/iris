@@ -53,12 +53,13 @@ export function SettingsContent({ employees, tags, templates, deletedClients, cu
                 Employees
               </TabsTrigger>
             )}
-            {isManager && (
+            {/* Backup tab hidden for demo */}
+            {/* {isManager && (
               <TabsTrigger value="backup" className="gap-1" data-tour="backup">
                 <DatabaseBackup className="h-4 w-4" />
                 Backup
               </TabsTrigger>
-            )}
+            )} */}
             <TabsTrigger value="tags" className="gap-1">
               <Tag className="h-4 w-4" />
               Tags
@@ -87,11 +88,12 @@ export function SettingsContent({ employees, tags, templates, deletedClients, cu
           </TabsContent>
           )}
 
-          {isManager && (
+          {/* Backup tab hidden for demo */}
+          {/* {isManager && (
           <TabsContent value="backup">
             <BackupTab />
           </TabsContent>
-          )}
+          )} */}
 
           <TabsContent value="tags">
             <SettingsTagsTab tags={tags} isManager={isManager} />

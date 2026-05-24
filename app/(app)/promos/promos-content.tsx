@@ -214,9 +214,10 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
         </div>
         {isManager && (
         <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" onClick={() => setImportOpen(true)}>
+          <Button variant="outline" disabled>
             <ClipboardPaste className="h-4 w-4 mr-2" />
             Import
+            <Badge variant="secondary" className="ml-2 text-[10px]">Coming Soon</Badge>
           </Button>
           <Dialog>
             <DialogTrigger asChild>
@@ -481,7 +482,8 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
       </Card>
 
       {/* Import Dialog */}
-      {isManager && <ImportPromoDialog open={importOpen} onOpenChangeAction={setImportOpen} />}
+      {/* Import disabled for demo — Coming Soon */}
+      {/* {isManager && <ImportPromoDialog open={importOpen} onOpenChangeAction={setImportOpen} />} */}
 
       {/* Delete Confirmation */}
       {isManager && (

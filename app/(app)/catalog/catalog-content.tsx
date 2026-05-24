@@ -346,8 +346,9 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                 >
                   <Trash2 className="h-4 w-4 mr-1" />Clear Catalog
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+                <Button variant="outline" size="sm" disabled>
                   <Upload className="h-4 w-4 mr-1" />Import Catalog
+                  <Badge variant="secondary" className="ml-2 text-[10px]">Coming Soon</Badge>
                 </Button>
               </div>
             </div>
@@ -562,7 +563,8 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
           itemLabel="models"
         />
       </div>
-      <ImportCatalogDialog open={importOpen} onOpenChangeAction={setImportOpen} />
+      {/* Catalog Import disabled for demo — Coming Soon */}
+      {/* <ImportCatalogDialog open={importOpen} onOpenChangeAction={setImportOpen} /> */}
 
       <ConfirmDialog
         open={bulkDeleteOpen}
