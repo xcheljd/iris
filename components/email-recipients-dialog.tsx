@@ -15,6 +15,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { toast } from "sonner";
 import { getEmailRecipients, type ClientEmailFilters, type EmailRecipientsResult } from "@/lib/actions/email-recipients";
 
@@ -105,30 +106,39 @@ export function EmailRecipientsDialog({ open, onOpenChange, filters }: EmailReci
           </div>
         )}
 
-        <div className="space-y-3">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <Checkbox
-              checked={includeClients}
-              onCheckedChange={(v) => setIncludeClients(v === true)}
-              disabled={loading}
-            />
-            <span className="text-sm flex-1">Clients</span>
-            <Badge variant="outline">
-              {loading ? "…" : data?.clients.count ?? 0}
-            </Badge>
-          </label>
-          <label className="flex items-center gap-3 cursor-pointer">
-            <Checkbox
-              checked={includeProspects}
-              onCheckedChange={(v) => setIncludeProspects(v === true)}
-              disabled={loading}
-            />
-            <span className="text-sm flex-1">Prospects (active, with email)</span>
-            <Badge variant="outline">
-              {loading ? "…" : data?.prospects.count ?? 0}
-            </Badge>
-          </label>
-        </div>
+        <FieldSet>
+          <FieldLegend variant="label" className="sr-only">Recipients</FieldLegend>
+          <FieldGroup className="gap-3">
+            <Field orientation="horizontal">
+              <Checkbox
+                id="er-includeClients"
+                checked={includeClients}
+                onCheckedChange={(v) => setIncludeClients(v === true)}
+                disabled={loading}
+              />
+              <FieldLabel htmlFor="er-includeClients" className="text-sm font-normal cursor-pointer">
+                Clients
+              </FieldLabel>
+              <Badge variant="outline">
+                {loading ? "…" : data?.clients.count ?? 0}
+              </Badge>
+            </Field>
+            <Field orientation="horizontal">
+              <Checkbox
+                id="er-includeProspects"
+                checked={includeProspects}
+                onCheckedChange={(v) => setIncludeProspects(v === true)}
+                disabled={loading}
+              />
+              <FieldLabel htmlFor="er-includeProspects" className="text-sm font-normal cursor-pointer">
+                Prospects (active, with email)
+              </FieldLabel>
+              <Badge variant="outline">
+                {loading ? "…" : data?.prospects.count ?? 0}
+              </Badge>
+            </Field>
+          </FieldGroup>
+        </FieldSet>
 
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs text-muted-foreground">

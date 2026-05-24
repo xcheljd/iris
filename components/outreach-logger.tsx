@@ -2,12 +2,12 @@
 import { useState, useTransition } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { DatePicker } from "@/components/date-picker";
 import { logOutreach } from "@/lib/actions";
 import { toast } from "sonner";
@@ -91,9 +91,9 @@ export function OutreachLogger({
           <DialogTitle>Log outreach — {clientName}</DialogTitle>
           <DialogDescription>Log an outreach interaction with this client.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-2 overflow-y-auto -mx-6 px-6 flex-1">
-          <div className="space-y-2">
-            <Label>Method</Label>
+        <FieldGroup className="gap-4 py-2 overflow-y-auto -mx-6 px-6 flex-1">
+          <FieldSet>
+            <FieldLegend variant="label">Method</FieldLegend>
             <ToggleGroup
               type="single"
               value={method}
@@ -113,10 +113,10 @@ export function OutreachLogger({
                 </ToggleGroupItem>
               ))}
             </ToggleGroup>
-          </div>
+          </FieldSet>
 
-          <div className="space-y-2">
-            <Label>Outcome</Label>
+          <FieldSet>
+            <FieldLegend variant="label">Outcome</FieldLegend>
             <RadioGroup value={outcome} onValueChange={setOutcome} className="grid grid-cols-2 gap-1">
               {[
                 { v: "no_answer", l: "No answer" },
@@ -133,34 +133,34 @@ export function OutreachLogger({
                 </label>
               ))}
             </RadioGroup>
-          </div>
+          </FieldSet>
 
           {outcome === "purchased" && (
-            <div className="space-y-2">
-              <Label>Model purchased</Label>
-              <Input value={purchasedModel} onChange={(e) => setPurchasedModel(e.target.value)} placeholder="KX1023-01X" />
-            </div>
+            <Field>
+              <FieldLabel htmlFor="ol-purchasedModel">Model purchased</FieldLabel>
+              <Input id="ol-purchasedModel" value={purchasedModel} onChange={(e) => setPurchasedModel(e.target.value)} placeholder="KX1023-01X" />
+            </Field>
           )}
 
           {templates.length > 0 && (method === "text" || method === "email") && (
-            <div className="space-y-2">
-              <Label>Template (optional)</Label>
+            <Field>
+              <FieldLabel htmlFor="ol-template">Template (optional)</FieldLabel>
               <Select value={templateId} onValueChange={(v) => { setTemplateId(v); const t = templates.find((x) => x.id === v); if (t) setNotes(t.body); }}>
-                <SelectTrigger><SelectValue placeholder="Pick a template..." /></SelectTrigger>
+                <SelectTrigger id="ol-template"><SelectValue placeholder="Pick a template..." /></SelectTrigger>
                 <SelectContent>
                   {templates.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
           )}
 
-          <div className="space-y-2">
-            <Label>Notes</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="What was said…" rows={3} />
-          </div>
+          <Field>
+            <FieldLabel htmlFor="ol-notes">Notes</FieldLabel>
+            <Textarea id="ol-notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="What was said…" rows={3} />
+          </Field>
 
-          <div className="space-y-2">
-            <Label>Follow-up date (optional)</Label>
+          <Field>
+            <FieldLabel>Follow-up date (optional)</FieldLabel>
             <DatePicker date={followUp ?? undefined} onSelectAction={(d) => setFollowUp(d ?? null)} />
             <div className="flex flex-wrap gap-2">
               {quickFollowUpPresets.map((p) => (
@@ -169,8 +169,8 @@ export function OutreachLogger({
                 </Button>
               ))}
             </div>
-          </div>
-        </div>
+          </Field>
+        </FieldGroup>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
           <Button variant="gold" onClick={submit} disabled={pending}>{pending ? "Saving…" : "Save"}</Button>

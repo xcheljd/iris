@@ -11,7 +11,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Field, FieldLabel } from "@/components/ui/field";
 import {
   Select,
   SelectContent,
@@ -83,11 +83,11 @@ export function TransferClientDialog({
             Reassign <strong>{clientName}</strong> to a different associate.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="space-y-2">
-            <Label>New Associate</Label>
+        <div className="py-2">
+          <Field>
+            <FieldLabel htmlFor="tc-newEmployee">New Associate</FieldLabel>
             <Select value={newEmployeeId} onValueChange={setNewEmployeeId}>
-              <SelectTrigger>
+              <SelectTrigger id="tc-newEmployee">
                 <SelectValue placeholder="Select an associate…" />
               </SelectTrigger>
               <SelectContent>
@@ -103,7 +103,7 @@ export function TransferClientDialog({
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -92,18 +92,17 @@ export function ImportCatalogDialog({ open, onOpenChangeAction }: ImportCatalogD
                 <li><strong>Date range: widest available</strong> — catches long-tail / clearance styles</li>
               </ul>
             </div>
-            <div className="space-y-2">
-              <Label>RVX export file (.xls / .xml)</Label>
+            <Field>
+              <FieldLabel htmlFor="ic-file">RVX export file (.xls / .xml)</FieldLabel>
               <input
+                id="ic-file"
                 type="file"
                 accept=".xls,.xml,application/xml,text/xml"
                 onChange={(e) => handleFile(e.target.files?.[0])}
                 className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-2 file:text-sm"
               />
-              {fileName && (
-                <p className="text-xs text-muted-foreground">Loaded: {fileName}</p>
-              )}
-            </div>
+              {fileName && <FieldDescription>Loaded: {fileName}</FieldDescription>}
+            </Field>
             <Separator />
             <Button onClick={handleAnalyze} disabled={!xml.trim() || busy}>
               <Upload className="h-4 w-4 mr-2" />

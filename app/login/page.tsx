@@ -4,8 +4,8 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -102,94 +102,100 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent>
           {mode === "login" && (
-            <form onSubmit={onSubmit} className="space-y-4">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Enter your username" required autoFocus />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <PasswordInput id="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••" required />
-              </div>
-              <Button type="submit" variant="gold" className="w-full" disabled={loading}>
-                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                {loading ? "Signing in…" : "Sign in"}
-              </Button>
-              <Button type="button" variant="link" className="block mx-auto" onClick={() => setMode("forgot-username")}>
-                Forgot Password?
-              </Button>
+            <form onSubmit={onSubmit}>
+              <FieldGroup className="gap-4">
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+                <Field>
+                  <FieldLabel htmlFor="username">Username</FieldLabel>
+                  <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Enter your username" required autoFocus />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="password">Password</FieldLabel>
+                  <PasswordInput id="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••" required />
+                </Field>
+                <Button type="submit" variant="gold" className="w-full" disabled={loading}>
+                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {loading ? "Signing in…" : "Sign in"}
+                </Button>
+                <Button type="button" variant="link" className="block mx-auto" onClick={() => setMode("forgot-username")}>
+                  Forgot Password?
+                </Button>
+              </FieldGroup>
             </form>
           )}
 
           {mode === "forgot-username" && (
-            <form onSubmit={onLookupSubmit} className="space-y-4">
-              <div className="text-center text-sm text-muted-foreground mb-2">
-                Enter your username to begin password recovery.
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="forgot-username">Username</Label>
-                <Input
-                  id="forgot-username"
-                  value={forgotUsername}
-                  onChange={(e) => setForgotUsername(e.target.value)}
-                  placeholder="Enter your username"
-                  required
-                  autoFocus
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={forgotLoading}>
-                {forgotLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-                {forgotLoading ? "Looking up…" : "Continue"}
-              </Button>
-              <Button type="button" variant="link" className="block mx-auto" onClick={() => setMode("login")}>
-                Back to Sign in
-              </Button>
+            <form onSubmit={onLookupSubmit}>
+              <FieldGroup className="gap-4">
+                <div className="text-center text-sm text-muted-foreground mb-2">
+                  Enter your username to begin password recovery.
+                </div>
+                <Field>
+                  <FieldLabel htmlFor="forgot-username">Username</FieldLabel>
+                  <Input
+                    id="forgot-username"
+                    value={forgotUsername}
+                    onChange={(e) => setForgotUsername(e.target.value)}
+                    placeholder="Enter your username"
+                    required
+                    autoFocus
+                  />
+                </Field>
+                <Button type="submit" className="w-full" disabled={forgotLoading}>
+                  {forgotLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {forgotLoading ? "Looking up…" : "Continue"}
+                </Button>
+                <Button type="button" variant="link" className="block mx-auto" onClick={() => setMode("login")}>
+                  Back to Sign in
+                </Button>
+              </FieldGroup>
             </form>
           )}
 
           {mode === "forgot-question" && (
-            <form onSubmit={onVerifySubmit} className="space-y-4">
-              <div className="text-center text-sm text-muted-foreground mb-2">
-                Answer your secret question and set a new password.
-              </div>
-              <div className="space-y-2">
-                <Label>Secret Question</Label>
-                <p className="text-sm font-medium">{secretQuestion}</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="secret-answer">Answer</Label>
-                <Input
-                  id="secret-answer"
-                  value={secretAnswer}
-                  onChange={(e) => setSecretAnswer(e.target.value)}
-                  placeholder="Your answer"
-                  required
-                  autoFocus
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="forgot-new-password">New Password</Label>
-                <PasswordInput
-                  id="forgot-new-password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="••••••"
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={forgotLoading}>
-                {forgotLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-                {forgotLoading ? "Resetting…" : "Reset Password"}
-              </Button>
-              <Button type="button" variant="link" className="block mx-auto" onClick={() => setMode("forgot-username")}>
-                Back
-              </Button>
+            <form onSubmit={onVerifySubmit}>
+              <FieldGroup className="gap-4">
+                <div className="text-center text-sm text-muted-foreground mb-2">
+                  Answer your secret question and set a new password.
+                </div>
+                <Field>
+                  <FieldLabel>Secret Question</FieldLabel>
+                  <p className="text-sm font-medium">{secretQuestion}</p>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="secret-answer">Answer</FieldLabel>
+                  <Input
+                    id="secret-answer"
+                    value={secretAnswer}
+                    onChange={(e) => setSecretAnswer(e.target.value)}
+                    placeholder="Your answer"
+                    required
+                    autoFocus
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="forgot-new-password">New Password</FieldLabel>
+                  <PasswordInput
+                    id="forgot-new-password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="••••••"
+                    required
+                  />
+                </Field>
+                <Button type="submit" className="w-full" disabled={forgotLoading}>
+                  {forgotLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {forgotLoading ? "Resetting…" : "Reset Password"}
+                </Button>
+                <Button type="button" variant="link" className="block mx-auto" onClick={() => setMode("forgot-username")}>
+                  Back
+                </Button>
+              </FieldGroup>
             </form>
           )}
         </CardContent>

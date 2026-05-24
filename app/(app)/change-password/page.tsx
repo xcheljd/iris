@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
@@ -156,42 +156,44 @@ export default function ChangePasswordPage() {
           <CardDescription>Update your account password</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="currentPassword">Current Password</Label>
-              <PasswordInput
-                id="currentPassword"
-                required
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="newPassword">New Password</Label>
-              <PasswordInput
-                id="newPassword"
-                required
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-              />
-              <PasswordStrength password={newPassword} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm New Password</Label>
-              <PasswordInput
-                id="confirmPassword"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                wrapperClassName={passwordsMismatch ? "border-destructive" : passwordsMatch ? "border-green-500" : undefined}
-              />
-              {passwordsMismatch && <p className="text-xs text-destructive">Passwords do not match</p>}
-              {passwordsMatch && <p className="text-xs text-green-500">Passwords match</p>}
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {loading ? "Changing..." : "Change Password"}
-            </Button>
+          <form onSubmit={handleSubmit}>
+            <FieldGroup className="gap-4">
+              <Field>
+                <FieldLabel htmlFor="currentPassword">Current Password</FieldLabel>
+                <PasswordInput
+                  id="currentPassword"
+                  required
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="newPassword">New Password</FieldLabel>
+                <PasswordInput
+                  id="newPassword"
+                  required
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+                <PasswordStrength password={newPassword} />
+              </Field>
+              <Field data-invalid={passwordsMismatch || undefined}>
+                <FieldLabel htmlFor="confirmPassword">Confirm New Password</FieldLabel>
+                <PasswordInput
+                  id="confirmPassword"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  wrapperClassName={passwordsMismatch ? "border-destructive" : passwordsMatch ? "border-green-500" : undefined}
+                />
+                {passwordsMismatch && <FieldError>Passwords do not match</FieldError>}
+                {passwordsMatch && <FieldDescription className="text-green-500">Passwords match</FieldDescription>}
+              </Field>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                {loading ? "Changing..." : "Change Password"}
+              </Button>
+            </FieldGroup>
           </form>
         </CardContent>
       </Card>
@@ -204,36 +206,38 @@ export default function ChangePasswordPage() {
           <CardDescription>Set a secret question to recover your password if you forget it.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSecretSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="secret-question">Question</Label>
-              <Select value={secretQuestion} onValueChange={setSecretQuestionState}>
-                <SelectTrigger id="secret-question">
-                  <SelectValue placeholder="Select a question" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SECRET_QUESTIONS.map((q) => (
-                    <SelectItem key={q} value={q}>
-                      {q}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="secret-answer">Answer</Label>
-              <Input
-                id="secret-answer"
-                value={secretAnswer}
-                onChange={(e) => setSecretAnswer(e.target.value)}
-                placeholder="Your answer"
-                required
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={secretLoading}>
-              {secretLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {secretLoading ? "Saving..." : "Save Question"}
-            </Button>
+          <form onSubmit={handleSecretSubmit}>
+            <FieldGroup className="gap-4">
+              <Field>
+                <FieldLabel htmlFor="secret-question">Question</FieldLabel>
+                <Select value={secretQuestion} onValueChange={setSecretQuestionState}>
+                  <SelectTrigger id="secret-question">
+                    <SelectValue placeholder="Select a question" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SECRET_QUESTIONS.map((q) => (
+                      <SelectItem key={q} value={q}>
+                        {q}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="secret-answer">Answer</FieldLabel>
+                <Input
+                  id="secret-answer"
+                  value={secretAnswer}
+                  onChange={(e) => setSecretAnswer(e.target.value)}
+                  placeholder="Your answer"
+                  required
+                />
+              </Field>
+              <Button type="submit" className="w-full" disabled={secretLoading}>
+                {secretLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                {secretLoading ? "Saving..." : "Save Question"}
+              </Button>
+            </FieldGroup>
           </form>
         </CardContent>
       </Card>

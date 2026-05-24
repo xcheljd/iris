@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import type { ProductOfInterest } from "@/lib/db/schema";
 
@@ -183,7 +184,8 @@ export function ResolutionPanel({
         );
       })}
 
-      <div className="pt-2 border-t space-y-2">
+      <Separator />
+      <div className="space-y-2">
         <div className="text-sm font-medium">Notes</div>
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
@@ -232,7 +234,8 @@ export function ResolutionPanel({
         </div>
       </div>
 
-      <div className="pt-2 border-t space-y-3">
+      <Separator />
+      <div className="space-y-3">
         <div>
           <div className="text-sm font-medium mb-1">Products of Interest (combined)</div>
           <div className="flex flex-wrap gap-1">

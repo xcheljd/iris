@@ -10,9 +10,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { UserCheck, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { graduateProspect, graduateProspectIntoExistingClient } from "@/lib/actions";
@@ -131,66 +131,68 @@ export function GraduateProspectDialog({
               </DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-4 py-2">
+            <FieldGroup className="gap-4 py-2">
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>First Name *</Label>
-                  <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Last Name *</Label>
-                  <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
-                </div>
+                <Field>
+                  <FieldLabel htmlFor="grad-firstName">First Name *</FieldLabel>
+                  <Input id="grad-firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="grad-lastName">Last Name *</FieldLabel>
+                  <Input id="grad-lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                </Field>
               </div>
 
-              <div className="space-y-1.5">
-                <Label>Preferred Contact *</Label>
+              <Field>
+                <FieldLabel htmlFor="grad-preferredContact">Preferred Contact *</FieldLabel>
                 <Select value={preferredContact || undefined} onValueChange={(v) => setPreferredContact(v as "call" | "text" | "email")}>
-                  <SelectTrigger><SelectValue placeholder="Select method" /></SelectTrigger>
+                  <SelectTrigger id="grad-preferredContact"><SelectValue placeholder="Select method" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="call">Call</SelectItem>
                     <SelectItem value="text">Text</SelectItem>
                     <SelectItem value="email">Email</SelectItem>
                   </SelectContent>
                 </Select>
+              </Field>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Field>
+                  <FieldLabel htmlFor="grad-phone">Phone</FieldLabel>
+                  <Input id="grad-phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="grad-email">Email</FieldLabel>
+                  <Input id="grad-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                </Field>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Phone</Label>
-                  <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Email</Label>
-                  <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Birthday</Label>
+                <Field>
+                  <FieldLabel htmlFor="grad-birthday">Birthday</FieldLabel>
                   <Input
+                    id="grad-birthday"
                     placeholder="MM/DD"
                     value={birthday}
                     onChange={(e) => setBirthday(e.target.value)}
                   />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Anniversary</Label>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="grad-anniversary">Anniversary</FieldLabel>
                   <Input
+                    id="grad-anniversary"
                     placeholder="MM/DD"
                     value={anniversary}
                     onChange={(e) => setAnniversary(e.target.value)}
                   />
-                </div>
+                </Field>
               </div>
 
-              <div className="space-y-1.5">
-                <Label>Products of Interest</Label>
+              <Field>
+                <FieldLabel>Products of Interest</FieldLabel>
                 {(prospect.productsOfInterest?.length ?? 0) > 0 && (
-                  <p className="text-xs text-muted-foreground">
+                  <FieldDescription>
                     From prospect record (reference): {prospect.productsOfInterest.join(", ")}
-                  </p>
+                  </FieldDescription>
                 )}
                 <ProductsOfInterestInput
                   value={productsOfInterest}
@@ -198,18 +200,19 @@ export function GraduateProspectDialog({
                   catalogIndex={catalogIndex}
                   isManager={isManager}
                 />
-              </div>
+              </Field>
 
-              <div className="space-y-1.5">
-                <Label>Notes</Label>
+              <Field>
+                <FieldLabel htmlFor="grad-notes">Notes</FieldLabel>
                 <Textarea
+                  id="grad-notes"
                   rows={3}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Optional notes..."
                 />
-              </div>
-            </div>
+              </Field>
+            </FieldGroup>
 
             <DialogFooter>
               <Button variant="outline" onClick={handleClose} disabled={pending}>

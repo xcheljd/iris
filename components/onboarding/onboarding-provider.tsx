@@ -12,6 +12,7 @@ import {
 import { useRouter, usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useSidebar } from "@/components/ui/sidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   getOnboardingState,
   updateOnboardingState,
@@ -87,23 +88,6 @@ export function useOnboarding(): OnboardingContextValue {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Mobile detection hook                                                       */
-/* -------------------------------------------------------------------------- */
-
-function useIsMobile(breakpoint = 768): boolean {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < breakpoint);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, [breakpoint]);
-
-  return isMobile;
-}
-
-/* -------------------------------------------------------------------------- */
 /* Provider                                                                    */
 /* -------------------------------------------------------------------------- */
 
@@ -173,7 +157,24 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         //  - state.tourCompleted is false AND currentStep > 0 → resume
         if (!isMobileRef.current) {
           if (state === null) {
-            // First login – auto trigger after short delay
+            // First login – persist initial state to DB immediately so subsequent
+            // hard navigations don't re-trigger the tour. Then auto-start.
+            const initial: OnboardingState = {
+              tourCompleted: false,
+              currentStep: 1,
+              completedSteps: [],
+              hintsDismissed: [],
+              tourSkipped: false,
+            };
+            try {
+              const persisted = await updateOnboardingState({
+                currentStep: 1,
+              });
+              setOnboardingState(persisted);
+            } catch {
+              // Persist failed — tour will still start, may re-trigger on next hard nav
+              setOnboardingState(initial);
+            }
             setTimeout(() => {
               if (!cancelled) {
                 const idx = Math.max(1, Math.min(1, totalSteps));
@@ -323,7 +324,6 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     if (currentStepIndex >= totalSteps) {
       setTourStatus("completed");
       setCurrentStepIndex(0);
-      // Optimistically update local state
       setOnboardingState((prev) => prev ? {
         ...prev,
         tourCompleted: true,

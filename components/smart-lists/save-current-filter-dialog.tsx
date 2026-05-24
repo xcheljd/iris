@@ -13,8 +13,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { createSmartList } from "@/lib/actions";
 import { toast } from "sonner";
 import type { ClientFilterParams } from "@/lib/client-filter-conds";
@@ -70,9 +70,9 @@ export function SaveCurrentFilterDialog({
             Save the current Clients-page filters as a reusable Smart List.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="space-y-2">
-            <Label htmlFor="save-list-name">Name</Label>
+        <FieldGroup className="gap-4 py-2">
+          <Field>
+            <FieldLabel htmlFor="save-list-name">Name</FieldLabel>
             <Input
               id="save-list-name"
               value={name}
@@ -80,7 +80,7 @@ export function SaveCurrentFilterDialog({
               placeholder="e.g. Hot VIPs in Q2"
               autoFocus
             />
-          </div>
+          </Field>
 
           {activeFilterChips.length > 0 && (
             <div className="rounded-md border bg-muted/30 p-3 text-xs">
@@ -93,17 +93,17 @@ export function SaveCurrentFilterDialog({
             </div>
           )}
 
-          <div className="flex items-center gap-2">
+          <Field orientation="horizontal">
             <Checkbox
               id="save-list-shared"
               checked={isShared}
               onCheckedChange={(c) => setIsShared(c === true)}
             />
-            <Label htmlFor="save-list-shared" className="text-sm">
+            <FieldLabel htmlFor="save-list-shared" className="text-sm font-normal cursor-pointer">
               Share this list with the team
-            </Label>
-          </div>
-        </div>
+            </FieldLabel>
+          </Field>
+        </FieldGroup>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
             Cancel

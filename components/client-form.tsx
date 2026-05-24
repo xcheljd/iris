@@ -3,12 +3,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
+import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { DatePicker } from "@/components/date-picker";
 import { Plus, X, AlertCircle } from "lucide-react";
 
@@ -134,28 +135,28 @@ export function ClientForm({
         <CardHeader>
           <CardTitle>Basic Information</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">First Name *</Label>
+        <CardContent>
+          <FieldGroup className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field>
+              <FieldLabel htmlFor="firstName">First Name *</FieldLabel>
               <Input
                 id="firstName"
                 placeholder="Enter first name"
                 value={formData.firstName}
                 onChange={(e) => onFieldChangeAction("firstName", e.target.value)}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name *</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="lastName">Last Name *</FieldLabel>
               <Input
                 id="lastName"
                 placeholder="Enter last name"
                 value={formData.lastName}
                 onChange={(e) => onFieldChangeAction("lastName", e.target.value)}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="preferredContact">Preferred Contact *</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="preferredContact">Preferred Contact *</FieldLabel>
               <Select
                 value={formData.preferredContact || undefined}
                 onValueChange={(v) => onFieldChangeAction("preferredContact", v)}
@@ -169,17 +170,17 @@ export function ClientForm({
                   <SelectItem value="email">Email</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="customerId">Customer ID</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="customerId">Customer ID</FieldLabel>
               <Input
                 id="customerId"
                 placeholder="e.g. 100600045"
                 value={formData.customerId}
                 onChange={(e) => onFieldChangeAction("customerId", e.target.value)}
               />
-            </div>
-          </div>
+            </Field>
+          </FieldGroup>
         </CardContent>
       </Card>
 
@@ -188,50 +189,52 @@ export function ClientForm({
         <CardHeader>
           <CardTitle>Contact Information</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                placeholder="(XXX) XXX-XXXX"
-                value={formData.phone}
-                onChange={(e) => onFieldChangeAction("phone", e.target.value)}
-              />
+        <CardContent>
+          <FieldGroup className="gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field>
+                <FieldLabel htmlFor="phone">Phone</FieldLabel>
+                <Input
+                  id="phone"
+                  placeholder="(XXX) XXX-XXXX"
+                  value={formData.phone}
+                  onChange={(e) => onFieldChangeAction("phone", e.target.value)}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="email">Email</FieldLabel>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="client@example.com"
+                  value={formData.email}
+                  onChange={(e) => onFieldChangeAction("email", e.target.value)}
+                />
+              </Field>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="client@example.com"
-                value={formData.email}
-                onChange={(e) => onFieldChangeAction("email", e.target.value)}
-              />
-            </div>
-          </div>
 
-          {employees && employees.length > 0 && (
-            <div className="space-y-2">
-              <Label htmlFor="employeeId">Employee Assignment</Label>
-              <Select
-                value={formData.employeeId || "__none__"}
-                onValueChange={(value) => onFieldChangeAction("employeeId", value === "__none__" ? "" : value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select employee" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Unassigned</SelectItem>
-                  {employees.map((employee) => (
-                    <SelectItem key={employee.id} value={employee.id}>
-                      {employee.name} ({employee.role})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+            {employees && employees.length > 0 && (
+              <Field>
+                <FieldLabel htmlFor="employeeId">Employee Assignment</FieldLabel>
+                <Select
+                  value={formData.employeeId || "__none__"}
+                  onValueChange={(value) => onFieldChangeAction("employeeId", value === "__none__" ? "" : value)}
+                >
+                  <SelectTrigger id="employeeId">
+                    <SelectValue placeholder="Select employee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Unassigned</SelectItem>
+                    {employees.map((employee) => (
+                      <SelectItem key={employee.id} value={employee.id}>
+                        {employee.name} ({employee.role})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
+          </FieldGroup>
         </CardContent>
       </Card>
 
@@ -242,31 +245,51 @@ export function ClientForm({
             {formData.status !== undefined ? "Status & Preferences" : "Preferences & Source"}
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {formData.status !== undefined && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value) => onFieldChangeAction("status", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="banned">Banned</SelectItem>
-                    <SelectItem value="unsubscribed">Unsubscribed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+        <CardContent>
+          <FieldGroup className="gap-4">
+            {formData.status !== undefined && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field>
+                  <FieldLabel htmlFor="status">Status</FieldLabel>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(value) => onFieldChangeAction("status", value)}
+                  >
+                    <SelectTrigger id="status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="banned">Banned</SelectItem>
+                      <SelectItem value="unsubscribed">Unsubscribed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
 
-              <div className="space-y-2">
-                <Label htmlFor="source">Source</Label>
+                <Field>
+                  <FieldLabel htmlFor="source">Source</FieldLabel>
+                  <Select value={formData.source} onValueChange={(value) => onFieldChangeAction("source", value)}>
+                    <SelectTrigger id="source">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CLIENT_SOURCE_VALUES.map((source) => (
+                        <SelectItem key={source} value={source}>
+                          {source}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            )}
+
+            {formData.status === undefined && (
+              <Field>
+                <FieldLabel htmlFor="source">Source</FieldLabel>
                 <Select value={formData.source} onValueChange={(value) => onFieldChangeAction("source", value)}>
-                  <SelectTrigger>
+                  <SelectTrigger id="source">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -277,38 +300,21 @@ export function ClientForm({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-            </div>
-          )}
+              </Field>
+            )}
 
-          {formData.status === undefined && (
-            <div className="space-y-2">
-              <Label htmlFor="source">Source</Label>
-              <Select value={formData.source} onValueChange={(value) => onFieldChangeAction("source", value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CLIENT_SOURCE_VALUES.map((source) => (
-                    <SelectItem key={source} value={source}>
-                      {source}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Email List</Label>
-              <p className="text-sm text-muted-foreground">Add client to email marketing list</p>
-            </div>
-            <Switch
-              checked={formData.onEmailList}
-              onCheckedChange={(checked) => onFieldChangeAction("onEmailList", checked)}
-            />
-          </div>
+            <Field orientation="horizontal">
+              <FieldContent>
+                <FieldLabel htmlFor="onEmailList">Email List</FieldLabel>
+                <FieldDescription>Add client to email marketing list</FieldDescription>
+              </FieldContent>
+              <Switch
+                id="onEmailList"
+                checked={formData.onEmailList}
+                onCheckedChange={(checked) => onFieldChangeAction("onEmailList", checked)}
+              />
+            </Field>
+          </FieldGroup>
         </CardContent>
       </Card>
 
@@ -317,25 +323,25 @@ export function ClientForm({
         <CardHeader>
           <CardTitle>Important Dates</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Birthday (optional)</Label>
+        <CardContent>
+          <FieldGroup className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field>
+              <FieldLabel>Birthday (optional)</FieldLabel>
               <DatePicker
                 date={formData.birthday ?? undefined}
                 onSelectAction={(date) => onFieldChangeAction("birthday", date)}
                 className="w-full"
               />
-            </div>
-            <div className="space-y-2">
-              <Label>Anniversary (optional)</Label>
+            </Field>
+            <Field>
+              <FieldLabel>Anniversary (optional)</FieldLabel>
               <DatePicker
                 date={formData.anniversary ?? undefined}
                 onSelectAction={(date) => onFieldChangeAction("anniversary", date)}
                 className="w-full"
               />
-            </div>
-          </div>
+            </Field>
+          </FieldGroup>
         </CardContent>
       </Card>
 
@@ -435,7 +441,8 @@ export function ClientForm({
       </Card>
 
       {/* Submit */}
-      <div className="flex justify-end gap-4 pt-4 border-t">
+      <Separator />
+      <div className="flex justify-end gap-4">
         <Button variant="outline" onClick={onCancelAction}>
           Cancel
         </Button>

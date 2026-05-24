@@ -4,7 +4,7 @@ import { useState, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -152,8 +152,8 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
 
         {!parsed ? (
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Promo PDF</Label>
+            <Field>
+              <FieldLabel>Promo PDF</FieldLabel>
               <div className="flex items-center gap-2">
                 <input
                   ref={fileInputRef}
@@ -175,10 +175,10 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
                   </span>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <FieldDescription>
                 Each page&apos;s &quot;X% OFF&quot; header sets the discount for rows on that page.
-              </p>
-            </div>
+              </FieldDescription>
+            </Field>
           </div>
         ) : !resolved || resolved.length === 0 ? (
           <div className="space-y-4">
@@ -224,15 +224,15 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
             )}
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
-              <div className="space-y-2 flex-1">
-                <Label>Promo Start</Label>
+              <Field className="flex-1">
+                <FieldLabel>Promo Start</FieldLabel>
                 <DatePicker date={promoStart} onSelectAction={setPromoStart} className="w-full" />
-              </div>
+              </Field>
               <div className="flex items-center pb-2 text-muted-foreground">—</div>
-              <div className="space-y-2 flex-1">
-                <Label>Promo End</Label>
+              <Field className="flex-1">
+                <FieldLabel>Promo End</FieldLabel>
                 <DatePicker date={promoEnd} onSelectAction={setPromoEnd} className="w-full" />
-              </div>
+              </Field>
               {(promoStart || promoEnd) && (
                 <Button variant="ghost" size="sm" className="mb-0.5" onClick={() => { setPromoStart(undefined); setPromoEnd(undefined); }}>
                   Clear
