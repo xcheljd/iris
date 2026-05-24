@@ -1,13 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Field, FieldGroup, FieldLabel, FieldError } from "@/components/ui/field";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { IrisIcon } from "@/components/iris-icon";
 import { PasswordInput } from "@/components/password-input";
@@ -18,6 +17,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const loginFormRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (!error) return;
+    const el = loginFormRef.current;
+    if (!el) return;
+    el.classList.remove("animate-shake");
+    void el.offsetWidth;
+    el.classList.add("animate-shake");
+  }, [error]);
 
   const [mode, setMode] = useState<"login" | "forgot-username" | "forgot-question">("login");
   const [forgotUsername, setForgotUsername] = useState("");
@@ -102,21 +111,16 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent>
           {mode === "login" && (
-            <form onSubmit={onSubmit}>
+            <form ref={loginFormRef} onSubmit={onSubmit}>
               <FieldGroup className="gap-4">
-                {error && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-                <Field>
+                <Field data-invalid={!!error || undefined}>
                   <FieldLabel htmlFor="username">Username</FieldLabel>
-                  <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Enter your username" required autoFocus />
+                  <Input id="username" value={username} onChange={(e) => { setUsername(e.target.value); setError(""); }} placeholder="Enter your username" required autoFocus />
                 </Field>
-                <Field>
+                <Field data-invalid={!!error || undefined}>
                   <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <PasswordInput id="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••" required />
+                  <PasswordInput id="password" value={password} onChange={(e) => { setPassword(e.target.value); setError(""); }} placeholder="••••••" required />
+                  {error && <FieldError>{error}</FieldError>}
                 </Field>
                 <Button type="submit" variant="gold" className="w-full" disabled={loading}>
                   {loading && <Loader2 className="h-4 w-4 animate-spin" />}
