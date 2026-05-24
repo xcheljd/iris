@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { CommandPalette, CommandPaletteProvider } from "@/components/command-palette";
@@ -14,8 +15,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ? await Promise.all([getPendingApprovalCount(), getCatalogFlagCount()])
     : [0, 0];
 
+  const cookieStore = await cookies();
+  const sidebarCookie = cookieStore.get("sidebar_state")?.value;
+  const defaultOpen = sidebarCookie === undefined ? true : sidebarCookie === "true";
+
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={defaultOpen}>
       <CommandPaletteProvider>
         <OnboardingProvider>
           <AppSidebar initialPendingCount={initialPendingApprovalCount} initialCatalogFlagCount={initialCatalogFlagCount} />

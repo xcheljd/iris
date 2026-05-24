@@ -13,7 +13,7 @@ const Command = React.forwardRef<
 ));
 Command.displayName = CommandPrimitive.displayName;
 
-const CommandDialog = ({ children, ...props }: React.ComponentProps<typeof Dialog> & { shouldFilter?: boolean }) => (
+const CommandDialog = ({ children, ...props }: React.ComponentProps<typeof Dialog>) => (
   <Dialog {...props}>
     <DialogContent className="overflow-hidden p-0">
       <DialogTitle className="sr-only">Command Palette</DialogTitle>
