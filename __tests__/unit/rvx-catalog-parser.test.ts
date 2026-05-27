@@ -95,7 +95,7 @@ describe("classCodeToBrand", () => {
 describe("stripSubClassPrefix", () => {
   it("strips the code prefix", () => {
     expect(stripSubClassPrefix("120-ORION")).toBe("ORION");
-    expect(stripSubClassPrefix("PR4-SENTINEL DEEPR")).toBe("SENTINEL DEEPR");
+    expect(stripSubClassPrefix("PR4-SENTINEL DEEP")).toBe("SENTINEL DEEP");
   });
 });
 

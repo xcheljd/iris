@@ -52,7 +52,7 @@ export function classCodeToBrand(classCode: string): Brand | null {
   return "Meridian";
 }
 
-/** "PR4-SENTINEL DEEPR" -> "SENTINEL DEEPR"; "120-ORION" -> "ORION". */
+/** "PR4-SENTINEL DEEP" -> "SENTINEL DEEP"; "120-ORION" -> "ORION". */
 export function stripSubClassPrefix(subClass: string): string {
   return subClass.replace(/^[^-]+-/, "").trim();
 }
