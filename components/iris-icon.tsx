@@ -3,7 +3,7 @@
 import React from "react";
 
 /**
- * Iris Icon — a gold "C" ring with two watch hands centered inside.
+ * Iris Icon — a gold "I" ring with two watch hands centered inside.
  *
  * The ring is a 270-degree arc centered at (256,256) with radius 200,
  * opening on the right side from -45deg to +45deg. Hands originate
@@ -68,7 +68,7 @@ export function IrisIcon({
         </linearGradient>
       </defs>
 
-      {/* C-ring: 270deg arc, opens to the right */}
+      {/* Ring: 270deg arc, opens to the right */}
       <path
         d={`M ${START_X.toFixed(2)} ${START_Y.toFixed(2)} A ${R} ${R} 0 1 0 ${END_X.toFixed(2)} ${END_Y.toFixed(2)}`}
         stroke="url(#iris-g)"
