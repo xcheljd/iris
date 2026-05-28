@@ -107,7 +107,7 @@ export default function LoginPage() {
         <CardHeader className="space-y-2 text-center">
           <IrisIcon size={48} className="mx-auto mb-2" />
           <CardTitle className="text-2xl font-serif tracking-wide">Iris</CardTitle>
-          <CardDescription>Meridian Customer Relationship Management</CardDescription>
+          <CardDescription className="italic text-muted-foreground/80 tracking-wide">Every thread, remembered</CardDescription>
         </CardHeader>
         <CardContent>
           {mode === "login" && (
