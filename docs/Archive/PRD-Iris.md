@@ -1,5 +1,5 @@
 # Product Requirements Document
-## Iris — Meridian Customer Relationship Management
+## Iris — Every thread, remembered
 
 **Author:** Friday  
 **Date:** April 23, 2026  
