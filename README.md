@@ -1,6 +1,6 @@
 # Iris — Every thread, remembered
 
-A lightweight, self-hosted web CRM purpose-built for Meridian Watch retail clienteling. Replaces a sprawling Excel workbook with a fast, mobile-friendly web app built on Next.js and shadcn/ui.
+A lightweight, self-hosted customer relationship management tool purpose-built for Meridian Watch retail clienteling. Replaces a sprawling Excel workbook with a fast, mobile-friendly web app built on Next.js and shadcn/ui.
 
 ## Quick Start
 
