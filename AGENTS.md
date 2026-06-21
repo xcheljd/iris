@@ -1,0 +1,80 @@
+# Iris
+
+A self-hosted clienteling/CRM web app for Meridian Watch retail — replaces a spreadsheet workbook with a fast, mobile-friendly Next.js app. **Portfolio demo with synthetic data only.**
+
+## Quick commands
+
+| Action | Command |
+|--------|---------|
+| Install deps | `pnpm install` |
+| Dev server | `pnpm dev` → http://localhost:3000 |
+| Build | `pnpm build` |
+| Start (prod) | `pnpm start` |
+| Lint | `pnpm lint` |
+| Run all tests | `pnpm test` |
+| One test (watch) | `pnpm test:watch` |
+| Push schema → DB | `pnpm db:push` |
+| Seed DB | `pnpm db:seed` |
+
+> `npm` works too (both lockfiles present), but `pnpm` is current — `pnpm-lock.yaml` + `pnpm-workspace.yaml` are the source of truth.
+
+## Tech stack
+
+- **Language:** TypeScript 5 (`strict: true`, `target: ES2022`)
+- **Framework:** Next.js 15 (App Router, React Server Components), React 18
+- **UI:** shadcn/ui (New York style) + Tailwind CSS 3, Radix primitives, lucide icons, sonner toasts
+- **DB:** SQLite via `better-sqlite3`; ORM: Drizzle ORM (`drizzle-kit`)
+- **Auth:** NextAuth.js (Credentials provider, JWT sessions) — needs `NEXTAUTH_SECRET` + `NEXTAUTH_URL`
+- **Forms/validation:** react-hook-form + zod
+- **Charts:** Recharts
+- **PDF parsing:** `pdfjs-dist` (client-side, worker copied via `postinstall`)
+- **Tests:** Vitest 4 + Testing Library + jsdom
+- **Runtime:** Node 20+, path alias `@/*` → project root
+
+## Architecture
+
+- **`app/`** — Next.js App Router. `app/(app)/` is the authenticated layout (sidebar + command palette) with one route per domain (clients, promos, catalog, prospects, analytics, approvals, settings…). `app/api/` = REST routes. `app/login/` = auth.
+- **`lib/`** — shared logic. `lib/actions.ts` is the **server-actions barrel** (re-exports `lib/actions/*`); `lib/db/` = schema, connection, seed, FTS; domain parsers in `lib/` (`promo-pdf-parser.ts`, `rvx-parser.ts`, `rvx-catalog-parser.ts`); read queries in `lib/queries.ts`; zod schemas in `lib/validation/`.
+- **`components/`** — React components; `components/ui/` = shadcn primitives; domain groups (`catalog/`, `promo/`, `merge/`, `onboarding/`).
+- **`__tests__/`** — mirrors source: `unit/` (pure logic), `components/` (incl. `onboarding/`), `api/` (route handlers).
+- **`data/iris.db`** — SQLite file (gitignored); Drizzle migrations in `drizzle/` (gitignored, generated).
+- **`docs/`** — ARCHITECTURE.md, FEATURE-PROPOSALS.md, REST-API-EXPANSION.md.
+
+**Data flow:** client form → zod → server action (`lib/actions/*`) → Drizzle → SQLite. PDF/CSV imports parse client-side (pdfjs-dist) or in `lib/` parsers, then bulk-insert.
+
+## Conventions
+
+- **Commits:** Conventional Commits — `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`, `test:`, `perf:`. Optional scope in parens: `feat(ux)`, `feat(a11y)`, `fix(onboarding)`, `chore(demo)`, `refactor(ui)`.
+- **Branching:** trunk-based, single `main` branch. No remote, no PR template — direct commits.
+- **Naming:** components PascalCase, lib/util modules kebab-case. Tests mirror source path under `__tests__/`.
+- **Lint:** `next/core-web-vitals` + `next/typescript`. Unused vars **must** be prefixed `_` (enforced).
+
+## Testing
+
+- **Runner:** Vitest (jsdom, `globals: true`), setup at `__tests__/setup.ts`.
+- **Layout:** `__tests__/unit/`, `__tests__/components/`, `__tests__/api/`. Files: `*.test.ts(x)`.
+- **`fileParallelism: false`** — tests share one SQLite DB; do not enable parallelism.
+- **Coverage target:** 70-80% floor. Many unit + component tests; few integration.
+
+## Do
+
+- Run `pnpm test` (and lint) before declaring a change done.
+- Add a regression test for every bug fix.
+- Keep **all** data synthetic — brands are Meridian, Ashford, Voss, Chamberlain, Kinetic (never real names).
+- Add new server actions under `lib/actions/<domain>.ts` and re-export through `lib/actions.ts`.
+- Validate inputs with zod schemas in `lib/validation/`.
+
+## Don't
+
+- Don't commit `.env.local` or any `*.db` / `*.db-*` file.
+- Don't use real customer PII or real watch brand/catalog data — this is a synthetic demo.
+- Don't hand-edit `drizzle/` migrations — regenerate from `lib/db/schema.ts` via `pnpm db:push`.
+- Don't delete `public/pdf.worker.min.mjs` — it's copied by `postinstall` and required for PDF import.
+
+## Gotchas
+
+- **Fresh clone has no DB.** Run `pnpm db:push && pnpm db:seed` first. Default login: `Marcus` / `meridian` (shown on login page).
+- **`postinstall` copies the PDF worker** (`node_modules/pdfjs-dist/.../pdf.worker.min.mjs` → `public/`). If you prune node_modules manually, re-run `pnpm install` or promo PDF import breaks silently.
+- **Vitest must stay serial** (`fileParallelism: false`) — tests mutate the shared SQLite DB.
+- **WAL grows.** `data/iris.db-wal` can balloon during heavy test/dev runs; checkpoint or delete WAL/SHM while the server is stopped.
+- **NextAuth requires env vars** in `.env.local` (`NEXTAUTH_SECRET`, `NEXTAUTH_URL`) or auth fails at runtime.

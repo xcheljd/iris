@@ -6,14 +6,14 @@ A lightweight, self-hosted customer relationship management tool purpose-built f
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Set up the database
-npm run db:push
-npm run db:seed
+pnpm db:push
+pnpm db:seed
 
 # Start dev server
-npm run dev
+pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000). Default credentials are displayed on the login page.
@@ -80,14 +80,14 @@ docs/                 # Project documentation
 
 | Script | Description |
 |--------|-------------|
-| `npm run dev` | Start development server |
-| `npm run build` | Production build |
-| `npm run start` | Start production server |
-| `npm run lint` | Run ESLint |
-| `npm run db:push` | Push schema changes to database |
-| `npm run db:seed` | Seed database with sample data |
-| `npm run test` | Run tests |
-| `npm run test:watch` | Run tests in watch mode |
+| `pnpm dev` | Start development server |
+| `pnpm build` | Production build |
+| `pnpm start` | Start production server |
+| `pnpm lint` | Run ESLint |
+| `pnpm db:push` | Push schema changes to database |
+| `pnpm db:seed` | Seed database with sample data |
+| `pnpm test` | Run tests |
+| `pnpm test:watch` | Run tests in watch mode |
 
 ## Roles
 
