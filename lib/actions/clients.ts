@@ -20,7 +20,7 @@ function dedupeProducts(list: ProductOfInterest[]): ProductOfInterest[] {
   return out;
 }
 
-export async function applyClientPatch(clientId: string, data: Record<string, unknown>): Promise<void> {
+export async function applyClientPatch(clientId: string, data: Record<string, unknown>, employeeId: string): Promise<void> {
   const patch: Record<string, unknown> = { updatedAt: new Date() };
   for (const [k, v] of Object.entries(data)) {
     if (v !== undefined) patch[k] = v;
@@ -35,6 +35,7 @@ export async function applyClientPatch(clientId: string, data: Record<string, un
     eventType: "edited",
     description: "Profile updated",
     metadata: { fieldChanges: data },
+    employeeId,
   }).run();
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/clients");

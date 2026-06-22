@@ -28,7 +28,7 @@ export const GET = withAuth(async (_session, request: Request) => {
 });
 
 // POST /api/clients — create a new client
-export const POST = withAuth(async (_session, request: Request) => {
+export const POST = withAuth(async (session, request: Request) => {
   try {
     const body = await request.json();
     const parsed = clientCreateSchema.safeParse(body);
@@ -67,6 +67,7 @@ export const POST = withAuth(async (_session, request: Request) => {
       birthday: data.birthday ?? null,
       anniversary: data.anniversary ?? null,
       tags: data.tags,
+      employeeId: session.user.id,
     }).run();
 
     // Feed the durable catalog from the new client's interests — an
@@ -78,6 +79,7 @@ export const POST = withAuth(async (_session, request: Request) => {
       clientId: id,
       eventType: "created",
       description: `Client added`,
+      employeeId: session.user.id,
     }).run();
 
     revalidatePath("/clients");
@@ -111,7 +113,7 @@ export const PUT = withAuth(async (session, request: Request) => {
       );
     }
 
-    await applyClientPatch(id, parsed.data as Record<string, unknown>);
+    await applyClientPatch(id, parsed.data as Record<string, unknown>, session.user.id);
     return Response.json({ success: true });
   } catch (_error) {
     return Response.json({ error: "Failed to update client" }, { status: 500 });

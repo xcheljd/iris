@@ -11,7 +11,7 @@ const notePostSchema = z.object({
 });
 const noteDeleteSchema = z.object({ noteId: z.string().uuid() });
 
-export const POST = withAuth(async (_session, request: Request) => {
+export const POST = withAuth(async (session, request: Request) => {
   try {
     const body = await request.json();
     const parsed = notePostSchema.safeParse(body);
@@ -26,6 +26,9 @@ export const POST = withAuth(async (_session, request: Request) => {
     const client = db.select().from(clients).where(eq(clients.id, clientId)).get();
     if (!client) {
       return Response.json({ error: "Client not found" }, { status: 404 });
+    }
+    if (session.user.role !== "manager" && client.employeeId !== session.user.id) {
+      return Response.json({ error: "Forbidden" }, { status: 403 });
     }
 
     db.insert(activityEvents).values({
