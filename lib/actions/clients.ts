@@ -84,14 +84,14 @@ export async function unsubscribeClient(clientId: string): Promise<{ error: stri
 }
 
 export async function unbanClient(clientId: string) {
-  await requireManager();
+  const user = await requireManager();
   const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
   if (!c || c.status !== "banned") return;
   db.transaction((tx) => {
     tx.update(clients).set({ status: "active", updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
     tx.delete(bannedCustomers).where(eq(bannedCustomers.customerId, clientId)).run();
     tx.insert(activityEvents).values({
-      id: randomUUID(), clientId, eventType: "status_changed", description: "Unbanned", metadata: { newStatus: "active" }, employeeId: null,
+      id: randomUUID(), clientId, eventType: "status_changed", description: "Unbanned", metadata: { newStatus: "active" }, employeeId: user.id,
     }).run();
   });
   revalidatePath(`/clients/${clientId}`);
@@ -99,7 +99,7 @@ export async function unbanClient(clientId: string) {
 }
 
 export async function addUnsubscribeEmail(email: string): Promise<{ error: string } | undefined> {
-  await requireManager();
+  const user = await requireManager();
   const existing = db.select().from(unsubscribeList).where(eq(unsubscribeList.email, email)).get();
   if (existing) return { error: "Email already exists" };
   const matchingClient = db.select().from(clients).where(eq(clients.email, email)).get();
@@ -108,7 +108,7 @@ export async function addUnsubscribeEmail(email: string): Promise<{ error: strin
     if (matchingClient) {
       tx.update(clients).set({ status: "unsubscribed", onEmailList: false, updatedAt: new Date() }).where(eq(clients.id, matchingClient.id)).run();
       tx.insert(activityEvents).values({
-        id: randomUUID(), clientId: matchingClient.id, eventType: "status_changed", description: "Manually added to unsubscribe list", metadata: { newStatus: "unsubscribed" }, employeeId: null,
+        id: randomUUID(), clientId: matchingClient.id, eventType: "status_changed", description: "Manually added to unsubscribe list", metadata: { newStatus: "unsubscribed" }, employeeId: user.id,
       }).run();
     }
   });
@@ -117,16 +117,20 @@ export async function addUnsubscribeEmail(email: string): Promise<{ error: strin
 }
 
 export async function resubscribeClient(clientId: string) {
-  await requireManager();
+  const user = await requireManager();
   const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
   if (!c) return;
   db.transaction((tx) => {
-    tx.update(clients).set({ status: "active", onEmailList: true, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+    // Restore status to active without forcing onEmailList: true — the
+    // client may have been unsubscribed from emails independently of
+    // being on the suppression list. Removing from the suppression list
+    // means they CAN be re-added, not that they ARE on it.
+    tx.update(clients).set({ status: "active", updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
     if (c.email) {
       tx.delete(unsubscribeList).where(eq(unsubscribeList.email, c.email)).run();
     }
     tx.insert(activityEvents).values({
-      id: randomUUID(), clientId, eventType: "status_changed", description: "Resubscribed", metadata: { newStatus: "active" }, employeeId: null,
+      id: randomUUID(), clientId, eventType: "status_changed", description: "Resubscribed", metadata: { newStatus: "active" }, employeeId: user.id,
     }).run();
   });
   revalidatePath(`/clients/${clientId}`);
@@ -134,7 +138,7 @@ export async function resubscribeClient(clientId: string) {
 }
 
 export async function toggleEmailList(clientId: string): Promise<{ error: string } | undefined> {
-  await requireAuth();
+  const user = await requireAuth();
   const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
   if (!c) return { error: "Client not found" };
   if (c.status === "unsubscribed") return { error: "Cannot toggle email list for unsubscribed client" };
@@ -142,7 +146,7 @@ export async function toggleEmailList(clientId: string): Promise<{ error: string
   db.transaction((tx) => {
     tx.update(clients).set({ onEmailList: newValue, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
     tx.insert(activityEvents).values({
-      id: randomUUID(), clientId, eventType: "edited", description: newValue ? "Added to email list" : "Removed from email list", metadata: { onEmailList: newValue }, employeeId: null,
+      id: randomUUID(), clientId, eventType: "edited", description: newValue ? "Added to email list" : "Removed from email list", metadata: { onEmailList: newValue }, employeeId: user.id,
     }).run();
   });
   revalidatePath(`/clients/${clientId}`);
@@ -178,6 +182,7 @@ export async function transferClient(clientId: string, newEmployeeId: string): P
   });
 
   revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/clients");
 }
 
 export async function deleteClient(clientId: string): Promise<{ error: string } | undefined> {

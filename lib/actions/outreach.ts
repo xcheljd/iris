@@ -93,32 +93,42 @@ export async function logOutreach(data: OutreachInput): Promise<{ error: string 
   revalidatePath("/");
 }
 
-export async function markFollowUpComplete(logId: string) {
+export async function markFollowUpComplete(logId: string): Promise<{ error: string } | undefined> {
   const user = await requireAuth();
   const log = db.select({ clientId: outreachLogs.clientId }).from(outreachLogs).where(eq(outreachLogs.id, logId)).get();
-  db.transaction((tx) => {
-    tx.update(outreachLogs).set({ completed: true }).where(eq(outreachLogs.id, logId)).run();
-    if (log) {
-      tx.insert(activityEvents).values({
-        id: randomUUID(), clientId: log.clientId, eventType: "outreach_logged", description: `Follow-up marked complete by ${user.name}`, employeeId: user.id,
-      }).run();
-    }
-  });
+  try {
+    db.transaction((tx) => {
+      tx.update(outreachLogs).set({ completed: true }).where(eq(outreachLogs.id, logId)).run();
+      if (log) {
+        tx.insert(activityEvents).values({
+          id: randomUUID(), clientId: log.clientId, eventType: "outreach_logged", description: `Follow-up marked complete by ${user.name}`, employeeId: user.id,
+        }).run();
+      }
+    });
+  } catch (err) {
+    console.error("markFollowUpComplete failed:", err);
+    return { error: "Failed to complete follow-up" };
+  }
   if (log) revalidatePath(`/clients/${log.clientId}`);
   revalidatePath("/follow-ups");
 }
 
-export async function rescheduleFollowUp(logId: string, newDate: string) {
+export async function rescheduleFollowUp(logId: string, newDate: string): Promise<{ error: string } | undefined> {
   const user = await requireAuth();
   const log = db.select({ clientId: outreachLogs.clientId }).from(outreachLogs).where(eq(outreachLogs.id, logId)).get();
-  db.transaction((tx) => {
-    tx.update(outreachLogs).set({ followUpDate: new Date(newDate) }).where(eq(outreachLogs.id, logId)).run();
-    if (log) {
-      tx.insert(activityEvents).values({
-        id: randomUUID(), clientId: log.clientId, eventType: "outreach_logged", description: `Follow-up rescheduled to ${format(new Date(newDate), "MMM d, yyyy")} by ${user.name}`, employeeId: user.id,
-      }).run();
-    }
-  });
+  try {
+    db.transaction((tx) => {
+      tx.update(outreachLogs).set({ followUpDate: new Date(newDate) }).where(eq(outreachLogs.id, logId)).run();
+      if (log) {
+        tx.insert(activityEvents).values({
+          id: randomUUID(), clientId: log.clientId, eventType: "outreach_logged", description: `Follow-up rescheduled to ${format(new Date(newDate), "MMM d, yyyy")} by ${user.name}`, employeeId: user.id,
+        }).run();
+      }
+    });
+  } catch (err) {
+    console.error("rescheduleFollowUp failed:", err);
+    return { error: "Failed to reschedule follow-up" };
+  }
   if (log) revalidatePath(`/clients/${log.clientId}`);
   revalidatePath("/follow-ups");
 }

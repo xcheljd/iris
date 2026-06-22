@@ -140,7 +140,10 @@ describe("Client Actions", () => {
 
       const client = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
       expect(client!.status).toBe("active");
-      expect(client!.onEmailList).toBe(true);
+      // resubscribeClient should NOT force onEmailList: true — it removes
+      // the client from the suppression list but doesn't auto-opt them
+      // back into emails. (Previous behavior was a bug — see H-18.)
+      expect(client!.onEmailList).toBe(false);
 
       // Verify unsubscribe list entry was removed
       const unsubEntry = db.select().from(unsubscribeList)
