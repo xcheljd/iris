@@ -140,7 +140,9 @@ export async function importPromos(
   try {
     const all = db.select({ id: clients.id, productsOfInterest: clients.productsOfInterest }).from(clients).all();
     const catalog = getCatalogIndexWithMsrp();
-    const index = buildPromoClientIndex(all, getCatalogIndex());
+    const index = buildPromoClientIndex(all, new Map(
+      [...catalog].map(([k, v]) => [k, { collection: v.collection, brand: v.brand }])
+    ));
     let imported = 0;
     let skippedNoModel = 0;
     const matchedClients = new Set<string>();
@@ -202,6 +204,8 @@ export async function clearAllPromos() {
       tx.delete(promoWatches).run();
     });
     revalidatePath("/promos");
+    revalidatePath("/clients");
+    revalidatePath("/", "layout");
   } catch (err) {
     console.error("clearAllPromos failed:", err);
     return { error: "Failed to clear promos" };
@@ -215,4 +219,6 @@ export async function deletePromo(id: string) {
     tx.delete(promoWatches).where(eq(promoWatches.id, id)).run();
   });
   revalidatePath("/promos");
+  revalidatePath("/clients");
+  revalidatePath("/", "layout");
 }
