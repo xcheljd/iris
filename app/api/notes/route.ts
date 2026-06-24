@@ -37,6 +37,7 @@ export const POST = withAuth(async (session, request: Request) => {
       eventType: "note_added",
       description: text,
       metadata: { notePreview: text.substring(0, 100) },
+      employeeId: session.user.id,
     }).run();
 
     return Response.json({ success: true });

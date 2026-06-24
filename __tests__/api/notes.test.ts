@@ -51,6 +51,7 @@ describe("POST /api/notes", () => {
       (e) => e.eventType === "note_added" && e.description === "Test note from integration test"
     );
     expect(noteEvent).toBeDefined();
+    expect(noteEvent?.employeeId).toBe(managerSession.user.id);
   });
 
   it("should return 400 when clientId is missing", async () => {
