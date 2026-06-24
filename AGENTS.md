@@ -16,7 +16,7 @@ A self-hosted clienteling/CRM web app for Meridian Watch retail — replaces a s
 | Push schema → DB | `pnpm db:push` |
 | Seed DB | `pnpm db:seed` |
 
-> `npm` works too (both lockfiles present), but `pnpm` is current — `pnpm-lock.yaml` + `pnpm-workspace.yaml` are the source of truth.
+> `pnpm` is the only supported package manager — `pnpm-lock.yaml` is the sole lockfile. Do not run `npm install`; it creates a divergent `package-lock.json`.
 
 ## Tech stack
 
