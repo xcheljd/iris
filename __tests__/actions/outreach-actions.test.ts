@@ -131,13 +131,11 @@ describe("Outreach Actions", () => {
     it("should reject outreach log without authentication", async () => {
       vi.mocked(getServerSession).mockResolvedValue(null as any);
 
-      const result = await logOutreach({
+      await expect(logOutreach({
         clientId: FIRST_CLIENT_ID,
         method: "email",
         outcome: "voicemail",
-      });
-
-      expect(result).toEqual({ error: "Not authenticated" });
+      })).rejects.toThrow("Not authenticated");
     });
 
     it("should set follow-up date when provided", async () => {

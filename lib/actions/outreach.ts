@@ -8,7 +8,7 @@ import { calcHeatScore } from "@/lib/heat-score";
 import { MS_PER_DAY, HEAT_LOOKBACK_DAYS } from "@/lib/constants";
 import { outreachInputSchema, type OutreachInput } from "@/lib/validation/outreach";
 import { format } from "date-fns";
-import { getSessionUser, requireAuth } from "./_shared";
+import { requireAuth } from "./_shared";
 
 export async function recalcHeat(clientId: string) {
   try {
@@ -44,10 +44,7 @@ export async function logOutreach(data: OutreachInput): Promise<{ error: string 
     return { error: `Invalid outreach data — ${details}` };
   }
   const parsed = result.data;
-  // B-5: getSessionUser() intentionally used instead of requireAuth() — outreach can be
-  // logged without attributing it to an employee (employeeId is nullable by design).
-  const user = await getSessionUser();
-  if (!user) return { error: "Not authenticated" };
+  const user = await requireAuth();
 
   const client = db.select({ employeeId: clients.employeeId }).from(clients).where(eq(clients.id, parsed.clientId)).get();
   if (!client) return { error: "Client not found" };
@@ -69,7 +66,7 @@ export async function logOutreach(data: OutreachInput): Promise<{ error: string 
         outcome: parsed.outcome,
         purchasedModel: parsed.outcome === "purchased" ? parsed.purchasedModel || null : null,
         notes: parsed.notes || null,
-        employeeId: user?.id ?? null,
+        employeeId: user.id,
         followUpDate: parsed.followUpDate ? new Date(parsed.followUpDate) : null,
         templateId: parsed.templateId || null,
         completed: false,
@@ -80,7 +77,7 @@ export async function logOutreach(data: OutreachInput): Promise<{ error: string 
         clientId: parsed.clientId,
         eventType: parsed.outcome === "purchased" ? "purchase" : "outreach_logged",
         description: `${parsed.method} — ${parsed.outcome.replace(/_/g, " ")}${parsed.purchasedModel ? ` (${parsed.purchasedModel})` : ""}`,
-        employeeId: user?.id ?? null,
+        employeeId: user.id,
         metadata: { method: parsed.method, outcome: parsed.outcome, ...(parsed.purchasedModel ? { purchasedModel: parsed.purchasedModel } : {}) },
       }).run();
     });
