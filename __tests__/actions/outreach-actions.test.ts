@@ -16,10 +16,15 @@ import { outreachLogs, activityEvents, clients } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
 const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206"; // Marcus (manager)
-const FIRST_CLIENT_ID = "e18e3ba8-b3b1-4bc1-b0f2-f13a219dd30b"; // Michael White
+const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23"; // Test associate
+const FIRST_CLIENT_ID = "e18e3ba8-b3b1-4bc1-b0f2-f13a219dd30b"; // Michael White (owned by associate)
 
 const managerSession = {
   user: { id: MANAGER_ID, name: "Marcus", role: "manager" },
+};
+
+const associateSession = {
+  user: { id: ASSOCIATE_ID, name: "Test Associate", role: "associate" },
 };
 
 describe("Outreach Actions", () => {
@@ -123,21 +128,16 @@ describe("Outreach Actions", () => {
       if (newLog) createdLogIds.push(newLog!.id);
     });
 
-    it("should create outreach log without session (system user)", async () => {
+    it("should reject outreach log without authentication", async () => {
       vi.mocked(getServerSession).mockResolvedValue(null as any);
 
-      await logOutreach({
+      const result = await logOutreach({
         clientId: FIRST_CLIENT_ID,
         method: "email",
         outcome: "voicemail",
       });
 
-      const logs = db.select().from(outreachLogs)
-        .where(eq(outreachLogs.clientId, FIRST_CLIENT_ID))
-        .all();
-      const newLog = logs.find((l) => l.employeeId === null && l.method === "email");
-      expect(newLog).toBeDefined();
-      if (newLog) createdLogIds.push(newLog!.id);
+      expect(result).toEqual({ error: "Not authenticated" });
     });
 
     it("should set follow-up date when provided", async () => {
@@ -180,6 +180,40 @@ describe("Outreach Actions", () => {
         .where(eq(outreachLogs.clientId, FIRST_CLIENT_ID))
         .all();
       const newLog = logs.find((l) => l.notes === "Revalidation test");
+      if (newLog) createdLogIds.push(newLog!.id);
+    });
+
+    it("should reject when associate tries to log outreach on own clients without ownership", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+
+      const result = await logOutreach({
+        clientId: FIRST_CLIENT_ID,
+        method: "call",
+        outcome: "no_answer",
+        notes: "Ownership check test",
+      });
+
+      expect(result).toEqual({ error: "You can only log outreach for your own clients" });
+    });
+
+    it("should allow manager to log outreach on any client", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+
+      const result = await logOutreach({
+        clientId: FIRST_CLIENT_ID,
+        method: "call",
+        outcome: "no_answer",
+        notes: "Manager override test",
+      });
+
+      expect(result).toBeUndefined();
+
+      // Verify the log was created
+      const logs = db.select().from(outreachLogs)
+        .where(eq(outreachLogs.clientId, FIRST_CLIENT_ID))
+        .all();
+      const newLog = logs.find((l) => l.notes === "Manager override test");
+      expect(newLog).toBeDefined();
       if (newLog) createdLogIds.push(newLog!.id);
     });
   });

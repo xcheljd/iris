@@ -47,6 +47,14 @@ export async function logOutreach(data: OutreachInput): Promise<{ error: string 
   // B-5: getSessionUser() intentionally used instead of requireAuth() — outreach can be
   // logged without attributing it to an employee (employeeId is nullable by design).
   const user = await getSessionUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const client = db.select({ employeeId: clients.employeeId }).from(clients).where(eq(clients.id, parsed.clientId)).get();
+  if (!client) return { error: "Client not found" };
+  if (user.role !== "manager" && client.employeeId !== user.id) {
+    return { error: "You can only log outreach for your own clients" };
+  }
+
   const id = randomUUID();
   const date = new Date();
   const patch: Record<string, unknown> = { lastOutreachAt: date, updatedAt: date };
