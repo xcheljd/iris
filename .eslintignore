@@ -1,0 +1,13 @@
+# Build output
+.next/
+out/
+dist/
+coverage/
+
+# Generated / vendored — not ours to lint
+next-env.d.ts
+drizzle/
+public/
+
+# Local scratch (also gitignored)
+remotion-demo/

@@ -47,7 +47,11 @@ A self-hosted clienteling/CRM web app for Meridian Watch retail — replaces a s
 - **Commits:** Conventional Commits — `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`, `test:`, `perf:`. Optional scope in parens: `feat(ux)`, `feat(a11y)`, `fix(onboarding)`, `chore(demo)`, `refactor(ui)`.
 - **Branching:** trunk-based, single `main` branch. No remote, no PR template — direct commits.
 - **Naming:** components PascalCase, lib/util modules kebab-case. Tests mirror source path under `__tests__/`.
-- **Lint:** `next/core-web-vitals` + `next/typescript`. Unused vars **must** be prefixed `_` (enforced).
+- **Lint:** `next/core-web-vitals` + `next/typescript`, run as `eslint .` over the **whole**
+  repo. (`next lint` only covered `app/`, `components/`, `lib/`, `pages/` and `src/`, which
+  left `__tests__/`, `hooks/` and every root config unlinted; it is also removed in Next.js
+  16.) Exclusions live in `.eslintignore` — build output, generated files, `public/`, and
+  `remotion-demo/`. Unused vars **must** be prefixed `_` (enforced).
 
 ## Testing
 
