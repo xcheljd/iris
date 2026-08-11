@@ -11,6 +11,7 @@ vi.mock("next/cache", () => ({
 }));
 
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import { transferClient, mergeClients } from "@/lib/actions";
 import { db } from "@/lib/db";
 import { clients, activityEvents, outreachLogs } from "@/lib/db/schema";
@@ -21,12 +22,14 @@ const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
 const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23";
 const FIRST_CLIENT_ID = "e18e3ba8-b3b1-4bc1-b0f2-f13a219dd30b";
 
-const managerSession = {
-  user: { id: MANAGER_ID, name: "Marcus", role: "manager" },
+const managerSession: Session = {
+  user: { id: MANAGER_ID, name: "Marcus", role: "manager", firstName: "Marcus", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
-const associateSession = {
-  user: { id: ASSOCIATE_ID, name: "Jordan", role: "associate" },
+const associateSession: Session = {
+  user: { id: ASSOCIATE_ID, name: "Jordan", role: "associate", firstName: "Jordan", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
 function createTestClient(overrides: { firstName?: string; lastName?: string; email?: string | null; phone?: string | null; dateAdded?: Date } = {}) {
@@ -72,7 +75,7 @@ describe("transferClient", () => {
   });
 
   it("updates the client's employeeId to the new employee", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     await transferClient(FIRST_CLIENT_ID, ASSOCIATE_ID);
 
     const client = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
@@ -80,7 +83,7 @@ describe("transferClient", () => {
   });
 
   it("logs a 'transferred' activity event", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     await transferClient(FIRST_CLIENT_ID, ASSOCIATE_ID);
 
     const events = db
@@ -94,7 +97,7 @@ describe("transferClient", () => {
   });
 
   it("event metadata includes new employee name", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     await transferClient(FIRST_CLIENT_ID, ASSOCIATE_ID);
 
     const events = db
@@ -103,23 +106,23 @@ describe("transferClient", () => {
       .where(eq(activityEvents.clientId, FIRST_CLIENT_ID))
       .all();
     const event = events.find((e) => e.eventType === "transferred");
-    expect((event!.metadata as any)?.newEmployeeName).toBeTruthy();
+    expect(event!.metadata?.newEmployeeName).toBeTruthy();
   });
 
   it("returns an error when client does not exist", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const result = await transferClient("00000000-0000-0000-0000-000000000000", ASSOCIATE_ID);
-    expect((result as any)?.error).toBe("Client not found");
+    expect(result?.error).toBe("Client not found");
   });
 
   it("returns an error when new employee does not exist", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const result = await transferClient(FIRST_CLIENT_ID, "00000000-0000-0000-0000-000000000000");
-    expect((result as any)?.error).toBe("Employee not found");
+    expect(result?.error).toBe("Employee not found");
   });
 
   it("throws when associate calls it", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
     await expect(transferClient(FIRST_CLIENT_ID, ASSOCIATE_ID)).rejects.toThrow();
   });
 });
@@ -139,7 +142,7 @@ describe("mergeClients", () => {
   });
 
   it("returns the winner's ID", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const olderId = createTestClient({ firstName: "Older", dateAdded: new Date("2020-01-01") });
     const newerId = createTestClient({ firstName: "Newer", dateAdded: new Date("2022-01-01") });
     createdClientIds.push(olderId, newerId);
@@ -150,7 +153,7 @@ describe("mergeClients", () => {
   });
 
   it("the older client (by dateAdded) survives", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const olderId = createTestClient({ firstName: "Older", dateAdded: new Date("2019-06-01") });
     const newerId = createTestClient({ firstName: "Newer", dateAdded: new Date("2023-06-01") });
     createdClientIds.push(olderId, newerId);
@@ -165,7 +168,7 @@ describe("mergeClients", () => {
   });
 
   it("respects fieldChoices to pick fields from client B", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const aId = createTestClient({ firstName: "Alice", phone: "1111111111", dateAdded: new Date("2019-01-01") });
     const bId = createTestClient({ firstName: "Alicia", phone: "2222222222", dateAdded: new Date("2022-01-01") });
     createdClientIds.push(aId, bId);
@@ -179,7 +182,7 @@ describe("mergeClients", () => {
   });
 
   it("logs a 'merged' activity event on the winner", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const aId = createTestClient({ firstName: "Alpha", dateAdded: new Date("2019-01-01") });
     const bId = createTestClient({ firstName: "Beta", dateAdded: new Date("2022-01-01") });
     createdClientIds.push(aId, bId);
@@ -194,7 +197,7 @@ describe("mergeClients", () => {
   });
 
   it("merges productsOfInterest from both clients into a union", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const aId = createTestClient({ firstName: "A", dateAdded: new Date("2019-01-01") });
     const bId = createTestClient({ firstName: "B", dateAdded: new Date("2022-01-01") });
     createdClientIds.push(aId, bId);
@@ -212,7 +215,7 @@ describe("mergeClients", () => {
   });
 
   it("uses finalNotes as the winner's notes", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const aId = createTestClient({ firstName: "A", dateAdded: new Date("2019-01-01") });
     const bId = createTestClient({ firstName: "B", dateAdded: new Date("2022-01-01") });
     createdClientIds.push(aId, bId);
@@ -225,7 +228,7 @@ describe("mergeClients", () => {
   });
 
   it("returns an error when either client does not exist", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const validId = createTestClient({ firstName: "Valid" });
     createdClientIds.push(validId);
 
@@ -235,7 +238,7 @@ describe("mergeClients", () => {
   });
 
   it("throws when associate calls it", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
     const aId = createTestClient({ firstName: "A" });
     const bId = createTestClient({ firstName: "B" });
     createdClientIds.push(aId, bId);
@@ -244,17 +247,17 @@ describe("mergeClients", () => {
   });
 
   it("rolls back both clients when the transaction fails mid-merge", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const aId = createTestClient({ firstName: "TxWinner", dateAdded: new Date("2019-01-01") });
     const bId = createTestClient({ firstName: "TxLoser", dateAdded: new Date("2022-01-01") });
     createdClientIds.push(aId, bId);
 
     // Spy on db.transaction: run the real callback (so all updates execute),
     // then throw after it returns — better-sqlite3 rolls back the whole transaction.
-    const realTransaction = (db.transaction as Function).bind(db);
+    const realTransaction = (db.transaction as (fn: (tx: unknown) => unknown) => unknown).bind(db);
     vi.spyOn(db, "transaction").mockImplementationOnce((fn: unknown) => {
       return realTransaction((tx: unknown) => {
-        (fn as Function)(tx);
+        (fn as (tx: unknown) => unknown)(tx);
         throw new Error("Simulated post-callback failure");
       });
     });

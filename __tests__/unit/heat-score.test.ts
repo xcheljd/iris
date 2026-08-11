@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { calcHeatScore } from "@/lib/heat-score";
 import { MS_PER_DAY } from "@/lib/constants";
-import type { ProductOfInterest } from "@/lib/db/schema";
+import type { ProductOfInterest, OutreachLog } from "@/lib/db/schema";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -33,8 +33,8 @@ function makeClient(
 }
 
 /** Create an outreach entry at a given offset from NOW (negative = past). */
-function outreach(outcome: string, daysOffset: number) {
-  return { outcome: outcome as any, date: new Date(NOW.getTime() + daysOffset * MS_PER_DAY) };
+function outreach(outcome: OutreachLog["outcome"], daysOffset: number) {
+  return { outcome, date: new Date(NOW.getTime() + daysOffset * MS_PER_DAY) };
 }
 
 // ---------------------------------------------------------------------------
@@ -205,42 +205,30 @@ describe("calcHeatScore", () => {
   });
 
   // --- Combinations & thresholds ---
-  it("returns level 'hot' when score ≥ 70", () => {
-    const client = makeClient({
-      lastPurchaseAt: new Date("2025-06-01T12:00:00.000Z"), // +15 +10 = 25
-      onEmailList: true,                                      // +5
-      productsOfInterest: [{ model: "SUNLAP", collection: null, brand: null, intent: "interested" }],                         // +5
-      birthday: "1985-03-15",                                  // +3
-      lastOutreachAt: new Date("2025-06-10T12:00:00.000Z"),  // no penalty
+  // Every positive signal is a one-shot boolean, so the ceiling is
+  // 15 + 10 + 10 + 5 + 5 + 3 = 48. HEAT_THRESHOLD_HOT is 70, so calcHeatScore
+  // can never return "hot". Pinning the ceiling here so any future scoring
+  // change has to confront that.
+  it("caps at 48 with every positive signal set — 'hot' (>= 70) is unreachable", () => {
+    const maxedClient = makeClient({
+      lastPurchaseAt: new Date("2025-06-01T12:00:00.000Z"), // +15 purchase, +10 within 90d
+      onEmailList: true,                                     // +5
+      productsOfInterest: [
+        { model: "SUNLAP", collection: null, brand: null, intent: "interested" },
+        { model: "SUB", collection: null, brand: null, intent: "interested" },
+      ],                                                     // +5 (presence only)
+      birthday: "1985-03-15",                                // +3
+      lastOutreachAt: new Date("2025-06-10T12:00:00.000Z"),  // no staleness penalty
+      status: "active",                                      // no unsubscribe penalty
     });
     const outreachLogs = [
-      outreach("responded", -5),  // +10
-      outreach("wants_to_come_in", -20), // already counted, but still just +10 total
+      outreach("responded", -5),         // +10, awarded once
+      outreach("wants_to_come_in", -20), // same boolean — no additional points
     ];
-    // 25 + 10 + 5 + 5 + 3 = 48... not enough. Need to add more.
-    // Actually let's recalculate: 15+10+10+5+5+3 = 48
-    // To get ≥70 we need a higher-scoring combination.
-    // Let's use a different setup:
-    const hotClient = makeClient({
-      lastPurchaseAt: new Date("2025-06-01T12:00:00.000Z"), // +15 +10 = 25
-      onEmailList: true,                                      // +5
-      productsOfInterest: [{ model: "SUNLAP", collection: null, brand: null, intent: "interested" }, { model: "SUB", collection: null, brand: null, intent: "interested" }],                 // +5
-      birthday: "1985-03-15",                                  // +3
-      lastOutreachAt: new Date("2025-06-10T12:00:00.000Z"),  // no penalty
-      status: "active",
-    });
-    // Still 48. The max reachable with one positive response is 48.
-    // To get 70, we'd need multiple signals. Since the function caps at 100,
-    // let's verify the warm threshold instead and manually verify hot via a score.
-    // Actually the scoring maxes at: 15+10+10+5+5+3 = 48 for single response.
-    // We can't reach 70 with current scoring unless there's something else.
-    // Let me re-read: the function only gives +10 once for responded90 (it's a boolean check).
-    // So max score from all positive signals = 15+10+10+5+5+3 = 48.
-    // Hot (≥70) may be unreachable with current logic, but we test the level logic anyway.
-    // Let's test warm threshold.
-    const warmResult = calcHeatScore(hotClient, outreachLogs);
-    expect(warmResult.score).toBe(48);
-    expect(warmResult.level).toBe("warm"); // 48 ≥ 40
+
+    const result = calcHeatScore(maxedClient, outreachLogs);
+    expect(result.score).toBe(48);
+    expect(result.level).toBe("warm");
   });
 
   it("returns level 'warm' when score is between 40 and 69", () => {

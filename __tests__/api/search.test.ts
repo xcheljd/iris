@@ -10,14 +10,17 @@ vi.mock("next/cache", () => ({
 }));
 
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import { GET } from "@/app/api/search/route";
+import type { NextRequest } from "next/server";
 
-const managerSession = {
-  user: { id: "2d7a352d-53a0-4544-b515-902e7dd59206", name: "Marcus", role: "manager" },
+const managerSession: Session = {
+  user: { id: "2d7a352d-53a0-4544-b515-902e7dd59206", name: "Marcus", role: "manager", firstName: "Marcus", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
 beforeEach(() => {
-  vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+  vi.mocked(getServerSession).mockResolvedValue(managerSession);
 });
 
 // Helper to create a mock NextRequest with nextUrl.searchParams
@@ -31,7 +34,7 @@ function createNextRequest(url: string) {
       pathname: parsedUrl.pathname,
     },
     json: () => Promise.resolve({}),
-  } as any;
+  } as unknown as NextRequest;
 }
 
 describe("GET /api/search", () => {

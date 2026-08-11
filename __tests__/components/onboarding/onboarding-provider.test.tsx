@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, act, fireEvent } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import React from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
@@ -27,8 +26,8 @@ vi.mock("next/navigation", () => ({
 }));
 
 // Mock server actions
-let mockOnboardingState: any = null;
-const mockUpdateResult: any = {
+let mockOnboardingState: OnboardingState | null = null;
+const mockUpdateResult: OnboardingState = {
   tourCompleted: false,
   currentStep: 0,
   completedSteps: [],
@@ -39,12 +38,14 @@ const mockUpdateFn = vi.fn().mockResolvedValue(mockUpdateResult);
 
 vi.mock("@/lib/actions/onboarding", () => ({
   getOnboardingState: vi.fn(() => Promise.resolve(mockOnboardingState)),
-  updateOnboardingState: (...args: any[]) => mockUpdateFn(...args),
+  updateOnboardingState: (...args: OnboardingUpdate[]) => mockUpdateFn(...args),
 }));
 
 // ─── Import after mocks ───────────────────────────────────────────────────
 
 import { OnboardingProvider, useOnboarding } from "@/components/onboarding/onboarding-provider";
+import type { OnboardingState } from "@/lib/actions/onboarding";
+type OnboardingUpdate = Parameters<typeof import("@/lib/actions/onboarding").updateOnboardingState>[0];
 
 // ─── Test helpers ─────────────────────────────────────────────────────────
 
@@ -659,7 +660,7 @@ describe("Error logging in catch blocks", () => {
 
     // Find a call matching the skip tour prefix
     const skipCalls = consoleErrorSpy.mock.calls.filter(
-      (call: any[]) => call[0]?.includes?.("Failed to persist skip tour:")
+      (call) => typeof call[0] === "string" && call[0].includes("Failed to persist skip tour:")
     );
     expect(skipCalls.length).toBeGreaterThanOrEqual(1);
 
@@ -690,7 +691,7 @@ describe("Error logging in catch blocks", () => {
 
     // The error log should have been called for step persist failure
     const errorCalls = consoleErrorSpy.mock.calls.filter(
-      (call: any[]) => call[0]?.includes?.("Failed to persist step:")
+      (call) => typeof call[0] === "string" && call[0].includes("Failed to persist step:")
     );
     expect(errorCalls.length).toBeGreaterThanOrEqual(1);
 

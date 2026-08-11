@@ -9,6 +9,7 @@ vi.mock("next/cache", () => ({
 }));
 
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import {
   rescheduleFollowUp,
   unbanClient,
@@ -23,8 +24,9 @@ import { eq } from "drizzle-orm";
 const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
 const FIRST_CLIENT_ID = "e18e3ba8-b3b1-4bc1-b0f2-f13a219dd30b";
 
-const managerSession = {
-  user: { id: MANAGER_ID, name: "Marcus", role: "manager" },
+const managerSession: Session = {
+  user: { id: MANAGER_ID, name: "Marcus", role: "manager", firstName: "Marcus", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
 describe("Misc Actions", () => {
@@ -63,7 +65,7 @@ describe("Misc Actions", () => {
 
   describe("rescheduleFollowUp", () => {
     it("should update followUpDate on an outreach log", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       const { revalidatePath } = await import("next/cache");
 
       // Find an existing outreach log
@@ -88,7 +90,7 @@ describe("Misc Actions", () => {
 
   describe("unbanClient", () => {
     it("should restore a banned client to active and delete banned record", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       // First ban the client
       await banClient(FIRST_CLIENT_ID, "Other", "Test ban for unban test");
@@ -147,7 +149,7 @@ describe("Misc Actions", () => {
       if (entry) cleanupUnsubIds.push(entry.id);
 
       const result = await addUnsubscribeEmail(testEmail);
-      expect((result as any)?.error).toBe("Email already exists");
+      expect(result?.error).toBe("Email already exists");
     });
   });
 

@@ -9,6 +9,7 @@ vi.mock("next/cache", () => ({
 }));
 
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import {
   createEmployee,
   resetEmployeePassword,
@@ -25,12 +26,14 @@ import bcrypt from "bcryptjs";
 const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206"; // Marcus (manager)
 const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23"; // Jordan (associate)
 
-const managerSession = {
-  user: { id: MANAGER_ID, name: "Marcus", role: "manager" },
+const managerSession: Session = {
+  user: { id: MANAGER_ID, name: "Marcus", role: "manager", firstName: "Marcus", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
-const associateSession = {
-  user: { id: ASSOCIATE_ID, name: "Jordan", role: "associate" },
+const associateSession: Session = {
+  user: { id: ASSOCIATE_ID, name: "Jordan", role: "associate", firstName: "Jordan", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
 describe("Employee Actions", () => {
@@ -49,7 +52,7 @@ describe("Employee Actions", () => {
 
   describe("createEmployee", () => {
     it("should create a new employee when user is manager", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       const username = "testemployee_" + Date.now();
       const result = await createEmployee({
@@ -81,7 +84,7 @@ describe("Employee Actions", () => {
     });
 
     it("should return error when user is not manager", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
 
       const result = await createEmployee({
         firstName: "Should Not",
@@ -95,7 +98,7 @@ describe("Employee Actions", () => {
     });
 
     it("should return error when no session", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(null as any);
+      vi.mocked(getServerSession).mockResolvedValue(null);
 
       const result = await createEmployee({
         firstName: "No",
@@ -109,7 +112,7 @@ describe("Employee Actions", () => {
     });
 
     it("should return error for short password", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       const result = await createEmployee({
         firstName: "Short",
@@ -123,7 +126,7 @@ describe("Employee Actions", () => {
     });
 
     it("should return error for missing fields", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       const result = await createEmployee({
         firstName: "",
@@ -137,7 +140,7 @@ describe("Employee Actions", () => {
     });
 
     it("should return error for duplicate username", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       // First create one
       const ts = Date.now();
@@ -169,7 +172,7 @@ describe("Employee Actions", () => {
 
   describe("resetEmployeePassword", () => {
     it("should reset password when user is manager", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       const result = await resetEmployeePassword(ASSOCIATE_ID, "newpassword123");
 
@@ -186,14 +189,14 @@ describe("Employee Actions", () => {
     });
 
     it("should return error when user is not manager", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
 
       const result = await resetEmployeePassword(ASSOCIATE_ID, "newpassword123");
       expect(result).toEqual({ error: "Unauthorized" });
     });
 
     it("should return error for short password", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       const result = await resetEmployeePassword(ASSOCIATE_ID, "short");
       expect(result).toEqual({ error: "Password must be at least 6 characters" });
@@ -202,7 +205,7 @@ describe("Employee Actions", () => {
 
   describe("updateEmployeeRole", () => {
     it("should update employee role when user is manager", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       const result = await updateEmployeeRole(ASSOCIATE_ID, "manager");
       expect(result).toEqual({ success: true });
@@ -215,7 +218,7 @@ describe("Employee Actions", () => {
     });
 
     it("should return error when user is not manager", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
 
       const result = await updateEmployeeRole(ASSOCIATE_ID, "manager");
       expect(result).toEqual({ error: "Unauthorized" });
@@ -224,7 +227,7 @@ describe("Employee Actions", () => {
 
   describe("toggleEmployeeActive", () => {
     it("should toggle employee active status when user is manager", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       const result = await toggleEmployeeActive(ASSOCIATE_ID, false);
       expect(result).toEqual({ success: true });
@@ -237,21 +240,21 @@ describe("Employee Actions", () => {
     });
 
     it("should return error when trying to deactivate own account", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       const result = await toggleEmployeeActive(MANAGER_ID, false);
       expect(result).toEqual({ error: "Cannot deactivate your own account" });
     });
 
     it("should return error when user is not manager", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
 
       const result = await toggleEmployeeActive(ASSOCIATE_ID, false);
       expect(result).toEqual({ error: "Unauthorized" });
     });
 
     it("should allow reactivating an employee", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       // First deactivate
       await toggleEmployeeActive(ASSOCIATE_ID, false);
@@ -267,7 +270,7 @@ describe("Employee Actions", () => {
 
   describe("changeOwnPassword", () => {
     it("should change password when current password is correct", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
 
       // Ensure password is "meridian"
       const hash = bcrypt.hashSync("meridian", 10);
@@ -283,21 +286,21 @@ describe("Employee Actions", () => {
     });
 
     it("should return error when current password is wrong", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       const result = await changeOwnPassword("wrongpassword", "newpassword123");
       expect(result).toEqual({ error: "Current password is incorrect" });
     });
 
     it("should return error when no session", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(null as any);
+      vi.mocked(getServerSession).mockResolvedValue(null);
 
       const result = await changeOwnPassword("meridian", "newpassword123");
       expect(result).toEqual({ error: "Not authenticated" });
     });
 
     it("should return error for short new password", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       // Ensure manager's password is "meridian"
       const hash = bcrypt.hashSync("meridian", 10);
@@ -310,7 +313,7 @@ describe("Employee Actions", () => {
 
   describe("setSecretQuestion", () => {
     it("should set secret question and answer hash", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       const result = await setSecretQuestion("What is your pet's name?", "Fluffy");
       expect(result).toEqual({ success: true });
@@ -334,21 +337,21 @@ describe("Employee Actions", () => {
     });
 
     it("should return error when no session", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(null as any);
+      vi.mocked(getServerSession).mockResolvedValue(null);
 
       const result = await setSecretQuestion("Question?", "Answer");
       expect(result).toEqual({ error: "Not authenticated" });
     });
 
     it("should return error for empty question", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       const result = await setSecretQuestion("", "Answer");
       expect(result).toEqual({ error: "Question is required" });
     });
 
     it("should return error for short answer", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       const result = await setSecretQuestion("Question?", "A");
       expect(result).toEqual({ error: "Answer must be at least 2 characters" });

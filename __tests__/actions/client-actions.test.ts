@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
+import { vi, describe, it, expect, afterEach } from "vitest";
 
 // Mock next-auth before importing actions
 vi.mock("next-auth", () => ({
@@ -12,6 +12,7 @@ vi.mock("next/cache", () => ({
 }));
 
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import {
   banClient,
   unsubscribeClient,
@@ -23,15 +24,11 @@ import { eq } from "drizzle-orm";
 
 // Real IDs from seed data
 const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206"; // Marcus (manager)
-const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23"; // Jordan (associate)
 const FIRST_CLIENT_ID = "e18e3ba8-b3b1-4bc1-b0f2-f13a219dd30b"; // Michael White
 
-const managerSession = {
-  user: { id: MANAGER_ID, name: "Marcus", role: "manager" },
-};
-
-const associateSession = {
-  user: { id: ASSOCIATE_ID, name: "Jordan", role: "associate" },
+const managerSession: Session = {
+  user: { id: MANAGER_ID, name: "Marcus", role: "manager", firstName: "Marcus", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
 describe("Client Actions", () => {
@@ -53,7 +50,7 @@ describe("Client Actions", () => {
 
   describe("banClient", () => {
     it("should ban a client with reason", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       await banClient(FIRST_CLIENT_ID, "Reselling", "Caught reselling online");
 
@@ -75,7 +72,7 @@ describe("Client Actions", () => {
     });
 
     it("should do nothing if client does not exist", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       // Should not throw
       await banClient("nonexistent-id", "Other", "No reason");
@@ -84,7 +81,7 @@ describe("Client Actions", () => {
 
   describe("unsubscribeClient", () => {
     it("should unsubscribe a client and add to unsubscribe list", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       // Ensure client has an email
       const clientBefore = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
@@ -116,7 +113,7 @@ describe("Client Actions", () => {
     });
 
     it("should do nothing if client does not exist", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       await unsubscribeClient("nonexistent-id");
       // Should not throw
     });
@@ -124,7 +121,7 @@ describe("Client Actions", () => {
 
   describe("resubscribeClient", () => {
     it("should resubscribe an unsubscribed client", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       // First unsubscribe
       const clientBefore = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();

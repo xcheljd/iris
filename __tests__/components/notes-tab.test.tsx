@@ -11,7 +11,7 @@ vi.mock("next/navigation", () => ({
 
 // Mock date-fns
 vi.mock("date-fns", () => ({
-  format: vi.fn((d) => "Jan 1, 2026 • 12:00 AM"),
+  format: vi.fn((_d) => "Jan 1, 2026 • 12:00 AM"),
 }));
 
 // Mock sonner
@@ -71,7 +71,7 @@ const clientWithNotes = makeClient({
   id: "client-1",
   firstName: "John",
   lastName: "Doe",
-  timeline: mockTimeline as any,
+  timeline: mockTimeline as FullClient["timeline"],
   updatedAt: "2026-01-02T14:00:00Z",
 });
 
@@ -99,7 +99,7 @@ describe("NotesTab", () => {
         ok: true,
         json: () => Promise.resolve({ success: true }),
       } as Response)
-    ) as any;
+    ) as unknown as typeof fetch;
     Object.defineProperty(window, "location", {
       value: { reload: vi.fn() },
       writable: true,
@@ -142,7 +142,7 @@ describe("NotesTab", () => {
   it("shows singular note count for a single note", () => {
     const clientWithOneNote = makeClient({
       ...clientWithNotes,
-      timeline: [mockTimeline[0]] as any,
+      timeline: [mockTimeline[0]] as FullClient["timeline"],
     });
     render(<NotesTab client={clientWithOneNote} />);
     expect(screen.getByText("1 note total")).toBeInTheDocument();

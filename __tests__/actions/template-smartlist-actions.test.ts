@@ -9,6 +9,7 @@ vi.mock("next/cache", () => ({
 }));
 
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import {
   createTemplate,
   deleteTemplate,
@@ -24,12 +25,14 @@ import { eq } from "drizzle-orm";
 const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
 const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23";
 
-const managerSession = {
-  user: { id: MANAGER_ID, name: "Marcus", role: "manager" },
+const managerSession: Session = {
+  user: { id: MANAGER_ID, name: "Marcus", role: "manager", firstName: "Marcus", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
-const associateSession = {
-  user: { id: ASSOCIATE_ID, name: "Jordan", role: "associate" },
+const associateSession: Session = {
+  user: { id: ASSOCIATE_ID, name: "Jordan", role: "associate", firstName: "Jordan", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
 describe("Template & Smart List Actions", () => {
@@ -58,7 +61,7 @@ describe("Template & Smart List Actions", () => {
 
   describe("createTemplate", () => {
     it("should create a template with correct fields", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       const { revalidatePath } = await import("next/cache");
 
       await createTemplate("Test Template", "Hello {{name}}", "Welcome", "email");
@@ -79,7 +82,7 @@ describe("Template & Smart List Actions", () => {
 
   describe("deleteTemplate", () => {
     it("should delete a template by id", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       await createTemplate("DeleteMe Template", "Body text", null, "general");
 
@@ -99,7 +102,7 @@ describe("Template & Smart List Actions", () => {
 
   describe("createSmartList", () => {
     it("should create a smart list with name and filters", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       const filters = { status: "active", heatLevel: "hot" };
       await createSmartList("Hot Active Clients", filters);
@@ -116,7 +119,7 @@ describe("Template & Smart List Actions", () => {
 
   describe("renameSmartList", () => {
     it("should update the name of a smart list", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       await createSmartList("Original Name", {});
       const list = db.select().from(smartLists)
@@ -135,7 +138,7 @@ describe("Template & Smart List Actions", () => {
 
   describe("duplicateSmartList", () => {
     it("should create a copy with (Copy) suffix", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       await createSmartList("List To Dupe", { status: "active" });
       const original = db.select().from(smartLists)
@@ -155,14 +158,14 @@ describe("Template & Smart List Actions", () => {
     });
 
     it("copy is owned by the duplicating user, not the original owner", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       await createSmartList("Manager's List", { heatLevel: "hot" });
       const original = db.select().from(smartLists)
         .where(eq(smartLists.name, "Manager's List"))
         .get();
       if (original) createdListIds.push(original.id);
 
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
       await duplicateSmartList(original!.id);
 
       const copy = db.select().from(smartLists)
@@ -176,7 +179,7 @@ describe("Template & Smart List Actions", () => {
 
   describe("deleteSmartList", () => {
     it("should delete a smart list by id", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       await createSmartList("List To Delete", {});
       const list = db.select().from(smartLists)

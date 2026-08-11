@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, act, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 
@@ -21,9 +21,9 @@ vi.mock("sonner", () => ({
 }));
 
 // Mock server actions
-let mockOnboardingState: any = null;
+let mockOnboardingState: OnboardingState | null = null;
 const mockGetOnboardingState = vi.fn(() => Promise.resolve(mockOnboardingState));
-const mockUpdateOnboardingState = vi.fn(async (updates: any) => {
+const mockUpdateOnboardingState = vi.fn(async (updates: OnboardingUpdate) => {
   // Simulate the real update: merge with current state
   const current = mockOnboardingState ?? {
     tourCompleted: false,
@@ -43,7 +43,7 @@ const mockUpdateOnboardingState = vi.fn(async (updates: any) => {
 
 vi.mock("@/lib/actions/onboarding", () => ({
   getOnboardingState: () => mockGetOnboardingState(),
-  updateOnboardingState: (updates: any) => mockUpdateOnboardingState(updates),
+  updateOnboardingState: (updates: OnboardingUpdate) => mockUpdateOnboardingState(updates),
 }));
 
 // Mock the OnboardingProvider and useOnboarding
@@ -53,7 +53,7 @@ const mockOnboardingContext = {
   tourStatus: "idle" as string,
   currentStepIndex: 0,
   totalSteps: 8,
-  onboardingState: null as any,
+  onboardingState: null as OnboardingState | null,
   loading: false,
   isMobile: false,
   startTour: mockStartTour,
@@ -69,6 +69,8 @@ vi.mock("@/components/onboarding/onboarding-provider", () => ({
 
 import { OnboardingSettingsTab } from "@/components/onboarding/onboarding-settings-tab";
 import { getStepsForRole } from "@/components/onboarding/tour-steps";
+import type { OnboardingState } from "@/lib/actions/onboarding";
+type OnboardingUpdate = Parameters<typeof import("@/lib/actions/onboarding").updateOnboardingState>[0];
 
 // ─── Test helpers ─────────────────────────────────────────────────────────
 
@@ -397,7 +399,7 @@ describe("OnboardingSettingsTab", () => {
   it("settles cleanly after async reset completes", async () => {
     let resolveUpdate: () => void;
     mockUpdateOnboardingState.mockImplementationOnce(
-      () => new Promise<{ tourCompleted: boolean }>((resolve) => { resolveUpdate = () => resolve({ tourCompleted: false }); }),
+      () => new Promise<OnboardingState>((resolve) => { resolveUpdate = () => resolve({ tourCompleted: false, currentStep: 0, completedSteps: [], hintsDismissed: [], tourSkipped: false }); }),
     );
 
     const user = userEvent.setup();

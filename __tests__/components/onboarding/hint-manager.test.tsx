@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, act, fireEvent, waitFor, within } from "@testing-library/react";
+import { render, screen, act, fireEvent } from "@testing-library/react";
 import React from "react";
 
 // ─── Mocks ────────────────────────────────────────────────────────────────
@@ -28,7 +28,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
 }));
 
-let mockOnboardingState: any = null;
+let mockOnboardingState: OnboardingState | null = null;
 const mockUpdateFn = vi.fn().mockResolvedValue({
   tourCompleted: true,
   currentStep: 8,
@@ -39,7 +39,7 @@ const mockUpdateFn = vi.fn().mockResolvedValue({
 
 vi.mock("@/lib/actions/onboarding", () => ({
   getOnboardingState: vi.fn(() => Promise.resolve(mockOnboardingState)),
-  updateOnboardingState: (...args: any[]) => mockUpdateFn(...args),
+  updateOnboardingState: (...args: OnboardingUpdate[]) => mockUpdateFn(...args),
 }));
 
 // ─── Import after mocks ───────────────────────────────────────────────────
@@ -58,6 +58,8 @@ function OnboardingProvider({ children }: { children: React.ReactNode }) {
 }
 import { HintManager } from "@/components/onboarding/hint-manager";
 import { HINT_DEFINITIONS, getHintsForPath, getShortcutText, getValidHintIds } from "@/components/onboarding/hint-definitions";
+import type { OnboardingState } from "@/lib/actions/onboarding";
+type OnboardingUpdate = Parameters<typeof import("@/lib/actions/onboarding").updateOnboardingState>[0];
 
 // ─── Test helpers ─────────────────────────────────────────────────────────
 
@@ -744,7 +746,7 @@ describe("hint-definitions", () => {
 
   it("no hint definition has an allowMultiple field", () => {
     for (const hint of HINT_DEFINITIONS) {
-      expect((hint as any).allowMultiple).toBeUndefined();
+      expect((hint as { allowMultiple?: unknown }).allowMultiple).toBeUndefined();
     }
   });
 });
@@ -867,7 +869,7 @@ describe("HintManager simplifications", () => {
     // The hint-manager module should NOT export a HintRenderer function.
     // We verify this by checking the module exports.
     const hintManagerModule = await import("@/components/onboarding/hint-manager");
-    expect((hintManagerModule as any).HintRenderer).toBeUndefined();
+    expect((hintManagerModule as { HintRenderer?: unknown }).HintRenderer).toBeUndefined();
     expect(typeof hintManagerModule.HintManager).toBe("function");
   });
 

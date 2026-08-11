@@ -9,6 +9,7 @@ vi.mock("next/cache", () => ({
 }));
 
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import { GET } from "@/app/api/approvals/count/route";
 import { db } from "@/lib/db";
 import { approvalRequests } from "@/lib/db/schema";
@@ -19,19 +20,21 @@ const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
 const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23";
 const FIRST_CLIENT_ID = "e18e3ba8-b3b1-4bc1-b0f2-f13a219dd30b";
 
-const managerSession = {
-  user: { id: MANAGER_ID, name: "Marcus", role: "manager" },
+const managerSession: Session = {
+  user: { id: MANAGER_ID, name: "Marcus", role: "manager", firstName: "Marcus", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
-const associateSession = {
-  user: { id: ASSOCIATE_ID, name: "Jordan", role: "associate" },
+const associateSession: Session = {
+  user: { id: ASSOCIATE_ID, name: "Jordan", role: "associate", firstName: "Jordan", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
 describe("GET /api/approvals/count", () => {
   const createdRequestIds: string[] = [];
 
   beforeEach(() => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
   });
 
   afterEach(() => {
@@ -108,7 +111,7 @@ describe("GET /api/approvals/count", () => {
   });
 
   it("returns 403 when associate calls it", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
     const res = await GET();
     expect(res.status).toBe(403);
   });

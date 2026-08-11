@@ -10,14 +10,16 @@ vi.mock("next/cache", () => ({
 }));
 
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import { GET as GETEmployees } from "@/app/api/employees/route";
 
-const managerSession = {
-  user: { id: "2d7a352d-53a0-4544-b515-902e7dd59206", name: "Marcus", role: "manager" },
+const managerSession: Session = {
+  user: { id: "2d7a352d-53a0-4544-b515-902e7dd59206", name: "Marcus", role: "manager", firstName: "Marcus", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
 beforeEach(() => {
-  vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+  vi.mocked(getServerSession).mockResolvedValue(managerSession);
 });
 
 describe("GET /api/employees", () => {

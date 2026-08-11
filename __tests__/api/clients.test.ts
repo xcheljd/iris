@@ -10,6 +10,7 @@ vi.mock("next/cache", () => ({
 }));
 
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import { GET, POST, PUT } from "@/app/api/clients/route";
 import { GET as GETById } from "@/app/api/clients/[id]/route";
 import { GET as GETDuplicates } from "@/app/api/clients/check-duplicates/route";
@@ -17,12 +18,13 @@ import { db } from "@/lib/db";
 import { clients } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
-const managerSession = {
-  user: { id: "2d7a352d-53a0-4544-b515-902e7dd59206", name: "Marcus", role: "manager" },
+const managerSession: Session = {
+  user: { id: "2d7a352d-53a0-4544-b515-902e7dd59206", name: "Marcus", role: "manager", firstName: "Marcus", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
 beforeEach(() => {
-  vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+  vi.mocked(getServerSession).mockResolvedValue(managerSession);
 });
 
 // Track created test client IDs for cleanup

@@ -11,6 +11,7 @@ vi.mock("next/cache", () => ({
 }));
 
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import {
   importProspectsFromRvx,
   graduateProspect,
@@ -33,12 +34,14 @@ import { randomUUID } from "crypto";
 const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
 const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23";
 
-const managerSession = {
-  user: { id: MANAGER_ID, name: "Marcus", role: "manager" },
+const managerSession: Session = {
+  user: { id: MANAGER_ID, name: "Marcus", role: "manager", firstName: "Marcus", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
-const associateSession = {
-  user: { id: ASSOCIATE_ID, name: "Jordan", role: "associate" },
+const associateSession: Session = {
+  user: { id: ASSOCIATE_ID, name: "Jordan", role: "associate", firstName: "Jordan", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
 // Minimal valid RVX CSV with 2 unique rows
@@ -114,7 +117,7 @@ describe("importProspectsFromRvx", () => {
   });
 
   it("inserts a rvxImportBatch record", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const suffix = randomUUID().slice(0, 8);
     const csv = buildRvxCsv([
       `100,RVX-BATCH-${suffix},BatchTest,Import,,,100.00`,
@@ -132,7 +135,7 @@ describe("importProspectsFromRvx", () => {
   });
 
   it("returns correct importedCount", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const suffix = randomUUID().slice(0, 8);
     const csv = buildRvxCsv([
       `100,RVX-${suffix}-1,RetCount,One,,,`,
@@ -152,7 +155,7 @@ describe("importProspectsFromRvx", () => {
   });
 
   it("deduplicates within-import duplicate rows", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const suffix = randomUUID().slice(0, 8);
     const csv = buildRvxCsv([
       `100,RVX-${suffix}-1,Dedupe,Test,5559999${suffix.slice(0,4)},dedupe-${suffix}@example.com,100.00`,
@@ -172,14 +175,14 @@ describe("importProspectsFromRvx", () => {
   });
 
   it("throws when associate calls it", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
     await expect(importProspectsFromRvx(SAMPLE_CSV)).rejects.toThrow();
   });
 });
 
 describe("analyzeRvxImport", () => {
   it("returns correct counts for a clean CSV", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const suffix = randomUUID().slice(0, 8);
     const csv = buildRvxCsv([
       `100,RVX-ANA-${suffix},AnalyzeTest,One,,,`,
@@ -193,7 +196,7 @@ describe("analyzeRvxImport", () => {
   });
 
   it("reports duplicate count for within-import duplicates", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const suffix = randomUUID().slice(0, 8);
     const csv = buildRvxCsv([
       `100,RVX-DUP1-${suffix},DupAnalyze,Test,555${suffix.slice(0,7)},dup-${suffix}@example.com,100.00`,
@@ -206,7 +209,7 @@ describe("analyzeRvxImport", () => {
   });
 
   it("throws when associate calls it", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
     await expect(analyzeRvxImport(SAMPLE_CSV)).rejects.toThrow();
   });
 });
@@ -241,7 +244,7 @@ describe("graduateProspect", () => {
   });
 
   it("creates a new client and returns type=created", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const { prospectId, batchId } = insertProspect({ firstName: "GradTest" });
     createdProspectIds.push(prospectId);
     createdBatchIds.push(batchId);
@@ -265,7 +268,7 @@ describe("graduateProspect", () => {
   });
 
   it("sets the prospect status to graduated after graduation", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const { prospectId, batchId } = insertProspect({ firstName: "GradStatus" });
     createdProspectIds.push(prospectId);
     createdBatchIds.push(batchId);
@@ -279,7 +282,7 @@ describe("graduateProspect", () => {
   });
 
   it("logs a 'created' activity event on the new client", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const { prospectId, batchId } = insertProspect({ firstName: "GradEvent" });
     createdProspectIds.push(prospectId);
     createdBatchIds.push(batchId);
@@ -295,12 +298,12 @@ describe("graduateProspect", () => {
         .all();
       const event = events.find((e) => e.eventType === "created");
       expect(event).toBeDefined();
-      expect((event!.metadata as any)?.source).toBe("prospect_graduation");
+      expect(event!.metadata?.source).toBe("prospect_graduation");
     }
   });
 
   it("returns type=duplicate when email matches an existing client", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const uniqueEmail = `grad-dup-${randomUUID().slice(0, 8)}@example.com`;
 
     // Create an existing client with the same email
@@ -339,7 +342,7 @@ describe("graduateProspect", () => {
   });
 
   it("returns type=duplicate when phone matches an existing client", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const uniquePhone = `555${randomUUID().replace(/-/g, "").slice(0, 7)}`;
 
     const existingClientId = randomUUID();
@@ -373,7 +376,7 @@ describe("graduateProspect", () => {
   });
 
   it("returns error when prospect does not exist", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const result = await graduateProspect({
       prospectId: "00000000-0000-0000-0000-000000000000",
       firstName: "Ghost",
@@ -385,7 +388,7 @@ describe("graduateProspect", () => {
   });
 
   it("returns error when prospect is not active", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const { prospectId, batchId } = insertProspect({ firstName: "Rejected" });
     createdProspectIds.push(prospectId);
     createdBatchIds.push(batchId);
@@ -399,7 +402,7 @@ describe("graduateProspect", () => {
   });
 
   it("associates can graduate prospects", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
     const { prospectId, batchId } = insertProspect({ firstName: "AssocGrad" });
     createdProspectIds.push(prospectId);
     createdBatchIds.push(batchId);
@@ -440,7 +443,7 @@ describe("graduateProspectIntoExistingClient", () => {
   });
 
   it("sets prospect status to graduated with the existing client's ID", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
     const existingClientId = randomUUID();
     db.insert(clients).values({
@@ -467,7 +470,7 @@ describe("graduateProspectIntoExistingClient", () => {
   });
 
   it("backfills only null fields on the existing client", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
     const existingClientId = randomUUID();
     db.insert(clients).values({
@@ -499,7 +502,7 @@ describe("graduateProspectIntoExistingClient", () => {
   });
 
   it("logs a 'created' activity event on the existing client", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
     const existingClientId = randomUUID();
     db.insert(clients).values({
@@ -526,15 +529,15 @@ describe("graduateProspectIntoExistingClient", () => {
       .where(eq(activityEvents.clientId, existingClientId))
       .all();
     const event = events.find(
-      (e) => e.eventType === "edited" && (e.metadata as any)?.source === "prospect_graduation"
+      (e) => e.eventType === "edited" && e.metadata?.source === "prospect_graduation"
     );
     expect(event).toBeDefined();
   });
 
   it("returns an error when prospect does not exist", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const result = await graduateProspectIntoExistingClient("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000001", {});
-    expect((result as any)?.error).toBe("Prospect not found");
+    expect(result?.error).toBe("Prospect not found");
   });
 });
 
@@ -558,7 +561,7 @@ describe("rejectProspect", () => {
   });
 
   it("sets prospect status to rejected", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const { prospectId, batchId } = insertProspect({ firstName: "ToReject" });
     createdProspectIds.push(prospectId);
     createdBatchIds.push(batchId);
@@ -570,7 +573,7 @@ describe("rejectProspect", () => {
   });
 
   it("associates can reject prospects", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
     const { prospectId, batchId } = insertProspect({ firstName: "AssocReject" });
     createdProspectIds.push(prospectId);
     createdBatchIds.push(batchId);
@@ -619,7 +622,7 @@ describe("unsubscribeProspect", () => {
   });
 
   it("sets prospect status to unsubscribed", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
     const { prospectId, batchId } = insertProspect({ firstName: "ToUnsub" });
     createdProspectIds.push(prospectId);
     createdBatchIds.push(batchId);
@@ -631,7 +634,7 @@ describe("unsubscribeProspect", () => {
   });
 
   it("inserts the prospect's email into unsubscribeList", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const email = `unsub-prospect-${randomUUID().slice(0, 8)}@example.com`;
     const { prospectId, batchId } = insertProspect({ firstName: "EmailUnsub", email });
     createdProspectIds.push(prospectId);
@@ -649,7 +652,7 @@ describe("unsubscribeProspect", () => {
   });
 
   it("does not insert a duplicate unsubscribe entry", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const email = `unsub-nodup-${randomUUID().slice(0, 8)}@example.com`;
     const { prospectId, batchId } = insertProspect({ firstName: "NoDup", email });
     createdProspectIds.push(prospectId);
@@ -671,7 +674,7 @@ describe("unsubscribeProspect", () => {
   });
 
   it("unsubscribes a prospect with no email without error", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const { prospectId, batchId } = insertProspect({ firstName: "NoEmail", email: null });
     createdProspectIds.push(prospectId);
     createdBatchIds.push(batchId);
@@ -683,8 +686,8 @@ describe("unsubscribeProspect", () => {
   });
 
   it("returns an error when prospect does not exist", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const result = await unsubscribeProspect("00000000-0000-0000-0000-000000000000");
-    expect((result as any)?.error).toBe("Prospect not found");
+    expect(result?.error).toBe("Prospect not found");
   });
 });

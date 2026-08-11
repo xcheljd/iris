@@ -5,6 +5,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({}));
 
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import {
   bulkAddTags,
   bulkRemoveTags,
@@ -23,13 +24,18 @@ const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
 const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23";
 const JORDAN_ID = "db8f1f0b-3e96-4b04-a3d6-24d6a3b5e6de";
 
-const managerSession = { user: { id: MANAGER_ID, name: "Test Manager", role: "manager" as const } };
-const associateSession = { user: { id: ASSOCIATE_ID, name: "Test Associate", role: "associate" as const } };
+const managerSession: Session = {
+  user: { id: MANAGER_ID, name: "Test Manager", role: "manager" as const, firstName: "Test", lastName: "Manager" },
+  expires: "2099-12-31T23:59:59.000Z",
+};
+const associateSession: Session = {
+  user: { id: ASSOCIATE_ID, name: "Test Associate", role: "associate" as const, firstName: "Test", lastName: "Associate" },
+  expires: "2099-12-31T23:59:59.000Z",
+};
 
 // Helper: create temporary clients for testing, returns IDs for cleanup
 function createTestClients(count: number): string[] {
   const ids: string[] = [];
-  const now = new Date();
   for (let i = 0; i < count; i++) {
     const id = randomUUID();
     ids.push(id);
@@ -94,7 +100,7 @@ describe("Bulk Client Operations", () => {
   // ---------------------------------------------------------------
   describe("bulkAddTags", () => {
     it("adds tags to multiple clients and creates activity events", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
       const tag = "bulk-test-add";
       const result = await bulkAddTags(testClientIds, [tag]);
       expect(result.ok).toBe(3);
@@ -113,7 +119,7 @@ describe("Bulk Client Operations", () => {
     });
 
     it("skips clients that already have the tag", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
       const tag = "bulk-test-skip";
 
       // Add to first client manually first
@@ -127,13 +133,13 @@ describe("Bulk Client Operations", () => {
     });
 
     it("returns ok:0 for empty tags array", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
       const result = await bulkAddTags(testClientIds, []);
       expect(result.ok).toBe(0);
     });
 
     it("returns ok:0 for empty clientIds array", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
       const result = await bulkAddTags([], ["some-tag"]);
       expect(result.ok).toBe(0);
     });
@@ -141,7 +147,7 @@ describe("Bulk Client Operations", () => {
 
   describe("bulkRemoveTags", () => {
     it("removes tags from multiple clients", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
       const tag = "bulk-test-remove";
 
       // Add first, then remove
@@ -163,7 +169,7 @@ describe("Bulk Client Operations", () => {
   // ---------------------------------------------------------------
   describe("bulkReassignOwner", () => {
     it("reassigns clients to a new employee (manager)", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       const result = await bulkReassignOwner(testClientIds, JORDAN_ID);
       expect(result.ok).toBe(3);
 
@@ -179,12 +185,12 @@ describe("Bulk Client Operations", () => {
     });
 
     it("throws when associate calls it", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
       await expect(bulkReassignOwner(testClientIds, JORDAN_ID)).rejects.toThrow("Manager access required");
     });
 
     it("returns ok:0 for empty array", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       const result = await bulkReassignOwner([], JORDAN_ID);
       expect(result.ok).toBe(0);
     });
@@ -195,7 +201,7 @@ describe("Bulk Client Operations", () => {
   // ---------------------------------------------------------------
   describe("bulkSetEmailList", () => {
     it("removes clients from email list (any auth)", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
       const result = await bulkSetEmailList(testClientIds, false);
       expect(result.ok).toBe(3);
 
@@ -216,7 +222,7 @@ describe("Bulk Client Operations", () => {
   // ---------------------------------------------------------------
   describe("bulkDeleteClients", () => {
     it("soft-deletes multiple clients (manager)", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       const result = await bulkDeleteClients(testClientIds);
       expect(result.ok).toBe(3);
 
@@ -233,7 +239,7 @@ describe("Bulk Client Operations", () => {
     });
 
     it("skips already-deleted clients", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       // Delete first client manually
       db.update(clients).set({ status: "deleted", deletedAt: new Date(), deletedBy: MANAGER_ID })
@@ -244,7 +250,7 @@ describe("Bulk Client Operations", () => {
     });
 
     it("throws when associate calls it", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
       await expect(bulkDeleteClients(testClientIds)).rejects.toThrow("Manager access required");
     });
   });
@@ -254,7 +260,7 @@ describe("Bulk Client Operations", () => {
   // ---------------------------------------------------------------
   describe("bulkBanClients", () => {
     it("bans multiple clients and creates banned_customers rows (manager)", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       const result = await bulkBanClients(testClientIds, "Reselling", "Test ban");
       expect(result.ok).toBe(3);
 
@@ -274,7 +280,7 @@ describe("Bulk Client Operations", () => {
     });
 
     it("throws when associate calls it", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
       await expect(bulkBanClients(testClientIds, "Other", "test")).rejects.toThrow("Manager access required");
     });
   });
@@ -284,7 +290,7 @@ describe("Bulk Client Operations", () => {
   // ---------------------------------------------------------------
   describe("bulkUnsubscribeClients", () => {
     it("unsubscribes multiple clients and adds to unsubscribe_list (manager)", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       const result = await bulkUnsubscribeClients(testClientIds);
       expect(result.ok).toBe(3);
 
@@ -310,7 +316,7 @@ describe("Bulk Client Operations", () => {
     });
 
     it("throws when associate calls it", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
       await expect(bulkUnsubscribeClients(testClientIds)).rejects.toThrow("Manager access required");
     });
 
@@ -337,7 +343,7 @@ describe("Bulk Client Operations", () => {
       }
 
       try {
-        vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+        vi.mocked(getServerSession).mockResolvedValue(managerSession);
         const result = await bulkUnsubscribeClients(sharedIds);
 
         expect(result.error).toBeUndefined();

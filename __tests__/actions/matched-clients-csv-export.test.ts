@@ -4,6 +4,7 @@ vi.mock("next-auth", () => ({ getServerSession: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import { db } from "@/lib/db";
 import { clients, promoWatches, promoMatches } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -12,8 +13,14 @@ import { createPromo, exportMatchedClientsCsv } from "@/lib/actions";
 
 const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
 const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23";
-const mgr = { user: { id: MANAGER_ID, name: "Marcus", role: "manager" } };
-const assoc = { user: { id: ASSOCIATE_ID, name: "Jordan", role: "associate" } };
+const mgr: Session = {
+  user: { id: MANAGER_ID, name: "Marcus", role: "manager", firstName: "Marcus", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
+};
+const assoc: Session = {
+  user: { id: ASSOCIATE_ID, name: "Jordan", role: "associate", firstName: "Jordan", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
+};
 
 const HEADER = "Client ID,First Name,Last Name,Assigned Associate,Preferred Contact,Phone,Email,Promo Model,Promo Collection,Promo Brand,MSRP,Sale Price,Match Type";
 

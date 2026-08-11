@@ -10,18 +10,19 @@ vi.mock("next/cache", () => ({
 }));
 
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import { POST, DELETE } from "@/app/api/notes/route";
-import { GET } from "@/app/api/clients/route";
 import { db } from "@/lib/db";
 import { activityEvents } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 
-const managerSession = {
-  user: { id: "2d7a352d-53a0-4544-b515-902e7dd59206", name: "Marcus", role: "manager" },
+const managerSession: Session = {
+  user: { id: "2d7a352d-53a0-4544-b515-902e7dd59206", name: "Marcus", role: "manager", firstName: "Marcus", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
 beforeEach(() => {
-  vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+  vi.mocked(getServerSession).mockResolvedValue(managerSession);
 });
 
 describe("POST /api/notes", () => {

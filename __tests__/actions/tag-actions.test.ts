@@ -9,6 +9,7 @@ vi.mock("next/cache", () => ({
 }));
 
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import { addTag, removeTag, createTag, deleteTag } from "@/lib/actions";
 import { db } from "@/lib/db";
 import { clients, clientTags, activityEvents } from "@/lib/db/schema";
@@ -18,12 +19,14 @@ const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206"; // Test Manager
 const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23"; // Test Associate
 const FIRST_CLIENT_ID = "e18e3ba8-b3b1-4bc1-b0f2-f13a219dd30b"; // Test Client (owned by MANAGER_ID)
 
-const managerSession = {
-  user: { id: MANAGER_ID, name: "Marcus", role: "manager" },
+const managerSession: Session = {
+  user: { id: MANAGER_ID, name: "Marcus", role: "manager", firstName: "Marcus", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
-const associateSession = {
-  user: { id: ASSOCIATE_ID, name: "Test Associate", role: "associate" },
+const associateSession: Session = {
+  user: { id: ASSOCIATE_ID, name: "Test Associate", role: "associate", firstName: "Test", lastName: "Associate" },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
 describe("Tag Actions", () => {
@@ -43,7 +46,7 @@ describe("Tag Actions", () => {
 
   describe("addTag", () => {
     it("should add a tag to a client", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       const clientBefore = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
       const originalTags = [...(clientBefore!.tags || [])];
@@ -67,7 +70,7 @@ describe("Tag Actions", () => {
     });
 
     it("should not duplicate an existing tag", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       const clientBefore = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
       const originalTags = [...(clientBefore!.tags || [])];
@@ -85,7 +88,7 @@ describe("Tag Actions", () => {
     });
 
     it("should increment usageCount for existing tag in clientTags table", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       const clientBefore = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
       const originalTags = [...(clientBefore!.tags || [])];
@@ -108,7 +111,7 @@ describe("Tag Actions", () => {
     });
 
     it("should do nothing if client does not exist", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       await addTag("nonexistent-id", "some-tag");
       // Should not throw
     });
@@ -116,7 +119,7 @@ describe("Tag Actions", () => {
 
   describe("removeTag", () => {
     it("should remove a tag from a client", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       const clientBefore = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
       const originalTags = [...(clientBefore!.tags || [])];
@@ -144,7 +147,7 @@ describe("Tag Actions", () => {
     });
 
     it("should do nothing if client does not exist", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       await removeTag("nonexistent-id", "some-tag");
       // Should not throw
     });
@@ -200,7 +203,7 @@ describe("Tag Actions", () => {
     });
 
     it("should reject an associate tagging another employee's client", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
 
       const before = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
       const result = await addTag(FIRST_CLIENT_ID, "unauthorized-tag-010");
@@ -213,10 +216,10 @@ describe("Tag Actions", () => {
 
     it("should reject an associate removing a tag from another employee's client", async () => {
       // Manager adds a tag the associate will try to strip.
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       await addTag(FIRST_CLIENT_ID, "protected-tag-010");
 
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
       const result = await removeTag(FIRST_CLIENT_ID, "protected-tag-010");
 
       expect(result).toEqual({ error: "Not authorized to remove tags from this client" });
@@ -224,7 +227,7 @@ describe("Tag Actions", () => {
       expect(after!.tags).toContain("protected-tag-010");
 
       // Restore: manager removes the tag again.
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       await removeTag(FIRST_CLIENT_ID, "protected-tag-010");
     });
   });

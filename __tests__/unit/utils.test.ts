@@ -222,7 +222,7 @@ describe("applyClientFilter", () => {
 
   it("returns all clients when filter is undefined", () => {
     const clients = [makeClient()];
-    expect(applyClientFilter(clients, undefined as any)).toHaveLength(1);
+    expect(applyClientFilter(clients, undefined as unknown as string)).toHaveLength(1);
   });
 
   // --- "hot" filter ---

@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
+import { vi, describe, it, expect, afterEach } from "vitest";
 
 vi.mock("next-auth", () => ({
   getServerSession: vi.fn(),
@@ -9,6 +9,7 @@ vi.mock("next/cache", () => ({
 }));
 
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { logOutreach, markFollowUpComplete, rescheduleFollowUp } from "@/lib/actions";
 import { db } from "@/lib/db";
@@ -19,12 +20,14 @@ const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206"; // Marcus (manager)
 const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23"; // Test associate
 const FIRST_CLIENT_ID = "e18e3ba8-b3b1-4bc1-b0f2-f13a219dd30b"; // Michael White (owned by associate)
 
-const managerSession = {
-  user: { id: MANAGER_ID, name: "Marcus", role: "manager" },
+const managerSession: Session = {
+  user: { id: MANAGER_ID, name: "Marcus", role: "manager", firstName: "Marcus", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
-const associateSession = {
-  user: { id: ASSOCIATE_ID, name: "Test Associate", role: "associate" },
+const associateSession: Session = {
+  user: { id: ASSOCIATE_ID, name: "Test Associate", role: "associate", firstName: "Test", lastName: "Associate" },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
 describe("Outreach Actions", () => {
@@ -44,7 +47,7 @@ describe("Outreach Actions", () => {
 
   describe("logOutreach", () => {
     it("should create an outreach log entry", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       await logOutreach({
         clientId: FIRST_CLIENT_ID,
@@ -75,7 +78,7 @@ describe("Outreach Actions", () => {
     });
 
     it("should set lastOutreachAt on the client", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       await logOutreach({
         clientId: FIRST_CLIENT_ID,
@@ -97,7 +100,7 @@ describe("Outreach Actions", () => {
     });
 
     it("should set lastPurchaseAt when outcome is purchased", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       await logOutreach({
         clientId: FIRST_CLIENT_ID,
@@ -129,7 +132,7 @@ describe("Outreach Actions", () => {
     });
 
     it("should reject outreach log without authentication", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(null as any);
+      vi.mocked(getServerSession).mockResolvedValue(null);
 
       await expect(logOutreach({
         clientId: FIRST_CLIENT_ID,
@@ -139,7 +142,7 @@ describe("Outreach Actions", () => {
     });
 
     it("should set follow-up date when provided", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       const followUp = "2026-06-01";
       await logOutreach({
@@ -160,7 +163,7 @@ describe("Outreach Actions", () => {
     });
 
     it("should revalidate relevant paths", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       await logOutreach({
         clientId: FIRST_CLIENT_ID,
@@ -182,7 +185,7 @@ describe("Outreach Actions", () => {
     });
 
     it("should reject when associate tries to log outreach on own clients without ownership", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
 
       const result = await logOutreach({
         clientId: FIRST_CLIENT_ID,
@@ -195,7 +198,7 @@ describe("Outreach Actions", () => {
     });
 
     it("should allow manager to log outreach on any client", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       const result = await logOutreach({
         clientId: FIRST_CLIENT_ID,
@@ -218,7 +221,7 @@ describe("Outreach Actions", () => {
 
   describe("markFollowUpComplete", () => {
     it("should mark an outreach log as completed", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       // First create an outreach log with a follow-up
       await logOutreach({
@@ -251,7 +254,7 @@ describe("Outreach Actions", () => {
   // so a log created by the manager must be untouchable by the associate.
   describe("follow-up ownership", () => {
     async function createManagerLog(marker: string) {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       await logOutreach({
         clientId: FIRST_CLIENT_ID,
         method: "call",
@@ -271,7 +274,7 @@ describe("Outreach Actions", () => {
     it("should reject an associate completing another employee's follow-up", async () => {
       const log = await createManagerLog("ownership-test-010a");
 
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
       const result = await markFollowUpComplete(log.id);
 
       expect(result).toEqual({ error: "Not authorized to complete this follow-up" });
@@ -283,7 +286,7 @@ describe("Outreach Actions", () => {
       const log = await createManagerLog("ownership-test-010b");
       const originalDate = log.followUpDate;
 
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
       const result = await rescheduleFollowUp(log.id, "2027-01-01");
 
       expect(result).toEqual({ error: "Not authorized to reschedule this follow-up" });
@@ -292,7 +295,7 @@ describe("Outreach Actions", () => {
     });
 
     it("should return not-found for a logId that does not exist", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       const result = await markFollowUpComplete("00000000-0000-4000-8000-000000000000");
       expect(result).toEqual({ error: "Follow-up not found" });
     });

@@ -19,7 +19,6 @@ vi.mock("next/navigation", () => ({
 // Mock the Dialog-based CommandDialog to be simpler for testing
 // We need to mock cmdk because it uses complex portal/radix internals
 vi.mock("@/components/ui/command", () => {
-  const React = require("react");
   return {
     CommandDialog: ({ children, open, onOpenChange }: { children: React.ReactNode; open: boolean; onOpenChange: (open: boolean) => void }) => {
       if (!open) return null;
@@ -47,7 +46,7 @@ vi.mock("@/components/ui/command", () => {
       </div>
     ),
     CommandItem: ({ children, onSelect }: { children: React.ReactNode; onSelect: () => void }) => (
-      <div data-testid="command-item" role="option" onClick={onSelect}>{children}</div>
+      <div data-testid="command-item" role="option" aria-selected={false} onClick={onSelect}>{children}</div>
     ),
     CommandSeparator: () => <hr />,
   };
@@ -65,7 +64,7 @@ describe("CommandPalette", () => {
             { id: "c2", firstName: "Bob", lastName: "Brown", phone: "555-0002" },
           ]),
       } as Response)
-    ) as any;
+    ) as unknown as typeof fetch;
   });
 
   it("renders the command palette component (initially closed)", () => {

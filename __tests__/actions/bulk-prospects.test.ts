@@ -5,6 +5,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({}));
 
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import { bulkRejectProspects, bulkUnsubscribeProspects } from "@/lib/actions/bulk-prospects";
 import { db } from "@/lib/db";
 import { prospects, unsubscribeList, rvxImportBatches } from "@/lib/db/schema";
@@ -14,8 +15,14 @@ import { randomUUID } from "crypto";
 const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
 const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23";
 
-const managerSession = { user: { id: MANAGER_ID, name: "Test Manager", role: "manager" as const } };
-const associateSession = { user: { id: ASSOCIATE_ID, name: "Test Associate", role: "associate" as const } };
+const managerSession: Session = {
+  user: { id: MANAGER_ID, name: "Test Manager", role: "manager" as const, firstName: "Test", lastName: "Manager" },
+  expires: "2099-12-31T23:59:59.000Z",
+};
+const associateSession: Session = {
+  user: { id: ASSOCIATE_ID, name: "Test Associate", role: "associate" as const, firstName: "Test", lastName: "Associate" },
+  expires: "2099-12-31T23:59:59.000Z",
+};
 
 // prospects.importBatchId is NOT NULL and references rvx_import_batches, and the
 // connection runs with `foreign_keys = ON` — so every test prospect needs a real
@@ -86,13 +93,13 @@ describe("Bulk Prospect Operations", () => {
     });
 
     it("returns { ok: 0 } for an empty id list without error", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       const result = await bulkRejectProspects([]);
       expect(result).toEqual({ ok: 0 });
     });
 
     it("sets status to rejected for all specified prospects", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       testIds = [createTestProspect(), createTestProspect(), createTestProspect()];
 
       const result = await bulkRejectProspects(testIds);
@@ -106,7 +113,7 @@ describe("Bulk Prospect Operations", () => {
     });
 
     it("ignores ids that do not exist and counts only rows actually changed", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       testIds = [createTestProspect(), createTestProspect()];
       const fakeId = randomUUID();
 
@@ -121,7 +128,7 @@ describe("Bulk Prospect Operations", () => {
     });
 
     it("allows an associate session (requireAuth, not requireManager)", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
       testIds = [createTestProspect()];
 
       const result = await bulkRejectProspects(testIds);
@@ -132,7 +139,7 @@ describe("Bulk Prospect Operations", () => {
     });
 
     it("rejects unauthenticated requests", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(null as any);
+      vi.mocked(getServerSession).mockResolvedValue(null);
       await expect(bulkRejectProspects([randomUUID()])).rejects.toThrow("Not authenticated");
     });
   });
@@ -149,13 +156,13 @@ describe("Bulk Prospect Operations", () => {
     });
 
     it("returns { ok: 0 } for an empty id list", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       const result = await bulkUnsubscribeProspects([]);
       expect(result).toEqual({ ok: 0 });
     });
 
     it("sets status to unsubscribed for all specified prospects", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       const withEmail = createTestProspect({ email: "unsub-014-a@example.com" });
       const withoutEmail = createTestProspect({ email: null });
       testIds = [withEmail, withoutEmail];
@@ -171,7 +178,7 @@ describe("Bulk Prospect Operations", () => {
     });
 
     it("inserts into the unsubscribe list for prospects with an email", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       const email = "unsub-014-b@example.com";
       testIds = [createTestProspect({ email })];
       testEmails = [email];
@@ -183,7 +190,7 @@ describe("Bulk Prospect Operations", () => {
     });
 
     it("does not insert a duplicate when the email is already unsubscribed", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       const email = "unsub-014-c@example.com";
       testEmails = [email];
       db.insert(unsubscribeList).values({ id: randomUUID(), email }).run();
@@ -197,7 +204,7 @@ describe("Bulk Prospect Operations", () => {
     });
 
     it("skips the unsubscribe-list insert for prospects without an email", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       testIds = [createTestProspect({ email: null })];
 
       const before = db.select().from(unsubscribeList).all().length;
@@ -209,7 +216,7 @@ describe("Bulk Prospect Operations", () => {
     });
 
     it("counts only prospects that exist, not the length of the id list", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       testIds = [createTestProspect({ email: null })];
 
       const result = await bulkUnsubscribeProspects([...testIds, randomUUID()]);
@@ -218,7 +225,7 @@ describe("Bulk Prospect Operations", () => {
     });
 
     it("handles two prospects sharing one email address", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
       const email = "unsub-014-shared@example.com";
       testEmails = [email];
       testIds = [createTestProspect({ email }), createTestProspect({ email })];
@@ -234,7 +241,7 @@ describe("Bulk Prospect Operations", () => {
     });
 
     it("allows an associate session (requireAuth, not requireManager)", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
       testIds = [createTestProspect({ email: null })];
 
       const result = await bulkUnsubscribeProspects(testIds);
@@ -243,7 +250,7 @@ describe("Bulk Prospect Operations", () => {
     });
 
     it("rejects unauthenticated requests", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(null as any);
+      vi.mocked(getServerSession).mockResolvedValue(null);
       await expect(bulkUnsubscribeProspects([randomUUID()])).rejects.toThrow("Not authenticated");
     });
   });

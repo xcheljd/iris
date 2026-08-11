@@ -9,6 +9,7 @@ vi.mock("next/cache", () => ({
 }));
 
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import { createPromo, deletePromo, importPromos } from "@/lib/actions";
 import { getPromoMatchCounts } from "@/lib/queries";
 import { db } from "@/lib/db";
@@ -18,15 +19,16 @@ import { randomUUID } from "crypto";
 
 const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206"; // Marcus (manager)
 
-const managerSession = {
-  user: { id: MANAGER_ID, name: "Marcus", role: "manager" },
+const managerSession: Session = {
+  user: { id: MANAGER_ID, name: "Marcus", role: "manager", firstName: "Marcus", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
 describe("Promo Actions", () => {
   const createdPromoIds: string[] = [];
 
   beforeEach(() => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
   });
 
   afterEach(() => {
@@ -59,20 +61,6 @@ describe("Promo Actions", () => {
     });
 
     it("should create promo matches for clients with matching product of interest", async () => {
-      // Import clients from the top of the file (already available via db import)
-      const { clients } = await import("@/lib/db/schema");
-      const allClients = db.select().from(clients).all();
-
-      // Find a model that at least one client has in their products of interest
-      let testModel = "";
-      for (const c of allClients) {
-        const poi = c.productsOfInterest || [];
-        if (poi.length > 0 && poi[0].model) {
-          testModel = poi[0].model;
-          break;
-        }
-      }
-
       // Create promo with unique model that won't match any client
       const uniqueModel = `UNIQUE-${Date.now()}`;
       await createPromo(uniqueModel, "NOCOLLECTION", "Meridian");
@@ -95,14 +83,16 @@ describe("Promo Actions", () => {
     it("should revalidate promos path", async () => {
       const { revalidatePath } = await import("next/cache");
 
-      await createPromo(`REVALIDATE-TEST-${Date.now()}`, "TESTCOL", "Meridian");
+      const model = `REVALIDATE-TEST-${Date.now()}`;
+      await createPromo(model, "TESTCOL", "Meridian");
 
       expect(revalidatePath).toHaveBeenCalledWith("/promos");
 
-      // Cleanup
+      // Cleanup — Date.now() was previously re-evaluated here, so this never matched
       const promo = db.select().from(promoWatches)
-        .where(eq(promoWatches.modelNumber, `REVALIDATE-TEST-${Date.now()}`))
+        .where(eq(promoWatches.modelNumber, model))
         .get();
+      if (promo) createdPromoIds.push(promo.id);
     });
   });
 

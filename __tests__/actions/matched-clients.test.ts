@@ -4,6 +4,7 @@ vi.mock("next-auth", () => ({ getServerSession: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import { db } from "@/lib/db";
 import { clients, promoWatches, promoMatches } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -13,7 +14,10 @@ import { getMatchedClients } from "@/lib/queries";
 
 const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
 const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23";
-const mgr = { user: { id: MANAGER_ID, name: "Marcus", role: "manager" } };
+const mgr: Session = {
+  user: { id: MANAGER_ID, name: "Marcus", role: "manager", firstName: "Marcus", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
+};
 
 describe("getMatchedClients", () => {
   const clientIds: string[] = [];

@@ -10,22 +10,21 @@ vi.mock("next/cache", () => ({
 }));
 
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import { getOnboardingState, updateOnboardingState } from "@/lib/actions/onboarding";
 import { db } from "@/lib/db";
 import { employees } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
 // Real session shapes matching the auth callbacks
-const MANAGER_SESSION = {
+const MANAGER_SESSION: Session = {
   user: { id: "2d7a352d-53a0-4544-b515-902e7dd59206", name: "Marcus", role: "manager" as const, firstName: "Marcus", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
-const ASSOCIATE_SESSION = {
+const ASSOCIATE_SESSION: Session = {
   user: { id: "590628cf-d623-456d-bdad-d16ab0ec2b23", name: "Jordan", role: "associate" as const, firstName: "Jordan", lastName: null },
-};
-
-const OTHER_ASSOCIATE_SESSION = {
-  user: { id: "a-different-associate-id", name: "Riley", role: "associate" as const, firstName: "Riley", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
 describe("Onboarding Actions", () => {
@@ -57,7 +56,7 @@ describe("Onboarding Actions", () => {
 
   describe("getOnboardingState", () => {
     it("should return null for user with no onboarding_state", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(MANAGER_SESSION as any);
+      vi.mocked(getServerSession).mockResolvedValue(MANAGER_SESSION);
 
       // Ensure onboarding_state is null
       db.update(employees)
@@ -70,7 +69,7 @@ describe("Onboarding Actions", () => {
     });
 
     it("should return parsed JSON for existing onboarding state", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(MANAGER_SESSION as any);
+      vi.mocked(getServerSession).mockResolvedValue(MANAGER_SESSION);
 
       const state = {
         tourCompleted: true,
@@ -107,7 +106,7 @@ describe("Onboarding Actions", () => {
     });
 
     it("should persist valid state and read it back", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(ASSOCIATE_SESSION as any);
+      vi.mocked(getServerSession).mockResolvedValue(ASSOCIATE_SESSION);
 
       // Start from null
       db.update(employees)
@@ -137,7 +136,7 @@ describe("Onboarding Actions", () => {
     });
 
     it("should validate currentStep range for associate (1-8)", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(ASSOCIATE_SESSION as any);
+      vi.mocked(getServerSession).mockResolvedValue(ASSOCIATE_SESSION);
 
       // currentStep = 0 (below minimum)
       await expect(
@@ -156,7 +155,7 @@ describe("Onboarding Actions", () => {
     });
 
     it("should validate currentStep range for manager (1-12)", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(MANAGER_SESSION as any);
+      vi.mocked(getServerSession).mockResolvedValue(MANAGER_SESSION);
 
       // currentStep = 13 (above manager max)
       await expect(
@@ -170,7 +169,7 @@ describe("Onboarding Actions", () => {
     });
 
     it("should validate hint IDs against whitelist", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(ASSOCIATE_SESSION as any);
+      vi.mocked(getServerSession).mockResolvedValue(ASSOCIATE_SESSION);
 
       // Invalid hint ID
       await expect(
@@ -190,7 +189,7 @@ describe("Onboarding Actions", () => {
     });
 
     it("should prevent duplicate hint IDs in hintsDismissed", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(ASSOCIATE_SESSION as any);
+      vi.mocked(getServerSession).mockResolvedValue(ASSOCIATE_SESSION);
 
       // Set initial state with add-client hint dismissed
       db.update(employees)
@@ -213,7 +212,7 @@ describe("Onboarding Actions", () => {
       });
 
       // Should not have duplicates
-      const parsed = result as any;
+      const parsed = result;
       expect(parsed.hintsDismissed).toContain("add-client");
       expect(parsed.hintsDismissed).toContain("edit-client");
       const addClientCount = parsed.hintsDismissed.filter((h: string) => h === "add-client").length;
@@ -221,7 +220,7 @@ describe("Onboarding Actions", () => {
     });
 
     it("should be idempotent — repeated calls with same payload produce same state", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(ASSOCIATE_SESSION as any);
+      vi.mocked(getServerSession).mockResolvedValue(ASSOCIATE_SESSION);
 
       // Start from null
       db.update(employees)
@@ -244,7 +243,7 @@ describe("Onboarding Actions", () => {
     });
 
     it("should only affect the current user's row", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(ASSOCIATE_SESSION as any);
+      vi.mocked(getServerSession).mockResolvedValue(ASSOCIATE_SESSION);
 
       // Set manager state to something known
       const managerOriginalState = {
@@ -280,7 +279,7 @@ describe("Onboarding Actions", () => {
     });
 
     it("should reject invalid completedSteps values", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(ASSOCIATE_SESSION as any);
+      vi.mocked(getServerSession).mockResolvedValue(ASSOCIATE_SESSION);
 
       // Invalid step ID
       await expect(
@@ -292,7 +291,7 @@ describe("Onboarding Actions", () => {
     });
 
     it("should merge updates with existing state correctly", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(MANAGER_SESSION as any);
+      vi.mocked(getServerSession).mockResolvedValue(MANAGER_SESSION);
 
       // Set initial state
       db.update(employees)
@@ -314,7 +313,7 @@ describe("Onboarding Actions", () => {
         hintsDismissed: ["command-palette"],
       });
 
-      const parsed = result as any;
+      const parsed = result;
       expect(parsed.currentStep).toBe(3);
       expect(parsed.completedSteps).toEqual(["welcome", "dashboard"]);
       expect(parsed.hintsDismissed).toEqual(["command-palette"]);
@@ -323,7 +322,7 @@ describe("Onboarding Actions", () => {
     });
 
     it("should handle tourSkipped flag", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(ASSOCIATE_SESSION as any);
+      vi.mocked(getServerSession).mockResolvedValue(ASSOCIATE_SESSION);
 
       const result = await updateOnboardingState({
         currentStep: 3,
@@ -331,19 +330,19 @@ describe("Onboarding Actions", () => {
         tourCompleted: false,
       });
 
-      const parsed = result as any;
+      const parsed = result;
       expect(parsed.tourSkipped).toBe(true);
       expect(parsed.tourCompleted).toBe(false);
     });
 
     it("should validate tourCompleted is boolean when provided", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(ASSOCIATE_SESSION as any);
+      vi.mocked(getServerSession).mockResolvedValue(ASSOCIATE_SESSION);
 
       // Invalid tourCompleted type
       await expect(
         updateOnboardingState({
           currentStep: 1,
-          tourCompleted: "yes" as any,
+          tourCompleted: "yes" as unknown as boolean,
         })
       ).rejects.toThrow();
     });

@@ -4,13 +4,20 @@ vi.mock("next-auth", () => ({ getServerSession: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import { db } from "@/lib/db";
 import { modelCatalog } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { analyzeCatalogRvx, importCatalogRvx } from "@/lib/actions/catalog-import";
 
-const MANAGER = { user: { id: "2d7a352d-53a0-4544-b515-902e7dd59206", name: "X", role: "manager" } };
-const ASSOCIATE = { user: { id: "590628cf-d623-456d-bdad-d16ab0ec2b23", name: "H", role: "associate" } };
+const MANAGER: Session = {
+  user: { id: "2d7a352d-53a0-4544-b515-902e7dd59206", name: "X", role: "manager", firstName: "X", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
+};
+const ASSOCIATE: Session = {
+  user: { id: "590628cf-d623-456d-bdad-d16ab0ec2b23", name: "H", role: "associate", firstName: "H", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
+};
 
 function fixture(style: string, cls: string, sub: string, price: string) {
   return `<Workbook xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet><Table>

@@ -21,6 +21,7 @@ vi.mock("@/lib/actions/clients", async (importOriginal) => {
 });
 
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import { createApprovalRequest, reviewApprovalRequest } from "@/lib/actions";
 import { banClient } from "@/lib/actions/clients";
 import { db } from "@/lib/db";
@@ -36,12 +37,14 @@ const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
 const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23";
 const FIRST_CLIENT_ID = "e18e3ba8-b3b1-4bc1-b0f2-f13a219dd30b";
 
-const managerSession = {
-  user: { id: MANAGER_ID, name: "Marcus", role: "manager" },
+const managerSession: Session = {
+  user: { id: MANAGER_ID, name: "Marcus", role: "manager", firstName: "Marcus", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
-const associateSession = {
-  user: { id: ASSOCIATE_ID, name: "Jordan", role: "associate" },
+const associateSession: Session = {
+  user: { id: ASSOCIATE_ID, name: "Jordan", role: "associate", firstName: "Jordan", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
 describe("createApprovalRequest", () => {
@@ -60,7 +63,7 @@ describe("createApprovalRequest", () => {
   });
 
   it("creates a pending approval request", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const { id } = await createApprovalRequest("ban", FIRST_CLIENT_ID, "Testing ban request") as { id: string };
     createdRequestIds.push(id);
 
@@ -74,7 +77,7 @@ describe("createApprovalRequest", () => {
   });
 
   it("associates can create approval requests", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
     const { id } = await createApprovalRequest("unsubscribe", FIRST_CLIENT_ID, "Client asked to unsub") as { id: string };
     createdRequestIds.push(id);
 
@@ -84,7 +87,7 @@ describe("createApprovalRequest", () => {
   });
 
   it("logs the correct activity event type for ban", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const { id } = await createApprovalRequest("ban", FIRST_CLIENT_ID, "Reason A") as { id: string };
     createdRequestIds.push(id);
 
@@ -98,7 +101,7 @@ describe("createApprovalRequest", () => {
   });
 
   it("logs the correct activity event type for unsubscribe", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const { id } = await createApprovalRequest("unsubscribe", FIRST_CLIENT_ID, "Reason B") as { id: string };
     createdRequestIds.push(id);
 
@@ -112,7 +115,7 @@ describe("createApprovalRequest", () => {
   });
 
   it("logs the correct activity event type for delete", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const { id } = await createApprovalRequest("delete", FIRST_CLIENT_ID, "Reason C") as { id: string };
     createdRequestIds.push(id);
 
@@ -126,7 +129,7 @@ describe("createApprovalRequest", () => {
   });
 
   it("returns an error when reason is empty", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const result = await createApprovalRequest("ban", FIRST_CLIENT_ID, "   ");
     expect("error" in result).toBe(true);
     expect((result as { error: string }).error).toBe("Reason is required");
@@ -143,7 +146,7 @@ describe("reviewApprovalRequest", () => {
   const createdClientIds: string[] = [];
 
   beforeEach(() => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
     // Ensure seed client is active before each test
     db.update(clients)
       .set({ status: "active", onEmailList: true, deletedAt: null, updatedAt: new Date() })
@@ -245,10 +248,10 @@ describe("reviewApprovalRequest", () => {
   });
 
   it("throws when associate tries to review", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
     const requestId = await createPendingRequest("ban");
 
-    vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
     await expect(reviewApprovalRequest(requestId, true)).rejects.toThrow();
   });
 

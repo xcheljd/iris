@@ -21,7 +21,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
 }));
 
-let mockOnboardingState: any = null;
+let mockOnboardingState: OnboardingState | null = null;
 vi.mock("@/lib/actions/onboarding", () => ({
   getOnboardingState: vi.fn(() => Promise.resolve(mockOnboardingState)),
   updateOnboardingState: vi.fn(() => Promise.resolve({
@@ -34,6 +34,7 @@ vi.mock("@/lib/actions/onboarding", () => ({
 import { OnboardingProvider as _OnboardingProvider } from "@/components/onboarding/onboarding-provider";
 import { TourTooltip } from "@/components/onboarding/tour-tooltip";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import type { OnboardingState } from "@/lib/actions/onboarding";
 
 // OnboardingProvider now depends on useSidebar() — wrap every render.
 function OnboardingProvider({ children }: { children: React.ReactNode }) {

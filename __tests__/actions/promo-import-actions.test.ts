@@ -9,10 +9,14 @@ vi.mock("next/cache", () => ({
 }));
 
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import { importPromos, clearAllPromos, createPromo, resolvePromoRows } from "@/lib/actions";
 
 const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
-const managerSession = { user: { id: MANAGER_ID, name: "Marcus", role: "manager" } };
+const managerSession: Session = {
+  user: { id: MANAGER_ID, name: "Marcus", role: "manager", firstName: "Marcus", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
+};
 import { db } from "@/lib/db";
 import { promoWatches, promoMatches, modelCatalog } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -22,7 +26,7 @@ describe("Promo Import Actions", () => {
   const catalogModels: string[] = [];
 
   beforeEach(() => {
-    vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
   });
 
   afterEach(() => {

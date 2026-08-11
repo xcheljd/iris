@@ -9,6 +9,7 @@ vi.mock("next/cache", () => ({
 }));
 
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import { deleteClient, restoreClient, purgeClient } from "@/lib/actions";
 import { db } from "@/lib/db";
 import { clients, activityEvents, outreachLogs } from "@/lib/db/schema";
@@ -18,12 +19,14 @@ const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206"; // Marcus (manager)
 const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23"; // Jordan (associate)
 const FIRST_CLIENT_ID = "e18e3ba8-b3b1-4bc1-b0f2-f13a219dd30b"; // Michael White
 
-const managerSession = {
-  user: { id: MANAGER_ID, name: "Marcus", role: "manager" },
+const managerSession: Session = {
+  user: { id: MANAGER_ID, name: "Marcus", role: "manager", firstName: "Marcus", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
-const associateSession = {
-  user: { id: ASSOCIATE_ID, name: "Jordan", role: "associate" },
+const associateSession: Session = {
+  user: { id: ASSOCIATE_ID, name: "Jordan", role: "associate", firstName: "Jordan", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
 };
 
 describe("Client Deletion Actions", () => {
@@ -53,7 +56,7 @@ describe("Client Deletion Actions", () => {
 
   describe("deleteClient", () => {
     it("should soft-delete a client with manager session", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       await deleteClient(FIRST_CLIENT_ID);
 
@@ -65,7 +68,7 @@ describe("Client Deletion Actions", () => {
     });
 
     it("should create a status_changed activity event on delete", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       await deleteClient(FIRST_CLIENT_ID);
 
@@ -78,39 +81,39 @@ describe("Client Deletion Actions", () => {
     });
 
     it("should throw for non-manager session", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
 
       await expect(deleteClient(FIRST_CLIENT_ID)).rejects.toThrow("Manager access required");
     });
 
     it("should throw for no session", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(null as any);
+      vi.mocked(getServerSession).mockResolvedValue(null);
 
       await expect(deleteClient(FIRST_CLIENT_ID)).rejects.toThrow("Not authenticated");
     });
 
     it("should return an error for already-deleted client", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       // First delete
       await deleteClient(FIRST_CLIENT_ID);
 
       // Second delete should return { error }
       const result = await deleteClient(FIRST_CLIENT_ID);
-      expect((result as any)?.error).toBe("Client already deleted");
+      expect(result?.error).toBe("Client already deleted");
     });
 
     it("should return an error for nonexistent client", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       const result = await deleteClient("nonexistent-id-12345");
-      expect((result as any)?.error).toBe("Client not found");
+      expect(result?.error).toBe("Client not found");
     });
   });
 
   describe("restoreClient", () => {
     it("should restore a deleted client to previous status", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       // First delete
       await deleteClient(FIRST_CLIENT_ID);
@@ -126,7 +129,7 @@ describe("Client Deletion Actions", () => {
     });
 
     it("should restore to previous status when it was banned", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       // Set client to banned first
       db.update(clients).set({ status: "banned", updatedAt: new Date() }).where(eq(clients.id, FIRST_CLIENT_ID)).run();
@@ -145,7 +148,7 @@ describe("Client Deletion Actions", () => {
     });
 
     it("should create a status_changed activity event on restore", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       await deleteClient(FIRST_CLIENT_ID);
       await restoreClient(FIRST_CLIENT_ID);
@@ -159,14 +162,14 @@ describe("Client Deletion Actions", () => {
     });
 
     it("should return an error for non-deleted client", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       const result = await restoreClient(FIRST_CLIENT_ID);
-      expect((result as any)?.error).toBe("Client is not deleted");
+      expect(result?.error).toBe("Client is not deleted");
     });
 
     it("should throw for non-manager session", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
 
       await expect(restoreClient(FIRST_CLIENT_ID)).rejects.toThrow("Manager access required");
     });
@@ -174,7 +177,7 @@ describe("Client Deletion Actions", () => {
 
   describe("purgeClient", () => {
     it("should permanently delete a client and all related records", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       // Create a temp client to purge (so we don't destroy seed data)
       const tempId = "purge-test-" + Date.now();
@@ -199,16 +202,16 @@ describe("Client Deletion Actions", () => {
     });
 
     it("should throw for non-manager session", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
 
       await expect(purgeClient("some-id")).rejects.toThrow("Manager access required");
     });
 
     it("should return an error for nonexistent client", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
       const result = await purgeClient("nonexistent-id-99999");
-      expect((result as any)?.error).toBe("Client not found");
+      expect(result?.error).toBe("Client not found");
     });
   });
 });
