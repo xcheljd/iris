@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { prospects, unsubscribeList } from "@/lib/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireAuth } from "./_shared";
@@ -65,16 +65,20 @@ export async function bulkUnsubscribeProspects(ids: string[]): Promise<BulkResul
         .where(inArray(prospects.id, ids))
         .run();
 
+      // One query for the whole batch instead of one per row. Seeded with the
+      // emails already on the list, then extended as we insert — two prospects
+      // can share an email, and unsubscribe_list.email is UNIQUE.
+      const emails = rows.map((r) => r.email).filter((e): e is string => !!e);
+      const alreadyUnsubbed = new Set(
+        emails.length > 0
+          ? tx.select({ email: unsubscribeList.email }).from(unsubscribeList).where(inArray(unsubscribeList.email, emails)).all().map((r) => r.email)
+          : [],
+      );
+
       for (const row of rows) {
-        if (!row.email) continue;
-        const alreadyUnsub = tx
-          .select({ id: unsubscribeList.id })
-          .from(unsubscribeList)
-          .where(eq(unsubscribeList.email, row.email))
-          .get();
-        if (!alreadyUnsub) {
-          tx.insert(unsubscribeList).values({ id: randomUUID(), email: row.email }).run();
-        }
+        if (!row.email || alreadyUnsubbed.has(row.email)) continue;
+        tx.insert(unsubscribeList).values({ id: randomUUID(), email: row.email }).run();
+        alreadyUnsubbed.add(row.email);
       }
 
       return rows.length;
