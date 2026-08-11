@@ -10,6 +10,7 @@ export async function addTag(clientId: string, tag: string) {
   const user = await requireAuth();
   const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
   if (!c) return { error: "Client not found" };
+  if (user.role !== "manager" && c.employeeId !== user.id) return { error: "Not authorized to tag this client" };
   if ((c.tags || []).includes(tag)) return;
   const tags = [...(c.tags || []), tag];
   try {
@@ -35,6 +36,7 @@ export async function removeTag(clientId: string, tag: string) {
   const user = await requireAuth();
   const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
   if (!c) return { error: "Client not found" };
+  if (user.role !== "manager" && c.employeeId !== user.id) return { error: "Not authorized to remove tags from this client" };
   if (!(c.tags || []).includes(tag)) return;
   const tags = (c.tags || []).filter((t) => t !== tag);
   try {

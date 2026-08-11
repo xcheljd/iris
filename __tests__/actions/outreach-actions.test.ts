@@ -10,7 +10,7 @@ vi.mock("next/cache", () => ({
 
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
-import { logOutreach, markFollowUpComplete } from "@/lib/actions";
+import { logOutreach, markFollowUpComplete, rescheduleFollowUp } from "@/lib/actions";
 import { db } from "@/lib/db";
 import { outreachLogs, activityEvents, clients } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -243,6 +243,58 @@ describe("Outreach Actions", () => {
       expect(updated!.completed).toBe(true);
 
       expect(revalidatePath).toHaveBeenCalledWith("/follow-ups");
+    });
+  });
+
+  // Regression tests for plan 010 — follow-up actions previously accepted any
+  // logId without checking who owned the log. FIRST_CLIENT_ID is manager-owned,
+  // so a log created by the manager must be untouchable by the associate.
+  describe("follow-up ownership", () => {
+    async function createManagerLog(marker: string) {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      await logOutreach({
+        clientId: FIRST_CLIENT_ID,
+        method: "call",
+        outcome: "wants_to_come_in",
+        followUpDate: "2026-12-01",
+        notes: marker,
+      });
+      const log = db.select().from(outreachLogs)
+        .where(eq(outreachLogs.clientId, FIRST_CLIENT_ID))
+        .all()
+        .find((l) => l.notes === marker);
+      expect(log).toBeDefined();
+      createdLogIds.push(log!.id);
+      return log!;
+    }
+
+    it("should reject an associate completing another employee's follow-up", async () => {
+      const log = await createManagerLog("ownership-test-010a");
+
+      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      const result = await markFollowUpComplete(log.id);
+
+      expect(result).toEqual({ error: "Not authorized to complete this follow-up" });
+      const after = db.select().from(outreachLogs).where(eq(outreachLogs.id, log.id)).get();
+      expect(after!.completed).toBe(false);
+    });
+
+    it("should reject an associate rescheduling another employee's follow-up", async () => {
+      const log = await createManagerLog("ownership-test-010b");
+      const originalDate = log.followUpDate;
+
+      vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
+      const result = await rescheduleFollowUp(log.id, "2027-01-01");
+
+      expect(result).toEqual({ error: "Not authorized to reschedule this follow-up" });
+      const after = db.select().from(outreachLogs).where(eq(outreachLogs.id, log.id)).get();
+      expect(after!.followUpDate).toEqual(originalDate);
+    });
+
+    it("should return not-found for a logId that does not exist", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+      const result = await markFollowUpComplete("00000000-0000-4000-8000-000000000000");
+      expect(result).toEqual({ error: "Follow-up not found" });
     });
   });
 });

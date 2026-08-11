@@ -100,40 +100,40 @@ export async function logOutreach(data: OutreachInput): Promise<{ error: string 
 
 export async function markFollowUpComplete(logId: string): Promise<{ error: string } | undefined> {
   const user = await requireAuth();
-  const log = db.select({ clientId: outreachLogs.clientId }).from(outreachLogs).where(eq(outreachLogs.id, logId)).get();
+  const log = db.select({ clientId: outreachLogs.clientId, employeeId: outreachLogs.employeeId }).from(outreachLogs).where(eq(outreachLogs.id, logId)).get();
+  if (!log) return { error: "Follow-up not found" };
+  if (user.role !== "manager" && log.employeeId !== user.id) return { error: "Not authorized to complete this follow-up" };
   try {
     db.transaction((tx) => {
       tx.update(outreachLogs).set({ completed: true }).where(eq(outreachLogs.id, logId)).run();
-      if (log) {
-        tx.insert(activityEvents).values({
-          id: randomUUID(), clientId: log.clientId, eventType: "outreach_logged", description: `Follow-up marked complete by ${user.name}`, employeeId: user.id,
-        }).run();
-      }
+      tx.insert(activityEvents).values({
+        id: randomUUID(), clientId: log.clientId, eventType: "outreach_logged", description: `Follow-up marked complete by ${user.name}`, employeeId: user.id,
+      }).run();
     });
   } catch (err) {
     console.error("markFollowUpComplete failed:", err);
     return { error: "Failed to complete follow-up" };
   }
-  if (log) revalidatePath(`/clients/${log.clientId}`);
+  revalidatePath(`/clients/${log.clientId}`);
   revalidatePath("/follow-ups");
 }
 
 export async function rescheduleFollowUp(logId: string, newDate: string): Promise<{ error: string } | undefined> {
   const user = await requireAuth();
-  const log = db.select({ clientId: outreachLogs.clientId }).from(outreachLogs).where(eq(outreachLogs.id, logId)).get();
+  const log = db.select({ clientId: outreachLogs.clientId, employeeId: outreachLogs.employeeId }).from(outreachLogs).where(eq(outreachLogs.id, logId)).get();
+  if (!log) return { error: "Follow-up not found" };
+  if (user.role !== "manager" && log.employeeId !== user.id) return { error: "Not authorized to reschedule this follow-up" };
   try {
     db.transaction((tx) => {
       tx.update(outreachLogs).set({ followUpDate: new Date(newDate) }).where(eq(outreachLogs.id, logId)).run();
-      if (log) {
-        tx.insert(activityEvents).values({
-          id: randomUUID(), clientId: log.clientId, eventType: "outreach_logged", description: `Follow-up rescheduled to ${format(new Date(newDate), "MMM d, yyyy")} by ${user.name}`, employeeId: user.id,
-        }).run();
-      }
+      tx.insert(activityEvents).values({
+        id: randomUUID(), clientId: log.clientId, eventType: "outreach_logged", description: `Follow-up rescheduled to ${format(new Date(newDate), "MMM d, yyyy")} by ${user.name}`, employeeId: user.id,
+      }).run();
     });
   } catch (err) {
     console.error("rescheduleFollowUp failed:", err);
     return { error: "Failed to reschedule follow-up" };
   }
-  if (log) revalidatePath(`/clients/${log.clientId}`);
+  revalidatePath(`/clients/${log.clientId}`);
   revalidatePath("/follow-ups");
 }
