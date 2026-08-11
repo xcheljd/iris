@@ -1,14 +1,15 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Tag, FileText, Trash2, UserCircle, DatabaseBackup, GraduationCap } from "lucide-react";
+import { Users, Tag, FileText, Trash2, UserCircle, GraduationCap } from "lucide-react";
 import { Topbar } from "@/components/topbar";
 import { ProfileTab } from "./profile-tab";
 import { EmployeesTab } from "./employees-tab";
 import { SettingsTagsTab } from "./tags-tab";
 import { TemplatesTab } from "./templates-tab";
 import { DeletedTab } from "./deleted-tab";
-import { BackupTab } from "./backup-tab";
+// Backup tab hidden for demo — restoring it also needs the DatabaseBackup icon re-added above
+// import { BackupTab } from "./backup-tab";
 import { OnboardingSettingsTab } from "@/components/onboarding/onboarding-settings-tab";
 import type { SafeEmployeeRow } from "@/lib/queries";
 import type { ClientTag } from "@/lib/db/schema";

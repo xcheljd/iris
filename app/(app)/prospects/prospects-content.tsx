@@ -11,7 +11,8 @@ import { SearchInput } from "@/components/search-input";
 import { Topbar } from "@/components/topbar";
 import { ProspectActionsMenu } from "@/components/prospect-actions-menu";
 import { ProspectsBulkToolbar } from "@/components/prospects-bulk-actions";
-import { RvxImportDialog } from "@/components/rvx-import-dialog";
+// RVX Import disabled for demo — Coming Soon
+// import { RvxImportDialog } from "@/components/rvx-import-dialog";
 import { Upload, UserSearch, DollarSign } from "lucide-react";
 import Link from "next/link";
 import type { ProspectListRow } from "@/lib/queries";
@@ -60,7 +61,8 @@ export function ProspectsContent({
   isManager,
 }: ProspectsContentProps) {
   const [search, setSearch] = useState("");
-  const [importOpen, setImportOpen] = useState(false);
+  // RVX Import disabled for demo — Coming Soon
+  // const [importOpen, setImportOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const filter = (rows: ProspectListRow[]) => {

@@ -15,7 +15,8 @@ import { toast } from "sonner";
 import { correctCatalog, resolveFlag, confirmCatalogRow, confirmCatalogRows, deleteCatalogRow, deleteCatalogRows, clearCatalog } from "@/lib/actions";
 import { Checkbox } from "@/components/ui/checkbox";
 import { brandLabel } from "@/lib/brand";
-import { ImportCatalogDialog } from "@/components/catalog/import-catalog-dialog";
+// Catalog Import disabled for demo — Coming Soon
+// import { ImportCatalogDialog } from "@/components/catalog/import-catalog-dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ColumnHeader } from "@/components/column-header";
 import { ColumnFilterPopover } from "@/components/column-filter-popover";
@@ -57,7 +58,8 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
   const [pending, start] = useTransition();
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
-  const [importOpen, setImportOpen] = useState(false);
+  // Catalog Import disabled for demo — Coming Soon
+  // const [importOpen, setImportOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [clearOpen, setClearOpen] = useState(false);
   const [clearTyped, setClearTyped] = useState("");

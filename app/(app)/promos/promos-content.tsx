@@ -36,7 +36,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Filter } from "lucide-react";
 import { ColumnHeader } from "@/components/column-header";
 import { Topbar } from "@/components/topbar";
-import { ImportPromoDialog } from "@/components/promo/import-promo-dialog";
+// Promo Import disabled for demo — Coming Soon
+// import { ImportPromoDialog } from "@/components/promo/import-promo-dialog";
 
 const PAGE_SIZE = 15;
 
@@ -71,7 +72,8 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<PromoWatch | null>(null);
   const [clearAllOpen, setClearAllOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
+  // Promo Import disabled for demo — Coming Soon
+  // const [importOpen, setImportOpen] = useState(false);
 
   type SortKey = "modelNumber" | "collection" | "brand" | "msrp" | "discountPercent" | "discountPrice" | "sizeOneQty" | "sizeTwoQty";
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
@@ -400,11 +402,12 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
         </CardHeader>
         <CardContent>
           {promos.length === 0 ? (
+            /* Promo Import disabled for demo — Coming Soon. Restore the manager CTA with:
+               {...(isManager ? { action: { label: "Import from Excel", onClick: () => setImportOpen(true), icon: ClipboardPaste } } : {})} */
             <EmptyState
               icon={Watch}
               title="No active promos"
               description="Import this week's promo list to get started"
-              {...(isManager ? { action: { label: "Import from Excel", onClick: () => setImportOpen(true), icon: ClipboardPaste } } : {})}
             />
           ) : filtered.length === 0 ? (
             <EmptyState description="No promos match your search" compact />
