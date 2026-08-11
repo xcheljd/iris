@@ -313,5 +313,48 @@ describe("Bulk Client Operations", () => {
       vi.mocked(getServerSession).mockResolvedValue(associateSession as any);
       await expect(bulkUnsubscribeClients(testClientIds)).rejects.toThrow("Manager access required");
     });
+
+    // Regression test for plan 012 — clients.email has no UNIQUE constraint but
+    // unsubscribe_list.email does, so two clients sharing an address must
+    // produce exactly one unsubscribe row, not a constraint violation that
+    // rolls back the whole batch.
+    it("handles two clients sharing one email address", async () => {
+      const sharedEmail = "shared-couple-012@test.com";
+      const sharedIds = [randomUUID(), randomUUID()];
+      for (const [i, id] of sharedIds.entries()) {
+        db.insert(clients).values({
+          id,
+          firstName: "SharedEmail",
+          lastName: `Partner${i}`,
+          email: sharedEmail,
+          employeeId: ASSOCIATE_ID,
+          source: "Walk-in",
+          productsOfInterest: [],
+          tags: [],
+          onEmailList: true,
+          status: "active",
+        }).run();
+      }
+
+      try {
+        vi.mocked(getServerSession).mockResolvedValue(managerSession as any);
+        const result = await bulkUnsubscribeClients(sharedIds);
+
+        expect(result.error).toBeUndefined();
+        expect(result.ok).toBe(2);
+
+        for (const id of sharedIds) {
+          const client = db.select().from(clients).where(eq(clients.id, id)).get();
+          expect(client?.status).toBe("unsubscribed");
+        }
+
+        const unsubRows = db.select().from(unsubscribeList)
+          .where(eq(unsubscribeList.email, sharedEmail)).all();
+        expect(unsubRows.length).toBe(1);
+      } finally {
+        cleanupClients(sharedIds);
+        cleanupUnsubscribe([sharedEmail]);
+      }
+    });
   });
 });

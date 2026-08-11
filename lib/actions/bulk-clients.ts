@@ -299,10 +299,21 @@ export async function bulkUnsubscribeClients(clientIds: string[]): Promise<BulkR
       const rows = tx.select().from(clients).where(inArray(clients.id, clientIds)).all();
       const now = new Date();
       tx.update(clients).set({ status: "unsubscribed", onEmailList: false, updatedAt: now }).where(inArray(clients.id, clientIds)).run();
+
+      // One query for the whole batch instead of one per row. Seeded with the
+      // emails already on the list, then extended as we insert — two clients can
+      // share an email, and unsubscribe_list.email is UNIQUE.
+      const emails = rows.map((r) => r.email).filter((e): e is string => !!e);
+      const alreadyUnsubbed = new Set(
+        emails.length > 0
+          ? tx.select({ email: unsubscribeList.email }).from(unsubscribeList).where(inArray(unsubscribeList.email, emails)).all().map((r) => r.email)
+          : [],
+      );
+
       for (const row of rows) {
-        if (row.email) {
-          const existing = tx.select().from(unsubscribeList).where(eq(unsubscribeList.email, row.email)).get();
-          if (!existing) tx.insert(unsubscribeList).values({ id: randomUUID(), email: row.email }).run();
+        if (row.email && !alreadyUnsubbed.has(row.email)) {
+          tx.insert(unsubscribeList).values({ id: randomUUID(), email: row.email }).run();
+          alreadyUnsubbed.add(row.email);
         }
         tx.insert(activityEvents).values({
           id: randomUUID(),
