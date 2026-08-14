@@ -3,7 +3,7 @@
 
 **Date:** April 23, 2026  
 **Last updated:** May 7, 2026  
-**Status:** Implementation tracking — 14 of 20 features shipped (all Tier 1 + Tier 2 complete; Feature 18 shipped)
+**Status:** Implementation tracking — 13 of 20 features shipped (all Tier 1 + Tier 2 complete; Feature 18 shipped)
 
 ---
 
@@ -93,7 +93,7 @@ After researching the top retail clienteling platforms (BSPK, Endear, Tulip, Pro
 **Implemented:** `app/(app)/prospects/`, `lib/rvx-parser.ts`, `lib/validation/rvx.ts`, schema tables `rvxImportBatches` + `prospects`, 6 server actions in `lib/actions.ts`, 4 queries in `lib/queries.ts`  
 **What's live:** Manager-only CSV import with 3-step dialog (upload → analysis badges → done). Analysis categorizes every row into New / Already a Client / Banned / Unsubscribed / Deleted / RVX Duplicates using batch-loaded sets (4 queries, not N). Within-import duplicates resolved to best record (most fields populated, highest spend as tiebreaker); duplicate rows exportable as CSV for RVX-side cleanup. `/prospects` page with tabbed Active/Graduated/Unsubscribed/Rejected views, name/phone/email search. Prospect detail page with RVX spend + report period. Graduate to Client flow: enrichment form → duplicate check → new client created or backfilled into existing client. Reject and Unsubscribe actions (unsubscribe writes to global unsubscribe list). Fully isolated from client list, heat scoring, follow-up queues, and smart lists.
 
-**Source:** Kliger-Weiss Infosystems (RVX) retail management / POS system
+**Source:** RVX retail management / POS system (format-standard export)
 
 Import past customer reports from RVX to build a cold-outreach prospect pool separate from the active client list. Prospects are people with a known purchase history who haven't yet engaged with clienteling outreach.
 
@@ -190,7 +190,7 @@ Create curated product lookbooks with watch images + details that associates can
 
 ---
 
-### 18. Spend Tracking — Purchase History & Subtotals
+### 19. Spend Tracking — Purchase History & Subtotals
 
 Two parts that should be built together:
 
@@ -202,7 +202,7 @@ Two parts that should be built together:
 
 ---
 
-### 19. RVX Import — Enrich Existing Clients on Match
+### 20. RVX Import — Enrich Existing Clients on Match
 
 Currently, when a RVX import row matches an existing client (by customerId, email, or phone), the row is skipped and surfaced as a count. A future pass could offer to enrich the matched client record with RVX data: update `customerId` if missing, merge `rvxSpend` into their spend history, fill in blank contact fields.
 
@@ -248,4 +248,4 @@ Currently, when a RVX import row matches an existing client (by customerId, emai
 
 ---
 
-*Last reviewed May 7, 2026. 14 of 20 features fully shipped, 0 partially shipped, 5 deferred to V2 (items 13–17, 19–20).*
+*Last reviewed May 7, 2026. 13 of 20 features fully shipped, 0 partially shipped, 7 deferred to V2 (items 13–17, 19–20).*

@@ -1,6 +1,6 @@
 # Iris Architecture
 
-**Last updated:** 2026-05-20
+**Last updated:** 2026-08-14
 
 ## Overview
 
@@ -143,7 +143,7 @@ All mutating actions go through one of the gates. API routes mirror the same che
 
 ### Server Actions
 
-Lives under `lib/actions/` as 20 modules; `lib/actions.ts` is the public barrel. ~85 exported functions. Key groups:
+Lives under `lib/actions/` as 20 modules; `lib/actions.ts` is the public barrel. ~88 exported functions. Key groups:
 
 | Module | Purpose |
 |--------|---------|
@@ -205,7 +205,7 @@ Defined in `lib/heat-score.ts`. Score range 0–100. Levels: Hot (70+), Warm (40
 - **Connection:** `lib/db/index.ts` (single connection)
 - **PRAGMAs:** `journal_mode = WAL`, `foreign_keys = ON`
 - **Migrations:** Schema-first via `drizzle-kit push` + boot-time `ensure-schema` ALTERs
-- **Seeding:** `lib/db/seed.ts` — employees, sample clients, outreach logs, tags, templates, promos, prospects
+- **Seeding:** `lib/db/seed.ts` — employees, sample clients, outreach logs, tags, templates, promos, prospects, RVX import batch. Deterministic since 2026-08-14: a seeded PRNG (override with `SEED=<n>`) replaces `Math.random()` and heat is computed by `calcHeatScore`, not reimplemented inline.
 - **FTS:** `lib/db/fts-setup.ts` builds `clients_fts` virtual table + sync triggers
 
 ## UI Architecture

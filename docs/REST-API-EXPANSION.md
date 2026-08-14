@@ -10,7 +10,7 @@
 
 Iris currently has a split architecture for data operations:
 
-- **Server actions** (`lib/actions/*.ts`) — 47 exported functions, used by the Next.js frontend via `"use server"` imports
+- **Server actions** (`lib/actions/*.ts`) — 88 exported functions, used by the Next.js frontend via `"use server"` imports
 - **REST API routes** (`app/api/**/route.ts`) — 12 route files covering ~16 HTTP method+path combinations
 
 The API routes were built primarily for features that need non-React consumers (backup download, NextAuth, password recovery, search). Most write operations and several major resource types have no REST endpoint at all — they can only be triggered from the browser UI.
@@ -19,7 +19,7 @@ This limits:
 - **Mobile apps** — no way to log outreach, manage clients, or process approvals
 - **External integrations** — no webhooks, Zapier triggers, or Slack bots
 - **Scripting/automation** — bulk operations must go through the browser
-- **QA/testing** — the backend QA skill can only test ~16 endpoints, not the full 47 actions
+- **QA/testing** — the backend QA skill can only test ~16 endpoints, not the full 88 actions
 
 ---
 
@@ -45,7 +45,7 @@ This limits:
 | POST | `/api/recover` | Password recovery |
 | GET/POST | `/api/auth/[...nextauth]` | Authentication |
 
-> **Note on coverage:** These endpoints cover several *features* but most implement their own DB logic directly. Only ~1 of the 47 defined server action functions (`applyClientPatch`) is actually imported and called by an existing route handler. The remaining 46 actions have no REST exposure.
+> **Note on coverage:** These endpoints cover several *features* but most implement their own DB logic directly. Only ~1 of the 88 defined server action functions (`applyClientPatch`) is actually imported and called by an existing route handler. The remaining 87 actions have no REST exposure.
 
 ### Resources With Zero API Coverage
 
@@ -234,7 +234,7 @@ This means minimal new logic — the action functions already contain all valida
 
 | Metric | Count |
 |--------|-------|
-| Total server actions | 47 |
+| Total server actions | 88 |
 | Already covered by API (wrapping an action function) | ~1 |
 | Proposed new endpoints | ~44 |
 | Skip (UI-only) | ~3 |
