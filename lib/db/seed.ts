@@ -1,8 +1,26 @@
 // Run `npx drizzle-kit push` before this script to ensure schema is up to date.
 import { sqlite } from "./index";
 import { BRAND_VALUES } from "./schema";
+import { calcHeatScore } from "../heat-score";
+import { HEAT_LOOKBACK_DAYS } from "../constants";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
+
+// Deterministic PRNG (mulberry32) so a seed run is reproducible — the demo
+// must not change between runs. Override with SEED=<number> to generate a
+// different demo on purpose. The heat score is deliberately NOT randomised:
+// it is a pure function of the generated client data, mirroring production.
+function mulberry32(seed: number) {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const rand = mulberry32(Number(process.env.SEED) || 20260814);
 
 // Clean all tables (children before parents to satisfy FK constraints)
 const tables = [
@@ -132,13 +150,13 @@ const statuses: ("active" | "inactive")[] = ["active", "active", "active", "acti
 const clientTagPool = ["VIP", "repeat-buyer", "high-spender", "military", "talker", "no-texts", "email-only"];
 const models = productCatalog.map((p) => p.model);
 
-function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
+function pick<T>(arr: T[]): T { return arr[Math.floor(rand() * arr.length)]; }
 function pickMany<T>(arr: T[], n: number): T[] {
-  const shuffled = [...arr].sort(() => Math.random() - 0.5);
+  const shuffled = [...arr].sort(() => rand() - 0.5);
   return shuffled.slice(0, n);
 }
 function randomPhone() {
-  return `(${Math.floor(200 + Math.random()*800)}) ${Math.floor(200 + Math.random()*800)}-${String(Math.floor(Math.random()*10000)).padStart(4,"0")}`;
+  return `(${Math.floor(200 + rand()*800)}) ${Math.floor(200 + rand()*800)}-${String(Math.floor(rand()*10000)).padStart(4,"0")}`;
 }
 
 const insClient = sqlite.prepare(`
@@ -170,7 +188,7 @@ for (let i = 0; i < 22; i++) {
   // rest 1-3 structured {model, collection} pairs.
   const intents = ["interested", "promo", "arrival"] as const;
   const brands = BRAND_VALUES;
-  const interestRoll = Math.random();
+  const interestRoll = rand();
   const interests: { model: string | null; collection: string | null; brand: typeof brands[number] | null; intent: "interested" | "promo" | "arrival" }[] =
     interestRoll < 0.15
       ? []
@@ -178,42 +196,60 @@ for (let i = 0; i < 22; i++) {
         ? [{ model: null, collection: pick(knownCollections), brand: null, intent: pick([...intents]) }]
         : interestRoll < 0.4
           ? [{ model: null, collection: null, brand: pick([...brands]), intent: pick([...intents]) }]
-          : pickMany(productCatalog, 1 + Math.floor(Math.random() * 3)).map((p) => ({
+          : pickMany(productCatalog, 1 + Math.floor(rand() * 3)).map((p) => ({
               model: p.model,
               collection: p.collection,
-              brand: Math.random() < 0.25 ? pick([...brands]) : null,
+              brand: rand() < 0.25 ? pick([...brands]) : null,
               intent: pick([...intents]),
             }));
-  const tagList = Math.random() > 0.4 ? pickMany(clientTagPool, 1 + Math.floor(Math.random() * 2)) : [];
+  const tagList = rand() > 0.4 ? pickMany(clientTagPool, 1 + Math.floor(rand() * 2)) : [];
   const status = pick(statuses);
   const source = pick(sources);
-  const onEmail = Math.random() > 0.3 ? 1 : 0;
-  const dateAdded = now - Math.floor(Math.random() * 600) * day;
-  const lastOutreach = Math.random() > 0.25 ? now - Math.floor(Math.random() * 180) * day : null;
-  const lastPurchase = Math.random() > 0.6 ? now - Math.floor(Math.random() * 365) * day : null;
-  const birthdayMonth = Math.floor(Math.random() * 12) + 1;
-  const birthdayDay = Math.floor(Math.random() * 28) + 1;
+  const onEmail = rand() > 0.3 ? 1 : 0;
+  const dateAdded = now - Math.floor(rand() * 600) * day;
+  const lastOutreach = rand() > 0.25 ? now - Math.floor(rand() * 180) * day : null;
+  const lastPurchase = rand() > 0.6 ? now - Math.floor(rand() * 365) * day : null;
+  const birthdayMonth = Math.floor(rand() * 12) + 1;
+  const birthdayDay = Math.floor(rand() * 28) + 1;
   const birthday = `2000-${String(birthdayMonth).padStart(2,"0")}-${String(birthdayDay).padStart(2,"0")}`;
 
-  let heat = 0;
-  if (lastPurchase) heat += 15;
-  if (lastPurchase && (now - lastPurchase) < 90 * day) heat += 10;
-  if (onEmail) heat += 5;
-  if (interests.length > 0) heat += 5;
-  if (birthday) heat += 3;
-  if (lastOutreach && (now - lastOutreach) < 30 * day) heat += 15;
-  if (!lastOutreach || (now - lastOutreach) > 90 * day) heat -= 15;
-  heat = Math.max(0, Math.min(100, heat + Math.floor(Math.random() * 30)));
-  const level = heat >= 70 ? "hot" : heat >= 40 ? "warm" : "cold";
-
   const email = `${fn.toLowerCase()}.${ln.toLowerCase()}${i}@example.com`;
+
+  // Plan outreach logs BEFORE the client insert: heat scoring depends on them
+  // and production (recalcHeat) reads logs after insert. The stored score must
+  // be exactly what calcHeatScore computes from the generated data — no jitter.
+  const outreachCount = Math.floor(rand() * 5);
+  const plannedLogs: { method: "call" | "text" | "email" | "in-person"; outcome: "no_answer" | "voicemail" | "responded" | "wants_to_come_in" | "not_interested" | "purchased"; oDate: number; purchasedModel: string | null; followUpDate: number | null }[] = [];
+  for (let j = 0; j < outreachCount; j++) {
+    const method = pick(["call","text","email","in-person"] as const);
+    const outcome = pick(["no_answer","voicemail","responded","wants_to_come_in","not_interested","purchased"] as const);
+    const oDate = now - Math.floor(rand() * 150) * day;
+    const purchasedModel = outcome === "purchased" ? pick(models) : null;
+    const followUpDate = rand() > 0.6 ? now + Math.floor(rand() * 14 - 3) * day : null;
+    plannedLogs.push({ method, outcome, oDate, purchasedModel, followUpDate });
+  }
+
+  const last90 = plannedLogs
+    .filter((l) => now - l.oDate <= HEAT_LOOKBACK_DAYS * day)
+    .map((l) => ({ outcome: l.outcome, date: new Date(l.oDate * 1000) }));
+  const { score: heat, level } = calcHeatScore(
+    {
+      onEmailList: onEmail === 1,
+      productsOfInterest: interests,
+      birthday,
+      status,
+      lastOutreachAt: lastOutreach ? new Date(lastOutreach * 1000) : null,
+      lastPurchaseAt: lastPurchase ? new Date(lastPurchase * 1000) : null,
+    },
+    last90,
+  );
 
   insClient.run(
     id, fn, ln, randomPhone(), email, owner.id, dateAdded,
     JSON.stringify(interests),
     `${interests[0] ? `Interested in ${interests[0].model ?? interests[0].collection}. ` : ""}Prefers ${pick(["in-person","text","calls"])} contact.`,
     onEmail, status, source, birthday,
-    Math.random() > 0.7 ? `2015-${String(Math.floor(Math.random()*12)+1).padStart(2,"0")}-${String(Math.floor(Math.random()*28)+1).padStart(2,"0")}` : null,
+    rand() > 0.7 ? `2015-${String(Math.floor(rand()*12)+1).padStart(2,"0")}-${String(Math.floor(rand()*28)+1).padStart(2,"0")}` : null,
     JSON.stringify(tagList),
     heat, level, lastOutreach, lastPurchase, dateAdded, dateAdded,
   );
@@ -221,17 +257,10 @@ for (let i = 0; i < 22; i++) {
 
   insActivity.run(randomUUID(), id, "created", `Client ${fn} ${ln} created`, null, owner.id, dateAdded);
 
-  // 0-4 outreach logs per client
-  const outreachCount = Math.floor(Math.random() * 5);
   const methodsUsed: string[] = [];
-  for (let j = 0; j < outreachCount; j++) {
+  for (const { method, outcome, oDate, purchasedModel, followUpDate } of plannedLogs) {
     const oid = randomUUID();
-    const method = pick(["call","text","email","in-person"] as const);
     methodsUsed.push(method);
-    const outcome = pick(["no_answer","voicemail","responded","wants_to_come_in","not_interested","purchased"] as const);
-    const oDate = now - Math.floor(Math.random() * 150) * day;
-    const purchasedModel = outcome === "purchased" ? pick(models) : null;
-    const followUpDate = Math.random() > 0.6 ? now + Math.floor(Math.random() * 14 - 3) * day : null;
     insOutreach.run(
       oid, id, method, oDate, outcome, purchasedModel,
       `${method.charAt(0).toUpperCase()+method.slice(1)} — outcome: ${outcome.replace(/_/g," ")}.`,
