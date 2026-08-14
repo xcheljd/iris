@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, afterEach } from "vitest";
+import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 
 vi.mock("next-auth", () => ({
   getServerSession: vi.fn(),
@@ -14,6 +14,7 @@ import { addTag, removeTag, createTag, deleteTag } from "@/lib/actions";
 import { db } from "@/lib/db";
 import { clients, clientTags, activityEvents } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { randomUUID } from "crypto";
 
 const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206"; // Test Manager
 const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23"; // Test Associate
@@ -189,27 +190,44 @@ describe("Tag Actions", () => {
   // authenticated associate tag a client they do not own.
   describe("tag ownership", () => {
     const OWNERSHIP_TAGS = ["unauthorized-tag-010", "protected-tag-010"];
+    // Dedicated manager-owned client. The shared Test Client's owner is not
+    // guaranteed in a cleanly seeded DB (setup.ts inserts it owned by the
+    // associate), so these tests must own their fixture.
+    const OTHER_CLIENT_ID = randomUUID();
+
+    beforeEach(() => {
+      db.insert(clients).values({
+        id: OTHER_CLIENT_ID,
+        firstName: "Ownership",
+        lastName: "Fixture",
+        employeeId: MANAGER_ID,
+        source: "Walk-in",
+        productsOfInterest: [],
+        tags: [],
+        onEmailList: true,
+        status: "active",
+      }).run();
+    });
 
     // These tests share the SQLite DB with every other suite. Clean up directly
     // rather than through the actions, so residue cannot leak even if an
     // assertion fails partway through or a guard regresses.
     afterEach(() => {
-      const c = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
-      const kept = (c?.tags || []).filter((t) => !OWNERSHIP_TAGS.includes(t));
-      db.update(clients).set({ tags: kept }).where(eq(clients.id, FIRST_CLIENT_ID)).run();
       for (const name of OWNERSHIP_TAGS) {
         db.delete(clientTags).where(eq(clientTags.name, name)).run();
       }
+      db.delete(activityEvents).where(eq(activityEvents.clientId, OTHER_CLIENT_ID)).run();
+      db.delete(clients).where(eq(clients.id, OTHER_CLIENT_ID)).run();
     });
 
     it("should reject an associate tagging another employee's client", async () => {
       vi.mocked(getServerSession).mockResolvedValue(associateSession);
 
-      const before = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
-      const result = await addTag(FIRST_CLIENT_ID, "unauthorized-tag-010");
+      const before = db.select().from(clients).where(eq(clients.id, OTHER_CLIENT_ID)).get();
+      const result = await addTag(OTHER_CLIENT_ID, "unauthorized-tag-010");
 
       expect(result).toEqual({ error: "Not authorized to tag this client" });
-      const after = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
+      const after = db.select().from(clients).where(eq(clients.id, OTHER_CLIENT_ID)).get();
       expect(after!.tags).toEqual(before!.tags);
       expect(after!.tags || []).not.toContain("unauthorized-tag-010");
     });
@@ -217,18 +235,14 @@ describe("Tag Actions", () => {
     it("should reject an associate removing a tag from another employee's client", async () => {
       // Manager adds a tag the associate will try to strip.
       vi.mocked(getServerSession).mockResolvedValue(managerSession);
-      await addTag(FIRST_CLIENT_ID, "protected-tag-010");
+      await addTag(OTHER_CLIENT_ID, "protected-tag-010");
 
       vi.mocked(getServerSession).mockResolvedValue(associateSession);
-      const result = await removeTag(FIRST_CLIENT_ID, "protected-tag-010");
+      const result = await removeTag(OTHER_CLIENT_ID, "protected-tag-010");
 
       expect(result).toEqual({ error: "Not authorized to remove tags from this client" });
-      const after = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
+      const after = db.select().from(clients).where(eq(clients.id, OTHER_CLIENT_ID)).get();
       expect(after!.tags).toContain("protected-tag-010");
-
-      // Restore: manager removes the tag again.
-      vi.mocked(getServerSession).mockResolvedValue(managerSession);
-      await removeTag(FIRST_CLIENT_ID, "protected-tag-010");
     });
   });
 });

@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll } from "vitest";
 
 vi.mock("next-auth", () => ({ getServerSession: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -16,7 +16,7 @@ import {
   bulkUnsubscribeClients,
 } from "@/lib/actions/bulk-clients";
 import { db } from "@/lib/db";
-import { clients, activityEvents, bannedCustomers, unsubscribeList, clientTags } from "@/lib/db/schema";
+import { clients, activityEvents, bannedCustomers, unsubscribeList, clientTags, employees } from "@/lib/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
@@ -84,6 +84,23 @@ function cleanupTags(tagNames: string[]) {
 
 describe("Bulk Client Operations", () => {
   let testClientIds: string[] = [];
+
+  beforeAll(() => {
+    // JORDAN_ID is a hardcoded fixture employee the reassign tests target.
+    // The seed generates random employee UUIDs, so this row must be created
+    // here or clients.employee_id fails the FK on bulkReassignOwner.
+    db.insert(employees).values({
+      id: JORDAN_ID,
+      name: "Test Jordan",
+      firstName: "Test",
+      lastName: "Jordan",
+      username: "test-jordan",
+      passwordHash: "test-hash",
+      role: "associate",
+      active: true,
+      createdAt: new Date(),
+    }).run();
+  });
 
   beforeEach(() => {
     vi.mocked(getServerSession).mockClear();

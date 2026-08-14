@@ -15,6 +15,7 @@ import { logOutreach, markFollowUpComplete, rescheduleFollowUp } from "@/lib/act
 import { db } from "@/lib/db";
 import { outreachLogs, activityEvents, clients } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { randomUUID } from "crypto";
 
 const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206"; // Marcus (manager)
 const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23"; // Test associate
@@ -184,17 +185,35 @@ describe("Outreach Actions", () => {
       if (newLog) createdLogIds.push(newLog!.id);
     });
 
-    it("should reject when associate tries to log outreach on own clients without ownership", async () => {
+    it("should reject when associate tries to log outreach on another employee's client", async () => {
+      // Dedicated fixture: the shared Test Client's owner is not guaranteed in a
+      // cleanly seeded DB (setup.ts inserts it owned by the associate), so this
+      // test creates its own manager-owned client to prove the ownership guard.
+      const otherClientId = randomUUID();
+      db.insert(clients).values({
+        id: otherClientId,
+        firstName: "Outreach",
+        lastName: "Fixture",
+        employeeId: MANAGER_ID,
+        source: "Walk-in",
+        productsOfInterest: [],
+        tags: [],
+        onEmailList: true,
+        status: "active",
+      }).run();
+
       vi.mocked(getServerSession).mockResolvedValue(associateSession);
 
       const result = await logOutreach({
-        clientId: FIRST_CLIENT_ID,
+        clientId: otherClientId,
         method: "call",
         outcome: "no_answer",
         notes: "Ownership check test",
       });
 
       expect(result).toEqual({ error: "You can only log outreach for your own clients" });
+
+      db.delete(clients).where(eq(clients.id, otherClientId)).run();
     });
 
     it("should allow manager to log outreach on any client", async () => {

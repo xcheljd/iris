@@ -59,6 +59,18 @@ export function ensureModelCatalog(sqlite: Database.Database) {
  * pragma_table_info guard pattern as fts-setup.ts.
  */
 export function ensureClientColumns(sqlite: Database.Database) {
+  // On a database with no schema yet (fresh clone before `pnpm db:push`),
+  // pragma_table_info returns no rows rather than erroring, so the column
+  // guard alone would wrongly conclude `preferred_contact` is missing and
+  // run ALTER TABLE on a table that doesn't exist. Check the table exists
+  // first and no-op when it doesn't — ensureModelCatalog above has already
+  // created every app-managed table it knows about; `clients` is
+  // drizzle-managed and appears only after a push.
+  const tableExists = sqlite
+    .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='clients'")
+    .get();
+  if (!tableExists) return;
+
   const has = sqlite
     .prepare("SELECT 1 FROM pragma_table_info('clients') WHERE name = 'preferred_contact'")
     .get();
@@ -72,6 +84,14 @@ export function ensureClientColumns(sqlite: Database.Database) {
  * columns (brand required at validation; nullable in the DB).
  */
 export function ensurePromoColumns(sqlite: Database.Database) {
+  // Same no-schema guard as ensureClientColumns: on a fresh clone before
+  // `pnpm db:push` there is no promo_watches table, and pragma_table_info
+  // would silently report no columns, triggering an ALTER on a missing table.
+  const tableExists = sqlite
+    .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='promo_watches'")
+    .get();
+  if (!tableExists) return;
+
   const cols = new Set(
     sqlite
       .prepare("SELECT name FROM pragma_table_info('promo_watches')")

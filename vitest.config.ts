@@ -11,6 +11,10 @@ export default defineConfig({
     include: ["__tests__/**/*.test.{ts,tsx}"],
     testTimeout: 15000,
     fileParallelism: false,
+    globalSetup: ["./__tests__/global-setup.ts"],
+    // Workers are separate processes from globalSetup; this is the
+    // guaranteed channel for pointing them at the test database.
+    env: { DATABASE_PATH: ".vitest/iris.db" },
   },
   resolve: {
     alias: {

@@ -4,5 +4,5 @@ export default {
   schema: "./lib/db/schema.ts",
   out: "./drizzle",
   dialect: "sqlite",
-  dbCredentials: { url: "./data/iris.db" },
+  dbCredentials: { url: process.env.DATABASE_PATH ?? "./data/iris.db" },
 } satisfies Config;
