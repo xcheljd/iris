@@ -367,3 +367,68 @@ describe("GET /api/clients/check-duplicates", () => {
     expect(data.duplicate).toBeNull();
   });
 });
+
+// Plan 016 — associate-session coverage. All routes here use withAuth
+// (associates can read; POST assigns the requesting employee as owner).
+describe("associate session", () => {
+  const associateSession: Session = {
+    user: { id: "590628cf-d623-456d-bdad-d16ab0ec2b23", name: "Test Associate", role: "associate", firstName: "Test", lastName: "Associate" },
+    expires: "2099-12-31T23:59:59.000Z",
+  };
+
+  it("GET /api/clients — associate can list clients", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
+    const res = await GET(new Request("http://localhost:3000/api/clients"));
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+    expect(data.length).toBeGreaterThan(0);
+  });
+
+  it("GET /api/clients/[id] — associate can fetch a single client", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
+    const allReq = new Request("http://localhost:3000/api/clients");
+    const allRes = await GET(allReq);
+    const allData = await allRes.json();
+    const firstId = allData[0].id;
+
+    const req = new Request(`http://localhost:3000/api/clients/${firstId}`);
+    const res = await GETById(req, { params: Promise.resolve({ id: firstId }) });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.id).toBe(firstId);
+  });
+
+  it("POST /api/clients — associate creates client; employeeId is the associate", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
+    const uniqueSuffix = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const req = new Request("http://localhost:3000/api/clients", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        firstName: "Assoc",
+        preferredContact: "call",
+        lastName: "Created",
+        phone: `555-${uniqueSuffix}`,
+        email: `assoc-create-${uniqueSuffix}@example.com`,
+        source: "Walk-in",
+      }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toHaveProperty("id");
+    createdIds.push(data.id);
+
+    const getReq = new Request(`http://localhost:3000/api/clients/${data.id}`);
+    const getRes = await GETById(getReq, { params: Promise.resolve({ id: data.id }) });
+    const client = await getRes.json();
+    expect(client.employeeId).toBe("590628cf-d623-456d-bdad-d16ab0ec2b23");
+  });
+
+  it("GET /api/clients — unauthenticated returns 401", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(null);
+    const res = await GET(new Request("http://localhost:3000/api/clients"));
+    expect(res.status).toBe(401);
+  });
+});

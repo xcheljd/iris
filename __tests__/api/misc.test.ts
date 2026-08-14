@@ -55,3 +55,27 @@ describe("GET /api/employees", () => {
     }
   });
 });
+
+// Plan 016 — associate-session coverage. GET /api/employees uses withAuth
+// (any authenticated user may list employees; role filtering happens client-side).
+describe("associate session", () => {
+  const associateSession: Session = {
+    user: { id: "590628cf-d623-456d-bdad-d16ab0ec2b23", name: "Test Associate", role: "associate", firstName: "Test", lastName: "Associate" },
+    expires: "2099-12-31T23:59:59.000Z",
+  };
+
+  it("GET /api/employees — associate can list employees", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
+    const res = await GETEmployees();
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+    expect(data.length).toBeGreaterThan(0);
+  });
+
+  it("GET /api/employees — unauthenticated returns 401", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(null);
+    const res = await GETEmployees();
+    expect(res.status).toBe(401);
+  });
+});
