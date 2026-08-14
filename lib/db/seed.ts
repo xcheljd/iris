@@ -305,6 +305,47 @@ for (let i = 0; i < 22; i++) {
   }
 }
 
+// RVX prospects — the /prospects page needs demo data to exercise the
+// tabbed views and the graduate/reject/unsubscribe flows. Previously the
+// seed only truncated prospects (never inserted), leaving the whole
+// prospect pipeline empty.
+const insBatch = sqlite.prepare(`
+  INSERT INTO rvx_import_batches (id,report_start_date,report_end_date,total_rows,imported_count,imported_by,created_at)
+  VALUES (?,?,?,?,?,?,?)
+`);
+const importBatchId = randomUUID();
+insBatch.run(importBatchId, now - 45 * day, now - 45 * day, 10, 6, empId("Marcus"), now - 45 * day);
+
+const insProspect = sqlite.prepare(`
+  INSERT INTO prospects (id,rvx_customer_id,rvx_store_id,rvx_spend,import_batch_id,first_name,last_name,phone,email,status,products_of_interest,notes,birthday,anniversary,graduated_to_client_id,created_at,updated_at)
+  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+`);
+const prospectData: {
+  rvxCustomerId: string; rvxStoreId: string; rvxSpend: number; firstName: string; lastName: string | null;
+  phone: string | null; email: string | null; status: "active" | "graduated" | "unsubscribed" | "rejected";
+  productsOfInterest: string[]; notes: string | null; birthday: string | null; anniversary: string | null;
+  graduatedToClientId: string | null;
+}[] = [
+  { rvxCustomerId: "RVX-1001", rvxStoreId: "125003", rvxSpend: 1247.5, firstName: "Elena", lastName: "Vargas", phone: "(702) 555-0141", email: "elena.vargas@example.com", status: "active", productsOfInterest: ["DEEPSTAR"], notes: "Asked about DEEPSTAR on the August promo.", birthday: "1988-04-12", anniversary: null, graduatedToClientId: null },
+  { rvxCustomerId: "RVX-1002", rvxStoreId: "125004", rvxSpend: 842, firstName: "Marcus", lastName: "Webb", phone: "(702) 555-0177", email: "marcus.webb@example.com", status: "active", productsOfInterest: [], notes: null, birthday: null, anniversary: "2015-09-03", graduatedToClientId: null },
+  { rvxCustomerId: "RVX-1003", rvxStoreId: "125005", rvxSpend: 310.25, firstName: "Priya", lastName: "Patel", phone: "(702) 555-0122", email: "priya.patel@example.com", status: "active", productsOfInterest: ["CAMBRIDGE"], notes: "Prefers text contact.", birthday: "1995-11-30", anniversary: null, graduatedToClientId: null },
+  { rvxCustomerId: "RVX-1004", rvxStoreId: "125003", rvxSpend: 567.75, firstName: "Tom", lastName: "Okafor", phone: "(702) 555-0198", email: "tom.okafor@example.com", status: "active", productsOfInterest: [], notes: null, birthday: null, anniversary: null, graduatedToClientId: null },
+  { rvxCustomerId: "RVX-1005", rvxStoreId: "125004", rvxSpend: 91.99, firstName: "Grace", lastName: "Liu", phone: null, email: null, status: "active", productsOfInterest: ["SOLARIS"], notes: "Sparse record — only store number and spend available.", birthday: null, anniversary: null, graduatedToClientId: null },
+  { rvxCustomerId: "RVX-1006", rvxStoreId: "125005", rvxSpend: 1450, firstName: "Sam", lastName: "Rivera", phone: "(702) 555-0166", email: "sam.rivera@example.com", status: "active", productsOfInterest: [], notes: "Repeat buyer at the Henderson store.", birthday: "1982-02-27", anniversary: "2012-06-18", graduatedToClientId: null },
+  { rvxCustomerId: "RVX-1007", rvxStoreId: "125003", rvxSpend: 678.9, firstName: "Aisha", lastName: "Khan", phone: "(702) 555-0133", email: "aisha.khan@example.com", status: "graduated", productsOfInterest: [], notes: "Graduated after August promo visit.", birthday: null, anniversary: null, graduatedToClientId: clientIdsForLists[0] },
+  { rvxCustomerId: "RVX-1008", rvxStoreId: "125004", rvxSpend: 200, firstName: "Leo", lastName: "Fischer", phone: "(702) 555-0110", email: "leo.fischer@example.com", status: "graduated", productsOfInterest: [], notes: null, birthday: null, anniversary: null, graduatedToClientId: clientIdsForLists[1] },
+  { rvxCustomerId: "RVX-1009", rvxStoreId: "125003", rvxSpend: 430, firstName: "Nina", lastName: "Petrova", phone: "(702) 555-0155", email: "nina.petrova@example.com", status: "unsubscribed", productsOfInterest: [], notes: "Opted out of outreach.", birthday: null, anniversary: null, graduatedToClientId: null },
+  { rvxCustomerId: "RVX-1010", rvxStoreId: "125005", rvxSpend: 999.99, firstName: "Owen", lastName: "Byrne", phone: "(702) 555-0188", email: "owen.byrne@example.com", status: "rejected", productsOfInterest: [], notes: "Duplicate of an existing client record.", birthday: null, anniversary: null, graduatedToClientId: null },
+];
+for (const p of prospectData) {
+  insProspect.run(
+    randomUUID(), p.rvxCustomerId, p.rvxStoreId, p.rvxSpend, importBatchId,
+    p.firstName, p.lastName, p.phone, p.email, p.status,
+    JSON.stringify(p.productsOfInterest), p.notes, p.birthday, p.anniversary,
+    p.graduatedToClientId, now - 45 * day, now - 45 * day,
+  );
+}
+
 // Banned customers
 const insBan = sqlite.prepare(`
   INSERT INTO banned_customers (id,customer_id,first_name,last_name,email,phone,address,city,state,zip,ban_reason_category,specific_ban_reason,business_name,ban_date,notes)
