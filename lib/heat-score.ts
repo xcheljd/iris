@@ -2,12 +2,17 @@ import type { Client, OutreachLog } from "./db/schema";
 import { MS_PER_DAY } from "./constants";
 
 // ── Heat-score policy constants ──────────────────────────────────────
-const SCORE_HAS_PURCHASE = 15;
-const SCORE_RECENT_PURCHASE = 10;
-const SCORE_RESPONDED_OUTREACH = 10;
-const SCORE_ON_EMAIL_LIST = 5;
-const SCORE_HAS_INTERESTS = 5;
-const SCORE_HAS_BIRTHDAY = 3;
+// Reweighted (plan 019, option B) so a fully-engaged client reaches 100:
+// 30 + 25 + 15 + 10 + 10 + 10 = 100, keeping the documented Hot=70 / Warm=40
+// tier thresholds meaningful. Previously the six positive booleans summed to
+// 48 < 70, so "hot" was unreachable and most of the population was crushed
+// to 0 by the clamp.
+const SCORE_HAS_PURCHASE = 30;
+const SCORE_RECENT_PURCHASE = 25;
+const SCORE_RESPONDED_OUTREACH = 15;
+const SCORE_ON_EMAIL_LIST = 10;
+const SCORE_HAS_INTERESTS = 10;
+const SCORE_HAS_BIRTHDAY = 10;
 const PENALTY_STALE_OUTREACH = -15;
 const PENALTY_VERY_STALE_OUTREACH = -10;
 const PENALTY_UNSUBSCRIBED = -20;
@@ -39,9 +44,18 @@ export function calcHeatScore(
   if (client.productsOfInterest && client.productsOfInterest.length > 0) score += SCORE_HAS_INTERESTS;
   if (client.birthday) score += SCORE_HAS_BIRTHDAY;
 
-  const lastOutDays = days(client.lastOutreachAt);
-  if (lastOutDays > OUTREACH_STALE_DAYS) score += PENALTY_STALE_OUTREACH;
-  if (lastOutDays > OUTREACH_VERY_STALE_DAYS) score += PENALTY_VERY_STALE_OUTREACH;
+  // Staleness penalties apply only when there IS an outreach date. A brand-new
+  // client (lastOutreachAt null) is not a lapsed one — previously null read as
+  // Infinity days and double-fired both penalties (-25), crushing every newly
+  // created client to 0/cold.
+  if (client.lastOutreachAt) {
+    const lastOutDays = days(client.lastOutreachAt);
+    if (lastOutDays > OUTREACH_VERY_STALE_DAYS) {
+      score += PENALTY_STALE_OUTREACH + PENALTY_VERY_STALE_OUTREACH;
+    } else if (lastOutDays > OUTREACH_STALE_DAYS) {
+      score += PENALTY_STALE_OUTREACH;
+    }
+  }
   if (client.status === "unsubscribed") score += PENALTY_UNSUBSCRIBED;
 
   score = Math.max(0, Math.min(100, score));
