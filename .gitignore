@@ -36,6 +36,9 @@ screenshots/
 # Remotion demo (local scratch)
 remotion-demo/
 
+# Planning notes (local only)
+plans/
+
 # Misc
 *.log
 *.png
