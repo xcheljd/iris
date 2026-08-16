@@ -31,9 +31,9 @@ function ChangePasswordSkeleton() {
           <Skeleton className="h-5 w-36" />
           <Skeleton className="h-3 w-48" />
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex flex-col gap-4">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="space-y-2">
+            <div key={i} className="flex flex-col gap-2">
               <Skeleton className="h-3 w-24" />
               <Skeleton className="h-9 w-full" />
             </div>

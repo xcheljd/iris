@@ -37,7 +37,7 @@ export function ClientSidebar() {
     )[0];
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="flex flex-col p-4 gap-4">
       {/* Quick Profile */}
       <Card>
         <CardHeader className="pb-3">
@@ -48,7 +48,7 @@ export function ClientSidebar() {
             {client.heatLevel.toUpperCase()}
           </Badge>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="flex flex-col gap-3">
           {client.phone && (
             <div className="flex items-center justify-between gap-2 min-w-0">
               <div className="flex items-center gap-2 min-w-0 overflow-hidden">
@@ -108,14 +108,14 @@ export function ClientSidebar() {
             Follow-ups
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="flex flex-col gap-2">
           {client.followUps.length > 0 ? (
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <div className="text-sm text-muted-foreground">
                 Active follow-ups: {client.followUps.length}
               </div>
               {nextFollowUp && (
-                <div className="p-2 bg-accent rounded space-y-1">
+                <div className="flex flex-col p-2 bg-accent rounded gap-1">
                   <div className="flex items-center justify-between gap-2">
                     <div className="text-sm font-medium">Next</div>
                     {isFollowUpOverdue(nextFollowUp.followUpDate!) ? (
@@ -173,7 +173,7 @@ export function ClientSidebar() {
 
       {/* Contact Info */}
       <Separator />
-      <div className="space-y-2 text-sm">
+      <div className="flex flex-col gap-2 text-sm">
         <div><span className="text-muted-foreground">Employee:</span> {client.employeeName || "Unassigned"}</div>
         <div><span className="text-muted-foreground">Email List:</span> {client.onEmailList ? "Yes" : "No"}</div>
         <div><span className="text-muted-foreground">Status:</span> {client.status}</div>

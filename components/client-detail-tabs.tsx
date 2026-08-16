@@ -203,27 +203,27 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="profile" className="space-y-4">
+        <TabsContent value="profile" className="flex flex-col gap-4">
           <ProfileTab client={client} />
         </TabsContent>
 
-        <TabsContent value="interests" className="space-y-4">
+        <TabsContent value="interests" className="flex flex-col gap-4">
           <InterestsTab client={client} />
         </TabsContent>
 
-        <TabsContent value="outreach" className="space-y-4">
+        <TabsContent value="outreach" className="flex flex-col gap-4">
           <OutreachHistoryTab client={client} />
         </TabsContent>
 
-        <TabsContent value="timeline" className="space-y-4">
+        <TabsContent value="timeline" className="flex flex-col gap-4">
           <ActivityTimelineTab client={client} />
         </TabsContent>
 
-        <TabsContent value="notes" className="space-y-4">
+        <TabsContent value="notes" className="flex flex-col gap-4">
           <NotesTab client={client} />
         </TabsContent>
 
-        <TabsContent value="tags" className="space-y-4">
+        <TabsContent value="tags" className="flex flex-col gap-4">
           <TagsTab client={client} />
         </TabsContent>
       </Tabs>

@@ -92,7 +92,7 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
 
       <div className="grid grid-cols-1 md:grid-cols-[1fr_350px] gap-6">
         {/* Collection List */}
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <Card>
             <CardHeader>
               <div className="flex items-start justify-between gap-2">
@@ -123,7 +123,7 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
                 <EmptyState icon={Watch} description="No collections found" compact />
               ) : (
                 <ScrollArea className="h-[500px]">
-                  <div className="space-y-2">
+                  <div className="flex flex-col gap-2">
                     {filteredCollections.map((collection) => (
                       <button
                         key={collection.name}
@@ -161,7 +161,7 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
         </div>
 
         {/* Selected Collection Details */}
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           {selectedCollection ? (
             <>
               <Card>
@@ -183,7 +183,7 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-1">
+                  <div className="flex flex-col gap-1">
                     {collectionClients.length === 0 ? (
                       <p className="text-sm text-muted-foreground text-center py-4">
                         No clients interested

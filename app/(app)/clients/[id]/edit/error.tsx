@@ -19,7 +19,7 @@ export default function EditClientError({
     <>
       <Topbar title="Edit Client" />
       <div className="flex-1 p-4 md:p-6 max-w-4xl mx-auto">
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <h2 className="text-lg font-semibold">Couldn&apos;t load this client</h2>
           <p className="text-muted-foreground text-sm">
             {error.message || "Something went wrong."}

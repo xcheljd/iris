@@ -97,7 +97,7 @@ export function MatchedClientsTab({ clients, isManager, currentUserId }: Props) 
   const Facet = ({ label, values, set, setter }: { label: string; values: string[]; set: Set<string>; setter: (s: Set<string>) => void }) => (
     <div>
       <div className="text-xs font-medium mb-1">{label}</div>
-      <div className="max-h-32 overflow-y-auto space-y-1">
+      <div className="flex flex-col max-h-32 overflow-y-auto gap-1">
         {values.length === 0 && <div className="text-xs text-muted-foreground">none</div>}
         {values.map((v) => (
           <label key={v} className="flex items-center gap-1.5 text-sm cursor-pointer">
@@ -131,7 +131,7 @@ export function MatchedClientsTab({ clients, isManager, currentUserId }: Props) 
                 Filters
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-64 space-y-3" align="end">
+            <PopoverContent className="flex flex-col w-64 gap-3" align="end">
               <Facet label="Assigned associate" values={owners} set={ownerFilter} setter={setOwnerFilter} />
               <Facet label="Match type" values={["model", "collection", "brand"]} set={typeFilter} setter={setTypeFilter} />
               <Facet label="Brand" values={brands} set={brandFilter} setter={setBrandFilter} />

@@ -48,7 +48,7 @@ interface AnalyticsOverviewTabProps {
 
 export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution }: AnalyticsOverviewTabProps) {
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* Key Metrics with HoverCards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <HoverCard>
@@ -66,7 +66,7 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
             </Card>
           </HoverCardTrigger>
           <HoverCardContent className="w-64">
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <p className="text-sm font-medium">Client Breakdown</p>
               <Separator />
               <div className="flex justify-between text-sm">
@@ -106,7 +106,7 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
             </Card>
           </HoverCardTrigger>
           <HoverCardContent className="w-64">
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <p className="text-sm font-medium">Outreach Methods (7d)</p>
               <Separator />
               {methodDistribution.map((m) => (
@@ -134,7 +134,7 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
             </Card>
           </HoverCardTrigger>
           <HoverCardContent className="w-64">
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <p className="text-sm font-medium">Conversion Funnel</p>
               <Separator />
               <div className="flex justify-between text-sm">
@@ -169,7 +169,7 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
             </Card>
           </HoverCardTrigger>
           <HoverCardContent className="w-64">
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <p className="text-sm font-medium">Conversion Rate</p>
               <Separator />
               <p className="text-xs text-muted-foreground">
@@ -206,15 +206,15 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
           <CardTitle>Conversion Metrics (7d)</CardTitle>
           <CardDescription>Outreach effectiveness at a glance</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
+        <CardContent className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between text-sm">
               <span>Conversion Rate</span>
               <span className="font-medium">{conversionRate}%</span>
             </div>
             <Progress value={conversionRate} className="h-2" aria-label="Conversion rate" />
           </div>
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between text-sm">
               <span>Outreach Completion</span>
               <span className="font-medium">
@@ -223,7 +223,7 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
             </div>
             <Progress value={stats.outreachWeek > 0 ? 100 : 0} className="h-2" aria-label="Outreach completion" />
           </div>
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between text-sm">
               <span>Purchase Rate</span>
               <span className="font-medium">
@@ -253,10 +253,10 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2">
-                  <Ban className="size-4 text-red-500" />
+                  <Ban className="size-4 text-destructive" />
                   <p className="text-sm text-muted-foreground">Banned</p>
                 </div>
-                <p className="text-2xl font-bold text-red-500 mt-1">{stats.banned}</p>
+                <p className="text-2xl font-bold text-destructive mt-1">{stats.banned}</p>
               </div>
               <Link href="/banned">
                 <Button variant="ghost" size="sm">

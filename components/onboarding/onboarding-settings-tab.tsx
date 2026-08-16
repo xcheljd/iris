@@ -86,13 +86,13 @@ export function OnboardingSettingsTab({ initialState }: OnboardingSettingsTabPro
     // Mirror the two-Card layout below so the skeleton occupies the same
     // shape as the loaded state — no layout shift on hydrate.
     return (
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         <Card>
           <CardHeader className="space-y-2">
             <Skeleton className="h-5 w-40" />
             <Skeleton className="h-4 w-72" />
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="flex flex-col gap-4">
             <Skeleton className="h-5 w-32" />
             <Skeleton className="h-9 w-32" />
           </CardContent>
@@ -103,7 +103,7 @@ export function OnboardingSettingsTab({ initialState }: OnboardingSettingsTabPro
             <Skeleton className="h-4 w-24" />
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-3">
                   <Skeleton className="size-4 rounded-full" />
@@ -118,7 +118,7 @@ export function OnboardingSettingsTab({ initialState }: OnboardingSettingsTabPro
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       {/* Tour overview — status + action */}
       <Card>
         <CardHeader>
@@ -130,7 +130,7 @@ export function OnboardingSettingsTab({ initialState }: OnboardingSettingsTabPro
             A step-by-step walkthrough of the key features in Iris.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex flex-col gap-4">
           <div className="flex items-center gap-2">
             {tourCompleted && !tourSkipped ? (
               <>
@@ -165,7 +165,7 @@ export function OnboardingSettingsTab({ initialState }: OnboardingSettingsTabPro
           <CardDescription>{steps.length} steps total</CardDescription>
         </CardHeader>
         <CardContent>
-          <ul className="space-y-2">
+          <ul className="flex flex-col gap-2">
             {steps.map((step) => {
               const isCompleted = completedSteps.includes(step.id);
               return (

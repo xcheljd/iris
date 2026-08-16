@@ -50,7 +50,7 @@ export function ProfileTab({ client }: ProfileTabProps) {
             Contact Information
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex flex-col gap-4">
           <div className="flex items-center justify-between gap-2 min-w-0">
             <div className="flex items-center gap-2 shrink-0">
               <Phone className="size-4 text-muted-foreground" />
@@ -109,7 +109,7 @@ export function ProfileTab({ client }: ProfileTabProps) {
 
           <Separator />
 
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <h4 className="text-sm font-medium">Employee Assignment</h4>
             <Badge variant="outline">
               {client.employeeName || "Unassigned"}
@@ -122,7 +122,7 @@ export function ProfileTab({ client }: ProfileTabProps) {
         <CardHeader>
           <CardTitle>Personal Information</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex flex-col gap-4">
           {client.birthday && (
             <div className="flex items-center gap-2">
               <Calendar className="size-4 text-muted-foreground" />
@@ -145,12 +145,12 @@ export function ProfileTab({ client }: ProfileTabProps) {
 
           <Separator />
 
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <h4 className="text-sm font-medium">Source</h4>
             <Badge variant="secondary">{client.source}</Badge>
           </div>
 
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <h4 className="text-sm font-medium">Preferred Contact</h4>
             <Badge variant="secondary">
               {client.preferredContact
@@ -159,7 +159,7 @@ export function ProfileTab({ client }: ProfileTabProps) {
             </Badge>
           </div>
 
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <h4 className="text-sm font-medium">Status</h4>
             <Badge
               variant={
@@ -180,7 +180,7 @@ export function ProfileTab({ client }: ProfileTabProps) {
         <CardHeader>
           <CardTitle>Additional Details</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex flex-col gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <h4 className="text-sm font-medium text-muted-foreground mb-2">

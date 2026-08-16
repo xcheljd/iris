@@ -24,7 +24,7 @@ interface AnalyticsHeatTabProps {
 
 export function AnalyticsHeatTab({ stats }: AnalyticsHeatTabProps) {
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <Card>
         <CardHeader>
           <CardTitle>Heat Score Insights</CardTitle>
@@ -32,14 +32,14 @@ export function AnalyticsHeatTab({ stats }: AnalyticsHeatTabProps) {
             Understanding your client engagement distribution
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="flex flex-col gap-6">
           <HeatDistributionChart hot={stats.hot} warm={stats.warm} cold={stats.cold} active={stats.active} />
 
           <Separator />
 
           {/* Heat Progress Bars */}
-          <div className="space-y-4">
-            <div className="space-y-2">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Flame className="size-4 text-orange-500" />
@@ -55,7 +55,7 @@ export function AnalyticsHeatTab({ stats }: AnalyticsHeatTabProps) {
               <Progress value={stats.active > 0 ? (stats.hot / stats.active) * 100 : 0} className="h-3 [&>div]:bg-orange-500" aria-label="Hot clients percentage" />
             </div>
 
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Sun className="size-4 text-yellow-500" />
@@ -71,7 +71,7 @@ export function AnalyticsHeatTab({ stats }: AnalyticsHeatTabProps) {
               <Progress value={stats.active > 0 ? (stats.warm / stats.active) * 100 : 0} className="h-3 [&>div]:bg-yellow-500" aria-label="Warm clients percentage" />
             </div>
 
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Snowflake className="size-4 text-blue-500" />
@@ -92,7 +92,7 @@ export function AnalyticsHeatTab({ stats }: AnalyticsHeatTabProps) {
 
           {/* Legend */}
           <div className="grid grid-cols-3 gap-4 text-center">
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <div className="flex items-center justify-center gap-1">
                 <Flame className="size-4 text-orange-500" />
                 <span className="font-medium">Hot</span>
@@ -104,7 +104,7 @@ export function AnalyticsHeatTab({ stats }: AnalyticsHeatTabProps) {
                 Highly engaged, recent interaction
               </p>
             </div>
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <div className="flex items-center justify-center gap-1">
                 <Sun className="size-4 text-yellow-500" />
                 <span className="font-medium">Warm</span>
@@ -116,7 +116,7 @@ export function AnalyticsHeatTab({ stats }: AnalyticsHeatTabProps) {
                 Moderate engagement
               </p>
             </div>
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <div className="flex items-center justify-center gap-1">
                 <Snowflake className="size-4 text-blue-500" />
                 <span className="font-medium">Cold</span>

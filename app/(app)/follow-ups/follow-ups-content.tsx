@@ -118,7 +118,7 @@ function FollowUpCard({ row, isOverdue, onDetail }: { row: FollowUpRow; isOverdu
 
   return (
     <>
-      <Card className={isOverdue ? "border-red-200 dark:border-red-900" : ""}>
+      <Card className={isOverdue ? "border-destructive/40" : ""}>
         <CardHeader className="pb-2 pt-4 px-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -145,7 +145,7 @@ function FollowUpCard({ row, isOverdue, onDetail }: { row: FollowUpRow; isOverdu
         </CardHeader>
         <CardContent className="px-4 pb-4 pt-0">
           <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
-            <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex flex-col flex-1 min-w-0 gap-2">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                 {row.client.phone && (
                   <span className="flex items-center gap-1">
@@ -169,7 +169,7 @@ function FollowUpCard({ row, isOverdue, onDetail }: { row: FollowUpRow; isOverdu
                   <span className="flex items-center gap-1">
                     <Calendar className="size-3" />
                     {format(new Date(row.log.followUpDate), "MMM d, yyyy")}
-                    <span className={isOverdue ? "text-red-500 font-medium" : "text-muted-foreground"}>
+                    <span className={isOverdue ? "text-destructive font-medium" : "text-muted-foreground"}>
                       ({getRelativeTime(new Date(row.log.followUpDate))})
                     </span>
                   </span>
@@ -256,8 +256,8 @@ function FollowUpDetailSheet({ row, open, onOpenChange }: { row: FollowUpRow | n
           <SheetTitle>{row.client.firstName} {row.client.lastName || ""}</SheetTitle>
           <SheetDescription>Follow-up details</SheetDescription>
         </SheetHeader>
-        <div className="mt-6 space-y-4">
-          <div className="space-y-3">
+        <div className="flex flex-col mt-6 gap-4">
+          <div className="flex flex-col gap-3">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Contact</p>
               {row.client.phone && <p className="text-sm">{row.client.phone}</p>}
@@ -358,7 +358,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
       <Tabs defaultValue="overdue" className="space-y-4">
         <TabsList>
           <TabsTrigger value="overdue" className="gap-1">
-            <AlertTriangle className="size-4 text-red-500" />
+            <AlertTriangle className="size-4 text-destructive" />
             Overdue
             {overdue.length > 0 && (
               <Badge variant="destructive" className="ml-1 text-[10px] px-1.5 py-0">
@@ -394,7 +394,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
             </Card>
           ) : (
             <>
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               {pagedOverdue.map((row) => (
                 <FollowUpCard key={row.log.id} row={row} isOverdue onDetail={() => openDetail(row)} />
               ))}
@@ -424,7 +424,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
             </Card>
           ) : (
             <>
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               {pagedUpcoming.map((row) => (
                 <FollowUpCard key={row.log.id} row={row} isOverdue={false} onDetail={() => openDetail(row)} />
               ))}
@@ -452,7 +452,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
             </Card>
           ) : (
             <>
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               {pagedAll.map((row) => {
                 const isOverdue = row.log.followUpDate
                   ? new Date(row.log.followUpDate) <= new Date()

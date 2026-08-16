@@ -132,7 +132,7 @@ export function ResolutionPanel({
   setFinalNotes,
 }: ResolutionPanelProps) {
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       <div className="grid grid-cols-[120px_1fr_1fr] gap-2 text-xs font-medium text-muted-foreground pb-1 border-b">
         <div>Field</div>
         <div className="truncate">{labelA}</div>
@@ -185,10 +185,10 @@ export function ResolutionPanel({
       })}
 
       <Separator />
-      <div className="space-y-2">
+      <div className="flex flex-col gap-2">
         <div className="text-sm font-medium">Notes</div>
         <div className="grid grid-cols-2 gap-2">
-          <div className="space-y-1">
+          <div className="flex flex-col gap-1">
             <div className="text-xs text-muted-foreground truncate">{labelA}</div>
             <Textarea
               value={clientA.notes ?? ""}
@@ -205,7 +205,7 @@ export function ResolutionPanel({
               Use this
             </Button>
           </div>
-          <div className="space-y-1">
+          <div className="flex flex-col gap-1">
             <div className="text-xs text-muted-foreground truncate">{labelB}</div>
             <Textarea
               value={clientB.notes ?? ""}
@@ -223,7 +223,7 @@ export function ResolutionPanel({
             </Button>
           </div>
         </div>
-        <div className="space-y-1">
+        <div className="flex flex-col gap-1">
           <FieldLabel htmlFor="rp-final-notes" className="text-xs">Final Notes</FieldLabel>
           <Textarea
             id="rp-final-notes"
@@ -236,7 +236,7 @@ export function ResolutionPanel({
       </div>
 
       <Separator />
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3">
         <div>
           <div className="text-sm font-medium mb-1">Products of Interest (combined)</div>
           <div className="flex flex-wrap gap-1">

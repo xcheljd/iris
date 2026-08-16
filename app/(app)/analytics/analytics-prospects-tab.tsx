@@ -39,7 +39,7 @@ export function AnalyticsProspectsTab({ funnel }: AnalyticsProspectsTabProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
@@ -108,29 +108,29 @@ export function AnalyticsProspectsTab({ funnel }: AnalyticsProspectsTabProps) {
             </CardTitle>
             <CardDescription>{total} total prospects across all statuses</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
+          <CardContent className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between text-sm">
                 <span>Active</span>
                 <span className="font-medium">{funnel.active} ({pct(funnel.active)}%)</span>
               </div>
               <Progress value={pct(funnel.active)} className="h-2" aria-label="Active prospects" />
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-emerald-600">Graduated</span>
                 <span className="font-medium text-emerald-600">{funnel.graduated} ({graduationRate}%)</span>
               </div>
               <Progress value={graduationRate} className="h-2 [&>div]:bg-emerald-500" aria-label="Graduated prospects" />
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-destructive">Rejected</span>
                 <span className="font-medium text-destructive">{funnel.rejected} ({rejectionRate}%)</span>
               </div>
               <Progress value={rejectionRate} className="h-2 [&>div]:bg-destructive" aria-label="Rejected prospects" />
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Unsubscribed</span>
                 <span className="font-medium text-muted-foreground">{funnel.unsubscribed} ({unsubRate}%)</span>
@@ -153,7 +153,7 @@ export function AnalyticsProspectsTab({ funnel }: AnalyticsProspectsTabProps) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               {([
                 { label: "Graduated", value: funnel.avgSpendGraduated, colorClass: "text-emerald-600" },
                 { label: "Active", value: funnel.avgSpendActive, colorClass: "" },
@@ -192,7 +192,7 @@ export function AnalyticsProspectsTab({ funnel }: AnalyticsProspectsTabProps) {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               {funnel.batches.map((batch) => (
                 <div key={batch.id} className="flex items-start justify-between gap-4 text-sm">
                   <div className="min-w-0">

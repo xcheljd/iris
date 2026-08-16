@@ -268,7 +268,7 @@ export function ClientListContent({
           <Link href="/clients/new"><Plus className="size-4 mr-1" /> Add Client</Link>
         </Button>
       </Topbar>
-      <div className="flex-1 p-4 md:p-6 space-y-4 max-w-full overflow-hidden" data-tour="client-list">
+      <div className="flex flex-col flex-1 p-4 md:p-6 gap-4 max-w-full overflow-hidden" data-tour="client-list">
         {/* Search + Dates filter row */}
         <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
           <SearchInputWithHistory

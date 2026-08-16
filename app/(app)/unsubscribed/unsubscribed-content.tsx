@@ -220,7 +220,7 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
         <Card>
           <CardContent className="pt-6">
             {isManager ? (
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <p className="text-sm text-muted-foreground">Quick Add Email</p>
                 <div className="flex gap-2">
                   <div className="flex-1">
@@ -324,7 +324,7 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
                 </Badge>
               </div>
               )}
-              <div className="space-y-1">
+              <div className="flex flex-col gap-1">
                 {paged.map((record) => (
                   <div
                     key={record.unsub.id}

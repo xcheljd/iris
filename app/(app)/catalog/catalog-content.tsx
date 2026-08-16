@@ -230,9 +230,9 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
   return (
     <>
       <Topbar title="Model Catalog" />
-      <div className="flex-1 p-4 md:p-6 space-y-6">
+      <div className="flex flex-col flex-1 p-4 md:p-6 gap-6">
         {needsReview.length > 0 && (
-          <Card className="border-blue-500/40">
+          <Card className="border-primary/40">
             <CardHeader>
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -261,7 +261,7 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                 )}
               </div>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="flex flex-col gap-2">
               <div className="flex items-center gap-2 px-2 pb-2 text-xs text-muted-foreground border-b">
                 <Checkbox
                   checked={needsReview.length > 0 && selectedReview.size === needsReview.length}
@@ -309,7 +309,7 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                 Pending catalog conflicts ({flagged.length})
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="flex flex-col gap-2">
               {flagged.map((r) => (
                 <div key={r.model} className="flex items-center justify-between gap-3 text-sm border rounded-md p-2">
                   <div>
@@ -609,7 +609,7 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
         onOpenChangeAction={(open) => { if (!open) { setClearOpen(false); setClearTyped(""); } }}
         title="Clear the entire catalog?"
         description={
-          <span className="block space-y-3">
+          <span className="flex flex-col gap-3">
             <span className="block">
               This deletes all <strong>{total.toLocaleString()}</strong> catalog
               {" "}entries, then re-seeds the catalog with provisional

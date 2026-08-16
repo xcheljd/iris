@@ -50,7 +50,7 @@ async function DashboardContent() {
   return (
     <>
       <Topbar title="Dashboard" />
-      <div className="flex-1 p-4 md:p-6 space-y-6">
+      <div className="flex flex-col flex-1 p-4 md:p-6 gap-6">
         {/* Stat Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-tour="dashboard-stats">
           <StatCard icon={Users} label="Total Clients" value={stats.total} sublabel={`${stats.active} active`} />
@@ -67,7 +67,7 @@ async function DashboardContent() {
           </TabsList>
 
           {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-4">
+          <TabsContent value="overview" className="flex flex-col gap-4">
             <div className="grid md:grid-cols-3 gap-4">
               <Card className="md:col-span-2">
                 <CardHeader className="flex-row items-center justify-between space-y-0">
@@ -113,7 +113,7 @@ async function DashboardContent() {
                 </CardHeader>
                 <CardContent>
                   {upcoming.length === 0 ? <p className="text-sm text-muted-foreground">None.</p> : (
-                    <ul className="space-y-2">
+                    <ul className="flex flex-col gap-2">
                       {upcoming.slice(0, 6).map((row) => (
                         <li key={row.log.id} className="text-sm flex flex-col">
                           <div className="flex justify-between">
@@ -170,7 +170,7 @@ async function DashboardContent() {
                 </CardHeader>
                 <CardContent>
                   {birthdays.length === 0 ? <p className="text-sm text-muted-foreground">None.</p> : (
-                    <ul className="space-y-2">
+                    <ul className="flex flex-col gap-2">
                       {birthdays.map((c) => (
                         <li key={c.id} className="text-sm flex justify-between">
                           <Link href={`/clients/${c.id}`} className="hover:underline">{c.firstName} {c.lastName ?? ""}</Link>
@@ -185,7 +185,7 @@ async function DashboardContent() {
           </TabsContent>
 
           {/* Activity Tab */}
-          <TabsContent value="activity" className="space-y-4">
+          <TabsContent value="activity" className="flex flex-col gap-4">
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
@@ -248,7 +248,7 @@ async function DashboardContent() {
           </TabsContent>
 
           {/* Metrics Tab */}
-          <TabsContent value="metrics" className="space-y-4">
+          <TabsContent value="metrics" className="flex flex-col gap-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card>
                 <CardContent className="pt-6">
@@ -279,9 +279,9 @@ async function DashboardContent() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">Overdue</p>
-                      <p className="text-2xl font-bold text-red-500">{overdue.length}</p>
+                      <p className="text-2xl font-bold text-destructive">{overdue.length}</p>
                     </div>
-                    <AlertCircle className="size-8 text-red-500" />
+                    <AlertCircle className="size-8 text-destructive" />
                   </div>
                 </CardContent>
               </Card>
@@ -308,7 +308,7 @@ async function DashboardContent() {
                 </CardTitle>
                 <CardDescription>{stats.active} active clients</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="flex flex-col gap-4">
                 {stats.active > 0 ? (
                   <>
                     <div className="flex rounded-lg overflow-hidden h-10" role="img" aria-label={`Heat distribution: ${stats.hot} hot, ${stats.warm} warm, ${stats.cold} cold`}>

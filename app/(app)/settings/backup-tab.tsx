@@ -58,7 +58,7 @@ export function BackupTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -69,7 +69,7 @@ export function BackupTab() {
             Download a copy of the database to a safe location. Backups are recommended weekly.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex flex-col gap-4">
           {lastBackup && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <CheckCircle2 className="size-4 text-green-500" />
@@ -100,11 +100,11 @@ export function BackupTab() {
             Replace the current database with a previously saved backup file. The server will restart automatically.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex flex-col gap-4">
           {restored ? (
-            <div className="rounded-md border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+            <div className="rounded-md border border-green-500/50 bg-green-500/10 p-4 text-sm text-green-700 dark:text-green-400">
               <p className="font-medium">Restore complete.</p>
-              <p className="text-green-700">The server is restarting — this page will reload in a few seconds.</p>
+              <p className="text-green-700/90 dark:text-green-400/90">The server is restarting — this page will reload in a few seconds.</p>
             </div>
           ) : (
             <>

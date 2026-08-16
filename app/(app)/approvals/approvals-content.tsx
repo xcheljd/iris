@@ -117,9 +117,9 @@ export function ApprovalsContent({ requests: initialRequests }: ApprovalsContent
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Ban Requests</p>
-                  <p className="text-2xl font-bold text-red-500">{banCount}</p>
+                  <p className="text-2xl font-bold text-destructive">{banCount}</p>
                 </div>
-                <Ban className="size-8 text-red-500" />
+                <Ban className="size-8 text-destructive" />
               </div>
             </CardContent>
           </Card>
@@ -167,14 +167,14 @@ export function ApprovalsContent({ requests: initialRequests }: ApprovalsContent
                 description="All approval requests have been handled. New requests from your team will appear here."
               />
             ) : (
-              <div className="space-y-3">
+              <div className="flex flex-col gap-3">
                 {requests.map((item) => (
                   <div
                     key={item.request.id}
                     className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                      <div className="flex-1 min-w-0 space-y-2">
+                      <div className="flex flex-col flex-1 min-w-0 gap-2">
                         <div className="flex items-center gap-2 flex-wrap">
                           {getTypeBadge(item.request.type)}
                           <Link

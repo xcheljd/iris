@@ -180,14 +180,14 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
 
         <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6">
           {/* List Sidebar */}
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Sparkles className="size-4" />Built-in Lists
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-1">
+              <CardContent className="flex flex-col gap-1">
                 {BUILTIN_FILTERS.map((f) => (
                   <SmartListItem
                     key={f.id}
@@ -225,7 +225,7 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
                   </Tooltip>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-1">
+              <CardContent className="flex flex-col gap-1">
                 {lists.length === 0 ? (
                   <div className="text-center py-4">
                     <ListFilter className="size-8 mx-auto text-muted-foreground/50 mb-2" />
@@ -279,11 +279,11 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
             </CardHeader>
             <CardContent>
               {selectedClients !== null ? (
-                <div className="space-y-3">
+                <div className="flex flex-col gap-3">
                   {selectedListTruncated && (
-                    <Alert variant="default" className="border-amber-300/60 bg-amber-50/50 dark:bg-amber-950/20">
-                      <AlertTriangle className="size-4 text-amber-600" />
-                      <AlertDescription className="text-amber-900 dark:text-amber-200">
+                    <Alert variant="warning">
+                      <AlertTriangle className="size-4" />
+                      <AlertDescription>
                         Showing the first {LIST_QUERY_LIMIT.toLocaleString()} matches.
                         Your filter has more clients than the display cap — tighten the criteria for a complete view.
                         Email Recipients exports are unbounded and will include every match.
@@ -298,7 +298,7 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
                   {filteredClients.length === 0 ? (
                     <EmptyState icon={Users} description="No clients match this filter" compact />
                   ) : (
-                    <div className="space-y-1">
+                    <div className="flex flex-col gap-1">
                       {pagedClients.map((client) => (
                         <ClientRow key={client.id} client={client} />
                       ))}

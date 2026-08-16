@@ -120,7 +120,7 @@ export function ProductsOfInterestInput({
     onChangeAction(value.filter((p) => keyOf(p) !== keyOf(entry)));
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-2 sm:flex-row">
         <Input
           placeholder="Model number"

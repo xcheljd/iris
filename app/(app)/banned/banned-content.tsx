@@ -247,7 +247,7 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <StatsCard label="Total Banned" value={banned.length} icon={Ban} iconClassName="text-red-500" valueClassName="text-red-500" />
+        <StatsCard label="Total Banned" value={banned.length} icon={Ban} iconClassName="text-destructive" valueClassName="text-destructive" />
         <StatsCard label="Reselling" value={banned.filter((r) => r.banned.banReasonCategory === "Reselling").length} icon={AlertTriangle} iconClassName="text-orange-500" />
         <StatsCard label="Gift Card Fraud" value={banned.filter((r) => r.banned.banReasonCategory === "Gift Card Fraud").length} icon={AlertTriangle} iconClassName="text-yellow-500" />
       </div>
@@ -276,7 +276,7 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
             />
           ) : (
             <>
-            <Accordion type="multiple" className="space-y-2">
+            <Accordion type="multiple" className="flex flex-col gap-2">
               {paged.map((row) => {
                 const customer = row.banned;
                 return (
@@ -340,10 +340,10 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
                     <AccordionContent className="px-4 pb-4">
                       <Separator className="mb-4" />
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-2">
+                        <div className="flex flex-col gap-2">
                           <p className="text-sm font-medium text-muted-foreground">Contact</p>
                           {(customer.email || customer.phone) ? (
-                            <div className="space-y-1">
+                            <div className="flex flex-col gap-1">
                               {customer.email && (
                                 <p className="text-sm flex items-center gap-2">
                                   <span className="text-muted-foreground">Email:</span>
@@ -361,7 +361,7 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
                             <p className="text-sm text-muted-foreground">No contact info</p>
                           )}
                         </div>
-                        <div className="space-y-2">
+                        <div className="flex flex-col gap-2">
                           <p className="text-sm font-medium text-muted-foreground">Ban Details</p>
                           <div className="text-sm flex items-center gap-2">
                             <span className="text-muted-foreground">Category:</span>

@@ -119,7 +119,7 @@ export function ProspectsContent({
         )}
       </Topbar>
 
-      <div className="flex-1 p-4 md:p-6 space-y-4" data-tour="prospects">
+      <div className="flex flex-col flex-1 p-4 md:p-6 gap-4" data-tour="prospects">
         <SearchInput
           value={search}
           onChangeAction={setSearch}
@@ -168,7 +168,7 @@ export function ProspectsContent({
                     description={search.trim() ? "Try a different search term" : EMPTY_COPY.active.description}
                   />
                 ) : (
-                  <div className="space-y-2">
+                  <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-3 px-1 pb-1">
                       <Checkbox
                         checked={allInViewSelected ? true : someInViewSelected ? "indeterminate" : false}
@@ -267,7 +267,7 @@ function ProspectListCard({
             description={filtered ? "Try a different search term" : copy.description}
           />
         ) : (
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             {rows.map((prospect) => (
               <div
                 key={prospect.id}

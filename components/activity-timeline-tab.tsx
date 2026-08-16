@@ -145,7 +145,7 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
@@ -199,7 +199,7 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-[500px] w-full">
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4">
               {timelineEvents.map((event) => (
                 <div key={event.id} className="flex gap-4">
                   {/* Timeline Line */}

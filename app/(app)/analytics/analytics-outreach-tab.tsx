@@ -89,7 +89,7 @@ export function AnalyticsOutreachTab({
   hasDateFilter,
 }: AnalyticsOutreachTabProps) {
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* Method Distribution Bar Chart */}
       <Card>
         <CardHeader>
@@ -135,10 +135,10 @@ export function AnalyticsOutreachTab({
             <CardTitle>Outcome Breakdown</CardTitle>
             <CardDescription>Results from recent outreach</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="flex flex-col gap-3">
             {outcomeDistribution.length > 0 ? (
               outcomeDistribution.map(({ outcome, count }) => (
-                <div key={outcome} className="space-y-1">
+                <div key={outcome} className="flex flex-col gap-1">
                   <div className="flex items-center justify-between">
                     <span className={`text-sm capitalize ${getOutcomeColor(outcome.replace(/ /g, "_"))}`}>
                       {outcome}
@@ -212,7 +212,7 @@ export function AnalyticsOutreachTab({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             {totalFiltered === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
                 No outreach records for the selected period

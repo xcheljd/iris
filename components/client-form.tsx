@@ -94,7 +94,7 @@ export function ClientForm({
   onCancelAction,
 }: ClientFormProps) {
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* Duplicate Warning */}
       {showDuplicateWarning && duplicateClient && (
         <Alert>
@@ -102,7 +102,7 @@ export function ClientForm({
           <AlertTitle>Potential Duplicate Found</AlertTitle>
           <AlertDescription>
             This client may already exist in the system. Would you like to merge with the existing record?
-            <div className="mt-2 space-y-1">
+            <div className="flex flex-col mt-2 gap-1">
               <div className="text-sm">
                 <strong>Existing client:</strong> {duplicateClient.firstName} {duplicateClient.lastName}
               </div>
@@ -350,7 +350,7 @@ export function ClientForm({
         <CardHeader>
           <CardTitle>Products of Interest</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex flex-col gap-4">
           <ProductsOfInterestInput
             value={productsOfInterest}
             onChangeAction={onProductsChangeAction}
@@ -365,8 +365,8 @@ export function ClientForm({
         <CardHeader>
           <CardTitle>Tags</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-3">
+        <CardContent className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3">
             <div className="flex gap-2">
               <Input
                 placeholder="Add tag..."
@@ -384,7 +384,7 @@ export function ClientForm({
             </div>
 
             {showCommonTags && (
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <p className="text-sm text-muted-foreground">Common tags:</p>
                 <div className="flex flex-wrap gap-2">
                   {COMMON_TAGS.map((tag) => (

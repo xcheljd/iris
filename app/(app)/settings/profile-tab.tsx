@@ -63,7 +63,7 @@ export function ProfileTab({ currentUser, currentUserId }: ProfileTabProps) {
                   {initials(currentUser.firstName, currentUser.lastName)}
                 </AvatarFallback>
               </Avatar>
-              <div className="flex-1 space-y-1">
+              <div className="flex flex-col flex-1 gap-1">
                 <h3 className="text-lg font-semibold">{currentUser.firstName} {currentUser.lastName}</h3>
                 <p className="text-sm text-muted-foreground">@{currentUser.username}</p>
                 <Badge variant="secondary" className="capitalize">{currentUser.role}</Badge>

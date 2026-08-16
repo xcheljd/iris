@@ -40,13 +40,13 @@ function PasswordStrength({ password }: { password: string }) {
   if (!password) return null;
 
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground">Strength</span>
         <span className={`text-xs font-medium ${score <= 50 ? "text-orange-500" : "text-green-500"}`}>{label}</span>
       </div>
       <Progress value={score} className={`h-1.5 [&>div]:${color}`} aria-label="Password strength" />
-      <ul className="space-y-0.5">
+      <ul className="flex flex-col gap-0.5">
         {PW_REQUIREMENTS.map((r) => (
           <li key={r.label} className="flex items-center gap-1.5 text-xs">
             {r.test(password) ? (

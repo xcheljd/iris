@@ -257,7 +257,7 @@ export function RangeFilterMenu({
   const step = Math.max(1, Math.round(ceiling / 200));
 
   return (
-    <div className="space-y-4 p-3">
+    <div className="flex flex-col gap-4 p-3">
       <div className="flex items-center justify-between">
         <BoundField
           value={lo}

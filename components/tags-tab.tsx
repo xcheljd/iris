@@ -75,7 +75,7 @@ export function TagsTab({ client }: TagsTabProps) {
   // Common tag suggestions
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       {/* Current Tags */}
       <Card>
         <CardHeader>
@@ -91,7 +91,7 @@ export function TagsTab({ client }: TagsTabProps) {
         </CardHeader>
         <CardContent>
           {clientTags.length > 0 ? (
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               {/* Tag Search */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-muted-foreground" />
@@ -104,7 +104,7 @@ export function TagsTab({ client }: TagsTabProps) {
               </div>
 
               {/* Tag List */}
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 {filteredTags.map((tag: string) => {
                   const tagRecord = client.allTags?.find((t) => t.name === tag);
                   return (
@@ -168,7 +168,7 @@ export function TagsTab({ client }: TagsTabProps) {
           <CardHeader>
             <CardTitle>Add New Tag</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="flex flex-col gap-4">
             <Input
               placeholder="Enter tag name..."
               value={newTag}
@@ -182,7 +182,7 @@ export function TagsTab({ client }: TagsTabProps) {
             
             {/* Tag Suggestions */}
             {newTag.length === 0 && (
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <p className="text-sm text-muted-foreground">Common tags:</p>
                 <div className="flex flex-wrap gap-2">
                   {SUGGESTED_TAGS.map((tag) => (
@@ -224,7 +224,7 @@ export function TagsTab({ client }: TagsTabProps) {
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-[200px] w-full">
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               {allTags.map((tag: string) => (
                 <div
                   key={tag}

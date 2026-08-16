@@ -125,9 +125,9 @@ export function MatchedClientsCsvExportDialog({ open, onOpenChange, owners, matc
         )}
 
         {data?.truncated && (
-          <Alert variant="default" className="border-amber-300/60 bg-amber-50/50 dark:bg-amber-950/20">
-            <AlertTriangle className="size-4 text-amber-600" />
-            <AlertDescription className="text-amber-900 dark:text-amber-200">
+          <Alert variant="warning">
+            <AlertTriangle className="size-4" />
+            <AlertDescription>
               Capped at {LIST_QUERY_LIMIT.toLocaleString()} rows. Narrow the scope for a complete export.
             </AlertDescription>
           </Alert>

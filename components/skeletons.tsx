@@ -6,7 +6,7 @@ export function StatCardSkeleton() {
     <Card>
       <CardContent className="p-4 flex items-center gap-3">
         <Skeleton className="size-10 rounded-md" />
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           <Skeleton className="h-6 w-12" />
           <Skeleton className="h-3 w-20" />
         </div>
@@ -17,7 +17,7 @@ export function StatCardSkeleton() {
 
 export function DashboardSkeleton() {
   return (
-    <div className="flex-1 p-4 md:p-6 space-y-6">
+    <div className="flex flex-col flex-1 p-4 md:p-6 gap-6">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCardSkeleton />
         <StatCardSkeleton />
@@ -27,7 +27,7 @@ export function DashboardSkeleton() {
       <div className="grid md:grid-cols-3 gap-4">
         <Card className="md:col-span-2">
           <CardHeader><Skeleton className="h-5 w-40" /></CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="flex flex-col gap-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex items-center justify-between">
                 <Skeleton className="h-4 w-32" />
@@ -38,7 +38,7 @@ export function DashboardSkeleton() {
         </Card>
         <Card>
           <CardHeader><Skeleton className="h-5 w-32" /></CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="flex flex-col gap-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex justify-between">
                 <Skeleton className="h-4 w-24" />
@@ -54,7 +54,7 @@ export function DashboardSkeleton() {
 
 export function TableSkeleton({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="flex gap-4">
           {Array.from({ length: cols }).map((_, j) => (
@@ -68,7 +68,7 @@ export function TableSkeleton({ rows = 5, cols = 4 }: { rows?: number; cols?: nu
 
 export function ClientListSkeleton() {
   return (
-    <div className="flex-1 p-4 md:p-6 space-y-4">
+    <div className="flex flex-col flex-1 p-4 md:p-6 gap-4">
       <Card className="p-3">
         <div className="flex gap-2">
           <Skeleton className="h-9 flex-1" />
@@ -77,7 +77,7 @@ export function ClientListSkeleton() {
         </div>
       </Card>
       <Card>
-        <div className="p-4 space-y-1">
+        <div className="flex flex-col p-4 gap-1">
           <div className="flex gap-4 pb-3 border-b">
             {["Name", "Contact", "Heat", "Tags", "Owner", "Last"].map((h) => (
               <Skeleton key={h} className="h-4 flex-1" />
@@ -93,13 +93,13 @@ export function ClientListSkeleton() {
 
 export function ClientDetailSkeleton() {
   return (
-    <div className="flex-1 p-4 md:p-6 space-y-4">
+    <div className="flex flex-col flex-1 p-4 md:p-6 gap-4">
       <div className="flex flex-col md:flex-row gap-4">
-        <div className="md:w-[280px] space-y-4">
-          <Card className="p-4 space-y-3">
+        <div className="flex flex-col md:w-[280px] gap-4">
+          <Card className="flex flex-col p-4 gap-3">
             <div className="flex items-center gap-3">
               <Skeleton className="size-12 rounded-full" />
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <Skeleton className="h-5 w-28" />
                 <Skeleton className="h-3 w-20" />
               </div>
@@ -112,10 +112,10 @@ export function ClientDetailSkeleton() {
             ))}
           </Card>
         </div>
-        <div className="flex-1 space-y-4">
+        <div className="flex flex-col flex-1 gap-4">
           <Card>
             <CardHeader><Skeleton className="h-5 w-48" /></CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="flex flex-col gap-3">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="flex gap-4">
                   <Skeleton className="h-4 w-20" />
@@ -133,18 +133,18 @@ export function ClientDetailSkeleton() {
 
 export function FollowUpsSkeleton() {
   return (
-    <div className="flex-1 p-4 md:p-6 space-y-4">
+    <div className="flex flex-col flex-1 p-4 md:p-6 gap-4">
       <Skeleton className="h-9 w-72" />
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3">
         {Array.from({ length: 4 }).map((_, i) => (
           <Card key={i}>
             <CardContent className="p-4 flex justify-between">
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <Skeleton className="h-5 w-32" />
                 <Skeleton className="h-3 w-24" />
                 <Skeleton className="h-3 w-20" />
               </div>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <Skeleton className="h-8 w-20" />
                 <Skeleton className="h-8 w-20" />
               </div>
@@ -158,11 +158,11 @@ export function FollowUpsSkeleton() {
 
 export function SmartListsSkeleton() {
   return (
-    <div className="flex-1 p-4 md:p-6 space-y-4">
+    <div className="flex flex-col flex-1 p-4 md:p-6 gap-4">
       <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4">
         <Card>
           <CardHeader><Skeleton className="h-5 w-24" /></CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="flex flex-col gap-2">
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-8 w-full" />
             ))}
@@ -182,7 +182,7 @@ export function SmartListsSkeleton() {
 
 export function PromosSkeleton() {
   return (
-    <div className="flex-1 p-4 md:p-6 space-y-4">
+    <div className="flex flex-col flex-1 p-4 md:p-6 gap-4">
       <div className="flex gap-2">
         <Skeleton className="h-9 w-32" />
         <Skeleton className="h-9 w-32" />
@@ -193,7 +193,7 @@ export function PromosSkeleton() {
         <StatCardSkeleton />
       </div>
       <Card>
-        <div className="p-4 space-y-1">
+        <div className="flex flex-col p-4 gap-1">
           <div className="flex gap-4 pb-3 border-b">
             {Array.from({ length: 5 }).map((_, j) => (
               <Skeleton key={j} className="h-4 flex-1" />
@@ -208,7 +208,7 @@ export function PromosSkeleton() {
 
 export function AnalyticsSkeleton() {
   return (
-    <div className="flex-1 p-4 md:p-6 space-y-4">
+    <div className="flex flex-col flex-1 p-4 md:p-6 gap-4">
       <div className="flex gap-2">
         <Skeleton className="h-9 w-32" />
         <Skeleton className="h-9 w-40" />
@@ -237,9 +237,9 @@ export function AnalyticsSkeleton() {
 
 export function CollectionsSkeleton() {
   return (
-    <div className="flex-1 p-4 md:p-6 space-y-4">
+    <div className="flex flex-col flex-1 p-4 md:p-6 gap-4">
       <Card>
-        <div className="p-4 space-y-1">
+        <div className="flex flex-col p-4 gap-1">
           <div className="flex gap-4 pb-3 border-b">
             {Array.from({ length: 4 }).map((_, j) => (
               <Skeleton key={j} className="h-4 flex-1" />
@@ -254,7 +254,7 @@ export function CollectionsSkeleton() {
 
 export function BannedSkeleton() {
   return (
-    <div className="flex-1 p-4 md:p-6 space-y-4">
+    <div className="flex flex-col flex-1 p-4 md:p-6 gap-4">
       <div className="flex gap-2">
         <Skeleton className="h-9 w-36" />
       </div>
@@ -264,10 +264,10 @@ export function BannedSkeleton() {
         <StatCardSkeleton />
       </div>
       <Card>
-        <div className="p-4 space-y-2">
+        <div className="flex flex-col p-4 gap-2">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="flex items-center justify-between py-2 border-b last:border-0">
-              <div className="space-y-1">
+              <div className="flex flex-col gap-1">
                 <Skeleton className="h-4 w-32" />
                 <Skeleton className="h-3 w-24" />
               </div>
@@ -282,17 +282,17 @@ export function BannedSkeleton() {
 
 export function UnsubscribedSkeleton() {
   return (
-    <div className="flex-1 p-4 md:p-6 space-y-4">
+    <div className="flex flex-col flex-1 p-4 md:p-6 gap-4">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <StatCardSkeleton />
         <StatCardSkeleton />
         <StatCardSkeleton />
       </div>
       <Card>
-        <div className="p-4 space-y-2">
+        <div className="flex flex-col p-4 gap-2">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="flex items-center justify-between py-2 border-b last:border-0">
-              <div className="space-y-1">
+              <div className="flex flex-col gap-1">
                 <Skeleton className="h-4 w-36" />
                 <Skeleton className="h-3 w-28" />
               </div>
@@ -307,7 +307,7 @@ export function UnsubscribedSkeleton() {
 
 export function ApprovalsSkeleton() {
   return (
-    <div className="flex-1 p-4 md:p-6 space-y-4">
+    <div className="flex flex-col flex-1 p-4 md:p-6 gap-4">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <StatCardSkeleton />
         <StatCardSkeleton />
@@ -315,11 +315,11 @@ export function ApprovalsSkeleton() {
       </div>
       <Card>
         <CardHeader><Skeleton className="h-5 w-36" /></CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="flex flex-col gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="border rounded-lg p-4 space-y-2">
+            <div key={i} className="flex flex-col border rounded-lg p-4 gap-2">
               <div className="flex items-center justify-between">
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2">
                     <Skeleton className="h-5 w-16 rounded-full" />
                     <Skeleton className="h-4 w-28" />
@@ -345,14 +345,14 @@ export function ApprovalsSkeleton() {
 
 export function SettingsSkeleton() {
   return (
-    <div className="flex-1 p-4 md:p-6 space-y-4">
+    <div className="flex flex-col flex-1 p-4 md:p-6 gap-4">
       <div className="flex gap-2">
         <Skeleton className="h-9 w-32" />
       </div>
       <Card>
         <CardHeader><Skeleton className="h-5 w-32" /></CardHeader>
         <CardContent>
-          <div className="p-4 space-y-1">
+          <div className="flex flex-col p-4 gap-1">
             <div className="flex gap-4 pb-3 border-b">
               {Array.from({ length: 4 }).map((_, j) => (
                 <Skeleton key={j} className="h-4 flex-1" />
@@ -368,7 +368,7 @@ export function SettingsSkeleton() {
 
 export function ProspectsSkeleton() {
   return (
-    <div className="flex-1 p-4 md:p-6 space-y-4">
+    <div className="flex flex-col flex-1 p-4 md:p-6 gap-4">
       <div className="flex items-center justify-between">
         <Skeleton className="h-9 w-40" />
         <Skeleton className="h-9 w-32" />
@@ -385,10 +385,10 @@ export function ProspectsSkeleton() {
 
 export function ProspectDetailSkeleton() {
   return (
-    <div className="flex-1 p-4 md:p-6 space-y-4">
+    <div className="flex flex-col flex-1 p-4 md:p-6 gap-4">
       <Skeleton className="h-9 w-48" />
       <Card>
-        <CardContent className="p-6 space-y-4">
+        <CardContent className="flex flex-col p-6 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="flex gap-4">
               <Skeleton className="h-4 w-28" />
@@ -403,7 +403,7 @@ export function ProspectDetailSkeleton() {
 
 export function CatalogSkeleton() {
   return (
-    <div className="flex-1 p-4 md:p-6 space-y-6">
+    <div className="flex flex-col flex-1 p-4 md:p-6 gap-6">
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between gap-3">
@@ -416,7 +416,7 @@ export function CatalogSkeleton() {
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <div className="flex gap-4 pb-3 border-b">
                 {Array.from({ length: 6 }).map((_, j) => (
                   <Skeleton key={j} className="h-4 flex-1" />
@@ -441,9 +441,9 @@ export function CatalogSkeleton() {
 export function ClientFormSkeleton() {
   return (
     <div className="flex-1 p-4 md:p-6 max-w-4xl mx-auto">
-      <div className="space-y-6">
+      <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <Skeleton className="h-5 w-32" />
             <Skeleton className="h-3 w-48" />
           </div>
@@ -451,14 +451,14 @@ export function ClientFormSkeleton() {
         </div>
         <Card>
           <CardHeader><Skeleton className="h-5 w-28" /></CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="flex flex-col gap-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2">
                   <Skeleton className="h-3 w-16" />
                   <Skeleton className="h-9 w-full" />
                 </div>
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2">
                   <Skeleton className="h-3 w-16" />
                   <Skeleton className="h-9 w-full" />
                 </div>

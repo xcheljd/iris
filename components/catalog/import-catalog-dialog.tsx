@@ -75,8 +75,8 @@ export function ImportCatalogDialog({ open, onOpenChangeAction }: ImportCatalogD
 
         <ScrollArea className="max-h-[70vh]">
         {!analysis ? (
-          <div className="space-y-4">
-            <div className="rounded-md border bg-muted/40 p-3 text-sm space-y-1.5">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col rounded-md border bg-muted/40 p-3 text-sm gap-1.5">
               <div className="flex items-center gap-1.5 font-medium">
                 <Info className="size-4" />
                 Before exporting from RVX
@@ -110,7 +110,7 @@ export function ImportCatalogDialog({ open, onOpenChangeAction }: ImportCatalogD
             </Button>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             <div className="flex items-center gap-2 text-green-500">
               <CheckCircle2 className="size-5" />
               <span className="font-medium">
@@ -122,7 +122,7 @@ export function ImportCatalogDialog({ open, onOpenChangeAction }: ImportCatalogD
              analysis.prevCuratedMissingFromFile > analysis.prevCuratedCount * 0.3 && (
               <div className="rounded-md border border-yellow-500/40 bg-yellow-50/60 dark:bg-yellow-950/20 p-3 text-sm flex items-start gap-2">
                 <AlertTriangle className="size-4 mt-0.5 shrink-0 text-yellow-600" />
-                <div className="space-y-1">
+                <div className="flex flex-col gap-1">
                   <div className="font-medium text-yellow-700 dark:text-yellow-400">
                     This file is missing {analysis.prevCuratedMissingFromFile} of {analysis.prevCuratedCount} previously-imported models.
                   </div>
@@ -146,7 +146,7 @@ export function ImportCatalogDialog({ open, onOpenChangeAction }: ImportCatalogD
               </div>
             )}
             {analysis.collectionChanges.length > 0 && (
-              <div className="space-y-1">
+              <div className="flex flex-col gap-1">
                 <p className="text-sm font-medium">
                   Collection changes ({analysis.collectionChanges.length} shown):
                 </p>

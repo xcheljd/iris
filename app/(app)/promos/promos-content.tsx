@@ -292,11 +292,11 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
 
       {/* Promo Period Banner */}
       {promos.length > 0 && (promoStart || promoEnd) && (
-        <Card className="mb-6 border-blue-800/50 bg-blue-950/20">
+        <Card className="mb-6 border-primary/40 bg-primary/5">
           <CardContent className="py-3">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <CalendarDays className="size-5 text-blue-400" />
+                <CalendarDays className="size-5 text-primary" />
                 <span className="text-sm font-medium">Current Promo Period</span>
                 <span className="text-sm text-muted-foreground">
                   {promoStart ? format(parseISO(promoStart), "MMM d") : "?"} — {promoEnd ? format(parseISO(promoEnd), "MMM d, yyyy") : "?"}
@@ -347,7 +347,7 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
                   Filters
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-72 space-y-3" align="end">
+              <PopoverContent className="flex flex-col w-72 gap-3" align="end">
                 <div>
                   <div className="text-xs font-medium mb-1">Brand</div>
                   <div className="flex flex-wrap gap-x-3 gap-y-1">
@@ -361,7 +361,7 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
                 </div>
                 <div>
                   <div className="text-xs font-medium mb-1">Collection</div>
-                  <div className="max-h-32 overflow-y-auto space-y-1">
+                  <div className="flex flex-col max-h-32 overflow-y-auto gap-1">
                     {distinctCollections.map((c) => (
                       <label key={c} className="flex items-center gap-1.5 text-sm cursor-pointer">
                         <Checkbox checked={collectionFilter.has(c)} onCheckedChange={() => { toggleIn(collectionFilter, c, setCollectionFilter); setPage(1); }} />

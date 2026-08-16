@@ -88,7 +88,7 @@ export function ProspectDetailContent({
   const isActive = prospect.status === "active";
 
   return (
-    <div className="flex-1 p-4 md:p-6 space-y-4">
+    <div className="flex flex-col flex-1 p-4 md:p-6 gap-4">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" asChild>
           <Link href="/prospects">
@@ -136,7 +136,7 @@ export function ProspectDetailContent({
           <CardHeader>
             <CardTitle className="text-base">Contact Info</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
+          <CardContent className="flex flex-col gap-2 text-sm">
             <DetailRow label="Phone" value={prospect.phone} />
             <DetailRow label="Email" value={prospect.email} />
             <DetailRow label="Birthday" value={prospect.birthday} />
@@ -148,7 +148,7 @@ export function ProspectDetailContent({
           <CardHeader>
             <CardTitle className="text-base">RVX Data</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
+          <CardContent className="flex flex-col gap-2 text-sm">
             <DetailRow label="Customer ID" value={prospect.rvxCustomerId} />
             <DetailRow label="Store" value={prospect.rvxStoreId} />
             {prospect.rvxSpend !== null && (
@@ -172,7 +172,7 @@ export function ProspectDetailContent({
 
       {(prospect.productsOfInterest.length > 0 || prospect.notes) && (
         <Card>
-          <CardContent className="p-4 space-y-3">
+          <CardContent className="flex flex-col p-4 gap-3">
             {prospect.productsOfInterest.length > 0 && (
               <div>
                 <p className="text-sm font-medium mb-1.5">Models of Interest</p>

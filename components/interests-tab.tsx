@@ -170,7 +170,7 @@ export function InterestsTab({ client }: InterestsTabProps) {
                   <TableHead>
                     <ColumnHeader label="Intent" sortKey="intent" currentSort={sortKey} currentDir={sortDir} onSortAction={toggleSort} filter={
                       <ColumnFilterPopover label="intent" active={intentFilter.size > 0} onClear={() => setIntentFilter(new Set())} contentWidth="w-44">
-                        <div className="p-3 space-y-1">
+                        <div className="flex flex-col p-3 gap-1">
                           {INTEREST_INTENT_VALUES.map((it) => (
                             <label key={it} className="flex items-center gap-2 text-sm cursor-pointer">
                               <Checkbox checked={intentFilter.has(it)} onCheckedChange={(checked) => {
@@ -206,7 +206,7 @@ export function InterestsTab({ client }: InterestsTabProps) {
                   <TableHead>
                     <ColumnHeader label="Brand" sortKey="brand" currentSort={sortKey} currentDir={sortDir} onSortAction={toggleSort} filter={
                       <ColumnFilterPopover label="brand" active={brandFilter.size > 0} onClear={() => setBrandFilter(new Set())} contentWidth="w-44">
-                        <div className="p-3 space-y-1">
+                        <div className="flex flex-col p-3 gap-1">
                           {BRAND_VALUES.map((b) => (
                             <label key={b} className="flex items-center gap-2 text-sm cursor-pointer">
                               <Checkbox checked={brandFilter.has(b)} onCheckedChange={(checked) => {
@@ -224,7 +224,7 @@ export function InterestsTab({ client }: InterestsTabProps) {
                   <TableHead>
                     <ColumnHeader label="Promo" sortKey="promo" currentSort={sortKey} currentDir={sortDir} onSortAction={toggleSort} filter={
                       <ColumnFilterPopover label="promo" active={promoOnly !== ""} onClear={() => setPromoOnly("")} contentWidth="w-44">
-                        <RadioGroup value={promoOnly} onValueChange={(v) => setPromoOnly(v as "" | "has" | "none")} className="p-3 space-y-1">
+                        <RadioGroup value={promoOnly} onValueChange={(v) => setPromoOnly(v as "" | "has" | "none")} className="p-3 gap-3">
                           {([["", "All"], ["has", "On promo"], ["none", "Not on promo"]] as const).map(([v, l]) => (
                             <div key={v} className="flex items-center gap-2">
                               <RadioGroupItem value={v} id={`promo-filter-${v}`} />
@@ -255,7 +255,7 @@ export function InterestsTab({ client }: InterestsTabProps) {
                           <PopoverTrigger asChild>
                             <Button variant="outline" size="sm" className="h-7">Select models</Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-56 space-y-1">
+                          <PopoverContent className="flex flex-col w-56 gap-1">
                             <p className="text-xs text-muted-foreground mb-1">
                               Promo models in {r.promoCollection}. Copy one and add it via Edit Client.
                             </p>

@@ -100,7 +100,7 @@ export function NotesTab({ client }: NotesTabProps) {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -121,7 +121,7 @@ export function NotesTab({ client }: NotesTabProps) {
           </div>
         </CardHeader>
         {isAdding && (
-          <CardContent className="space-y-4">
+          <CardContent className="flex flex-col gap-4">
             <Textarea
               placeholder="Enter your note here..."
               value={newNote}
@@ -151,7 +151,7 @@ export function NotesTab({ client }: NotesTabProps) {
         <CardContent>
           {sortedNotes.length > 0 ? (
             <ScrollArea className="h-[400px] w-full">
-              <div className="space-y-4">
+              <div className="flex flex-col gap-4">
                 {sortedNotes.map((note: ParsedNote) => (
                   <div key={note.id} className="border rounded-lg p-4">
                     <div className="flex items-start justify-between mb-2">

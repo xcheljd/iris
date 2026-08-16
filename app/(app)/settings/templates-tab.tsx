@@ -147,7 +147,7 @@ export function TemplatesTab({ templates: initialTemplates, isManager }: Templat
               description="Create templates for faster outreach"
             />
           ) : (
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4">
               {templates.map((template) => (
                 <Card key={template.id}>
                   <CardContent className="pt-6">

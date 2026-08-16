@@ -151,7 +151,7 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
         <ScrollArea className="max-h-[70vh]">
 
         {!parsed ? (
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             <Field>
               <FieldLabel>Promo PDF</FieldLabel>
               <div className="flex items-center gap-2">
@@ -181,7 +181,7 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
             </Field>
           </div>
         ) : !resolved || resolved.length === 0 ? (
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             <div className="flex items-center gap-2 text-yellow-500">
               <AlertCircle className="size-5" />
               <span className="font-medium">No promo rows detected</span>
@@ -192,7 +192,7 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
             <Button variant="outline" onClick={handleReset}>Try Another File</Button>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
               <span className="flex items-center gap-1.5 text-green-600">
                 <CheckCircle2 className="size-4" />
@@ -241,7 +241,7 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
             </div>
 
             {counts.uncatalogued > 0 && (
-              <div className="border rounded-md p-3 bg-yellow-50/50 dark:bg-yellow-950/20 space-y-2">
+              <div className="flex flex-col border rounded-md p-3 bg-yellow-50/50 dark:bg-yellow-950/20 gap-2">
                 <div className="text-sm font-medium">Assign brand to uncatalogued rows</div>
                 <p className="text-xs text-muted-foreground">
                   {counts.uncatalogued} model{counts.uncatalogued !== 1 ? "s aren't" : " isn't"} in the catalog yet

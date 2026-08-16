@@ -235,7 +235,7 @@ export function GraduateProspectDialog({
               </DialogTitle>
             </DialogHeader>
 
-            <div className="py-4 space-y-3">
+            <div className="flex flex-col py-4 gap-3">
               <p className="text-sm text-muted-foreground">
                 A client matching this contact info already exists:
               </p>

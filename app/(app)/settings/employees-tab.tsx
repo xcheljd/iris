@@ -503,7 +503,7 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
                 </div>
                 <div className="flex items-start gap-2">
                   <RadioGroupItem value="reassign" id="deactivate-reassign" className="mt-1" />
-                  <div className="flex-1 space-y-2">
+                  <div className="flex flex-col flex-1 gap-2">
                     <FieldLabel htmlFor="deactivate-reassign" className="font-normal cursor-pointer">Reassign to another employee</FieldLabel>
                     {deactivateMode === "reassign" && (
                       <Select value={reassignToId} onValueChange={setReassignToId}>

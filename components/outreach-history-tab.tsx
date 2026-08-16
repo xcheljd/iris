@@ -80,7 +80,7 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
   const hasMore = visibleCount < outreachLogs.length;
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardContent className="pt-6">
@@ -116,7 +116,7 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
-              <div className="text-2xl font-bold text-red-600">
+              <div className="text-2xl font-bold text-destructive">
                 {outreachLogs.filter((log: OutreachLog) => log.outcome === "not_interested").length}
               </div>
               <div className="text-sm text-muted-foreground">Not Interested</div>
@@ -146,7 +146,7 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
         </CardHeader>
         <CardContent>
           {outreachLogs.length > 0 ? (
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4">
               <div className="divide-y">
                 {visibleLogs.map((log: OutreachLog) => (
                   <div key={log.id} className="border rounded-lg p-4">
@@ -177,9 +177,9 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
                     </div>
 
                     {log.purchasedModel && (
-                      <div className="bg-green-50 border border-green-200 rounded p-2 mb-3">
-                        <div className="text-sm font-medium text-green-800">Purchase</div>
-                        <div className="text-sm text-green-700">{log.purchasedModel}</div>
+                      <div className="border border-green-500/50 bg-green-500/10 rounded p-2 mb-3">
+                        <div className="text-sm font-medium text-green-700 dark:text-green-400">Purchase</div>
+                        <div className="text-sm text-green-700/90 dark:text-green-400/90">{log.purchasedModel}</div>
                       </div>
                     )}
 

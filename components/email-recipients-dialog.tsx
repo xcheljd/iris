@@ -140,7 +140,7 @@ export function EmailRecipientsDialog({ open, onOpenChange, filters }: EmailReci
           </FieldGroup>
         </FieldSet>
 
-        <div className="space-y-1.5">
+        <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>{loading ? "Loading…" : `${mergedCount} unique email${mergedCount === 1 ? "" : "s"}`}</span>
           </div>
