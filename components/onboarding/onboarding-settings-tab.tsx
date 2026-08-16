@@ -88,7 +88,7 @@ export function OnboardingSettingsTab({ initialState }: OnboardingSettingsTabPro
     return (
       <div className="flex flex-col gap-4">
         <Card>
-          <CardHeader className="space-y-2">
+          <CardHeader className="gap-2">
             <Skeleton className="h-5 w-40" />
             <Skeleton className="h-4 w-72" />
           </CardHeader>
@@ -98,7 +98,7 @@ export function OnboardingSettingsTab({ initialState }: OnboardingSettingsTabPro
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="space-y-2">
+          <CardHeader className="gap-2">
             <Skeleton className="h-5 w-32" />
             <Skeleton className="h-4 w-24" />
           </CardHeader>

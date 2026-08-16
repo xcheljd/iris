@@ -13,7 +13,7 @@ interface StatsCardProps {
 export function StatsCard({ label, value, icon: Icon, iconClassName, valueClassName }: StatsCardProps) {
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+      <CardHeader className="flex flex-row items-center justify-between gap-2">
         <div className="flex flex-col gap-1 min-w-0">
           <CardDescription>{label}</CardDescription>
           <CardTitle className={cn("text-2xl font-bold", valueClassName)}>{value}</CardTitle>

@@ -491,7 +491,7 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
             </DialogDescription>
           </DialogHeader>
           {deactivateTarget && deactivateTarget.activeClientCount > 0 ? (
-            <FieldSet className="space-y-3 py-2">
+            <FieldSet className="gap-3 py-2">
               <FieldLegend variant="label">What about their clients?</FieldLegend>
               <RadioGroup value={deactivateMode} onValueChange={(v) => setDeactivateMode(v as "keep" | "reassign" | "unassign")}>
                 <div className="flex items-start gap-2">

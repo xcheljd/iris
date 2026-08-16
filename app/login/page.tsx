@@ -104,7 +104,7 @@ export default function LoginPage() {
       <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(50% 40% at 0% 0%, color-mix(in oklch, var(--primary) 14%, transparent), transparent 70%), radial-gradient(55% 45% at 100% 100%, color-mix(in srgb, var(--foreground) 8%, transparent), transparent 70%)" }} />
       <h1 className="sr-only">Iris Login</h1>
       <Card className="w-full max-w-md border-border/50">
-        <CardHeader className="space-y-2 text-center">
+        <CardHeader className="gap-2 text-center">
           <IrisIcon size={48} className="mx-auto mb-2" />
           <CardTitle className="text-2xl font-serif tracking-wide">Iris</CardTitle>
           <CardDescription className="italic text-muted-foreground/80 tracking-wide">Every thread, remembered</CardDescription>

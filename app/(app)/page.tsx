@@ -70,7 +70,7 @@ async function DashboardContent() {
           <TabsContent value="overview" className="flex flex-col gap-4">
             <div className="grid md:grid-cols-3 gap-4">
               <Card className="md:col-span-2">
-                <CardHeader className="flex-row items-center justify-between space-y-0">
+                <CardHeader className="flex-row items-center justify-between gap-2">
                   <div>
                     <CardTitle className="text-base flex items-center gap-2">
                       <AlertCircle className="size-4 text-destructive" /> Overdue follow-ups
@@ -137,7 +137,7 @@ async function DashboardContent() {
 
             <div className="grid md:grid-cols-3 gap-4">
               <Card className="md:col-span-2">
-                <CardHeader className="flex-row items-center justify-between space-y-0">
+                <CardHeader className="flex-row items-center justify-between gap-2">
                   <div>
                     <CardTitle className="text-base flex items-center gap-2"><Flame className="size-4 text-red-400" /> Hot leads</CardTitle>
                     <CardDescription>Top {hot.length} ready to convert</CardDescription>
