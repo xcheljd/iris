@@ -58,9 +58,9 @@ export function PaginationFooter({
             {variant === "icons" ? <ChevronLeft className="h-4 w-4" /> : "Previous"}
           </Button>
         </PaginationItem>
-        <li className="text-xs text-muted-foreground flex items-center px-2">
+        <PaginationItem className="text-xs text-muted-foreground flex items-center px-2">
           Page {currentPage} of {totalPages}
-        </li>
+        </PaginationItem>
         <PaginationItem>
           <Button
             variant="outline"
