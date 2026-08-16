@@ -115,7 +115,7 @@ export function MergeClientDialog({ children }: { children: React.ReactNode }) {
       <DialogContent className="max-w-2xl flex flex-col max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Merge className="h-5 w-5" />
+            <Merge className="size-5" />
             Merge Client
           </DialogTitle>
           <DialogDescription>
@@ -128,7 +128,7 @@ export function MergeClientDialog({ children }: { children: React.ReactNode }) {
         {step === "search" ? (
           <div className="space-y-4 py-2">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
                 className="pl-9"
                 placeholder="Search by name, phone, or email…"
@@ -154,7 +154,7 @@ export function MergeClientDialog({ children }: { children: React.ReactNode }) {
                         <div className="text-xs text-muted-foreground">{r.phone}</div>
                       )}
                     </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <ChevronRight className="size-4 text-muted-foreground shrink-0" />
                   </button>
                 ))}
               </div>

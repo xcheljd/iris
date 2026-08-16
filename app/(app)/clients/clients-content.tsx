@@ -253,19 +253,19 @@ export function ClientListContent({
           disabled={!hasActiveClientFilters(emailRecipientFilters)}
           title={hasActiveClientFilters(emailRecipientFilters) ? "Save current filter as Smart List" : "Apply a filter first"}
         >
-          <BookmarkPlus className="h-4 w-4 mr-2" />
+          <BookmarkPlus className="size-4 mr-2" />
           Save Filter
         </Button>
         <Button onClick={() => setCsvExportOpen(true)} variant="outline" size="sm">
-          <FileText className="h-4 w-4 mr-2" />
+          <FileText className="size-4 mr-2" />
           Export CSV
         </Button>
         <Button onClick={() => setEmailRecipientsOpen(true)} variant="outline" size="sm">
-          <Mail className="h-4 w-4 mr-2" />
+          <Mail className="size-4 mr-2" />
           Email Recipients
         </Button>
         <Button asChild variant="gold" size="sm" data-hint="add-client">
-          <Link href="/clients/new"><Plus className="h-4 w-4 mr-1" /> Add Client</Link>
+          <Link href="/clients/new"><Plus className="size-4 mr-1" /> Add Client</Link>
         </Button>
       </Topbar>
       <div className="flex-1 p-4 md:p-6 space-y-4 max-w-full overflow-hidden" data-tour="client-list">
@@ -476,16 +476,16 @@ export function ClientListContent({
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Actions">
-                            <MoreHorizontal className="h-4 w-4" />
+                          <Button variant="ghost" size="icon" className="size-7" aria-label="Actions">
+                            <MoreHorizontal className="size-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem asChild>
-                            <Link href={`/clients/${r.client.id}`}><Eye className="h-4 w-4 mr-2" /> View</Link>
+                            <Link href={`/clients/${r.client.id}`}><Eye className="size-4 mr-2" /> View</Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
-                            <Link href={`/clients/${r.client.id}/edit`}><Edit className="h-4 w-4 mr-2" /> Edit</Link>
+                            <Link href={`/clients/${r.client.id}/edit`}><Edit className="size-4 mr-2" /> Edit</Link>
                           </DropdownMenuItem>
                           {r.client.status === "active" && (
                             <>
@@ -495,7 +495,7 @@ export function ClientListContent({
                                   className="text-destructive focus:text-destructive"
                                   onSelect={(e) => e.preventDefault()}
                                 >
-                                  <Ban className="h-4 w-4 mr-2" /> Ban Customer
+                                  <Ban className="size-4 mr-2" /> Ban Customer
                                 </DropdownMenuItem>
                               </BanCustomerDialog>
                               <UnsubscribeCustomerDialog clientId={r.client.id} clientName={`${r.client.firstName} ${r.client.lastName ?? ""}`}>
@@ -503,7 +503,7 @@ export function ClientListContent({
                                   className="text-destructive focus:text-destructive"
                                   onSelect={(e) => e.preventDefault()}
                                 >
-                                  <MailX className="h-4 w-4 mr-2" /> Unsubscribe
+                                  <MailX className="size-4 mr-2" /> Unsubscribe
                                 </DropdownMenuItem>
                               </UnsubscribeCustomerDialog>
                             </>
@@ -512,7 +512,7 @@ export function ClientListContent({
                             <>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget(r)}>
-                                <Trash2 className="h-4 w-4 mr-2" />
+                                <Trash2 className="size-4 mr-2" />
                                 Delete Client
                               </DropdownMenuItem>
                             </>

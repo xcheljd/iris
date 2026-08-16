@@ -45,36 +45,36 @@ export function SettingsContent({ employees, tags, templates, deletedClients, cu
         <Tabs defaultValue="profile" className="space-y-6">
           <TabsList>
             <TabsTrigger value="profile" className="gap-1">
-              <UserCircle className="h-4 w-4" />
+              <UserCircle className="size-4" />
               Profile
             </TabsTrigger>
             {isManager && (
               <TabsTrigger value="employees" className="gap-1" data-tour="employee-management">
-                <Users className="h-4 w-4" />
+                <Users className="size-4" />
                 Employees
               </TabsTrigger>
             )}
             {/* Backup tab hidden for demo */}
             {/* {isManager && (
               <TabsTrigger value="backup" className="gap-1" data-tour="backup">
-                <DatabaseBackup className="h-4 w-4" />
+                <DatabaseBackup className="size-4" />
                 Backup
               </TabsTrigger>
             )} */}
             <TabsTrigger value="tags" className="gap-1">
-              <Tag className="h-4 w-4" />
+              <Tag className="size-4" />
               Tags
             </TabsTrigger>
             <TabsTrigger value="templates" className="gap-1">
-              <FileText className="h-4 w-4" />
+              <FileText className="size-4" />
               Templates
             </TabsTrigger>
             <TabsTrigger value="deleted" className="gap-1">
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="size-4" />
               Deleted
             </TabsTrigger>
             <TabsTrigger value="onboarding" className="gap-1">
-              <GraduationCap className="h-4 w-4" />
+              <GraduationCap className="size-4" />
               Onboarding
             </TabsTrigger>
           </TabsList>

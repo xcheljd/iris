@@ -116,18 +116,18 @@ export function MatchedClientsTab({ clients, isManager, currentUserId }: Props) 
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
+            <Users className="size-5" />
             Matched Clients
           </CardTitle>
           <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setExportOpen(true)}>
-            <Download className="h-4 w-4 mr-1.5" />
+            <Download className="size-4 mr-1.5" />
             Export CSV
           </Button>
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm">
-                <Filter className={`h-4 w-4 mr-1.5 ${filtersActive ? "text-primary" : ""}`} />
+                <Filter className={`size-4 mr-1.5 ${filtersActive ? "text-primary" : ""}`} />
                 Filters
               </Button>
             </PopoverTrigger>

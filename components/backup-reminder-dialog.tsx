@@ -40,7 +40,7 @@ export function BackupReminderDialog() {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-2">
-            <DatabaseBackup className="h-5 w-5 text-amber-500" />
+            <DatabaseBackup className="size-5 text-amber-500" />
             <DialogTitle>Weekly Backup Reminder</DialogTitle>
           </div>
           <DialogDescription>
@@ -49,11 +49,11 @@ export function BackupReminderDialog() {
         </DialogHeader>
         <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
           <Button variant="outline" onClick={snooze} className="gap-2">
-            <Clock className="h-4 w-4" />
+            <Clock className="size-4" />
             Remind Me Next Monday
           </Button>
           <Button onClick={handleBackup} disabled={loading} className="gap-2">
-            <DatabaseBackup className="h-4 w-4" />
+            <DatabaseBackup className="size-4" />
             {loading ? "Preparing…" : "Back Up Now"}
           </Button>
         </DialogFooter>

@@ -30,18 +30,18 @@ interface ActivityTimelineTabProps {
 export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
   const getEventTypeIcon = (eventType: string) => {
     const iconMap: Record<string, JSX.Element> = {
-      "created": <UserPlus className="h-4 w-4" />,
-      "edited": <Edit3 className="h-4 w-4" />,
-      "outreach_logged": <MessageSquare className="h-4 w-4" />,
-      "purchase": <ShoppingCart className="h-4 w-4" />,
-      "tag_added": <Tag className="h-4 w-4" />,
-      "tag_removed": <Tag className="h-4 w-4" />,
-      "transferred": <ArrowRightLeft className="h-4 w-4" />,
-      "status_changed": <Archive className="h-4 w-4" />,
-      "note_added": <MessageSquare className="h-4 w-4" />,
-      "merged": <Merge className="h-4 w-4" />,
+      "created": <UserPlus className="size-4" />,
+      "edited": <Edit3 className="size-4" />,
+      "outreach_logged": <MessageSquare className="size-4" />,
+      "purchase": <ShoppingCart className="size-4" />,
+      "tag_added": <Tag className="size-4" />,
+      "tag_removed": <Tag className="size-4" />,
+      "transferred": <ArrowRightLeft className="size-4" />,
+      "status_changed": <Archive className="size-4" />,
+      "note_added": <MessageSquare className="size-4" />,
+      "merged": <Merge className="size-4" />,
     };
-    return iconMap[eventType] || <Calendar className="h-4 w-4" />;
+    return iconMap[eventType] || <Calendar className="size-4" />;
   };
 
   const getEventTypeBadge = (eventType: string) => {
@@ -151,7 +151,7 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-blue-600" />
+              <Calendar className="size-5 text-blue-600" />
               <div>
                 <div className="text-2xl font-bold">{timelineEvents.length}</div>
                 <div className="text-sm text-muted-foreground">Total Events</div>
@@ -163,7 +163,7 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
-              <ShoppingCart className="h-5 w-5 text-green-600" />
+              <ShoppingCart className="size-5 text-green-600" />
               <div>
                 <div className="text-2xl font-bold">
                   {timelineEvents.filter((e) => e.eventType === "purchase").length}
@@ -177,7 +177,7 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5 text-purple-600" />
+              <MessageSquare className="size-5 text-purple-600" />
               <div>
                 <div className="text-2xl font-bold">
                   {timelineEvents.filter((e) => e.eventType === "outreach_logged").length}
@@ -193,7 +193,7 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
+            <Clock className="size-5" />
             Activity Timeline
           </CardTitle>
         </CardHeader>
@@ -205,7 +205,7 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
                   {/* Timeline Line */}
                   <div className="flex flex-col items-center">
                     <div className="w-0.5 h-full bg-border" />
-                    <div className="w-4 h-4 rounded-full bg-background border-2 border-primary flex items-center justify-center">
+                    <div className="size-4 rounded-full bg-background border-2 border-primary flex items-center justify-center">
                       {getEventTypeIcon(event.eventType)}
                     </div>
                   </div>
@@ -224,7 +224,7 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
                         </div>
                         {event.employeeName && (
                           <div className="flex items-center gap-2">
-                            <Avatar className="h-6 w-6">
+                            <Avatar className="size-6">
                               <AvatarFallback className="text-xs">
                                 {event.employeeName.charAt(0)}
                               </AvatarFallback>

@@ -46,14 +46,14 @@ export function ProfileTab({ client }: ProfileTabProps) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
+            <User className="size-5" />
             Contact Information
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between gap-2 min-w-0">
             <div className="flex items-center gap-2 shrink-0">
-              <Phone className="h-4 w-4 text-muted-foreground" />
+              <Phone className="size-4 text-muted-foreground" />
               <span>Phone</span>
             </div>
             {client.phone ? (
@@ -65,10 +65,10 @@ export function ProfileTab({ client }: ProfileTabProps) {
                       variant="ghost"
                       size="sm"
                       onClick={handlePhoneCopy}
-                      className="h-8 w-8 shrink-0"
+                      className="size-8 shrink-0"
                       aria-label="Copy phone number"
                     >
-                      <Copy className="h-4 w-4" />
+                      <Copy className="size-4" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>Copy phone number</TooltipContent>
@@ -81,7 +81,7 @@ export function ProfileTab({ client }: ProfileTabProps) {
 
           <div className="flex items-center justify-between gap-2 min-w-0">
             <div className="flex items-center gap-2 shrink-0">
-              <Mail className="h-4 w-4 text-muted-foreground" />
+              <Mail className="size-4 text-muted-foreground" />
               <span>Email</span>
             </div>
             {client.email ? (
@@ -93,10 +93,10 @@ export function ProfileTab({ client }: ProfileTabProps) {
                       variant="ghost"
                       size="sm"
                       onClick={handleEmailCopy}
-                      className="h-8 w-8 shrink-0"
+                      className="size-8 shrink-0"
                       aria-label="Copy email address"
                     >
-                      <Copy className="h-4 w-4" />
+                      <Copy className="size-4" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>Copy email address</TooltipContent>
@@ -125,7 +125,7 @@ export function ProfileTab({ client }: ProfileTabProps) {
         <CardContent className="space-y-4">
           {client.birthday && (
             <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Calendar className="size-4 text-muted-foreground" />
               <span>Birthday: </span>
               <span className="font-medium">
                 {format(new Date(client.birthday), "MMMM d")}
@@ -135,7 +135,7 @@ export function ProfileTab({ client }: ProfileTabProps) {
 
           {client.anniversary && (
             <div className="flex items-center gap-2">
-              <Gift className="h-4 w-4 text-muted-foreground" />
+              <Gift className="size-4 text-muted-foreground" />
               <span>Anniversary: </span>
               <span className="font-medium">
                 {format(new Date(client.anniversary), "MMMM d")}

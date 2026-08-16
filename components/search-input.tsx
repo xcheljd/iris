@@ -14,7 +14,7 @@ interface SearchInputProps {
 export function SearchInput({ value, onChangeAction, placeholder = "Search…", className }: SearchInputProps) {
   return (
     <div className={`relative ${className ?? ""}`}>
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
       <Input
         placeholder={placeholder}
         value={value}
@@ -25,11 +25,11 @@ export function SearchInput({ value, onChangeAction, placeholder = "Search…", 
         <Button
           variant="ghost"
           size="sm"
-          className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+          className="absolute right-1 top-1/2 -translate-y-1/2 size-7 p-0"
           onClick={() => onChangeAction("")}
           aria-label="Clear search"
         >
-          <X className="h-3.5 w-3.5" />
+          <X className="size-3.5" />
         </Button>
       )}
     </div>

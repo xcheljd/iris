@@ -53,12 +53,12 @@ interface SmartListsContentProps {
 }
 
 const BUILTIN_FILTERS = [
-  { id: "hot", label: "Hot Clients", icon: <Flame className="h-4 w-4 text-orange-500" /> },
-  { id: "stale", label: "Stale (90+ days)", icon: <Clock className="h-4 w-4 text-yellow-500" /> },
-  { id: "recent_purchases", label: "Recent Purchases", icon: <Star className="h-4 w-4 text-emerald-500" /> },
-  { id: "no_outreach_60", label: "No Outreach (60d)", icon: <Clock className="h-4 w-4 text-red-500" /> },
-  { id: "birthdays_month", label: "Birthdays This Month", icon: <Calendar className="h-4 w-4 text-pink-500" /> },
-  { id: "email_subscribers", label: "Email Subscribers", icon: <Mail className="h-4 w-4 text-blue-500" /> },
+  { id: "hot", label: "Hot Clients", icon: <Flame className="size-4 text-orange-500" /> },
+  { id: "stale", label: "Stale (90+ days)", icon: <Clock className="size-4 text-yellow-500" /> },
+  { id: "recent_purchases", label: "Recent Purchases", icon: <Star className="size-4 text-emerald-500" /> },
+  { id: "no_outreach_60", label: "No Outreach (60d)", icon: <Clock className="size-4 text-red-500" /> },
+  { id: "birthdays_month", label: "Birthdays This Month", icon: <Calendar className="size-4 text-pink-500" /> },
+  { id: "email_subscribers", label: "Email Subscribers", icon: <Mail className="size-4 text-blue-500" /> },
 ] as const;
 
 function ClientRow({ client }: { client: ClientListRow }) {
@@ -79,7 +79,7 @@ function ClientRow({ client }: { client: ClientListRow }) {
         </div>
         <HeatBadge level={client.heatLevel} />
       </div>
-      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+      <ChevronRight className="size-4 text-muted-foreground shrink-0" />
     </Link>
   );
 }
@@ -184,7 +184,7 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Sparkles className="h-4 w-4" />Built-in Lists
+                  <Sparkles className="size-4" />Built-in Lists
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-1">
@@ -213,12 +213,12 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm flex items-center gap-2">
-                    <Star className="h-4 w-4" />Custom Lists
+                    <Star className="size-4" />Custom Lists
                   </CardTitle>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button size="sm" variant="ghost" onClick={() => setCreateOpen(true)} aria-label="Create new list">
-                        <Plus className="h-4 w-4" />
+                        <Plus className="size-4" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>Create new list</TooltipContent>
@@ -228,10 +228,10 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
               <CardContent className="space-y-1">
                 {lists.length === 0 ? (
                   <div className="text-center py-4">
-                    <ListFilter className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                    <ListFilter className="size-8 mx-auto text-muted-foreground/50 mb-2" />
                     <p className="text-sm text-muted-foreground">No custom lists yet</p>
                     <Button size="sm" variant="outline" className="mt-2" onClick={() => setCreateOpen(true)}>
-                      <Plus className="h-3 w-3 mr-1" />Create one
+                      <Plus className="size-3 mr-1" />Create one
                     </Button>
                   </div>
                 ) : (
@@ -240,7 +240,7 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
                       key={list.id}
                       id={list.id}
                       name={list.name}
-                      icon={<Filter className="h-4 w-4" />}
+                      icon={<Filter className="size-4" />}
                       count={counts.custom[list.id] ?? 0}
                       isBuiltIn={false}
                       isShared={list.isShared}
@@ -263,7 +263,7 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
               {selectedName ? (
                 <>
                   <CardTitle className="flex items-center gap-2">
-                    {selectedBuiltIn?.icon ?? <Filter className="h-4 w-4" />}
+                    {selectedBuiltIn?.icon ?? <Filter className="size-4" />}
                     {selectedName}
                   </CardTitle>
                   <CardDescription>
@@ -282,7 +282,7 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
                 <div className="space-y-3">
                   {selectedListTruncated && (
                     <Alert variant="default" className="border-amber-300/60 bg-amber-50/50 dark:bg-amber-950/20">
-                      <AlertTriangle className="h-4 w-4 text-amber-600" />
+                      <AlertTriangle className="size-4 text-amber-600" />
                       <AlertDescription className="text-amber-900 dark:text-amber-200">
                         Showing the first {LIST_QUERY_LIMIT.toLocaleString()} matches.
                         Your filter has more clients than the display cap — tighten the criteria for a complete view.
@@ -315,15 +315,15 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
                 </div>
               ) : (
                 <div className="text-center py-16">
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted/50 mb-4">
-                    <ListFilter className="h-8 w-8 text-muted-foreground" />
+                  <div className="inline-flex items-center justify-center size-16 rounded-full bg-muted/50 mb-4">
+                    <ListFilter className="size-8 text-muted-foreground" />
                   </div>
                   <p className="text-lg font-medium">No list selected</p>
                   <p className="text-sm text-muted-foreground mt-1 mb-4">
                     Pick a smart list from the sidebar to view matching clients
                   </p>
                   <Button variant="outline" onClick={() => setCreateOpen(true)}>
-                    <Plus className="h-4 w-4 mr-2" />Create Custom List
+                    <Plus className="size-4 mr-2" />Create Custom List
                   </Button>
                 </div>
               )}

@@ -155,7 +155,7 @@ export function InterestsTab({ client }: InterestsTabProps) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Tag className="h-5 w-5" />
+          <Tag className="size-5" />
           Products of Interest
         </CardTitle>
       </CardHeader>
@@ -280,8 +280,8 @@ export function InterestsTab({ client }: InterestsTabProps) {
                       {r.promoLabel !== "—" && r.promoLabel !== "Select models" && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="Promo actions">
-                              <MoreHorizontal className="h-4 w-4" />
+                            <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="Promo actions">
+                              <MoreHorizontal className="size-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">

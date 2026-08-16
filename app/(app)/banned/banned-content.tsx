@@ -157,7 +157,7 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
             <TooltipTrigger asChild>
               <DialogTrigger asChild>
                 <Button variant="destructive">
-                  <Ban className="h-4 w-4 mr-2" />
+                  <Ban className="size-4 mr-2" />
                   Ban Customer
                 </Button>
               </DialogTrigger>
@@ -310,18 +310,18 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0 shrink-0 absolute right-10 top-1/2 -translate-y-1/2 z-10"
+                          className="size-8 p-0 shrink-0 absolute right-10 top-1/2 -translate-y-1/2 z-10"
                           aria-label="Actions"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <MoreHorizontal className="h-4 w-4" />
+                          <MoreHorizontal className="size-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         {row.clientId && (
                           <DropdownMenuItem asChild>
                             <Link href={`/clients/${row.clientId}`}>
-                              <Eye className="h-4 w-4 mr-2" />
+                              <Eye className="size-4 mr-2" />
                               View Client Page
                             </Link>
                           </DropdownMenuItem>
@@ -331,7 +331,7 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
                           className="text-destructive focus:text-destructive"
                           onClick={() => setUnbanTarget(row)}
                         >
-                          <ShieldOff className="h-4 w-4 mr-2" />
+                          <ShieldOff className="size-4 mr-2" />
                           Unban
                         </DropdownMenuItem>
                       </DropdownMenuContent>

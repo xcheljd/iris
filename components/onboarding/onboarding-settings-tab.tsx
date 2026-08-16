@@ -106,7 +106,7 @@ export function OnboardingSettingsTab({ initialState }: OnboardingSettingsTabPro
             <div className="space-y-2">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-3">
-                  <Skeleton className="h-4 w-4 rounded-full" />
+                  <Skeleton className="size-4 rounded-full" />
                   <Skeleton className="h-4 w-56" />
                 </div>
               ))}
@@ -123,7 +123,7 @@ export function OnboardingSettingsTab({ initialState }: OnboardingSettingsTabPro
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <GraduationCap className="h-5 w-5" />
+            <GraduationCap className="size-5" />
             Guided Tour
           </CardTitle>
           <CardDescription>
@@ -134,24 +134,24 @@ export function OnboardingSettingsTab({ initialState }: OnboardingSettingsTabPro
           <div className="flex items-center gap-2">
             {tourCompleted && !tourSkipped ? (
               <>
-                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                <CheckCircle2 className="size-5 text-green-500" />
                 <span className="text-sm font-medium">Completed</span>
               </>
             ) : (
               <>
-                <Circle className="h-5 w-5 text-muted-foreground" />
+                <Circle className="size-5 text-muted-foreground" />
                 <span className="text-sm font-medium">Not Completed</span>
               </>
             )}
           </div>
           {isTourActive ? (
             <Button disabled variant="outline" className="gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="size-4 animate-spin" />
               Tour in Progress
             </Button>
           ) : (
             <Button onClick={() => setConfirmOpen(true)} className="gap-2">
-              <GraduationCap className="h-4 w-4" />
+              <GraduationCap className="size-4" />
               {buttonText}
             </Button>
           )}
@@ -176,9 +176,9 @@ export function OnboardingSettingsTab({ initialState }: OnboardingSettingsTabPro
                     className="shrink-0"
                   >
                     {isCompleted ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      <CheckCircle2 className="size-4 text-green-500" />
                     ) : (
-                      <Circle className="h-4 w-4 text-muted-foreground" />
+                      <Circle className="size-4 text-muted-foreground" />
                     )}
                   </span>
                   <span className={isCompleted ? "text-foreground" : "text-muted-foreground"}>

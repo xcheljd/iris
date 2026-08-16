@@ -73,16 +73,16 @@ async function DashboardContent() {
                 <CardHeader className="flex-row items-center justify-between space-y-0">
                   <div>
                     <CardTitle className="text-base flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4 text-destructive" /> Overdue follow-ups
+                      <AlertCircle className="size-4 text-destructive" /> Overdue follow-ups
                     </CardTitle>
                     <CardDescription>{overdue.length} need attention</CardDescription>
                   </div>
-                  <Button asChild variant="ghost" size="sm"><Link href="/follow-ups">All <ArrowRight className="ml-1 h-3.5 w-3.5" /></Link></Button>
+                  <Button asChild variant="ghost" size="sm"><Link href="/follow-ups">All <ArrowRight className="ml-1 size-3.5" /></Link></Button>
                 </CardHeader>
                 <CardContent>
                   {overdue.length === 0 ? (
                     <div className="text-center py-6 text-muted-foreground">
-                      <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <CheckCircle2 className="size-8 mx-auto mb-2 opacity-50" />
                       <p className="text-sm">Nothing overdue</p>
                     </div>
                   ) : (
@@ -96,7 +96,7 @@ async function DashboardContent() {
                             {!row.log.notes && <span className="block text-xs text-muted-foreground capitalize">{row.log.method} — {row.log.outcome.replace(/_/g, " ")}</span>}
                           </Link>
                           <Badge variant="destructive" className="text-[10px] shrink-0">
-                            <AlertCircle className="h-3 w-3 mr-1" />
+                            <AlertCircle className="size-3 mr-1" />
                             {daysAgo(row.log.followUpDate)}
                           </Badge>
                         </li>
@@ -108,7 +108,7 @@ async function DashboardContent() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2"><Calendar className="h-4 w-4 text-accent" /> Upcoming (7d)</CardTitle>
+                  <CardTitle className="text-base flex items-center gap-2"><Calendar className="size-4 text-accent" /> Upcoming (7d)</CardTitle>
                   <CardDescription>{upcoming.length} scheduled</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -139,10 +139,10 @@ async function DashboardContent() {
               <Card className="md:col-span-2">
                 <CardHeader className="flex-row items-center justify-between space-y-0">
                   <div>
-                    <CardTitle className="text-base flex items-center gap-2"><Flame className="h-4 w-4 text-red-400" /> Hot leads</CardTitle>
+                    <CardTitle className="text-base flex items-center gap-2"><Flame className="size-4 text-red-400" /> Hot leads</CardTitle>
                     <CardDescription>Top {hot.length} ready to convert</CardDescription>
                   </div>
-                  <Button asChild variant="ghost" size="sm"><Link href="/smart-lists">Smart lists <ArrowRight className="ml-1 h-3.5 w-3.5" /></Link></Button>
+                  <Button asChild variant="ghost" size="sm"><Link href="/smart-lists">Smart lists <ArrowRight className="ml-1 size-3.5" /></Link></Button>
                 </CardHeader>
                 <CardContent>
                   {hot.length === 0 ? <p className="text-sm text-muted-foreground">No hot leads yet.</p> : (
@@ -189,7 +189,7 @@ async function DashboardContent() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Clock className="h-4 w-4" /> Recent Activity
+                  <Clock className="size-4" /> Recent Activity
                 </CardTitle>
                 <CardDescription>Latest events across the floor</CardDescription>
               </CardHeader>
@@ -257,7 +257,7 @@ async function DashboardContent() {
                       <p className="text-sm text-muted-foreground">Conversion Rate</p>
                       <p className="text-2xl font-bold">{conversionRate}%</p>
                     </div>
-                    <Target className="h-8 w-8 text-orange-500" />
+                    <Target className="size-8 text-orange-500" />
                   </div>
                   <Progress value={conversionRate} className="h-2 mt-3" aria-label="Conversion rate" />
                 </CardContent>
@@ -269,7 +269,7 @@ async function DashboardContent() {
                       <p className="text-sm text-muted-foreground">Active Clients</p>
                       <p className="text-2xl font-bold">{activePercent}%</p>
                     </div>
-                    <Users className="h-8 w-8 text-blue-500" />
+                    <Users className="size-8 text-blue-500" />
                   </div>
                   <Progress value={activePercent} className="h-2 mt-3" aria-label="Active clients percentage" />
                 </CardContent>
@@ -281,7 +281,7 @@ async function DashboardContent() {
                       <p className="text-sm text-muted-foreground">Overdue</p>
                       <p className="text-2xl font-bold text-red-500">{overdue.length}</p>
                     </div>
-                    <AlertCircle className="h-8 w-8 text-red-500" />
+                    <AlertCircle className="size-8 text-red-500" />
                   </div>
                 </CardContent>
               </Card>
@@ -292,7 +292,7 @@ async function DashboardContent() {
                       <p className="text-sm text-muted-foreground">Banned</p>
                       <p className="text-2xl font-bold">{stats.banned}</p>
                     </div>
-                    <AlertCircle className="h-8 w-8 text-muted-foreground" />
+                    <AlertCircle className="size-8 text-muted-foreground" />
                   </div>
                 </CardContent>
               </Card>
@@ -304,7 +304,7 @@ async function DashboardContent() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4" /> Client Heat Distribution
+                  <TrendingUp className="size-4" /> Client Heat Distribution
                 </CardTitle>
                 <CardDescription>{stats.active} active clients</CardDescription>
               </CardHeader>
@@ -352,7 +352,7 @@ async function DashboardContent() {
                       <p className="text-2xl font-bold">{stats.unsubscribed}</p>
                     </div>
                     <Link href="/unsubscribed">
-                      <Button variant="ghost" size="sm">View <ArrowRight className="ml-1 h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="sm">View <ArrowRight className="ml-1 size-3.5" /></Button>
                     </Link>
                   </div>
                 </CardContent>
@@ -365,7 +365,7 @@ async function DashboardContent() {
                       <p className="text-2xl font-bold">{stats.outreachWeek}</p>
                     </div>
                     <Link href="/analytics">
-                      <Button variant="ghost" size="sm">Analytics <ArrowRight className="ml-1 h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="sm">Analytics <ArrowRight className="ml-1 size-3.5" /></Button>
                     </Link>
                   </div>
                 </CardContent>
@@ -414,8 +414,8 @@ function StatCard({ icon: Icon, label, value, sublabel, accent, color }: {
   return (
     <Card className="border-border/50 hover:border-border hover:shadow-md transition-all">
       <CardContent className="p-3 md:p-4 flex items-center gap-3">
-        <div className={`h-9 w-9 md:h-10 md:w-10 rounded-md flex items-center justify-center shrink-0 ${accent ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground"}`}>
-          <Icon className="h-4 w-4 md:h-5 md:w-5" />
+        <div className={`size-9 md:h-10 md:w-10 rounded-md flex items-center justify-center shrink-0 ${accent ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground"}`}>
+          <Icon className="size-4 md:h-5 md:w-5" />
         </div>
         <div className="min-w-0">
           <p className={`text-xl md:text-2xl font-semibold font-mono leading-tight ${color || ""}`}>{value}</p>

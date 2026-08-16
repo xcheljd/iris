@@ -98,7 +98,7 @@ export function ClientForm({
       {/* Duplicate Warning */}
       {showDuplicateWarning && duplicateClient && (
         <Alert>
-          <AlertCircle className="h-4 w-4" />
+          <AlertCircle className="size-4" />
           <AlertTitle>Potential Duplicate Found</AlertTitle>
           <AlertDescription>
             This client may already exist in the system. Would you like to merge with the existing record?
@@ -379,7 +379,7 @@ export function ClientForm({
                 }}
               />
               <Button onClick={onAddTagAction} variant="outline">
-                <Plus className="h-4 w-4" />
+                <Plus className="size-4" />
               </Button>
             </div>
 
@@ -412,11 +412,11 @@ export function ClientForm({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-5 w-5 ml-1"
+                    className="size-5 ml-1"
                     onClick={() => onRemoveTagAction(tag)}
                     aria-label={`Remove tag ${tag}`}
                   >
-                    <X className="h-3 w-3" />
+                    <X className="size-3" />
                   </Button>
                 </Badge>
               ))}

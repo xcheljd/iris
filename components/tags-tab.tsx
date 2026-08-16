@@ -80,7 +80,7 @@ export function TagsTab({ client }: TagsTabProps) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Tag className="h-5 w-5" />
+            <Tag className="size-5" />
             Current Tags
           </CardTitle>
           {clientTags.length > 0 && (
@@ -94,7 +94,7 @@ export function TagsTab({ client }: TagsTabProps) {
             <div className="space-y-3">
               {/* Tag Search */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-muted-foreground" />
                 <Input
                   placeholder="Filter tags..."
                   value={searchQuery}
@@ -113,13 +113,13 @@ export function TagsTab({ client }: TagsTabProps) {
                       className="flex items-center justify-between p-2 border rounded-lg hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex items-center gap-2">
-                        <Palette className="h-3.5 w-3.5" style={{ color: tagRecord?.color || undefined }} />
+                        <Palette className="size-3.5" style={{ color: tagRecord?.color || undefined }} />
                         <Badge variant="secondary" className="cursor-pointer">
                           {tag}
                         </Badge>
                         {tagRecord && tagRecord.usageCount > 0 && (
                           <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Users className="h-3 w-3" />
+                            <Users className="size-3" />
                             {tagRecord.usageCount}
                           </span>
                         )}
@@ -129,10 +129,10 @@ export function TagsTab({ client }: TagsTabProps) {
                         size="sm"
                         onClick={() => handleRemoveTag(tag)}
                         disabled={pending}
-                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        className="size-8 text-destructive hover:text-destructive"
                         aria-label={`Remove tag ${tag}`}
                       >
-                        <X className="h-4 w-4" />
+                        <X className="size-4" />
                       </Button>
                     </div>
                   );
@@ -146,7 +146,7 @@ export function TagsTab({ client }: TagsTabProps) {
                   onClick={() => setIsAdding(true)}
                   className="w-full"
                 >
-                  <Plus className="h-4 w-4 mr-2" />
+                  <Plus className="size-4 mr-2" />
                   Add New Tag
                 </Button>
               </div>
@@ -215,7 +215,7 @@ export function TagsTab({ client }: TagsTabProps) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Hash className="h-5 w-5" />
+            <Hash className="size-5" />
             Available Tags
           </CardTitle>
           <p className="text-sm text-muted-foreground">
@@ -239,7 +239,7 @@ export function TagsTab({ client }: TagsTabProps) {
                     onClick={() => setNewTag(tag)}
                     disabled={pending || clientTags.includes(tag)}
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="size-4" />
                   </Button>
                 </div>
               ))}

@@ -55,7 +55,7 @@ export function PaginationFooter({
             onClick={() => onPageChangeAction(currentPage - 1)}
             aria-label="Go to previous page"
           >
-            {variant === "icons" ? <ChevronLeft className="h-4 w-4" /> : "Previous"}
+            {variant === "icons" ? <ChevronLeft className="size-4" /> : "Previous"}
           </Button>
         </PaginationItem>
         <PaginationItem className="text-xs text-muted-foreground flex items-center px-2">
@@ -69,7 +69,7 @@ export function PaginationFooter({
             onClick={() => onPageChangeAction(currentPage + 1)}
             aria-label="Go to next page"
           >
-            {variant === "icons" ? <ChevronRight className="h-4 w-4" /> : "Next"}
+            {variant === "icons" ? <ChevronRight className="size-4" /> : "Next"}
           </Button>
         </PaginationItem>
       </PaginationContent>

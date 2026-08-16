@@ -97,11 +97,11 @@ export function DeletedTab({ deletedClients, isManager }: DeletedTabProps) {
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Button variant="outline" size="sm" onClick={() => setRestoreTarget(dc)}>
-                          <RotateCcw className="h-4 w-4 mr-1" />
+                          <RotateCcw className="size-4 mr-1" />
                           Restore
                         </Button>
                         <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setPurgeTarget(dc)}>
-                          <Trash2 className="h-4 w-4 mr-1" />
+                          <Trash2 className="size-4 mr-1" />
                           Purge
                         </Button>
                       </div>

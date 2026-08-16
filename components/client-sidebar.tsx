@@ -52,7 +52,7 @@ export function ClientSidebar() {
           {client.phone && (
             <div className="flex items-center justify-between gap-2 min-w-0">
               <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-                <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+                <Phone className="size-4 text-muted-foreground shrink-0" />
                 <span className="text-sm truncate">{client.phone}</span>
               </div>
               <Tooltip>
@@ -64,7 +64,7 @@ export function ClientSidebar() {
                     onClick={() => handleCopy(client.phone!, "phone")}
                     aria-label="Copy phone number"
                   >
-                    <Copy className="h-4 w-4" />
+                    <Copy className="size-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Copy phone number</TooltipContent>
@@ -74,7 +74,7 @@ export function ClientSidebar() {
           {client.email && (
             <div className="flex items-center justify-between gap-2 min-w-0">
               <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-                <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                <Mail className="size-4 text-muted-foreground shrink-0" />
                 <span className="text-sm truncate">{client.email}</span>
               </div>
               <Tooltip>
@@ -86,7 +86,7 @@ export function ClientSidebar() {
                     onClick={() => handleCopy(client.email!, "email")}
                     aria-label="Copy email address"
                   >
-                    <Copy className="h-4 w-4" />
+                    <Copy className="size-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Copy email address</TooltipContent>
@@ -104,7 +104,7 @@ export function ClientSidebar() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
+            <Calendar className="size-4" />
             Follow-ups
           </CardTitle>
         </CardHeader>
@@ -138,7 +138,7 @@ export function ClientSidebar() {
                 clientName={`${client.firstName} ${client.lastName}`}
                 trigger={
                   <Button variant="outline" size="sm" className="w-full mt-2">
-                    <Plus className="h-3.5 w-3.5 mr-1.5" />
+                    <Plus className="size-3.5 mr-1.5" />
                     Schedule One
                   </Button>
                 }
@@ -152,7 +152,7 @@ export function ClientSidebar() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Tag className="h-4 w-4" />
+            <Tag className="size-4" />
             Tags
           </CardTitle>
         </CardHeader>

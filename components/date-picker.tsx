@@ -19,7 +19,7 @@ export function DatePicker({ date, onSelectAction, placeholder = "Pick a date", 
     <Popover>
       <PopoverTrigger asChild>
         <Button variant="outline" className={`justify-start text-left font-normal gap-2 ${className ?? ""}`} disabled={disabled}>
-          <CalendarIcon className="h-4 w-4" />
+          <CalendarIcon className="size-4" />
           {date ? format(date, "MMM d, yyyy") : placeholder}
         </Button>
       </PopoverTrigger>

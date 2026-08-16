@@ -41,7 +41,7 @@ export function EmptyState({ icon: Icon, title, description, action, compact }: 
       {action && (
         <EmptyContent>
           <Button variant="outline" onClick={action.onClick}>
-            {ActionIcon && <ActionIcon className="h-4 w-4 mr-2" />}
+            {ActionIcon && <ActionIcon className="size-4 mr-2" />}
             {action.label}
           </Button>
         </EmptyContent>

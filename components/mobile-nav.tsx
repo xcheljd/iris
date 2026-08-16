@@ -20,7 +20,7 @@ export function MobileNav() {
         const active = it.href === "/" ? pathname === "/" : pathname.startsWith(it.href);
         return (
           <Link key={it.href} href={it.href} className={cn("flex flex-col items-center justify-center gap-0.5 py-2 text-[10px]", active ? "text-accent" : "text-muted-foreground")}>
-            <it.icon className="h-5 w-5" />
+            <it.icon className="size-5" />
             <span>{it.label}</span>
           </Link>
         );

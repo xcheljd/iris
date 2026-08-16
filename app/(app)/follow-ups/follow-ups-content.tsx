@@ -149,7 +149,7 @@ function FollowUpCard({ row, isOverdue, onDetail }: { row: FollowUpRow; isOverdu
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                 {row.client.phone && (
                   <span className="flex items-center gap-1">
-                    <Phone className="h-3 w-3" />
+                    <Phone className="size-3" />
                     {row.client.phone}
                   </span>
                 )}
@@ -167,7 +167,7 @@ function FollowUpCard({ row, isOverdue, onDetail }: { row: FollowUpRow; isOverdu
               <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                 {row.log.followUpDate && (
                   <span className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
+                    <Calendar className="size-3" />
                     {format(new Date(row.log.followUpDate), "MMM d, yyyy")}
                     <span className={isOverdue ? "text-red-500 font-medium" : "text-muted-foreground"}>
                       ({getRelativeTime(new Date(row.log.followUpDate))})
@@ -182,12 +182,12 @@ function FollowUpCard({ row, isOverdue, onDetail }: { row: FollowUpRow; isOverdu
 
             <div className="flex flex-row sm:flex-col gap-1.5 shrink-0 flex-wrap">
               <Button size="sm" variant="ghost" onClick={onDetail} className="h-7 text-xs gap-1">
-                <Eye className="h-3 w-3" />
+                <Eye className="size-3" />
                 Detail
               </Button>
               <div className="flex gap-1">
                 <Button size="sm" variant="outline" onClick={handleSnooze} className="h-7 text-xs gap-1">
-                  <Timer className="h-3 w-3" />
+                  <Timer className="size-3" />
                   Snooze
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => {
@@ -196,14 +196,14 @@ function FollowUpCard({ row, isOverdue, onDetail }: { row: FollowUpRow; isOverdu
                   setNewDate(d);
                   setRescheduleOpen(true);
                 }} className="h-7 text-xs gap-1">
-                  <CalendarClock className="h-3 w-3" />
+                  <CalendarClock className="size-3" />
                   Reschedule
                 </Button>
               </div>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button size="sm" variant="default" disabled={isCompleting} className="h-7 text-xs gap-1">
-                    <CheckCircle2 className="h-3 w-3" />
+                    <CheckCircle2 className="size-3" />
                     Done
                   </Button>
                 </AlertDialogTrigger>
@@ -281,7 +281,7 @@ function FollowUpDetailSheet({ row, open, onOpenChange }: { row: FollowUpRow | n
               <p className="text-sm font-medium text-muted-foreground">Heat</p>
               <div className="flex items-center gap-2">
                 <HeatBadge level={row.client.heatLevel as "hot" | "warm" | "cold"} />
-                <span className="text-sm"><Flame className="h-4 w-4 inline" /> {row.client.heatScore}</span>
+                <span className="text-sm"><Flame className="size-4 inline" /> {row.client.heatScore}</span>
               </div>
             </div>
             <Separator />
@@ -312,7 +312,7 @@ function FollowUpDetailSheet({ row, open, onOpenChange }: { row: FollowUpRow | n
           <div className="flex gap-2">
             <Button asChild className="flex-1">
               <Link href={`/clients/${row.client.id}`}>
-                View Client <ChevronRight className="h-4 w-4 ml-1" />
+                View Client <ChevronRight className="size-4 ml-1" />
               </Link>
             </Button>
           </div>
@@ -358,7 +358,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
       <Tabs defaultValue="overdue" className="space-y-4">
         <TabsList>
           <TabsTrigger value="overdue" className="gap-1">
-            <AlertTriangle className="h-4 w-4 text-red-500" />
+            <AlertTriangle className="size-4 text-red-500" />
             Overdue
             {overdue.length > 0 && (
               <Badge variant="destructive" className="ml-1 text-[10px] px-1.5 py-0">
@@ -367,7 +367,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
             )}
           </TabsTrigger>
           <TabsTrigger value="upcoming" className="gap-1">
-            <Clock className="h-4 w-4" />
+            <Clock className="size-4" />
             Upcoming (7 days)
             {upcoming.length > 0 && (
               <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">
@@ -387,7 +387,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
           {overdue.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
-                <CheckCircle2 className="h-12 w-12 mx-auto text-green-500 mb-3" />
+                <CheckCircle2 className="size-12 mx-auto text-green-500 mb-3" />
                 <h3 className="text-lg font-medium">All caught up!</h3>
                 <p className="text-muted-foreground mt-1">No overdue follow-ups right now.</p>
               </CardContent>
@@ -415,7 +415,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
           {upcoming.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
-                <Clock className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                <Clock className="size-12 mx-auto text-muted-foreground mb-3" />
                 <h3 className="text-lg font-medium">No upcoming follow-ups</h3>
                 <p className="text-muted-foreground mt-1">
                   Follow-ups scheduled in the next 7 days will appear here.
@@ -445,7 +445,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
           {uniqueAll.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
-                <CheckCircle2 className="h-12 w-12 mx-auto text-green-500 mb-3" />
+                <CheckCircle2 className="size-12 mx-auto text-green-500 mb-3" />
                 <h3 className="text-lg font-medium">No follow-ups</h3>
                 <p className="text-muted-foreground mt-1">All follow-ups have been completed.</p>
               </CardContent>

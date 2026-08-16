@@ -119,7 +119,7 @@ export function ApprovalsContent({ requests: initialRequests }: ApprovalsContent
                   <p className="text-sm text-muted-foreground">Ban Requests</p>
                   <p className="text-2xl font-bold text-red-500">{banCount}</p>
                 </div>
-                <Ban className="h-8 w-8 text-red-500" />
+                <Ban className="size-8 text-red-500" />
               </div>
             </CardContent>
           </Card>
@@ -130,7 +130,7 @@ export function ApprovalsContent({ requests: initialRequests }: ApprovalsContent
                   <p className="text-sm text-muted-foreground">Unsubscribe Requests</p>
                   <p className="text-2xl font-bold text-orange-500">{unsubscribeCount}</p>
                 </div>
-                <MailX className="h-8 w-8 text-orange-500" />
+                <MailX className="size-8 text-orange-500" />
               </div>
             </CardContent>
           </Card>
@@ -141,7 +141,7 @@ export function ApprovalsContent({ requests: initialRequests }: ApprovalsContent
                   <p className="text-sm text-muted-foreground">Delete Requests</p>
                   <p className="text-2xl font-bold">{deleteCount}</p>
                 </div>
-                <Trash2 className="h-8 w-8 text-muted-foreground" />
+                <Trash2 className="size-8 text-muted-foreground" />
               </div>
             </CardContent>
           </Card>
@@ -191,11 +191,11 @@ export function ApprovalsContent({ requests: initialRequests }: ApprovalsContent
 
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
+                            <User className="size-3" />
                             Requested by {item.requestorName}
                           </span>
                           <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
+                            <Clock className="size-3" />
                             {getRelativeTimeString(item.request.createdAt)}
                           </span>
                         </div>
@@ -215,7 +215,7 @@ export function ApprovalsContent({ requests: initialRequests }: ApprovalsContent
                           }
                           className="gap-1"
                         >
-                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          <CheckCircle2 className="size-3.5" />
                           Approve
                         </Button>
                         <Button
@@ -231,7 +231,7 @@ export function ApprovalsContent({ requests: initialRequests }: ApprovalsContent
                           }
                           className="gap-1 text-destructive hover:text-destructive"
                         >
-                          <XCircle className="h-3.5 w-3.5" />
+                          <XCircle className="size-3.5" />
                           Reject
                         </Button>
                       </div>

@@ -106,7 +106,7 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
                             <TooltipTrigger asChild>
                               <SidebarMenuButton asChild isActive={active} className={cn(active && "text-accent")}>
                                 <Link href={item.href}>
-                                  <item.icon className="h-4 w-4" />
+                                  <item.icon className="size-4" />
                                 </Link>
                               </SidebarMenuButton>
                             </TooltipTrigger>
@@ -115,7 +115,7 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
                         ) : (
                           <SidebarMenuButton asChild isActive={active} className={cn(active && "text-accent")}>
                             <Link href={item.href}>
-                              <item.icon className="h-4 w-4" />
+                              <item.icon className="size-4" />
                               <span>{item.label}</span>
                               {isApprovals && pendingCount > 0 && (
                                 <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1.5 text-[10px]">{pendingCount}</Badge>
@@ -142,7 +142,7 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
           {collapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Avatar className="h-7 w-7 cursor-default">
+                <Avatar className="size-7 cursor-default">
                   <AvatarFallback className="bg-accent/20 text-accent text-xs">{initials(session?.user?.firstName || session?.user?.name || "U", session?.user?.lastName)}</AvatarFallback>
                 </Avatar>
               </TooltipTrigger>
@@ -153,7 +153,7 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
             </Tooltip>
           ) : (
             <>
-              <Avatar className="h-7 w-7">
+              <Avatar className="size-7">
                 <AvatarFallback className="bg-accent/20 text-accent text-xs">{initials(session?.user?.firstName || session?.user?.name || "U", session?.user?.lastName)}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
@@ -163,8 +163,8 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Link href="/change-password" aria-label="Change Password">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Change Password">
-                      <KeyRound className="h-3.5 w-3.5" />
+                    <Button variant="ghost" size="icon" className="size-7" aria-label="Change Password">
+                      <KeyRound className="size-3.5" />
                     </Button>
                   </Link>
                 </TooltipTrigger>
@@ -172,8 +172,8 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => signOut({ callbackUrl: "/login" })} aria-label="Sign Out">
-                    <LogOut className="h-3.5 w-3.5" />
+                  <Button variant="ghost" size="icon" className="size-7" onClick={() => signOut({ callbackUrl: "/login" })} aria-label="Sign Out">
+                    <LogOut className="size-3.5" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="right">Sign Out</TooltipContent>

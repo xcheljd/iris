@@ -84,7 +84,7 @@ export function OutreachLogger({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {trigger ?? <Button variant="gold" size="sm"><Phone className="h-3.5 w-3.5 mr-1.5" />Log Outreach</Button>}
+        {trigger ?? <Button variant="gold" size="sm"><Phone className="size-3.5 mr-1.5" />Log Outreach</Button>}
       </DialogTrigger>
       <DialogContent className="max-w-lg flex flex-col max-h-[85vh]">
         <DialogHeader>
@@ -108,7 +108,7 @@ export function OutreachLogger({
                 { v: "in-person", label: "In-person", I: User },
               ] as const).map((m) => (
                 <ToggleGroupItem key={m.v} value={m.v} className="flex-col h-auto py-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
-                  <m.I className="h-4 w-4 mb-1" />
+                  <m.I className="size-4 mb-1" />
                   <span className="text-xs">{m.label}</span>
                 </ToggleGroupItem>
               ))}

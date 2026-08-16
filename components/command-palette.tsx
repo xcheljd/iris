@@ -106,16 +106,16 @@ export function CommandPalette() {
   const go = (href: string) => { setOpen(false); setQ(""); router.push(href); };
 
   const navItems = [
-    { icon: <Home className="h-4 w-4" />, label: "Dashboard", href: "/" },
-    { icon: <Users className="h-4 w-4" />, label: "Clients", href: "/clients" },
-    { icon: <Phone className="h-4 w-4" />, label: "Follow-Ups", href: "/follow-ups" },
-    { icon: <ListFilter className="h-4 w-4" />, label: "Smart Lists", href: "/smart-lists" },
-    { icon: <Tag className="h-4 w-4" />, label: "Promos", href: "/promos" },
-    { icon: <BarChart3 className="h-4 w-4" />, label: "Analytics", href: "/analytics" },
-    { icon: <Ban className="h-4 w-4" />, label: "Banned", href: "/banned" },
-    { icon: <MailX className="h-4 w-4" />, label: "Unsubscribed", href: "/unsubscribed" },
-    ...(isManager ? [{ icon: <ShieldCheck className="h-4 w-4" />, label: "Approvals", href: "/approvals" }] : []),
-    { icon: <Settings className="h-4 w-4" />, label: "Settings", href: "/settings" },
+    { icon: <Home className="size-4" />, label: "Dashboard", href: "/" },
+    { icon: <Users className="size-4" />, label: "Clients", href: "/clients" },
+    { icon: <Phone className="size-4" />, label: "Follow-Ups", href: "/follow-ups" },
+    { icon: <ListFilter className="size-4" />, label: "Smart Lists", href: "/smart-lists" },
+    { icon: <Tag className="size-4" />, label: "Promos", href: "/promos" },
+    { icon: <BarChart3 className="size-4" />, label: "Analytics", href: "/analytics" },
+    { icon: <Ban className="size-4" />, label: "Banned", href: "/banned" },
+    { icon: <MailX className="size-4" />, label: "Unsubscribed", href: "/unsubscribed" },
+    ...(isManager ? [{ icon: <ShieldCheck className="size-4" />, label: "Approvals", href: "/approvals" }] : []),
+    { icon: <Settings className="size-4" />, label: "Settings", href: "/settings" },
   ];
 
   const filteredNav = q ? navItems.filter((n) => n.label.toLowerCase().includes(q.toLowerCase())) : navItems;
@@ -129,7 +129,7 @@ export function CommandPalette() {
           <CommandGroup heading="Recently viewed">
             {recent.map((c) => (
               <CommandItem key={`r-${c.id}`} onSelect={() => go(`/clients/${c.id}`)}>
-                <Clock className="h-4 w-4" />
+                <Clock className="size-4" />
                 <span>{c.firstName} {c.lastName ?? ""}</span>
                 {c.phone && <span className="ml-auto text-xs text-muted-foreground">{c.phone}</span>}
               </CommandItem>
@@ -141,7 +141,7 @@ export function CommandPalette() {
             {hits.map((c) => (
               <CommandItem key={c.id} onSelect={() => go(`/clients/${c.id}`)} className="flex-col items-start gap-0.5">
                 <div className="flex items-center gap-2 w-full">
-                  <SearchIcon className="h-4 w-4 shrink-0" />
+                  <SearchIcon className="size-4 shrink-0" />
                   <span>{c.firstName} {c.lastName ?? ""}</span>
                   {c.phone && <span className="ml-auto text-xs text-muted-foreground">{c.phone}</span>}
                 </div>
@@ -158,7 +158,7 @@ export function CommandPalette() {
           <CommandGroup heading="Prospects">
             {prospectHits.map((p) => (
               <CommandItem key={`p-${p.id}`} onSelect={() => go(`/prospects/${p.id}`)}>
-                <UserSearch className="h-4 w-4" />
+                <UserSearch className="size-4" />
                 <span>{p.firstName} {p.lastName ?? ""}</span>
                 {p.phone && <span className="ml-auto text-xs text-muted-foreground">{p.phone}</span>}
               </CommandItem>
@@ -169,11 +169,11 @@ export function CommandPalette() {
           <CommandGroup heading="Smart Lists">
             {listHits.map((l) => (
               <CommandItem key={`l-${l.id}`} onSelect={() => go(`/smart-lists?list=${encodeURIComponent(l.id)}`)}>
-                <FilterIcon className="h-4 w-4" />
+                <FilterIcon className="size-4" />
                 <span>{l.name}</span>
                 {l.isShared
-                  ? <Globe className="h-3 w-3 ml-auto text-muted-foreground" />
-                  : <Lock className="h-3 w-3 ml-auto text-muted-foreground" />}
+                  ? <Globe className="size-3 ml-auto text-muted-foreground" />
+                  : <Lock className="size-3 ml-auto text-muted-foreground" />}
               </CommandItem>
             ))}
           </CommandGroup>
@@ -185,7 +185,7 @@ export function CommandPalette() {
           ))}
         </CommandGroup>
         <CommandGroup heading="Actions">
-          <CommandItem onSelect={() => go("/clients/new")}><Plus className="h-4 w-4" /> New Client</CommandItem>
+          <CommandItem onSelect={() => go("/clients/new")}><Plus className="size-4" /> New Client</CommandItem>
         </CommandGroup>
       </CommandList>
     </CommandDialog>

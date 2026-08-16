@@ -62,7 +62,7 @@ export function BackupTab() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <DatabaseBackup className="h-5 w-5" />
+            <DatabaseBackup className="size-5" />
             Database Backup
           </CardTitle>
           <CardDescription>
@@ -72,7 +72,7 @@ export function BackupTab() {
         <CardContent className="space-y-4">
           {lastBackup && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <CheckCircle2 className="size-4 text-green-500" />
               Last backup: {format(lastBackup, "MMMM d, yyyy 'at' h:mm a")}
             </div>
           )}
@@ -80,7 +80,7 @@ export function BackupTab() {
             <p className="text-sm text-amber-600">No backup recorded on this device.</p>
           )}
           <Button onClick={handleBackup} disabled={loading} className="gap-2">
-            <DatabaseBackup className="h-4 w-4" />
+            <DatabaseBackup className="size-4" />
             {loading ? "Preparing…" : "Download Backup"}
           </Button>
           <p className="text-xs text-muted-foreground">
@@ -93,7 +93,7 @@ export function BackupTab() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <UploadCloud className="h-5 w-5" />
+            <UploadCloud className="size-5" />
             Restore from Backup
           </CardTitle>
           <CardDescription>
@@ -156,7 +156,7 @@ export function BackupTab() {
                 onClick={() => setRestoreOpen(true)}
                 className="gap-2"
               >
-                <UploadCloud className="h-4 w-4" />
+                <UploadCloud className="size-4" />
                 Restore Database
               </Button>
 

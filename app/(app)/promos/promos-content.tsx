@@ -217,14 +217,14 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
         {isManager && (
         <div className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" disabled>
-            <ClipboardPaste className="h-4 w-4 mr-2" />
+            <ClipboardPaste className="size-4 mr-2" />
             Import
             <Badge variant="secondary" className="ml-2 text-[10px]">Coming Soon</Badge>
           </Button>
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="outline">
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="size-4 mr-2" />
                 Add Single
               </Button>
             </DialogTrigger>
@@ -296,7 +296,7 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
           <CardContent className="py-3">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <CalendarDays className="h-5 w-5 text-blue-400" />
+                <CalendarDays className="size-5 text-blue-400" />
                 <span className="text-sm font-medium">Current Promo Period</span>
                 <span className="text-sm text-muted-foreground">
                   {promoStart ? format(parseISO(promoStart), "MMM d") : "?"} — {promoEnd ? format(parseISO(promoEnd), "MMM d, yyyy") : "?"}
@@ -304,7 +304,7 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
               </div>
               {isManager && (
               <Button variant="outline" size="sm" className="text-destructive h-7" onClick={() => setClearAllOpen(true)}>
-                <Trash className="h-3 w-3 mr-1" />
+                <Trash className="size-3 mr-1" />
                 Clear All &amp; Reset
               </Button>
               )}
@@ -327,7 +327,7 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
             <CardTitle>Current Promo List</CardTitle>
             {isManager && promos.length > 0 && !(promoStart || promoEnd) && (
               <Button variant="outline" size="sm" className="text-destructive" onClick={() => setClearAllOpen(true)}>
-                <Trash className="h-4 w-4 mr-2" />
+                <Trash className="size-4 mr-2" />
                 Clear All
               </Button>
             )}
@@ -343,7 +343,7 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm">
-                  <Filter className={`h-4 w-4 mr-1.5 ${(brandFilter.size || collectionFilter.size || priceMax || discMin || size1Pos || size2Pos) ? "text-primary" : ""}`} />
+                  <Filter className={`size-4 mr-1.5 ${(brandFilter.size || collectionFilter.size || priceMax || discMin || size1Pos || size2Pos) ? "text-primary" : ""}`} />
                   Filters
                 </Button>
               </PopoverTrigger>
@@ -451,13 +451,13 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="Actions">
-                                <MoreHorizontal className="h-4 w-4" />
+                              <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="Actions">
+                                <MoreHorizontal className="size-4" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(promo)}>
-                                <Trash2 className="h-4 w-4 mr-2" />
+                                <Trash2 className="size-4 mr-2" />
                                 Delete
                               </DropdownMenuItem>
                             </DropdownMenuContent>

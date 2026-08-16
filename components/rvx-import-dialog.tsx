@@ -97,7 +97,7 @@ export function RvxImportDialog({ open, onOpenChangeAction }: RvxImportDialogPro
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5" />
+                <Upload className="size-5" />
                 Import RVX Customer Report
               </DialogTitle>
             </DialogHeader>
@@ -107,7 +107,7 @@ export function RvxImportDialog({ open, onOpenChangeAction }: RvxImportDialogPro
                 className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:bg-muted/50 transition-colors"
                 onClick={() => fileInputRef.current?.click()}
               >
-                <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                <Upload className="size-8 mx-auto mb-2 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
                   {fileName || "Click to select a CSV file"}
                 </p>
@@ -127,7 +127,7 @@ export function RvxImportDialog({ open, onOpenChangeAction }: RvxImportDialogPro
                 Cancel
               </Button>
               <Button onClick={handleAnalyze} disabled={!csvText || pending}>
-                {pending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                {pending ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
                 Analyze
               </Button>
             </DialogFooter>
@@ -153,7 +153,7 @@ export function RvxImportDialog({ open, onOpenChangeAction }: RvxImportDialogPro
 
               {analysis.duplicateCount > 0 && (
                 <Button variant="outline" size="sm" className="w-full" onClick={handleExportDuplicates}>
-                  <Download className="h-4 w-4 mr-2" />
+                  <Download className="size-4 mr-2" />
                   Export RVX Duplicates CSV
                 </Button>
               )}
@@ -185,7 +185,7 @@ export function RvxImportDialog({ open, onOpenChangeAction }: RvxImportDialogPro
               <DialogTitle>Importing...</DialogTitle>
             </DialogHeader>
             <div className="py-8 flex justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <Loader2 className="size-8 animate-spin text-muted-foreground" />
             </div>
           </>
         )}
@@ -194,7 +194,7 @@ export function RvxImportDialog({ open, onOpenChangeAction }: RvxImportDialogPro
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                <CheckCircle2 className="size-5 text-green-500" />
                 Import Complete
               </DialogTitle>
             </DialogHeader>

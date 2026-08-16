@@ -104,7 +104,7 @@ function ApprovalActionDialog({
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
+              <Bell className="size-5" />
               {associateTitle}
             </DialogTitle>
             <DialogDescription>{associateDescription}</DialogDescription>
@@ -179,7 +179,7 @@ export function BanCustomerDialog({
   return (
     <ApprovalActionDialog
       clientName={clientName}
-      managerIcon={<Ban className="h-5 w-5" />}
+      managerIcon={<Ban className="size-5" />}
       managerTitle="Ban Customer"
       managerDescription={
         <>Ban <strong>{clientName}</strong> from doing business with the store. This action will change their status to &quot;banned&quot;.</>
@@ -251,7 +251,7 @@ export function UnsubscribeCustomerDialog({
   return (
     <ApprovalActionDialog
       clientName={clientName}
-      managerIcon={<MailX className="h-5 w-5" />}
+      managerIcon={<MailX className="size-5" />}
       managerTitle="Unsubscribe Customer"
       managerDescription={
         <>Remove <strong>{clientName}</strong> from the email list and mark them as unsubscribed. They will no longer receive marketing emails.</>
@@ -291,7 +291,7 @@ export function DeleteCustomerDialog({
   return (
     <ApprovalActionDialog
       clientName={clientName}
-      managerIcon={<Trash2 className="h-5 w-5" />}
+      managerIcon={<Trash2 className="size-5" />}
       managerTitle="Delete Client"
       managerDescription={
         <>Are you sure you want to delete <strong>{clientName}</strong>? This hides the client from all views. It can be restored by a manager from Settings.</>

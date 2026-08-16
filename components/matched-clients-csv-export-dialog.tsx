@@ -105,7 +105,7 @@ export function MatchedClientsCsvExportDialog({ open, onOpenChange, owners, matc
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
+            <FileText className="size-5" />
             Export Matched Clients to CSV
           </DialogTitle>
           <DialogDescription>
@@ -126,7 +126,7 @@ export function MatchedClientsCsvExportDialog({ open, onOpenChange, owners, matc
 
         {data?.truncated && (
           <Alert variant="default" className="border-amber-300/60 bg-amber-50/50 dark:bg-amber-950/20">
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertTriangle className="size-4 text-amber-600" />
             <AlertDescription className="text-amber-900 dark:text-amber-200">
               Capped at {LIST_QUERY_LIMIT.toLocaleString()} rows. Narrow the scope for a complete export.
             </AlertDescription>
@@ -148,11 +148,11 @@ export function MatchedClientsCsvExportDialog({ open, onOpenChange, owners, matc
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button variant="outline" onClick={handleCopy} disabled={disabled}>
-            {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Copy className="h-4 w-4 mr-2" />}
+            {loading ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Copy className="size-4 mr-2" />}
             Copy
           </Button>
           <Button onClick={handleDownload} disabled={disabled}>
-            {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+            {loading ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Download className="size-4 mr-2" />}
             Download
           </Button>
         </DialogFooter>

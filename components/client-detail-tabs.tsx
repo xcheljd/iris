@@ -34,7 +34,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
   return (
     <div className="p-4 md:p-6" data-tour="client-detail-tabs">
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
-        <Avatar className="h-14 w-14 text-lg">
+        <Avatar className="size-14 text-lg">
           <AvatarFallback className="bg-primary/10 text-primary font-semibold">
             {client.firstName?.[0]}{client.lastName?.[0]}
           </AvatarFallback>
@@ -59,14 +59,14 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
         <div className="sm:ml-auto">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Actions" data-hint="edit-client">
-                <MoreHorizontal className="h-4 w-4" />
+              <Button variant="outline" size="icon" className="size-8" aria-label="Actions" data-hint="edit-client">
+                <MoreHorizontal className="size-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <EditClientDialog client={client}>
                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                  <Edit className="h-4 w-4 mr-2" /> Edit Client
+                  <Edit className="size-4 mr-2" /> Edit Client
                 </DropdownMenuItem>
               </EditClientDialog>
               <OutreachLogger
@@ -74,7 +74,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                 clientName={`${client.firstName} ${client.lastName}`}
                 trigger={
                   <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                    <Calendar className="h-4 w-4 mr-2" /> Log Outreach
+                    <Calendar className="size-4 mr-2" /> Log Outreach
                   </DropdownMenuItem>
                 }
               />
@@ -85,14 +85,14 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                   currentEmployeeId={client.employeeId}
                 >
                   <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                    <ArrowRightLeft className="h-4 w-4 mr-2" /> Transfer Client
+                    <ArrowRightLeft className="size-4 mr-2" /> Transfer Client
                   </DropdownMenuItem>
                 </TransferClientDialog>
               )}
               {currentUserRole === "manager" && (
                 <MergeClientDialog>
                   <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                    <Merge className="h-4 w-4 mr-2" /> Merge with…
+                    <Merge className="size-4 mr-2" /> Merge with…
                   </DropdownMenuItem>
                 </MergeClientDialog>
               )}
@@ -105,13 +105,13 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                   onConfirmAction={async () => { const r = await toggleEmailList(client.id); if (r?.error) { toast.error(r.error); } else { toast.success("Removed from email list"); } }}
                 >
                   <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={(e) => e.preventDefault()}>
-                    <Mail className="h-4 w-4 mr-2" /> Remove from Email List
+                    <Mail className="size-4 mr-2" /> Remove from Email List
                   </DropdownMenuItem>
                 </ConfirmDialog>
               )}
               {client.status !== "unsubscribed" && client.status !== "deleted" && !client.onEmailList && (
                 <DropdownMenuItem onClick={async () => { const r = await toggleEmailList(client.id); if (r?.error) { toast.error(r.error); } else { toast.success("Added to email list"); } }}>
-                  <Mail className="h-4 w-4 mr-2" /> Add to Email List
+                  <Mail className="size-4 mr-2" /> Add to Email List
                 </DropdownMenuItem>
               )}
               {client.status === "active" && (
@@ -119,12 +119,12 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                   <DropdownMenuSeparator />
                   <BanCustomerDialog clientId={client.id} clientName={`${client.firstName} ${client.lastName ?? ""}`}>
                     <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={(e) => e.preventDefault()}>
-                      <Ban className="h-4 w-4 mr-2" /> Ban Customer
+                      <Ban className="size-4 mr-2" /> Ban Customer
                     </DropdownMenuItem>
                   </BanCustomerDialog>
                   <UnsubscribeCustomerDialog clientId={client.id} clientName={`${client.firstName} ${client.lastName ?? ""}`}>
                     <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={(e) => e.preventDefault()}>
-                      <MailX className="h-4 w-4 mr-2" /> Unsubscribe
+                      <MailX className="size-4 mr-2" /> Unsubscribe
                     </DropdownMenuItem>
                   </UnsubscribeCustomerDialog>
                 </>
@@ -139,7 +139,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                     onConfirmAction={() => unbanClient(client.id).then(() => { toast.success("Customer unbanned"); }).catch(() => { toast.error("Failed to unban"); })}
                   >
                     <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                      <ShieldOff className="h-4 w-4 mr-2" /> Unban Customer
+                      <ShieldOff className="size-4 mr-2" /> Unban Customer
                     </DropdownMenuItem>
                   </ConfirmDialog>
                 </>
@@ -154,7 +154,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                     onConfirmAction={() => resubscribeClient(client.id).then(() => { toast.success("Customer resubscribed"); }).catch(() => { toast.error("Failed to resubscribe"); })}
                   >
                     <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                      <UserCheck className="h-4 w-4 mr-2" /> Resubscribe
+                      <UserCheck className="size-4 mr-2" /> Resubscribe
                     </DropdownMenuItem>
                   </ConfirmDialog>
                 </>
@@ -164,7 +164,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                   <DropdownMenuSeparator />
                   <DeleteCustomerDialog clientId={client.id} clientName={`${client.firstName} ${client.lastName ?? ""}`}>
                     <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={(e) => e.preventDefault()}>
-                      <Trash2 className="h-4 w-4 mr-2" /> Delete Client
+                      <Trash2 className="size-4 mr-2" /> Delete Client
                     </DropdownMenuItem>
                   </DeleteCustomerDialog>
                 </>
@@ -178,27 +178,27 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="flex w-full overflow-x-auto">
           <TabsTrigger value="profile" className="flex items-center gap-2 shrink-0">
-            <Users className="h-4 w-4" />
+            <Users className="size-4" />
             Profile
           </TabsTrigger>
           <TabsTrigger value="interests" className="flex items-center gap-2 shrink-0">
-            <Gift className="h-4 w-4" />
+            <Gift className="size-4" />
             Interests
           </TabsTrigger>
           <TabsTrigger value="outreach" className="flex items-center gap-2 shrink-0" data-hint="log-outreach">
-            <Calendar className="h-4 w-4" />
+            <Calendar className="size-4" />
             Outreach
           </TabsTrigger>
           <TabsTrigger value="timeline" className="flex items-center gap-2 shrink-0">
-            <Activity className="h-4 w-4" />
+            <Activity className="size-4" />
             Timeline
           </TabsTrigger>
           <TabsTrigger value="notes" className="flex items-center gap-2 shrink-0">
-            <StickyNote className="h-4 w-4" />
+            <StickyNote className="size-4" />
             Notes
           </TabsTrigger>
           <TabsTrigger value="tags" className="flex items-center gap-2 shrink-0">
-            <Tag className="h-4 w-4" />
+            <Tag className="size-4" />
             Tags
           </TabsTrigger>
         </TabsList>

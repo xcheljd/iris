@@ -59,8 +59,8 @@ export function SmartListItem({
             <TooltipTrigger asChild>
               <span className="flex items-center gap-2 min-w-0">
                 {isBuiltIn ? icon : isShared
-                  ? <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
-                  : <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+                  ? <Globe className="size-4 text-muted-foreground shrink-0" />
+                  : <Lock className="size-4 text-muted-foreground shrink-0" />
                 }
                 <span className="text-sm truncate">{name}</span>
               </span>
@@ -78,18 +78,18 @@ export function SmartListItem({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="size-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
                   onClick={(e) => e.stopPropagation()}
                   aria-label="List actions"
                 >
-                  <MoreHorizontal className="h-3 w-3" />
+                  <MoreHorizontal className="size-3" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {onOpenInClients && (
                   <>
                     <DropdownMenuItem onClick={onOpenInClients}>
-                      <ExternalLink className="h-4 w-4 mr-2" />
+                      <ExternalLink className="size-4 mr-2" />
                       Open in Clients
                       <span className="ml-auto pl-3 text-xs text-muted-foreground">{count}</span>
                     </DropdownMenuItem>
@@ -97,14 +97,14 @@ export function SmartListItem({
                   </>
                 )}
                 <DropdownMenuItem onClick={() => { setNewName(name); setRenameOpen(true); }}>
-                  <Pencil className="h-4 w-4 mr-2" />Rename
+                  <Pencil className="size-4 mr-2" />Rename
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={onDuplicate}>
-                  <Copy className="h-4 w-4 mr-2" />Duplicate
+                  <Copy className="size-4 mr-2" />Duplicate
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-destructive" onClick={onDelete}>
-                  <Trash2 className="h-4 w-4 mr-2" />Delete
+                  <Trash2 className="size-4 mr-2" />Delete
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

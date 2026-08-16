@@ -236,14 +236,14 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
             <CardHeader>
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <ClipboardCheck className="h-4 w-4" />
+                  <ClipboardCheck className="size-4" />
                   Needs cataloging ({needsReview.length})
                 </CardTitle>
                 {selectedReview.size > 0 && (
                   <div className="flex items-center gap-2 text-sm">
                     <span className="text-muted-foreground">{selectedReview.size} selected</span>
                     <Button size="sm" variant="outline" disabled={pending} onClick={handleBulkConfirm}>
-                      <Check className="h-4 w-4 mr-1" />Confirm {selectedReview.size}
+                      <Check className="size-4 mr-1" />Confirm {selectedReview.size}
                     </Button>
                     <Button
                       size="sm"
@@ -252,7 +252,7 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                       disabled={pending}
                       onClick={() => setBulkDeleteOpen(true)}
                     >
-                      <Trash2 className="h-4 w-4 mr-1" />Delete {selectedReview.size}
+                      <Trash2 className="size-4 mr-1" />Delete {selectedReview.size}
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => setSelectedReview(new Set())}>
                       Clear
@@ -285,7 +285,7 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <Button size="sm" variant="outline" disabled={pending} onClick={() => handleConfirm(r.model)}>
-                      <Check className="h-4 w-4 mr-1" />Confirm
+                      <Check className="size-4 mr-1" />Confirm
                     </Button>
                     <Button
                       size="sm"
@@ -293,7 +293,7 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                       disabled={pending}
                       onClick={() => { setEditing(r.model); setDraft(r.collection); }}
                     >
-                      <Pencil className="h-4 w-4 mr-1" />Correct
+                      <Pencil className="size-4 mr-1" />Correct
                     </Button>
                   </div>
                 </div>
@@ -319,10 +319,10 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <Button size="sm" variant="outline" disabled={pending} onClick={() => handleFlag(r.model, true)}>
-                      <Check className="h-4 w-4 mr-1" />Use promo
+                      <Check className="size-4 mr-1" />Use promo
                     </Button>
                     <Button size="sm" variant="ghost" disabled={pending} onClick={() => handleFlag(r.model, false)}>
-                      <X className="h-4 w-4 mr-1" />Keep current
+                      <X className="size-4 mr-1" />Keep current
                     </Button>
                   </div>
                 </div>
@@ -335,7 +335,7 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
           <CardHeader>
             <div className="flex items-center justify-between gap-3">
               <CardTitle className="flex items-center gap-2">
-                <Library className="h-5 w-5" />
+                <Library className="size-5" />
                 Model Catalog
               </CardTitle>
               <div className="flex items-center gap-2">
@@ -346,10 +346,10 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                   onClick={() => { setClearTyped(""); setClearOpen(true); }}
                   disabled={total === 0}
                 >
-                  <Trash2 className="h-4 w-4 mr-1" />Clear Catalog
+                  <Trash2 className="size-4 mr-1" />Clear Catalog
                 </Button>
                 <Button variant="outline" size="sm" disabled>
-                  <Upload className="h-4 w-4 mr-1" />Import Catalog
+                  <Upload className="size-4 mr-1" />Import Catalog
                   <Badge variant="secondary" className="ml-2 text-[10px]">Coming Soon</Badge>
                 </Button>
               </div>
@@ -372,7 +372,7 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                     aria-label={`Remove filter: ${chip.label}`}
                   >
                     <span>{chip.label}</span>
-                    <X className="h-3 w-3 opacity-60 group-hover:opacity-100" />
+                    <X className="size-3 opacity-60 group-hover:opacity-100" />
                   </button>
                 ))}
                 <Button
@@ -533,7 +533,7 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                                 variant="ghost"
                                 onClick={() => { setEditing(r.model); setDraft(r.collection); }}
                               >
-                                <Pencil className="h-4 w-4 mr-1" />Correct
+                                <Pencil className="size-4 mr-1" />Correct
                               </Button>
                               <Button
                                 size="sm"
@@ -542,7 +542,7 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                                 aria-label={`Delete ${r.model}`}
                                 onClick={() => setDeleteTarget(r.model)}
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="size-4" />
                               </Button>
                             </div>
                           )}

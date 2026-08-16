@@ -224,7 +224,7 @@ export function AnalyticsOutreachTab({
                   className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    {getMethodIcon(row.log.method, "h-3.5 w-3.5")}
+                    {getMethodIcon(row.log.method, "size-3.5")}
                     <div className="min-w-0">
                       {row.client ? (
                         <Link

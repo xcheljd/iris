@@ -20,11 +20,11 @@ export function PasswordInput({ wrapperClassName, className, ...props }: Passwor
       />
       <button
         type="button"
-        className="absolute right-0 flex h-9 w-9 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground"
+        className="absolute right-0 flex size-9 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground"
         onClick={() => setShow((v) => !v)}
         aria-label={show ? "Hide password" : "Show password"}
       >
-        {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
       </button>
     </div>
   );

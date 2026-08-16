@@ -5,7 +5,7 @@ export function HeatBadge({ level, score, showScore = false }: { level: "hot" | 
   const Icon = level === "hot" ? Flame : level === "warm" ? Thermometer : Snowflake;
   return (
     <Badge variant={level} className="gap-1">
-      <Icon className="h-3 w-3" />
+      <Icon className="size-3" />
       <span className="capitalize">{level}</span>
       {showScore && score !== undefined && <span className="font-mono opacity-80">{score}</span>}
     </Badge>

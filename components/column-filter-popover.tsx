@@ -43,13 +43,13 @@ export function ColumnFilterPopover({
           type="button"
           variant="ghost"
           size="icon"
-          className="h-6 w-6 shrink-0"
+          className="size-6 shrink-0"
           aria-label={`Filter ${label}`}
           aria-pressed={active}
         >
           <Filter
             className={cn(
-              "h-3.5 w-3.5 transition-colors",
+              "size-3.5 transition-colors",
               active ? "fill-primary text-primary" : "text-muted-foreground/60",
             )}
           />

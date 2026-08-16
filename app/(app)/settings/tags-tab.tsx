@@ -86,7 +86,7 @@ export function SettingsTagsTab({ tags: initialTags, isManager }: SettingsTagsTa
             <Dialog open={showDialog} onOpenChange={setShowDialog}>
               <DialogTrigger asChild>
                 <Button size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
+                  <Plus className="size-4 mr-2" />
                   Add Tag
                 </Button>
               </DialogTrigger>
@@ -106,7 +106,7 @@ export function SettingsTagsTab({ tags: initialTags, isManager }: SettingsTagsTa
                       {tagColors.map((color) => (
                         <button
                           key={color.name}
-                          className={`w-8 h-8 rounded-full ${color.class} ${
+                          className={`size-8 rounded-full ${color.class} ${
                             newTag.color === color.name ? "ring-2 ring-offset-2 ring-offset-background ring-primary" : ""
                           }`}
                           onClick={() => setNewTag({ ...newTag, color: color.name })}
@@ -149,7 +149,7 @@ export function SettingsTagsTab({ tags: initialTags, isManager }: SettingsTagsTa
                       <TableCell className="font-medium">{tag.name}</TableCell>
                       <TableCell className="hidden sm:table-cell">
                         <div className="flex items-center gap-2">
-                          <div className={`w-4 h-4 rounded-full ${colorObj?.class || "bg-gray-500"}`} />
+                          <div className={`size-4 rounded-full ${colorObj?.class || "bg-gray-500"}`} />
                           <span className="text-sm text-muted-foreground">{tag.color}</span>
                         </div>
                       </TableCell>
@@ -160,13 +160,13 @@ export function SettingsTagsTab({ tags: initialTags, isManager }: SettingsTagsTa
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="Tag actions">
-                              <MoreHorizontal className="h-4 w-4" />
+                            <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="Tag actions">
+                              <MoreHorizontal className="size-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(tag)}>
-                              <Trash2 className="h-4 w-4 mr-2" />
+                              <Trash2 className="size-4 mr-2" />
                               Delete
                             </DropdownMenuItem>
                           </DropdownMenuContent>

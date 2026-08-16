@@ -238,7 +238,7 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
                     />
                     {addEmailError && (
                       <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
+                        <AlertCircle className="size-3" />
                         {addEmailError}
                       </p>
                     )}
@@ -246,7 +246,7 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button variant="outline" onClick={handleAddEmail}>
-                        <Plus className="h-4 w-4" />
+                        <Plus className="size-4" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>Add to unsubscribe list (detects existing clients)</TooltipContent>
@@ -275,7 +275,7 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
                   size="sm"
                   onClick={() => setBatchRemoveOpen(true)}
                 >
-                  <Trash2 className="h-4 w-4 mr-1" />
+                  <Trash2 className="size-4 mr-1" />
                   Remove ({selected.size})
                 </Button>
               )}
@@ -366,7 +366,7 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
                         </div>
                         {/* Email */}
                         <div className="flex items-center gap-1.5 min-w-0">
-                          <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <Mail className="size-3.5 text-muted-foreground shrink-0" />
                           <span className="text-sm truncate">{record.unsub.email}</span>
                         </div>
                       </div>
@@ -380,21 +380,21 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
                           record.clientId ? (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" aria-label="Actions">
-                                  <MoreHorizontal className="h-4 w-4" />
+                                <Button variant="ghost" size="sm" className="size-7 p-0" aria-label="Actions">
+                                  <MoreHorizontal className="size-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem asChild>
                                   <Link href={`/clients/${record.clientId}`}>
-                                    <ExternalLink className="h-4 w-4 mr-2" />
+                                    <ExternalLink className="size-4 mr-2" />
                                     View Client
                                   </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => handleResubscribe(record)}
                                 >
-                                  <Mail className="h-4 w-4 mr-2" />
+                                  <Mail className="size-4 mr-2" />
                                   Resubscribe
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
@@ -402,7 +402,7 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
                                   className="text-destructive focus:text-destructive"
                                   onClick={() => setRemoveTarget(record)}
                                 >
-                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  <Trash2 className="size-4 mr-2" />
                                   Remove
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
@@ -416,7 +416,7 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
                                   className="h-7"
                                   onClick={() => setRemoveTarget(record)}
                                 >
-                                  <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                  <Trash2 className="size-3.5 mr-1" />
                                   Remove
                                 </Button>
                               </TooltipTrigger>
@@ -426,9 +426,9 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
                         ) : record.clientId ? (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" asChild>
+                              <Button variant="ghost" size="sm" className="size-7 p-0" asChild>
                                 <Link href={`/clients/${record.clientId}`}>
-                                  <ExternalLink className="h-4 w-4" />
+                                  <ExternalLink className="size-4" />
                                 </Link>
                               </Button>
                             </TooltipTrigger>

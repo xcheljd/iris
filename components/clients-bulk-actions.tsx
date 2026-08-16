@@ -116,27 +116,27 @@ export function BulkActionsToolbar({
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm">
             Actions
-            <ChevronDown className="h-4 w-4 ml-1 opacity-70" />
+            <ChevronDown className="size-4 ml-1 opacity-70" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-56">
           <DropdownMenuItem onClick={() => setDialog({ kind: "addTags" })}>
-            <TagIcon className="h-4 w-4 mr-2" />Add tags…
+            <TagIcon className="size-4 mr-2" />Add tags…
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setDialog({ kind: "removeTags" })}>
-            <TagIcon className="h-4 w-4 mr-2" />Remove tags…
+            <TagIcon className="size-4 mr-2" />Remove tags…
           </DropdownMenuItem>
           {isManager && (
             <DropdownMenuItem onClick={() => setDialog({ kind: "reassignOwner" })}>
-              <User className="h-4 w-4 mr-2" />Reassign owner…
+              <User className="size-4 mr-2" />Reassign owner…
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setDialog({ kind: "emailListOn" })}>
-            <Mail className="h-4 w-4 mr-2" />Mark as opted in
+            <Mail className="size-4 mr-2" />Mark as opted in
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setDialog({ kind: "emailListOff" })}>
-            <Mail className="h-4 w-4 mr-2" />Mark as opted out
+            <Mail className="size-4 mr-2" />Mark as opted out
           </DropdownMenuItem>
           {isManager && (
             <>
@@ -145,19 +145,19 @@ export function BulkActionsToolbar({
                 onClick={() => setDialog({ kind: "ban" })}
                 className="text-destructive focus:text-destructive"
               >
-                <Ban className="h-4 w-4 mr-2" />Ban…
+                <Ban className="size-4 mr-2" />Ban…
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setDialog({ kind: "unsubscribe" })}
                 className="text-destructive focus:text-destructive"
               >
-                <MailX className="h-4 w-4 mr-2" />Unsubscribe…
+                <MailX className="size-4 mr-2" />Unsubscribe…
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setDialog({ kind: "delete" })}
                 className="text-destructive focus:text-destructive"
               >
-                <Trash2 className="h-4 w-4 mr-2" />Delete…
+                <Trash2 className="size-4 mr-2" />Delete…
               </DropdownMenuItem>
             </>
           )}
@@ -351,7 +351,7 @@ function TagPickerDialog({
                   >
                     <div
                       className={cn(
-                        "flex h-4 w-4 items-center justify-center rounded border",
+                        "flex size-4 items-center justify-center rounded border",
                         isSel ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/30",
                       )}
                     >
@@ -416,7 +416,7 @@ function ReassignOwnerDialog({
             <PopoverTrigger asChild>
               <Button id="reassign-owner" variant="outline" className="w-full justify-between font-normal">
                 {label}
-                <ChevronDown className="h-4 w-4 opacity-50" />
+                <ChevronDown className="size-4 opacity-50" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)]" align="start">

@@ -94,7 +94,7 @@ export function MergeFromFormDialog({
       <DialogContent className="max-w-2xl flex flex-col max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Merge className="h-5 w-5" />
+            <Merge className="size-5" />
             Merge with Existing Record
           </DialogTitle>
           <DialogDescription>

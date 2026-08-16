@@ -105,7 +105,7 @@ export function NotesTab({ client }: NotesTabProps) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5" />
+              <MessageSquare className="size-5" />
               Add New Note
             </CardTitle>
             {isAdding ? (
@@ -114,7 +114,7 @@ export function NotesTab({ client }: NotesTabProps) {
               </Button>
             ) : (
               <Button onClick={() => setIsAdding(true)}>
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="size-4 mr-2" />
                 Add Note
               </Button>
             )}
@@ -141,7 +141,7 @@ export function NotesTab({ client }: NotesTabProps) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <MessageSquare className="h-5 w-5" />
+            <MessageSquare className="size-5" />
             Client Notes
           </CardTitle>
           <p className="text-sm text-muted-foreground">
@@ -156,7 +156,7 @@ export function NotesTab({ client }: NotesTabProps) {
                   <div key={note.id} className="border rounded-lg p-4">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <Calendar className="size-4 text-muted-foreground" />
                         <span className="text-sm text-muted-foreground">
                           {format(new Date(note.createdAt), "MMM d, yyyy • h:mm a")}
                         </span>
@@ -168,10 +168,10 @@ export function NotesTab({ client }: NotesTabProps) {
                         variant="ghost"
                         size="sm"
                         onClick={() => setDeleteTarget(note.id)}
-                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        className="size-8 text-destructive hover:text-destructive"
                         aria-label="Delete note"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="size-4" />
                       </Button>
                     </div>
                     <div className="text-sm">

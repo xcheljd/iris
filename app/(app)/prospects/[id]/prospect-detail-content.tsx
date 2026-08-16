@@ -92,7 +92,7 @@ export function ProspectDetailContent({
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" asChild>
           <Link href="/prospects">
-            <ChevronLeft className="h-4 w-4 mr-1" />
+            <ChevronLeft className="size-4 mr-1" />
             Prospects
           </Link>
         </Button>
@@ -110,11 +110,11 @@ export function ProspectDetailContent({
         {isActive && (
           <div className="flex gap-2 flex-wrap">
             <Button size="sm" onClick={() => setGraduateOpen(true)} disabled={pending}>
-              <UserCheck className="h-4 w-4 mr-2" />
+              <UserCheck className="size-4 mr-2" />
               Graduate to Client
             </Button>
             <Button size="sm" variant="outline" onClick={handleUnsubscribe} disabled={pending}>
-              <BellOff className="h-4 w-4 mr-2" />
+              <BellOff className="size-4 mr-2" />
               Unsubscribe
             </Button>
             <Button
@@ -124,7 +124,7 @@ export function ProspectDetailContent({
               onClick={handleReject}
               disabled={pending}
             >
-              <X className="h-4 w-4 mr-2" />
+              <X className="size-4 mr-2" />
               Reject
             </Button>
           </div>
@@ -155,7 +155,7 @@ export function ProspectDetailContent({
               <div className="flex gap-2">
                 <span className="text-muted-foreground w-28 shrink-0">Spend</span>
                 <span className="flex items-center gap-0.5 font-medium">
-                  <DollarSign className="h-3.5 w-3.5" />
+                  <DollarSign className="size-3.5" />
                   {prospect.rvxSpend.toFixed(2)}
                 </span>
               </div>

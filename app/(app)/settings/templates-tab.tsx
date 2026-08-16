@@ -24,9 +24,9 @@ import { toast } from "sonner";
 
 const getChannelIcon = (channel: string) => {
   switch (channel) {
-    case "text": return <MessageCircle className="h-4 w-4" />;
-    case "email": return <Mail className="h-4 w-4" />;
-    default: return <File className="h-4 w-4" />;
+    case "text": return <MessageCircle className="size-4" />;
+    case "email": return <Mail className="size-4" />;
+    default: return <File className="size-4" />;
   }
 };
 
@@ -89,7 +89,7 @@ export function TemplatesTab({ templates: initialTemplates, isManager }: Templat
             <Dialog open={showDialog} onOpenChange={setShowDialog}>
               <DialogTrigger asChild>
                 <Button size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
+                  <Plus className="size-4 mr-2" />
                   Add Template
                 </Button>
               </DialogTrigger>
@@ -172,13 +172,13 @@ export function TemplatesTab({ templates: initialTemplates, isManager }: Templat
                       {isManager && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" aria-label="Template actions">
-                            <MoreHorizontal className="h-4 w-4" />
+                          <Button variant="ghost" size="sm" className="size-8 p-0 shrink-0" aria-label="Template actions">
+                            <MoreHorizontal className="size-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(template)}>
-                            <Trash2 className="h-4 w-4 mr-2" />
+                            <Trash2 className="size-4 mr-2" />
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>

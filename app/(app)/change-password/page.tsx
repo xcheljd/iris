@@ -50,9 +50,9 @@ function PasswordStrength({ password }: { password: string }) {
         {PW_REQUIREMENTS.map((r) => (
           <li key={r.label} className="flex items-center gap-1.5 text-xs">
             {r.test(password) ? (
-              <Check className="h-3 w-3 text-green-500" />
+              <Check className="size-3 text-green-500" />
             ) : (
-              <X className="h-3 w-3 text-muted-foreground/50" />
+              <X className="size-3 text-muted-foreground/50" />
             )}
             <span className={r.test(password) ? "text-muted-foreground" : "text-muted-foreground/60"}>
               {r.label}
@@ -190,7 +190,7 @@ export default function ChangePasswordPage() {
                 {passwordsMatch && <FieldDescription className="text-green-500">Passwords match</FieldDescription>}
               </Field>
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                {loading && <Loader2 className="size-4 animate-spin" />}
                 {loading ? "Changing..." : "Change Password"}
               </Button>
             </FieldGroup>
@@ -234,7 +234,7 @@ export default function ChangePasswordPage() {
                 />
               </Field>
               <Button type="submit" className="w-full" disabled={secretLoading}>
-                {secretLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                {secretLoading && <Loader2 className="size-4 animate-spin" />}
                 {secretLoading ? "Saving..." : "Save Question"}
               </Button>
             </FieldGroup>

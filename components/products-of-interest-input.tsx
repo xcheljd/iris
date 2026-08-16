@@ -156,7 +156,7 @@ export function ProductsOfInterestInput({
           </SelectContent>
         </Select>
         <Button type="button" onClick={add} variant="outline" className="shrink-0" disabled={addDisabled}>
-          <Plus className="h-4 w-4" />
+          <Plus className="size-4" />
         </Button>
       </div>
 
@@ -190,11 +190,11 @@ export function ProductsOfInterestInput({
               type="button"
               variant="ghost"
               size="sm"
-              className="h-5 w-5 ml-1"
+              className="size-5 ml-1"
               onClick={() => remove(p)}
               aria-label={`Remove ${describe(p)}`}
             >
-              <X className="h-3 w-3" />
+              <X className="size-3" />
             </Button>
           </Badge>
         ))}

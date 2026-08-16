@@ -126,7 +126,7 @@ export function GraduateProspectDialog({
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <UserCheck className="h-5 w-5" />
+                <UserCheck className="size-5" />
                 Graduate to Client
               </DialogTitle>
             </DialogHeader>
@@ -219,7 +219,7 @@ export function GraduateProspectDialog({
                 Cancel
               </Button>
               <Button onClick={handleGraduate} disabled={pending}>
-                <UserCheck className="h-4 w-4 mr-2" />
+                <UserCheck className="size-4 mr-2" />
                 Graduate
               </Button>
             </DialogFooter>
@@ -230,7 +230,7 @@ export function GraduateProspectDialog({
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-amber-500" />
+                <AlertCircle className="size-5 text-amber-500" />
                 Existing Client Found
               </DialogTitle>
             </DialogHeader>

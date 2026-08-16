@@ -76,7 +76,7 @@ export function TransferClientDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <ArrowRightLeft className="h-5 w-5" />
+            <ArrowRightLeft className="size-5" />
             Transfer Client
           </DialogTitle>
           <DialogDescription>

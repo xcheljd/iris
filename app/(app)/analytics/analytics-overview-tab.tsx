@@ -60,7 +60,7 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
                     <p className="text-sm text-muted-foreground">Total Clients</p>
                     <p className="text-2xl font-bold">{stats.total}</p>
                   </div>
-                  <Users className="h-8 w-8 text-muted-foreground" />
+                  <Users className="size-8 text-muted-foreground" />
                 </div>
               </CardContent>
             </Card>
@@ -100,7 +100,7 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
                     <p className="text-sm text-muted-foreground">Outreach (7d)</p>
                     <p className="text-2xl font-bold">{stats.outreachWeek}</p>
                   </div>
-                  <Phone className="h-8 w-8 text-blue-500" />
+                  <Phone className="size-8 text-blue-500" />
                 </div>
               </CardContent>
             </Card>
@@ -128,7 +128,7 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
                     <p className="text-sm text-muted-foreground">Purchases (7d)</p>
                     <p className="text-2xl font-bold text-emerald-500">{stats.purchasesWeek}</p>
                   </div>
-                  <ShoppingCart className="h-8 w-8 text-emerald-500" />
+                  <ShoppingCart className="size-8 text-emerald-500" />
                 </div>
               </CardContent>
             </Card>
@@ -163,7 +163,7 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
                     <p className="text-sm text-muted-foreground">Conversion</p>
                     <p className="text-2xl font-bold">{conversionRate}%</p>
                   </div>
-                  <Target className="h-8 w-8 text-orange-500" />
+                  <Target className="size-8 text-orange-500" />
                 </div>
               </CardContent>
             </Card>
@@ -188,7 +188,7 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Flame className="h-5 w-5" />
+            <Flame className="size-5" />
             Client Heat Distribution
           </CardTitle>
           <CardDescription>
@@ -253,14 +253,14 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2">
-                  <Ban className="h-4 w-4 text-red-500" />
+                  <Ban className="size-4 text-red-500" />
                   <p className="text-sm text-muted-foreground">Banned</p>
                 </div>
                 <p className="text-2xl font-bold text-red-500 mt-1">{stats.banned}</p>
               </div>
               <Link href="/banned">
                 <Button variant="ghost" size="sm">
-                  View <ChevronRight className="h-4 w-4 ml-1" />
+                  View <ChevronRight className="size-4 ml-1" />
                 </Button>
               </Link>
             </div>
@@ -271,14 +271,14 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2">
-                  <MailX className="h-4 w-4 text-muted-foreground" />
+                  <MailX className="size-4 text-muted-foreground" />
                   <p className="text-sm text-muted-foreground">Unsubscribed</p>
                 </div>
                 <p className="text-2xl font-bold mt-1">{stats.unsubscribed}</p>
               </div>
               <Link href="/unsubscribed">
                 <Button variant="ghost" size="sm">
-                  View <ChevronRight className="h-4 w-4 ml-1" />
+                  View <ChevronRight className="size-4 ml-1" />
                 </Button>
               </Link>
             </div>

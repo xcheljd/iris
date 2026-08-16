@@ -49,7 +49,7 @@ export function ClientsActiveFilters({
           aria-label={`Remove filter: ${chip.label}`}
         >
           <span>{chip.label}</span>
-          <X className="h-3 w-3 opacity-60 group-hover:opacity-100" />
+          <X className="size-3 opacity-60 group-hover:opacity-100" />
         </button>
       ))}
       <Button

@@ -98,7 +98,7 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <CardTitle className="flex items-center gap-2">
-                    <Watch className="h-5 w-5" />
+                    <Watch className="size-5" />
                     Collection Interest
                   </CardTitle>
                   <CardDescription>
@@ -106,7 +106,7 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
                   </CardDescription>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => setExportOpen(true)}>
-                  <Download className="h-4 w-4 mr-1.5" />
+                  <Download className="size-4 mr-1.5" />
                   Export CSV
                 </Button>
               </div>
@@ -140,7 +140,7 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
                         }}
                       >
                         <div className="flex items-center gap-3">
-                          <Watch className="h-4 w-4 text-muted-foreground" />
+                          <Watch className="size-4 text-muted-foreground" />
                           <span className="font-medium">{collection.name}</span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -171,7 +171,7 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
                       <p className="text-sm text-muted-foreground">Collection</p>
                       <p className="text-xl font-bold">{selectedCollection}</p>
                     </div>
-                    <Watch className="h-10 w-10 text-muted-foreground" />
+                    <Watch className="size-10 text-muted-foreground" />
                   </div>
                 </CardContent>
               </Card>
@@ -222,7 +222,7 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
           ) : (
             <Card>
               <CardContent className="py-12 text-center">
-                <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-3 opacity-50" />
+                <BarChart3 className="size-12 mx-auto text-muted-foreground mb-3 opacity-50" />
                 <p className="text-lg font-medium">Select a collection</p>
                 <p className="text-sm text-muted-foreground mt-1">
                   Click a collection to see interested clients

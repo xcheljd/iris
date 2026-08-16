@@ -57,7 +57,7 @@ export function ProspectsBulkToolbar({ selectedIds, onClearAction }: ProspectsBu
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm">
             Actions
-            <ChevronDown className="h-4 w-4 ml-1 opacity-70" />
+            <ChevronDown className="size-4 ml-1 opacity-70" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
@@ -65,13 +65,13 @@ export function ProspectsBulkToolbar({ selectedIds, onClearAction }: ProspectsBu
             onClick={() => setDialog("unsubscribe")}
             className="text-destructive focus:text-destructive"
           >
-            <MailX className="h-4 w-4 mr-2" />Unsubscribe…
+            <MailX className="size-4 mr-2" />Unsubscribe…
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() => setDialog("reject")}
             className="text-destructive focus:text-destructive"
           >
-            <XCircle className="h-4 w-4 mr-2" />Reject…
+            <XCircle className="size-4 mr-2" />Reject…
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

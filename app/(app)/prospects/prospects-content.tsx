@@ -112,7 +112,7 @@ export function ProspectsContent({
       <Topbar title="Prospects">
         {isManager && (
           <Button size="sm" disabled>
-            <Upload className="h-4 w-4 mr-2" />
+            <Upload className="size-4 mr-2" />
             Import RVX
             <Badge variant="secondary" className="ml-2 text-[10px]">Coming Soon</Badge>
           </Button>
@@ -203,7 +203,7 @@ export function ProspectsContent({
                             )}
                             {prospect.rvxSpend !== null && prospect.rvxSpend !== undefined && (
                               <span className="text-xs text-muted-foreground flex items-center gap-0.5">
-                                <DollarSign className="h-3 w-3" />
+                                <DollarSign className="size-3" />
                                 {prospect.rvxSpend.toFixed(2)}
                               </span>
                             )}
@@ -289,7 +289,7 @@ function ProspectListCard({
                     )}
                     {prospect.rvxSpend !== null && prospect.rvxSpend !== undefined && (
                       <span className="text-xs text-muted-foreground flex items-center gap-0.5">
-                        <DollarSign className="h-3 w-3" />
+                        <DollarSign className="size-3" />
                         {prospect.rvxSpend.toFixed(2)}
                       </span>
                     )}

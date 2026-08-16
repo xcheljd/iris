@@ -101,7 +101,7 @@ export function SingleSelectMenu({
                 onSelect={() => onChange(opt.value)}
                 className="flex items-center gap-2"
               >
-                <Check className={cn("h-4 w-4 shrink-0", isSelected ? "opacity-100" : "opacity-0")} />
+                <Check className={cn("size-4 shrink-0", isSelected ? "opacity-100" : "opacity-0")} />
                 <span className="flex-1 truncate">{opt.label}</span>
               </CommandItem>
             );
@@ -151,13 +151,13 @@ export function MultiSelectMenu({
               >
                 <div
                   className={cn(
-                    "flex h-4 w-4 items-center justify-center rounded border",
+                    "flex size-4 items-center justify-center rounded border",
                     isSelected
                       ? "bg-primary border-primary text-primary-foreground"
                       : "border-muted-foreground/30",
                   )}
                 >
-                  {isSelected && <Check className="h-3 w-3" />}
+                  {isSelected && <Check className="size-3" />}
                 </div>
                 <span className="flex-1 truncate">{opt.label}</span>
               </CommandItem>
@@ -363,11 +363,11 @@ export function TagsFilterMenu({
                 >
                   <div
                     className={cn(
-                      "flex h-4 w-4 items-center justify-center rounded border",
+                      "flex size-4 items-center justify-center rounded border",
                       isSelected ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/30",
                     )}
                   >
-                    {isSelected && <Check className="h-3 w-3" />}
+                    {isSelected && <Check className="size-3" />}
                   </div>
                   <span className="flex-1 truncate">{tag.name}</span>
                   {tag.usageCount > 0 && (
@@ -428,7 +428,7 @@ export function DatesFilterButton({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="h-9 gap-2 font-normal">
-          <CalendarDays className="h-4 w-4" />
+          <CalendarDays className="size-4" />
           <span>Dates</span>
           {activeCount > 0 && (
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{activeCount}</Badge>

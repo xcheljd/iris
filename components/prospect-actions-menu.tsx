@@ -49,19 +49,19 @@ export function ProspectActionsMenu({ prospect }: ProspectActionsMenuProps) {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" disabled={pending}>
-            <MoreHorizontal className="h-4 w-4" />
+          <Button variant="ghost" size="sm" className="size-8 p-0" disabled={pending}>
+            <MoreHorizontal className="size-4" />
             <span className="sr-only">Actions</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={() => setGraduateOpen(true)}>
-            <UserCheck className="h-4 w-4 mr-2" />
+            <UserCheck className="size-4 mr-2" />
             Graduate to Client
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={handleUnsubscribe} disabled={pending}>
-            <BellOff className="h-4 w-4 mr-2" />
+            <BellOff className="size-4 mr-2" />
             Unsubscribe
           </DropdownMenuItem>
           <DropdownMenuItem
@@ -69,7 +69,7 @@ export function ProspectActionsMenu({ prospect }: ProspectActionsMenuProps) {
             disabled={pending}
             className="text-destructive focus:text-destructive"
           >
-            <X className="h-4 w-4 mr-2" />
+            <X className="size-4 mr-2" />
             Reject
           </DropdownMenuItem>
         </DropdownMenuContent>

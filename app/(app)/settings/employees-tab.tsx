@@ -261,7 +261,7 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
             <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
               <DialogTrigger asChild>
                 <Button size="sm">
-                  <UserPlus className="h-4 w-4 mr-2" />
+                  <UserPlus className="size-4 mr-2" />
                   Add Employee
                 </Button>
               </DialogTrigger>
@@ -339,22 +339,22 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-5 w-5 p-0"
+                          className="size-5 p-0"
                           aria-label={`Move ${fullName(employee)} up`}
                           disabled={idx === 0}
                           onClick={() => handleReorder(employee.id, "up")}
                         >
-                          <ChevronUp className="h-3.5 w-3.5" />
+                          <ChevronUp className="size-3.5" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-5 w-5 p-0"
+                          className="size-5 p-0"
                           aria-label={`Move ${fullName(employee)} down`}
                           disabled={idx === filteredEmployees.length - 1}
                           onClick={() => handleReorder(employee.id, "down")}
                         >
-                          <ChevronDown className="h-3.5 w-3.5" />
+                          <ChevronDown className="size-3.5" />
                         </Button>
                       </div>
                     </TableCell>
@@ -388,8 +388,8 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="Employee actions">
-                          <MoreHorizontal className="h-4 w-4" />
+                        <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="Employee actions">
+                          <MoreHorizontal className="size-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -397,15 +397,15 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
                           setEditEmployeeTarget(employee);
                           setEditEmployee({ firstName: employee.firstName, lastName: employee.lastName ?? "", username: employee.username, role: employee.role as "associate" | "manager" });
                         }}>
-                          <Pencil className="h-4 w-4 mr-2" />
+                          <Pencil className="size-4 mr-2" />
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => { setResetPasswordEmployee(employee); setNewPassword(""); }}>
-                          <KeyRound className="h-4 w-4 mr-2" />
+                          <KeyRound className="size-4 mr-2" />
                           Reset Password
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleToggleRole(employee)}>
-                          <Shield className="h-4 w-4 mr-2" />
+                          <Shield className="size-4 mr-2" />
                           {employee.role === "manager" ? "Demote to Associate" : "Promote to Manager"}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
@@ -427,7 +427,7 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
                             className="text-destructive focus:text-destructive"
                             onClick={() => setDeleteTarget(employee)}
                           >
-                            <Trash2 className="h-4 w-4 mr-2" />
+                            <Trash2 className="size-4 mr-2" />
                             Delete employee
                           </DropdownMenuItem>
                         )}

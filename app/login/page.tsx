@@ -123,7 +123,7 @@ export default function LoginPage() {
                   {error && <FieldError>{error}</FieldError>}
                 </Field>
                 <Button type="submit" variant="gold" className="w-full" disabled={loading}>
-                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {loading && <Loader2 className="size-4 animate-spin" />}
                   {loading ? "Signing in…" : "Sign in"}
                 </Button>
                 <Button type="button" variant="link" className="block mx-auto" onClick={() => setMode("forgot-username")}>
@@ -151,7 +151,7 @@ export default function LoginPage() {
                   />
                 </Field>
                 <Button type="submit" className="w-full" disabled={forgotLoading}>
-                  {forgotLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {forgotLoading && <Loader2 className="size-4 animate-spin" />}
                   {forgotLoading ? "Looking up…" : "Continue"}
                 </Button>
                 <Button type="button" variant="link" className="block mx-auto" onClick={() => setMode("login")}>
@@ -193,7 +193,7 @@ export default function LoginPage() {
                   />
                 </Field>
                 <Button type="submit" className="w-full" disabled={forgotLoading}>
-                  {forgotLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {forgotLoading && <Loader2 className="size-4 animate-spin" />}
                   {forgotLoading ? "Resetting…" : "Reset Password"}
                 </Button>
                 <Button type="button" variant="link" className="block mx-auto" onClick={() => setMode("forgot-username")}>

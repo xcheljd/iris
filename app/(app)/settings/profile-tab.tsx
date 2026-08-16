@@ -58,7 +58,7 @@ export function ProfileTab({ currentUser, currentUserId }: ProfileTabProps) {
         <CardContent>
           {currentUser ? (
             <div className="flex items-start gap-6">
-              <Avatar className="h-16 w-16 text-lg">
+              <Avatar className="size-16 text-lg">
                 <AvatarFallback className="bg-primary text-primary-foreground">
                   {initials(currentUser.firstName, currentUser.lastName)}
                 </AvatarFallback>
@@ -75,7 +75,7 @@ export function ProfileTab({ currentUser, currentUserId }: ProfileTabProps) {
                   setShowEditDialog(true);
                 }}
               >
-                <Pencil className="h-4 w-4 mr-2" />
+                <Pencil className="size-4 mr-2" />
                 Edit Profile
               </Button>
             </div>

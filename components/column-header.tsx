@@ -34,12 +34,12 @@ export function ColumnHeader<K extends string>({
           {label}
           {isActive ? (
             currentDir === "asc" ? (
-              <ChevronUp className="h-3.5 w-3.5" />
+              <ChevronUp className="size-3.5" />
             ) : (
-              <ChevronDown className="h-3.5 w-3.5" />
+              <ChevronDown className="size-3.5" />
             )
           ) : (
-            <ChevronsUpDown className="h-3.5 w-3.5 opacity-40" />
+            <ChevronsUpDown className="size-3.5 opacity-40" />
           )}
         </button>
       ) : (

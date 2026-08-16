@@ -42,7 +42,7 @@ export function AnalyticsHeatTab({ stats }: AnalyticsHeatTabProps) {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Flame className="h-4 w-4 text-orange-500" />
+                  <Flame className="size-4 text-orange-500" />
                   <span className="text-sm font-medium">Hot</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -58,7 +58,7 @@ export function AnalyticsHeatTab({ stats }: AnalyticsHeatTabProps) {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Sun className="h-4 w-4 text-yellow-500" />
+                  <Sun className="size-4 text-yellow-500" />
                   <span className="text-sm font-medium">Warm</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -74,7 +74,7 @@ export function AnalyticsHeatTab({ stats }: AnalyticsHeatTabProps) {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Snowflake className="h-4 w-4 text-blue-500" />
+                  <Snowflake className="size-4 text-blue-500" />
                   <span className="text-sm font-medium">Cold</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -94,7 +94,7 @@ export function AnalyticsHeatTab({ stats }: AnalyticsHeatTabProps) {
           <div className="grid grid-cols-3 gap-4 text-center">
             <div className="space-y-1">
               <div className="flex items-center justify-center gap-1">
-                <Flame className="h-4 w-4 text-orange-500" />
+                <Flame className="size-4 text-orange-500" />
                 <span className="font-medium">Hot</span>
               </div>
               <p className="text-sm text-muted-foreground">
@@ -106,7 +106,7 @@ export function AnalyticsHeatTab({ stats }: AnalyticsHeatTabProps) {
             </div>
             <div className="space-y-1">
               <div className="flex items-center justify-center gap-1">
-                <Sun className="h-4 w-4 text-yellow-500" />
+                <Sun className="size-4 text-yellow-500" />
                 <span className="font-medium">Warm</span>
               </div>
               <p className="text-sm text-muted-foreground">
@@ -118,7 +118,7 @@ export function AnalyticsHeatTab({ stats }: AnalyticsHeatTabProps) {
             </div>
             <div className="space-y-1">
               <div className="flex items-center justify-center gap-1">
-                <Snowflake className="h-4 w-4 text-blue-500" />
+                <Snowflake className="size-4 text-blue-500" />
                 <span className="font-medium">Cold</span>
               </div>
               <p className="text-sm text-muted-foreground">

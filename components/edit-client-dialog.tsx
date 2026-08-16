@@ -113,7 +113,7 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
       <DialogTrigger asChild>
         {children ? <div>{children}</div> : (
           <Button variant="outline" className="w-full">
-            <Edit3 className="h-4 w-4 mr-2" />
+            <Edit3 className="size-4 mr-2" />
             Edit Client
           </Button>
         )}

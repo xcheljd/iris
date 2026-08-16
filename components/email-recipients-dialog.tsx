@@ -84,7 +84,7 @@ export function EmailRecipientsDialog({ open, onOpenChange, filters }: EmailReci
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
+            <Mail className="size-5" />
             Email Recipients
           </DialogTitle>
           <DialogDescription>
@@ -157,9 +157,9 @@ export function EmailRecipientsDialog({ open, onOpenChange, filters }: EmailReci
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleCopy} disabled={copyDisabled}>
             {loading ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <Loader2 className="size-4 mr-2 animate-spin" />
             ) : (
-              <Copy className="h-4 w-4 mr-2" />
+              <Copy className="size-4 mr-2" />
             )}
             Copy {mergedCount > 0 ? mergedCount : ""}
           </Button>

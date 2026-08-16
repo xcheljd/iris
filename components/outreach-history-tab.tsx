@@ -129,7 +129,7 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
             <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
+              <Clock className="size-5" />
               Outreach History
             </CardTitle>
             <OutreachLogger
@@ -137,7 +137,7 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
               clientName={`${client.firstName} ${client.lastName}`}
               trigger={
                 <Button variant="gold" size="sm">
-                  <Phone className="h-3.5 w-3.5 mr-1.5" />
+                  <Phone className="size-3.5 mr-1.5" />
                   Log Outreach
                 </Button>
               }
@@ -168,7 +168,7 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
                           defaultMethod={log.method as "call" | "text" | "email" | "in-person"}
                           trigger={
                             <Button variant="ghost" size="sm" title="Log another outreach with this method">
-                              <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                              <RotateCcw className="size-3.5 mr-1" />
                               Re-log
                             </Button>
                           }
@@ -196,9 +196,9 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
                       <div className="flex items-center justify-between mt-3 pt-3 border-t gap-2 flex-wrap">
                         <div className="flex items-center gap-2">
                           {log.completed ? (
-                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <CheckCircle className="size-4 text-green-600" />
                           ) : (
-                            <Calendar className="h-4 w-4" />
+                            <Calendar className="size-4" />
                           )}
                           <span className={`text-sm ${log.completed ? "text-muted-foreground line-through" : ""}`}>
                             Follow up: {format(new Date(log.followUpDate), "MMM d, yyyy")}
@@ -234,7 +234,7 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
                               disabled={isPending}
                               onClick={() => handleComplete(log.id)}
                             >
-                              <CheckCircle className="h-4 w-4 mr-1" />
+                              <CheckCircle className="size-4 mr-1" />
                               {isPending ? "Saving…" : "Complete"}
                             </Button>
                           </div>
@@ -251,7 +251,7 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
                     size="sm"
                     onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
                   >
-                    <ChevronDown className="h-4 w-4 mr-1" />
+                    <ChevronDown className="size-4 mr-1" />
                     Load more ({outreachLogs.length - visibleCount} remaining)
                   </Button>
                 </div>

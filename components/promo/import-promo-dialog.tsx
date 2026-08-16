@@ -140,7 +140,7 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
       <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileSpreadsheet className="h-5 w-5" />
+            <FileSpreadsheet className="size-5" />
             Import Promo List
           </DialogTitle>
           <DialogDescription>
@@ -166,12 +166,12 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
                   }}
                 />
                 <Button onClick={() => fileInputRef.current?.click()} disabled={isParsing}>
-                  <Upload className="h-4 w-4 mr-2" />
+                  <Upload className="size-4 mr-2" />
                   {isParsing ? "Parsing PDF…" : "Choose PDF"}
                 </Button>
                 {fileName && (
                   <span className="text-sm text-muted-foreground flex items-center gap-1">
-                    <FileText className="h-3.5 w-3.5" /> {fileName}
+                    <FileText className="size-3.5" /> {fileName}
                   </span>
                 )}
               </div>
@@ -183,7 +183,7 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
         ) : !resolved || resolved.length === 0 ? (
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-yellow-500">
-              <AlertCircle className="h-5 w-5" />
+              <AlertCircle className="size-5" />
               <span className="font-medium">No promo rows detected</span>
             </div>
             <p className="text-sm text-muted-foreground">
@@ -195,18 +195,18 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
               <span className="flex items-center gap-1.5 text-green-600">
-                <CheckCircle2 className="h-4 w-4" />
+                <CheckCircle2 className="size-4" />
                 {counts.ready} ready
               </span>
               {counts.uncatalogued > 0 && (
                 <span className="flex items-center gap-1.5 text-yellow-600">
-                  <AlertCircle className="h-4 w-4" />
+                  <AlertCircle className="size-4" />
                   {counts.uncatalogued} uncatalogued
                 </span>
               )}
               {counts.conflicts > 0 && (
                 <span className="flex items-center gap-1.5 text-amber-600">
-                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTriangle className="size-4" />
                   {counts.conflicts} flagged
                 </span>
               )}
@@ -215,7 +215,7 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
 
             {parsed.pagesWithoutDiscount.length > 0 && (
               <div className="flex items-start gap-2 text-xs text-yellow-600">
-                <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <AlertCircle className="size-3.5 mt-0.5 shrink-0" />
                 <span>
                   No &quot;% OFF&quot; header on page{parsed.pagesWithoutDiscount.length !== 1 ? "s" : ""}{" "}
                   {parsed.pagesWithoutDiscount.join(", ")} — those rows import with no discount %.
@@ -271,7 +271,7 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
 
             {(promoStart || promoEnd) && (
               <div className="flex items-center gap-2 text-sm">
-                <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                <CalendarDays className="size-4 text-muted-foreground" />
                 <span>Promo period: {promoStart ? format(promoStart, "MMM d") : "?"} — {promoEnd ? format(promoEnd, "MMM d, yyyy") : "?"}</span>
               </div>
             )}

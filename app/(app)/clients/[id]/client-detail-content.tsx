@@ -70,7 +70,7 @@ export function ClientDetailContent({ client, currentUserRole }: { client: FullC
               aria-controls="mobile-sidebar"
             >
               <span>Client Info &amp; Actions</span>
-              <ChevronDown className={`h-4 w-4 transition-transform ${sidebarOpen ? "rotate-180" : ""}`} />
+              <ChevronDown className={`size-4 transition-transform ${sidebarOpen ? "rotate-180" : ""}`} />
             </button>
             <div
               id="mobile-sidebar"

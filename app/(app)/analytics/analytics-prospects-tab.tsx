@@ -48,7 +48,7 @@ export function AnalyticsProspectsTab({ funnel }: AnalyticsProspectsTabProps) {
                 <p className="text-sm text-muted-foreground">Active</p>
                 <p className="text-2xl font-bold">{funnel.active}</p>
               </div>
-              <UserSearch className="h-8 w-8 text-muted-foreground" />
+              <UserSearch className="size-8 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
@@ -63,7 +63,7 @@ export function AnalyticsProspectsTab({ funnel }: AnalyticsProspectsTabProps) {
                   <p className="text-xs text-muted-foreground mt-0.5">{graduationRate}% of total</p>
                 )}
               </div>
-              <UserCheck className="h-8 w-8 text-emerald-500" />
+              <UserCheck className="size-8 text-emerald-500" />
             </div>
           </CardContent>
         </Card>
@@ -78,7 +78,7 @@ export function AnalyticsProspectsTab({ funnel }: AnalyticsProspectsTabProps) {
                   <p className="text-xs text-muted-foreground mt-0.5">{rejectionRate}% of total</p>
                 )}
               </div>
-              <XCircle className="h-8 w-8 text-destructive" />
+              <XCircle className="size-8 text-destructive" />
             </div>
           </CardContent>
         </Card>
@@ -93,7 +93,7 @@ export function AnalyticsProspectsTab({ funnel }: AnalyticsProspectsTabProps) {
                   <p className="text-xs text-muted-foreground mt-0.5">{unsubRate}% of total</p>
                 )}
               </div>
-              <MailX className="h-8 w-8 text-muted-foreground" />
+              <MailX className="size-8 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
@@ -103,7 +103,7 @@ export function AnalyticsProspectsTab({ funnel }: AnalyticsProspectsTabProps) {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <UserSearch className="h-5 w-5" />
+              <UserSearch className="size-5" />
               Prospect Funnel
             </CardTitle>
             <CardDescription>{total} total prospects across all statuses</CardDescription>
@@ -145,7 +145,7 @@ export function AnalyticsProspectsTab({ funnel }: AnalyticsProspectsTabProps) {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
+              <DollarSign className="size-5" />
               Avg RVX Spend by Outcome
             </CardTitle>
             <CardDescription>
@@ -177,7 +177,7 @@ export function AnalyticsProspectsTab({ funnel }: AnalyticsProspectsTabProps) {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  <Upload className="h-5 w-5" />
+                  <Upload className="size-5" />
                   Recent RVX Imports
                 </CardTitle>
                 <CardDescription className="mt-1">
@@ -186,7 +186,7 @@ export function AnalyticsProspectsTab({ funnel }: AnalyticsProspectsTabProps) {
               </div>
               <Link href="/prospects">
                 <Button variant="ghost" size="sm">
-                  View Prospects <ChevronRight className="h-4 w-4 ml-1" />
+                  View Prospects <ChevronRight className="size-4 ml-1" />
                 </Button>
               </Link>
             </div>
