@@ -45,13 +45,17 @@ A self-hosted clienteling/CRM web app for Meridian Watch retail — replaces a s
 ## Conventions
 
 - **Commits:** Conventional Commits — `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`, `test:`, `perf:`. Optional scope in parens: `feat(ux)`, `feat(a11y)`, `fix(onboarding)`, `chore(demo)`, `refactor(ui)`.
-- **Branching:** trunk-based, single `main` branch. No remote, no PR template — direct commits.
+- **Branching:** trunk-based, single `main` branch. Remote is `origin` → https://github.com/xcheljd/iris (private). No PR template — direct commits.
 - **Naming:** components PascalCase, lib/util modules kebab-case. Tests mirror source path under `__tests__/`.
 - **Lint:** `next/core-web-vitals` + `next/typescript`, run as `eslint .` over the **whole**
   repo. (`next lint` only covered `app/`, `components/`, `lib/`, `pages/` and `src/`, which
   left `__tests__/`, `hooks/` and every root config unlinted; it is also removed in Next.js
   16.) Exclusions live in `.eslintignore` — build output, generated files, `public/`, and
   `remotion-demo/`. Unused vars **must** be prefixed `_` (enforced).
+- **Heat scoring:** computed in exactly one place — `lib/heat-score.ts` (`calcHeatScore`).
+  Seeds, migrations and tests call it; nothing reimplements the rules inline. The seed is
+  deterministic (mulberry32 PRNG, override with `SEED=<n>`) — do not reintroduce
+  `Math.random()` jitter.
 
 ## Testing
 
@@ -79,6 +83,6 @@ A self-hosted clienteling/CRM web app for Meridian Watch retail — replaces a s
 
 - **Fresh clone has no DB.** Run `pnpm db:push && pnpm db:seed` first. Default login: `Marcus` / `meridian` (shown on login page).
 - **`postinstall` copies the PDF worker** (`node_modules/pdfjs-dist/.../pdf.worker.min.mjs` → `public/`). If you prune node_modules manually, re-run `pnpm install` or promo PDF import breaks silently.
-- **Vitest must stay serial** (`fileParallelism: false`) — tests mutate the shared SQLite DB.
+- **Tests use a dedicated database** at `.vitest/iris.db` — created and seeded by `__tests__/global-setup.ts` (`drizzle-kit push` + `seed.ts`) each run. `data/iris.db` (the demo DB, served by `pnpm dev`) is never touched by a test run. `fileParallelism: false` still applies — tests share that one *test* DB.
 - **WAL grows.** `data/iris.db-wal` can balloon during heavy test/dev runs; checkpoint or delete WAL/SHM while the server is stopped.
 - **NextAuth requires env vars** in `.env.local` (`NEXTAUTH_SECRET`, `NEXTAUTH_URL`) or auth fails at runtime.
