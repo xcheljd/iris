@@ -21,6 +21,9 @@ dist/
 .turbo/
 tsconfig.tsbuildinfo
 
+# PDF.js worker — copied from node_modules by postinstall; never commit
+public/pdf.worker.min.mjs
+
 # Drizzle ORM
 drizzle/
 
