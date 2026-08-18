@@ -5,6 +5,7 @@ import { MobileNav } from "@/components/mobile-nav";
 import { BackupReminderDialog } from "@/components/backup-reminder-dialog";
 import { OnboardingProvider, TourOverlay, TourTooltip, TourErrorBoundary, ResumeTourButton, HintManager } from "@/components/onboarding";
 import { PageTransitionOverlay } from "@/components/page-transition-overlay";
+import { RouteFade } from "@/components/route-fade";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -13,7 +14,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <OnboardingProvider>
           <AppSidebar />
           <SidebarInset className="relative">
-            {children}
+            <RouteFade>{children}</RouteFade>
             <PageTransitionOverlay />
           </SidebarInset>
           <CommandPalette />
