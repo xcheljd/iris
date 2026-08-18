@@ -104,6 +104,7 @@ export function CommandPalette() {
   }, [q]);
 
   const go = (href: string) => { setOpen(false); setQ(""); router.push(href); };
+  const prefetch = (href: string) => router.prefetch(href);
 
   const navItems = [
     { icon: <Home className="size-4" />, label: "Dashboard", href: "/" },
@@ -128,7 +129,7 @@ export function CommandPalette() {
         {recent.length > 0 && (
           <CommandGroup heading="Recently viewed">
             {recent.map((c) => (
-              <CommandItem key={`r-${c.id}`} onSelect={() => go(`/clients/${c.id}`)}>
+              <CommandItem key={`r-${c.id}`} onSelect={() => go(`/clients/${c.id}`)} onMouseEnter={() => prefetch(`/clients/${c.id}`)} onFocus={() => prefetch(`/clients/${c.id}`)}>
                 <Clock className="size-4" />
                 <span>{c.firstName} {c.lastName ?? ""}</span>
                 {c.phone && <span className="ml-auto text-xs text-muted-foreground">{c.phone}</span>}
@@ -139,7 +140,7 @@ export function CommandPalette() {
         {hits.length > 0 && (
           <CommandGroup heading={isPhonetic ? `Did you mean? (phonetic match for "${q}")` : "Clients"}>
             {hits.map((c) => (
-              <CommandItem key={c.id} onSelect={() => go(`/clients/${c.id}`)} className="flex-col items-start gap-0.5">
+              <CommandItem key={c.id} onSelect={() => go(`/clients/${c.id}`)} onMouseEnter={() => prefetch(`/clients/${c.id}`)} onFocus={() => prefetch(`/clients/${c.id}`)} className="flex-col items-start gap-0.5">
                 <div className="flex items-center gap-2 w-full">
                   <SearchIcon className="size-4 shrink-0" />
                   <span>{c.firstName} {c.lastName ?? ""}</span>
@@ -157,7 +158,7 @@ export function CommandPalette() {
         {prospectHits.length > 0 && (
           <CommandGroup heading="Prospects">
             {prospectHits.map((p) => (
-              <CommandItem key={`p-${p.id}`} onSelect={() => go(`/prospects/${p.id}`)}>
+              <CommandItem key={`p-${p.id}`} onSelect={() => go(`/prospects/${p.id}`)} onMouseEnter={() => prefetch(`/prospects/${p.id}`)} onFocus={() => prefetch(`/prospects/${p.id}`)}>
                 <UserSearch className="size-4" />
                 <span>{p.firstName} {p.lastName ?? ""}</span>
                 {p.phone && <span className="ml-auto text-xs text-muted-foreground">{p.phone}</span>}
@@ -168,7 +169,7 @@ export function CommandPalette() {
         {listHits.length > 0 && (
           <CommandGroup heading="Smart Lists">
             {listHits.map((l) => (
-              <CommandItem key={`l-${l.id}`} onSelect={() => go(`/smart-lists?list=${encodeURIComponent(l.id)}`)}>
+              <CommandItem key={`l-${l.id}`} onSelect={() => go(`/smart-lists?list=${encodeURIComponent(l.id)}`)} onMouseEnter={() => prefetch(`/smart-lists?list=${encodeURIComponent(l.id)}`)} onFocus={() => prefetch(`/smart-lists?list=${encodeURIComponent(l.id)}`)}>
                 <FilterIcon className="size-4" />
                 <span>{l.name}</span>
                 {l.isShared
@@ -181,11 +182,11 @@ export function CommandPalette() {
         <CommandSeparator />
         <CommandGroup heading="Navigate">
           {filteredNav.map((n) => (
-            <CommandItem key={n.href} onSelect={() => go(n.href)}>{n.icon} {n.label}</CommandItem>
+            <CommandItem key={n.href} onSelect={() => go(n.href)} onMouseEnter={() => prefetch(n.href)} onFocus={() => prefetch(n.href)}>{n.icon} {n.label}</CommandItem>
           ))}
         </CommandGroup>
         <CommandGroup heading="Actions">
-          <CommandItem onSelect={() => go("/clients/new")}><Plus className="size-4" /> New Client</CommandItem>
+          <CommandItem onSelect={() => go("/clients/new")} onMouseEnter={() => prefetch("/clients/new")} onFocus={() => prefetch("/clients/new")}><Plus className="size-4" /> New Client</CommandItem>
         </CommandGroup>
       </CommandList>
     </CommandDialog>
