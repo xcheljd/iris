@@ -16,6 +16,13 @@ export function Topbar({ title, children }: { title?: string; children?: React.R
   useEffect(() => setMounted(true), []);
   const { setOpen: setPaletteOpen } = useCommandPalette();
   const { state, targetTitle } = useNavigationTransition();
+  const toggleTheme = () => {
+    // Smooth cross-fade: enable transitions only for the duration of the switch.
+    const root = document.documentElement;
+    root.classList.add("theme-transitioning");
+    setTheme(theme === "dark" ? "light" : "dark");
+    window.setTimeout(() => root.classList.remove("theme-transitioning"), 350);
+  };
 
   const navigating = state === "navigating" && targetTitle;
   const displayTitle = navigating ? targetTitle : title;
@@ -36,7 +43,7 @@ export function Topbar({ title, children }: { title?: string; children?: React.R
       {mounted && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Toggle theme">
+            <Button variant="ghost" size="icon" className="size-8" onClick={toggleTheme} aria-label="Toggle theme">
               {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
             </Button>
           </TooltipTrigger>

@@ -10,7 +10,7 @@ import { NavigationTransitionProvider } from "@/components/navigation-transition
 export function Providers({ children, session }: { children: React.ReactNode; session: Session | null }) {
   return (
     <SessionProvider session={session}>
-      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
+      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
         <TooltipProvider delayDuration={200}>
           <NavigationTransitionProvider>
             <NavigationProgress />

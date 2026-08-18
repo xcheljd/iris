@@ -101,3 +101,21 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-shake { animation: none; }
 }
+
+/* Smooth light/dark switch: class is added to <html> only during theme change,
+   then removed — so ordinary hover/focus transitions are unaffected. */
+@media (prefers-reduced-motion: no-preference) {
+  .theme-transitioning,
+  .theme-transitioning *,
+  .theme-transitioning *::before,
+  .theme-transitioning *::after {
+    transition:
+      background-color 0.3s ease,
+      border-color 0.3s ease,
+      color 0.3s ease,
+      fill 0.3s ease,
+      stroke 0.3s ease,
+      box-shadow 0.3s ease,
+      outline-color 0.3s ease !important;
+  }
+}
