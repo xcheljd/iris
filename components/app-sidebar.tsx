@@ -158,7 +158,7 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground" aria-label="Account menu">
+                <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground" aria-label={`Account menu (${session?.user?.name ?? "User"})`}>
                   <Avatar className="size-8">
                     <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs">{userInitials}</AvatarFallback>
                   </Avatar>

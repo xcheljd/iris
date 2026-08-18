@@ -69,7 +69,7 @@ describe("AppSidebar account menu", () => {
   it("shows the user's name and role on the footer trigger", () => {
     mockPathname = "/";
     renderSidebar();
-    const trigger = screen.getByRole("button", { name: "Account menu" });
+    const trigger = screen.getByRole("button", { name: /account menu/i });
     expect(trigger).toHaveTextContent("Test Manager");
     expect(trigger).toHaveTextContent("manager");
   });
@@ -78,7 +78,7 @@ describe("AppSidebar account menu", () => {
     mockPathname = "/";
     renderSidebar();
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "Account menu" }));
+    await user.click(screen.getByRole("button", { name: /account menu/i }));
 
     const changePassword = await screen.findByRole("menuitem", { name: /change password/i });
     expect(changePassword).toHaveAttribute("href", "/change-password");
