@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -8,9 +9,10 @@ const mockSession = {
   data: { user: { id: "mgr", name: "Test Manager", role: "manager", firstName: "Test", lastName: "Manager" } },
   status: "authenticated" as const,
 };
+const mockSignOut = vi.fn();
 vi.mock("next-auth/react", () => ({
   useSession: () => mockSession,
-  signOut: vi.fn(),
+  signOut: (...args: unknown[]) => mockSignOut(...args),
 }));
 
 let mockPathname = "/";
@@ -60,5 +62,28 @@ describe("AppSidebar active state", () => {
     renderSidebar();
     expect(activeLabel("Collections")).toBe("true");
     expect(activeLabel("Analytics")).toBe("false");
+  });
+});
+
+describe("AppSidebar account menu", () => {
+  it("shows the user's name and role on the footer trigger", () => {
+    mockPathname = "/";
+    renderSidebar();
+    const trigger = screen.getByRole("button", { name: "Account menu" });
+    expect(trigger).toHaveTextContent("Test Manager");
+    expect(trigger).toHaveTextContent("manager");
+  });
+
+  it("opens a menu with a change-password link and sign out", async () => {
+    mockPathname = "/";
+    renderSidebar();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Account menu" }));
+
+    const changePassword = await screen.findByRole("menuitem", { name: /change password/i });
+    expect(changePassword).toHaveAttribute("href", "/change-password");
+
+    await user.click(screen.getByRole("menuitem", { name: /sign out/i }));
+    expect(mockSignOut).toHaveBeenCalledWith({ callbackUrl: "/login" });
   });
 });

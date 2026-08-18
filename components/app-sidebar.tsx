@@ -2,15 +2,15 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Users, Phone, ListFilter, Tag, BarChart3, Ban, MailX, Settings, LogOut, Watch, KeyRound, ShieldCheck, UserSearch, Library } from "lucide-react";
+import { Home, Users, Phone, ListFilter, Tag, BarChart3, Ban, MailX, Settings, LogOut, Watch, KeyRound, ShieldCheck, UserSearch, Library, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton, useSidebar } from "@/components/ui/sidebar";
 import { IrisIcon } from "@/components/iris-icon";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { signOut, useSession } from "next-auth/react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { initials } from "@/lib/utils";
 
@@ -63,10 +63,11 @@ interface AppSidebarProps {
 
 export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 0 }: AppSidebarProps = {}) {
   const pathname = usePathname();
-  const { state } = useSidebar();
+  const { state, isMobile } = useSidebar();
   const { data: session } = useSession();
   const collapsed = state === "collapsed";
   const isManager = session?.user?.role === "manager";
+  const userInitials = initials(session?.user?.firstName || session?.user?.name || "U", session?.user?.lastName);
   const activeHref = useMemo(() => activeHrefFor(pathname), [pathname]);
   const [pendingCount, setPendingCount] = useState(initialPendingCount);
   const [catalogFlagCount, setCatalogFlagCount] = useState(initialCatalogFlagCount);
@@ -153,49 +154,49 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
         })}
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border">
-        <div className={cn("flex items-center gap-2 py-1.5", collapsed ? "justify-center px-0" : "px-2")}>
-          {collapsed ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Avatar className="size-7 cursor-default">
-                  <AvatarFallback className="bg-accent/20 text-accent text-xs">{initials(session?.user?.firstName || session?.user?.name || "U", session?.user?.lastName)}</AvatarFallback>
-                </Avatar>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                <p className="text-xs font-medium">{session?.user?.name}</p>
-                <p className="text-[10px] text-muted-foreground capitalize">{session?.user?.role}</p>
-              </TooltipContent>
-            </Tooltip>
-          ) : (
-            <>
-              <Avatar className="size-7">
-                <AvatarFallback className="bg-accent/20 text-accent text-xs">{initials(session?.user?.firstName || session?.user?.name || "U", session?.user?.lastName)}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium truncate">{session?.user?.name}</p>
-                <p className="text-[10px] text-sidebar-foreground/60 capitalize">{session?.user?.role}</p>
-              </div>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Link href="/change-password" aria-label="Change Password">
-                    <Button variant="ghost" size="icon" className="size-7" aria-label="Change Password">
-                      <KeyRound className="size-3.5" />
-                    </Button>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground" aria-label="Account menu">
+                  <Avatar className="size-8">
+                    <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs">{userInitials}</AvatarFallback>
+                  </Avatar>
+                  <div className="grid flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
+                    <span className="truncate text-xs font-medium">{session?.user?.name}</span>
+                    <span className="truncate text-[10px] text-sidebar-foreground/60 capitalize">{session?.user?.role}</span>
+                  </div>
+                  <ChevronsUpDown className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg" side={isMobile ? "bottom" : "right"} align="end" sideOffset={4}>
+                <DropdownMenuLabel className="p-0 font-normal">
+                  <div className="flex items-center gap-2 px-1 py-1.5 text-left">
+                    <Avatar className="size-8">
+                      <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs">{userInitials}</AvatarFallback>
+                    </Avatar>
+                    <div className="grid flex-1 leading-tight">
+                      <span className="truncate text-xs font-medium">{session?.user?.name}</span>
+                      <span className="truncate text-[10px] text-muted-foreground capitalize">{session?.user?.role}</span>
+                    </div>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/change-password">
+                    <KeyRound />
+                    Change Password
                   </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right">Change Password</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="size-7" onClick={() => signOut({ callbackUrl: "/login" })} aria-label="Sign Out">
-                    <LogOut className="size-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="right">Sign Out</TooltipContent>
-              </Tooltip>
-            </>
-          )}
-        </div>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })}>
+                  <LogOut />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
   );
