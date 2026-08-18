@@ -17,7 +17,7 @@ export function MobileNav() {
   return (
     <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-5 border-t bg-background/95 backdrop-blur">
       {items.map((it) => {
-        const active = it.href === "/" ? pathname === "/" : pathname.startsWith(it.href);
+        const active = pathname === it.href || (it.href !== "/" && pathname.startsWith(it.href + "/"));
         return (
           <Link key={it.href} href={it.href} className={cn("flex flex-col items-center justify-center gap-0.5 py-2 text-[10px]", active ? "text-accent" : "text-muted-foreground")}>
             <it.icon className="size-5" />

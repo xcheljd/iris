@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Users, Phone, ListFilter, Tag, BarChart3, Ban, MailX, Settings, LogOut, Watch, KeyRound, ShieldCheck, UserSearch, Library } from "lucide-react";
@@ -42,6 +42,20 @@ const baseNav = [
   ]},
 ];
 
+const ALL_NAV_HREFS = baseNav.flatMap((group) => group.items.map((item) => item.href));
+
+// Prefix match so detail routes (e.g. /clients/<id>) highlight their parent
+// nav item; when multiple hrefs match (e.g. /analytics vs
+// /analytics/collections) the longest (deepest) href wins.
+function activeHrefFor(pathname: string): string | null {
+  let best: string | null = null;
+  for (const href of ALL_NAV_HREFS) {
+    const matches = pathname === href || (href !== "/" && pathname.startsWith(href + "/"));
+    if (matches && (!best || href.length > best.length)) best = href;
+  }
+  return best;
+}
+
 interface AppSidebarProps {
   initialPendingCount?: number;
   initialCatalogFlagCount?: number;
@@ -53,6 +67,7 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
   const { data: session } = useSession();
   const collapsed = state === "collapsed";
   const isManager = session?.user?.role === "manager";
+  const activeHref = useMemo(() => activeHrefFor(pathname), [pathname]);
   const [pendingCount, setPendingCount] = useState(initialPendingCount);
   const [catalogFlagCount, setCatalogFlagCount] = useState(initialCatalogFlagCount);
 
@@ -96,7 +111,7 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
               <SidebarGroupContent>
                 <SidebarMenu>
                   {visibleItems.map((item) => {
-                    const active = pathname === item.href;
+                    const active = item.href === activeHref;
                     const isApprovals = item.href === "/approvals";
                     const isCatalog = item.href === "/catalog";
                     return (
