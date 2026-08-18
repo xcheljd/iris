@@ -106,6 +106,82 @@ describe("GNav", () => {
     expect(mockPush).not.toHaveBeenCalled();
   });
 
+  describe("open-surface guard (cline follow-up)", () => {
+    it("ignores chords while an AlertDialog (alertdialog role) is open", () => {
+      render(
+        <>
+          <div role="alertdialog" data-state="open" />
+          <GNav />
+        </>
+      );
+      pressG();
+      press("c");
+      expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    it("ignores chords while a Radix Select (combobox) is open", () => {
+      render(
+        <>
+          <div role="combobox" data-state="open" />
+          <GNav />
+        </>
+      );
+      pressG();
+      press("c");
+      expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    it("ignores chords while a listbox dropdown is mounted", () => {
+      render(
+        <>
+          <ul role="listbox" />
+          <GNav />
+        </>
+      );
+      pressG();
+      press("c");
+      expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    it("ignores chords while a non-Radix aria-modal tour is open", () => {
+      render(
+        <>
+          <div role="dialog" aria-modal="true" />
+          <GNav />
+        </>
+      );
+      pressG();
+      press("c");
+      expect(mockPush).not.toHaveBeenCalled();
+    });
+  });
+
+  it("disarms an in-flight chord when a modifier shortcut is pressed", () => {
+    render(<GNav />);
+    pressG();
+    // Cmd+K mid-chord: modifier press resets the chord
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    press("c");
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it("arms and navigates with Shift held (normalizes case)", () => {
+    render(<GNav />);
+    fireEvent.keyDown(window, { key: "G", shiftKey: true });
+    fireEvent.keyDown(window, { key: "C", shiftKey: true });
+    expect(mockPush).toHaveBeenCalledWith("/clients");
+  });
+
+  it("ignores key auto-repeat (e.repeat) on the arm key", () => {
+    render(<GNav />);
+    fireEvent.keyDown(window, { key: "g" });
+    // held-g repeats must not re-trigger / double-schedule
+    fireEvent.keyDown(window, { key: "g", repeat: true });
+    fireEvent.keyDown(window, { key: "c" });
+    expect(mockPush).toHaveBeenCalledTimes(1);
+    expect(mockPush).toHaveBeenCalledWith("/clients");
+  });
+
   it("ignores chords with meta/ctrl/alt held", () => {
     render(<GNav />);
     fireEvent.keyDown(window, { key: "g", ctrlKey: true });
