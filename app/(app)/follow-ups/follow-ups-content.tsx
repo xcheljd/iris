@@ -31,6 +31,7 @@ import { toast } from "sonner";
 import { format, differenceInDays } from "date-fns";
 import { Topbar } from "@/components/topbar";
 import { fullName } from "@/lib/utils";
+import { useRemovedKeys } from "@/hooks/use-optimistic";
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
@@ -74,22 +75,19 @@ function getRelativeTime(date: Date) {
   return `In ${Math.abs(diff)} day${Math.abs(diff) !== 1 ? "s" : ""}`;
 }
 
-function FollowUpCard({ row, isOverdue, onDetail }: { row: FollowUpRow; isOverdue: boolean; onDetail: () => void }) {
-  const [isCompleting, setIsCompleting] = useState(false);
+function FollowUpCard({
+  row,
+  isOverdue,
+  onDetail,
+  onComplete,
+}: {
+  row: FollowUpRow;
+  isOverdue: boolean;
+  onDetail: () => void;
+  onComplete: (row: FollowUpRow) => Promise<void>;
+}) {
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [newDate, setNewDate] = useState<Date | undefined>(undefined);
-
-  const handleComplete = async () => {
-    setIsCompleting(true);
-    try {
-      await markFollowUpComplete(row.log.id);
-      toast.success("Follow-up marked complete");
-    } catch {
-      toast.error("Failed to complete follow-up");
-    } finally {
-      setIsCompleting(false);
-    }
-  };
 
   const handleReschedule = async () => {
     if (!newDate) return;
@@ -202,7 +200,7 @@ function FollowUpCard({ row, isOverdue, onDetail }: { row: FollowUpRow; isOverdu
               </div>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button size="sm" variant="default" disabled={isCompleting} className="h-7 text-xs gap-1">
+                  <Button size="sm" variant="default" className="h-7 text-xs gap-1">
                     <CheckCircle2 className="size-3" />
                     Done
                   </Button>
@@ -216,7 +214,7 @@ function FollowUpCard({ row, isOverdue, onDetail }: { row: FollowUpRow; isOverdu
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleComplete}>Confirm</AlertDialogAction>
+                    <AlertDialogAction onClick={() => onComplete(row)}>Confirm</AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
@@ -329,13 +327,32 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
   const [upcomingPage, setUpcomingPage] = useState(1);
   const [allPage, setAllPage] = useState(1);
 
-  const all = [...overdue, ...upcoming];
+  // Optimistic removal: completed cards vanish instantly; failed actions roll back.
+  const baseAll = [...overdue, ...upcoming];
+  const uniqueBase = baseAll.filter(
+    (row, i, arr) => arr.findIndex((r) => r.log.id === row.log.id) === i
+  );
+  const { isRemoved, remove } = useRemovedKeys(uniqueBase, (row) => row.log.id);
+
+  const handleComplete = async (row: FollowUpRow) => {
+    const res = await remove(row.log.id, () => markFollowUpComplete(row.log.id));
+    if (res?.error) {
+      toast.error(res.error);
+    } else {
+      toast.success("Follow-up marked complete");
+    }
+  };
+
+  const overdueRows = overdue.filter((row) => !isRemoved(row.log.id));
+  const upcomingRows = upcoming.filter((row) => !isRemoved(row.log.id));
+
+  const all = [...overdueRows, ...upcomingRows];
   const uniqueAll = all.filter((row, i, arr) => arr.findIndex((r) => r.log.id === row.log.id) === i);
 
-  const overdueTotalPages = Math.ceil(overdue.length / PAGE_SIZE);
-  const pagedOverdue = overdue.slice((overduePage - 1) * PAGE_SIZE, overduePage * PAGE_SIZE);
-  const upcomingTotalPages = Math.ceil(upcoming.length / PAGE_SIZE);
-  const pagedUpcoming = upcoming.slice((upcomingPage - 1) * PAGE_SIZE, upcomingPage * PAGE_SIZE);
+  const overdueTotalPages = Math.ceil(overdueRows.length / PAGE_SIZE);
+  const pagedOverdue = overdueRows.slice((overduePage - 1) * PAGE_SIZE, overduePage * PAGE_SIZE);
+  const upcomingTotalPages = Math.ceil(upcomingRows.length / PAGE_SIZE);
+  const pagedUpcoming = upcomingRows.slice((upcomingPage - 1) * PAGE_SIZE, upcomingPage * PAGE_SIZE);
   const allTotalPages = Math.ceil(uniqueAll.length / PAGE_SIZE);
   const pagedAll = uniqueAll.slice((allPage - 1) * PAGE_SIZE, allPage * PAGE_SIZE);
 
@@ -360,18 +377,18 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
           <TabsTrigger value="overdue" className="gap-1">
             <AlertTriangle className="size-4 text-destructive" />
             Overdue
-            {overdue.length > 0 && (
+            {overdueRows.length > 0 && (
               <Badge variant="destructive" className="ml-1 text-[10px] px-1.5 py-0">
-                {overdue.length}
+                {overdueRows.length}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="upcoming" className="gap-1">
             <Clock className="size-4" />
             Upcoming (7 days)
-            {upcoming.length > 0 && (
+            {upcomingRows.length > 0 && (
               <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">
-                {upcoming.length}
+                {upcomingRows.length}
               </Badge>
             )}
           </TabsTrigger>
@@ -384,7 +401,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
         </TabsList>
 
         <TabsContent value="overdue">
-          {overdue.length === 0 ? (
+          {overdueRows.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
                 <CheckCircle2 className="size-12 mx-auto text-green-500 mb-3" />
@@ -396,7 +413,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
             <>
             <div className="flex flex-col gap-3">
               {pagedOverdue.map((row) => (
-                <FollowUpCard key={row.log.id} row={row} isOverdue onDetail={() => openDetail(row)} />
+                <FollowUpCard key={row.log.id} row={row} isOverdue onDetail={() => openDetail(row)} onComplete={handleComplete} />
               ))}
             </div>
             <PaginationFooter
@@ -412,7 +429,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
         </TabsContent>
 
         <TabsContent value="upcoming">
-          {upcoming.length === 0 ? (
+          {upcomingRows.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
                 <Clock className="size-12 mx-auto text-muted-foreground mb-3" />
@@ -426,7 +443,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
             <>
             <div className="flex flex-col gap-3">
               {pagedUpcoming.map((row) => (
-                <FollowUpCard key={row.log.id} row={row} isOverdue={false} onDetail={() => openDetail(row)} />
+                <FollowUpCard key={row.log.id} row={row} isOverdue={false} onDetail={() => openDetail(row)} onComplete={handleComplete} />
               ))}
             </div>
             <PaginationFooter
@@ -458,7 +475,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
                   ? new Date(row.log.followUpDate) <= new Date()
                   : false;
                 return (
-                  <FollowUpCard key={row.log.id} row={row} isOverdue={isOverdue} onDetail={() => openDetail(row)} />
+                  <FollowUpCard key={row.log.id} row={row} isOverdue={isOverdue} onDetail={() => openDetail(row)} onComplete={handleComplete} />
                 );
               })}
             </div>
