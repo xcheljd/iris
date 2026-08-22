@@ -1,8 +1,18 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useOptimisticToggle } from "@/hooks/use-optimistic";
+import { useOptimisticToggle, useRemovedKeys } from "@/hooks/use-optimistic";
 
 type ActionResult = { error: string } | undefined;
+
+interface RemovedKeyItem {
+  id: string;
+  name: string;
+}
+
+const removedKeyItems: RemovedKeyItem[] = [
+  { id: "a", name: "Alpha" },
+  { id: "b", name: "Beta" },
+];
 
 /** Deferred promise helper: lets us hold the action mid-flight. */
 function deferred<T>() {
@@ -160,5 +170,113 @@ describe("useOptimisticToggle", () => {
     });
     expect(result.current.isPending).toBe(false);
     expect(result.current.value).toBe(true);
+  });
+});
+
+// ─── useRemovedKeys ──────────────────────────────────────────────────────────
+
+describe("useRemovedKeys", () => {
+  it("1. isRemoved(key) is false initially", () => {
+    const action = vi.fn(async (): Promise<ActionResult> => undefined);
+    const { result } = renderHook(() =>
+      useRemovedKeys(removedKeyItems, (i) => i.id)
+    );
+    expect(result.current.isRemoved("a")).toBe(false);
+    expect(result.current.isRemoved("b")).toBe(false);
+    expect(action).not.toHaveBeenCalled();
+  });
+
+  it("2. remove(key, action) marks the key removed on next render, before the action settles", async () => {
+    const d = deferred<ActionResult>();
+    const action = vi.fn(() => d.promise);
+    const { result } = renderHook(() =>
+      useRemovedKeys(removedKeyItems, (i) => i.id)
+    );
+
+    act(() => {
+      void result.current.remove("a", action);
+    });
+
+    // No await of the action yet — removal must already be visible.
+    expect(result.current.isRemoved("a")).toBe(true);
+    expect(result.current.isRemoved("b")).toBe(false);
+    expect(action).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      d.resolve(undefined);
+      await d.promise.catch(() => {});
+    });
+    expect(result.current.isRemoved("a")).toBe(true); // held until props agree
+  });
+
+  it("3. a rejecting/thrown action rolls back — key is visible again and { error } is returned", async () => {
+    const action = vi.fn(async (): Promise<ActionResult> => {
+      throw new Error("unban failed");
+    });
+    const { result } = renderHook(() =>
+      useRemovedKeys(removedKeyItems, (i) => i.id)
+    );
+
+    let p: Promise<ActionResult> | undefined;
+    act(() => {
+      p = result.current.remove("a", action);
+    });
+    expect(result.current.isRemoved("a")).toBe(true);
+
+    let returned: ActionResult;
+    await act(async () => {
+      returned = await p!;
+    });
+    expect(result.current.isRemoved("a")).toBe(false); // rollback
+    expect(returned!).toEqual({ error: "unban failed" });
+  });
+
+  it("4. success + base list re-rendered without the key drops the override entry (no leak)", async () => {
+    const action = vi.fn(async (): Promise<ActionResult> => undefined);
+    const { result, rerender } = renderHook(
+      ({ list }: { list: RemovedKeyItem[] }) =>
+        useRemovedKeys(list, (i) => i.id),
+      { initialProps: { list: removedKeyItems } }
+    );
+
+    let p: Promise<ActionResult> | undefined;
+    act(() => {
+      p = result.current.remove("a", action);
+    });
+    await act(async () => {
+      await p;
+    });
+    expect(result.current.isRemoved("a")).toBe(true);
+
+    // Revalidated props land: server list no longer contains "a".
+    rerender({ list: [removedKeyItems[1]] });
+    // The override entry was reconciled away — hook state has no leak.
+    expect(result.current.isRemoved("a")).toBe(false);
+
+    // And if the key ever comes back (e.g. undo/re-add), it must NOT be
+    // pre-marked as removed by stale state.
+    rerender({ list: removedKeyItems });
+    expect(result.current.isRemoved("a")).toBe(false);
+  });
+
+  it("5. unmark(key) restores an optimistically-removed key", async () => {
+    const action = vi.fn(async (): Promise<ActionResult> => undefined);
+    const { result } = renderHook(() =>
+      useRemovedKeys(removedKeyItems, (i) => i.id)
+    );
+
+    let p: Promise<ActionResult> | undefined;
+    act(() => {
+      p = result.current.remove("a", action);
+    });
+    await act(async () => {
+      await p;
+    });
+    expect(result.current.isRemoved("a")).toBe(true);
+
+    act(() => {
+      result.current.unmark("a");
+    });
+    expect(result.current.isRemoved("a")).toBe(false);
   });
 });
