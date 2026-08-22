@@ -51,7 +51,10 @@ A self-hosted clienteling/CRM web app for Meridian Watch retail — replaces a s
   repo. (`next lint` only covered `app/`, `components/`, `lib/`, `pages/` and `src/`, which
   left `__tests__/`, `hooks/` and every root config unlinted; it is also removed in Next.js
   16.) Exclusions live in `.eslintignore` — build output, generated files, `public/`, and
-  `remotion-demo/`. Unused vars **must** be prefixed `_` (enforced).
+  `remotion-demo/`. Unused vars **must** be prefixed `_` (enforced). `.eslintrc.json` sets
+  `"root": true` — without it ESLint 8 walks up past the repo, which breaks linting from a
+  git worktree under `.claude/worktrees/` (it finds the parent checkout's identical config and
+  aborts on a duplicate `@next/next` plugin).
 - **Heat scoring:** computed in exactly one place — `lib/heat-score.ts` (`calcHeatScore`).
   Seeds, migrations and tests call it; nothing reimplements the rules inline. The seed is
   deterministic (mulberry32 PRNG, override with `SEED=<n>`) — do not reintroduce
@@ -63,6 +66,14 @@ A self-hosted clienteling/CRM web app for Meridian Watch retail — replaces a s
 - **Layout:** `__tests__/unit/`, `__tests__/components/`, `__tests__/api/`. Files: `*.test.ts(x)`.
 - **`fileParallelism: false`** — tests share one SQLite DB; do not enable parallelism.
 - **Coverage target:** 70-80% floor. Many unit + component tests; few integration.
+- **Ownership-sensitive tests must create their own client.** `__tests__/setup.ts` inserts the
+  shared fixture client (`e18e3ba8-…`) owned by the **associate** (`590628cf-…`), so it cannot
+  stand in for "a client this associate does not own". Insert a client with the owner the test
+  needs and clean it up. Ambient ownership is not a contract — asserting against it makes the
+  test pass or fail on file ordering.
+- **Hardcoded employee IDs must come from `__tests__/setup.ts`**, never invented. `seed.ts`
+  generates random employee UUIDs, and `clients.employee_id` is a FK with `foreign_keys = ON`,
+  so an unknown id makes writes throw — which bulk helpers swallow into `ok: 0`.
 
 ## Do
 
@@ -81,7 +92,7 @@ A self-hosted clienteling/CRM web app for Meridian Watch retail — replaces a s
 
 ## Gotchas
 
-- **Fresh clone has no DB.** Run `pnpm db:push && pnpm db:seed` first. Default login: `Marcus` / `meridian` (shown on login page).
+- **Fresh clone has no DB.** Run `pnpm db:push && pnpm db:seed` first. Default login: `Marcus` / `meridian` (shown on login page). This applies to a fresh **git worktree** too — `lib/db/index.ts` resolves `data/iris.db` from `process.cwd()` and `data/` is gitignored, so every DB-touching suite dies with `no such table: clients` until you seed.
 - **`postinstall` copies the PDF worker** (`node_modules/pdfjs-dist/.../pdf.worker.min.mjs` → `public/`). If you prune node_modules manually, re-run `pnpm install` or promo PDF import breaks silently.
 - **Tests use a dedicated database** at `.vitest/iris.db` — created and seeded by `__tests__/global-setup.ts` (`drizzle-kit push` + `seed.ts`) each run. `data/iris.db` (the demo DB, served by `pnpm dev`) is never touched by a test run. `fileParallelism: false` still applies — tests share that one *test* DB.
 - **WAL grows.** `data/iris.db-wal` can balloon during heavy test/dev runs; checkpoint or delete WAL/SHM while the server is stopped.

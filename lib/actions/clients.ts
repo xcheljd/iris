@@ -141,6 +141,7 @@ export async function toggleEmailList(clientId: string): Promise<{ error: string
   const user = await requireAuth();
   const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
   if (!c) return { error: "Client not found" };
+  if (user.role !== "manager" && c.employeeId !== user.id) return { error: "Not authorized to change this client's email list" };
   if (c.status === "unsubscribed") return { error: "Cannot toggle email list for unsubscribed client" };
   const newValue = !c.onEmailList;
   db.transaction((tx) => {
