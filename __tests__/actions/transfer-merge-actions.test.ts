@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, afterEach } from "vitest";
+import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 
 vi.mock("next-auth", () => ({
   getServerSession: vi.fn(),
@@ -53,6 +53,18 @@ function createTestClient(overrides: { firstName?: string; lastName?: string; em
 describe("transferClient", () => {
   const createdClientIds: string[] = [];
 
+  // Establish the "before" owner explicitly. This used to be a side effect of the
+  // afterEach below, which restored the shared client to MANAGER_ID and called it
+  // the original — it is not, __tests__/setup.ts creates it owned by ASSOCIATE_ID.
+  // That leaked a manager-owned client to every later suite, so ownership
+  // assertions elsewhere passed or failed on file ordering.
+  beforeEach(() => {
+    db.update(clients)
+      .set({ employeeId: MANAGER_ID, updatedAt: new Date() })
+      .where(eq(clients.id, FIRST_CLIENT_ID))
+      .run();
+  });
+
   afterEach(() => {
     for (const id of createdClientIds) {
       try {
@@ -62,10 +74,10 @@ describe("transferClient", () => {
     }
     createdClientIds.length = 0;
 
-    // Restore seed client's original employeeId (Marcus = MANAGER_ID)
+    // Restore the shared client to the owner __tests__/setup.ts gave it.
     try {
       db.update(clients)
-        .set({ employeeId: MANAGER_ID, updatedAt: new Date() })
+        .set({ employeeId: ASSOCIATE_ID, updatedAt: new Date() })
         .where(eq(clients.id, FIRST_CLIENT_ID))
         .run();
       db.delete(activityEvents)
@@ -76,6 +88,9 @@ describe("transferClient", () => {
 
   it("updates the client's employeeId to the new employee", async () => {
     vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    const before = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
+    expect(before!.employeeId).toBe(MANAGER_ID); // precondition — the transfer must be a real change
+
     await transferClient(FIRST_CLIENT_ID, ASSOCIATE_ID);
 
     const client = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
