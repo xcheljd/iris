@@ -14,6 +14,7 @@ import type { OutreachLog } from "@/lib/db/schema";
 import { getMethodIcon, isFollowUpOverdue, isFollowUpUpcoming } from "@/lib/outreach-helpers";
 import { markFollowUpComplete, rescheduleFollowUp } from "@/lib/actions";
 import { OutreachLogger } from "@/components/outreach-logger";
+import { useOptimisticToggle } from "@/hooks/use-optimistic";
 
 const PAGE_SIZE = 10;
 
@@ -21,29 +22,30 @@ interface OutreachHistoryTabProps {
   client: FullClient;
 }
 
-export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
-  const [isPending, startTransition] = useTransition();
+function OutreachLogRow({
+  log,
+  client,
+  onReschedule,
+  reschedulePending,
+}: {
+  log: OutreachLog;
+  client: FullClient;
+  onReschedule: (logId: string, date: Date) => void;
+  reschedulePending: boolean;
+}) {
+  // Optimistic completion: badge flips instantly; failed actions roll back.
+  const { value: completed, toggle: toggleComplete } = useOptimisticToggle(
+    log.completed,
+    () => markFollowUpComplete(log.id)
+  );
 
-  const handleComplete = (logId: string) => {
-    startTransition(async () => {
-      try {
-        await markFollowUpComplete(logId);
-        toast.success("Follow-up marked complete");
-      } catch {
-        toast.error("Failed to mark complete");
-      }
-    });
-  };
-
-  const handleReschedule = (logId: string, date: Date) => {
-    startTransition(async () => {
-      try {
-        await rescheduleFollowUp(logId, format(date, "yyyy-MM-dd"));
-        toast.success(`Follow-up rescheduled to ${format(date, "MMM d, yyyy")}`);
-      } catch {
-        toast.error("Failed to reschedule follow-up");
-      }
-    });
+  const handleComplete = async () => {
+    const res = await toggleComplete();
+    if (res?.error) {
+      toast.error("Failed to mark complete");
+    } else {
+      toast.success("Follow-up marked complete");
+    }
   };
 
   const getOutcomeBadge = (outcome: string) => {
@@ -72,6 +74,113 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
         {labels[outcome] || outcome.replace(/_/g, " ")}
       </Badge>
     );
+  };
+
+  return (
+    <div className="border rounded-lg p-4">
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-2">
+          {getMethodIcon(log.method)}
+          <span className="font-medium capitalize">{log.method}</span>
+          <span>•</span>
+          <span className="text-sm text-muted-foreground">
+            {format(new Date(log.date), "MMM d, yyyy")}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          {getOutcomeBadge(log.outcome)}
+          <OutreachLogger
+            key={`relog-${log.id}`}
+            clientId={client.id}
+            clientName={`${client.firstName} ${client.lastName}`}
+            defaultMethod={log.method as "call" | "text" | "email" | "in-person"}
+            trigger={
+              <Button variant="ghost" size="sm" title="Log another outreach with this method">
+                <RotateCcw className="size-3.5 mr-1" />
+                Re-log
+              </Button>
+            }
+          />
+        </div>
+      </div>
+
+      {log.purchasedModel && (
+        <div className="border border-green-500/50 bg-green-500/10 rounded p-2 mb-3">
+          <div className="text-sm font-medium text-green-700 dark:text-green-400">Purchase</div>
+          <div className="text-sm text-green-700/90 dark:text-green-400/90">{log.purchasedModel}</div>
+        </div>
+      )}
+
+      {log.notes && (
+        <div className="mb-3">
+          <div className="text-sm text-muted-foreground mb-1">Notes</div>
+          <div className="text-sm bg-muted/50 rounded p-2">
+            {log.notes}
+          </div>
+        </div>
+      )}
+
+      {log.followUpDate && (
+        <div className="flex items-center justify-between mt-3 pt-3 border-t gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            {completed ? (
+              <CheckCircle className="size-4 text-green-600" />
+            ) : (
+              <Calendar className="size-4" />
+            )}
+            <span className={`text-sm ${completed ? "text-muted-foreground line-through" : ""}`}>
+              Follow up: {format(new Date(log.followUpDate), "MMM d, yyyy")}
+            </span>
+            {completed ? (
+              <Badge variant="outline" className="text-xs border-green-600/40 text-green-700">
+                Completed
+              </Badge>
+            ) : (
+              <>
+                {isFollowUpOverdue(log.followUpDate) && (
+                  <Badge variant="destructive" className="text-xs">
+                    Overdue
+                  </Badge>
+                )}
+                {isFollowUpUpcoming(log.followUpDate) && (
+                  <Badge variant="secondary" className="text-xs">
+                    Upcoming
+                  </Badge>
+                )}
+              </>
+            )}
+          </div>
+          {!completed && (
+            <div className="flex items-center gap-2">
+              <DatePicker
+                date={new Date(log.followUpDate)}
+                onSelectAction={(d) => d && onReschedule(log.id, d)}
+                disabled={reschedulePending}
+              />
+              <Button size="sm" onClick={handleComplete}>
+                <CheckCircle className="size-4 mr-1" />
+                Complete
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
+  const [isPending, startTransition] = useTransition();
+
+  const handleReschedule = (logId: string, date: Date) => {
+    startTransition(async () => {
+      try {
+        await rescheduleFollowUp(logId, format(date, "yyyy-MM-dd"));
+        toast.success(`Follow-up rescheduled to ${format(date, "MMM d, yyyy")}`);
+      } catch {
+        toast.error("Failed to reschedule follow-up");
+      }
+    });
   };
 
   const outreachLogs: OutreachLog[] = client.outreach || [];
@@ -149,99 +258,13 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
             <div className="flex flex-col gap-4">
               <div className="divide-y">
                 {visibleLogs.map((log: OutreachLog) => (
-                  <div key={log.id} className="border rounded-lg p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        {getMethodIcon(log.method)}
-                        <span className="font-medium capitalize">{log.method}</span>
-                        <span>•</span>
-                        <span className="text-sm text-muted-foreground">
-                          {format(new Date(log.date), "MMM d, yyyy")}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {getOutcomeBadge(log.outcome)}
-                        <OutreachLogger
-                          key={`relog-${log.id}`}
-                          clientId={client.id}
-                          clientName={`${client.firstName} ${client.lastName}`}
-                          defaultMethod={log.method as "call" | "text" | "email" | "in-person"}
-                          trigger={
-                            <Button variant="ghost" size="sm" title="Log another outreach with this method">
-                              <RotateCcw className="size-3.5 mr-1" />
-                              Re-log
-                            </Button>
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    {log.purchasedModel && (
-                      <div className="border border-green-500/50 bg-green-500/10 rounded p-2 mb-3">
-                        <div className="text-sm font-medium text-green-700 dark:text-green-400">Purchase</div>
-                        <div className="text-sm text-green-700/90 dark:text-green-400/90">{log.purchasedModel}</div>
-                      </div>
-                    )}
-
-                    {log.notes && (
-                      <div className="mb-3">
-                        <div className="text-sm text-muted-foreground mb-1">Notes</div>
-                        <div className="text-sm bg-muted/50 rounded p-2">
-                          {log.notes}
-                        </div>
-                      </div>
-                    )}
-
-                    {log.followUpDate && (
-                      <div className="flex items-center justify-between mt-3 pt-3 border-t gap-2 flex-wrap">
-                        <div className="flex items-center gap-2">
-                          {log.completed ? (
-                            <CheckCircle className="size-4 text-green-600" />
-                          ) : (
-                            <Calendar className="size-4" />
-                          )}
-                          <span className={`text-sm ${log.completed ? "text-muted-foreground line-through" : ""}`}>
-                            Follow up: {format(new Date(log.followUpDate), "MMM d, yyyy")}
-                          </span>
-                          {log.completed ? (
-                            <Badge variant="outline" className="text-xs border-green-600/40 text-green-700">
-                              Completed
-                            </Badge>
-                          ) : (
-                            <>
-                              {isFollowUpOverdue(log.followUpDate) && (
-                                <Badge variant="destructive" className="text-xs">
-                                  Overdue
-                                </Badge>
-                              )}
-                              {isFollowUpUpcoming(log.followUpDate) && (
-                                <Badge variant="secondary" className="text-xs">
-                                  Upcoming
-                                </Badge>
-                              )}
-                            </>
-                          )}
-                        </div>
-                        {!log.completed && (
-                          <div className="flex items-center gap-2">
-                            <DatePicker
-                              date={new Date(log.followUpDate)}
-                              onSelectAction={(d) => d && handleReschedule(log.id, d)}
-                              disabled={isPending}
-                            />
-                            <Button
-                              size="sm"
-                              disabled={isPending}
-                              onClick={() => handleComplete(log.id)}
-                            >
-                              <CheckCircle className="size-4 mr-1" />
-                              {isPending ? "Saving…" : "Complete"}
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  <OutreachLogRow
+                    key={log.id}
+                    log={log}
+                    client={client}
+                    onReschedule={handleReschedule}
+                    reschedulePending={isPending}
+                  />
                 ))}
               </div>
               {hasMore && (
