@@ -25,10 +25,38 @@ import { MergeClientDialog } from "@/components/merge-client-dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { toggleEmailList, resubscribeClient, unbanClient } from "@/lib/actions";
 import { toast } from "sonner";
+import { useOptimisticToggle } from "@/hooks/use-optimistic";
 
 export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string }) {
   const client = useClient();
   const [activeTab, setActiveTab] = useState("profile");
+  // Optimistic toggles: labels flip instantly pre-await; failures roll back.
+  const emailList = useOptimisticToggle(
+    client?.onEmailList ?? false,
+    async () => (client ? await toggleEmailList(client.id) : undefined)
+  );
+  const banned = useOptimisticToggle(
+    client?.status === "banned",
+    async () => {
+      if (!client) return undefined;
+      await unbanClient(client.id);
+      return undefined;
+    }
+  );
+  const unsubscribed = useOptimisticToggle(
+    client?.status === "unsubscribed",
+    async () => {
+      if (!client) return undefined;
+      await resubscribeClient(client.id);
+      return undefined;
+    }
+  );
+  // While an optimistic status flip is in play, treat the client as active.
+  const status =
+    banned.value !== (client?.status === "banned") ||
+    unsubscribed.value !== (client?.status === "unsubscribed")
+      ? ("active" as const)
+      : client?.status ?? "active";
   if (!client) return null;
 
   return (
@@ -96,25 +124,25 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                   </DropdownMenuItem>
                 </MergeClientDialog>
               )}
-              {client.status !== "unsubscribed" && client.status !== "deleted" && client.onEmailList && (
+              {status !== "unsubscribed" && status !== "deleted" && emailList.value && (
                 <ConfirmDialog
                   title="Remove from Email List"
                   description={<>Are you sure you want to remove <strong>{client.firstName} {client.lastName}</strong> from the email list? They will no longer receive marketing emails.</>}
                   confirmLabel="Remove"
                   variant="destructive"
-                  onConfirmAction={async () => { const r = await toggleEmailList(client.id); if (r?.error) { toast.error(r.error); } else { toast.success("Removed from email list"); } }}
+                  onConfirmAction={async () => { const r = await emailList.toggle(); if (r?.error) { toast.error(r.error); } else { toast.success("Removed from email list"); } }}
                 >
                   <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={(e) => e.preventDefault()}>
                     <Mail className="size-4 mr-2" /> Remove from Email List
                   </DropdownMenuItem>
                 </ConfirmDialog>
               )}
-              {client.status !== "unsubscribed" && client.status !== "deleted" && !client.onEmailList && (
-                <DropdownMenuItem onClick={async () => { const r = await toggleEmailList(client.id); if (r?.error) { toast.error(r.error); } else { toast.success("Added to email list"); } }}>
+              {status !== "unsubscribed" && status !== "deleted" && !emailList.value && (
+                <DropdownMenuItem onClick={async () => { const r = await emailList.toggle(); if (r?.error) { toast.error(r.error); } else { toast.success("Added to email list"); } }}>
                   <Mail className="size-4 mr-2" /> Add to Email List
                 </DropdownMenuItem>
               )}
-              {client.status === "active" && (
+              {status === "active" && (
                 <>
                   <DropdownMenuSeparator />
                   <BanCustomerDialog clientId={client.id} clientName={`${client.firstName} ${client.lastName ?? ""}`}>
@@ -129,14 +157,14 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                   </UnsubscribeCustomerDialog>
                 </>
               )}
-              {client.status === "banned" && currentUserRole === "manager" && (
+              {status === "banned" && currentUserRole === "manager" && (
                 <>
                   <DropdownMenuSeparator />
                   <ConfirmDialog
                     title="Unban Customer"
                     description={<>Are you sure you want to unban <strong>{client.firstName} {client.lastName}</strong>? This will restore their status to active.</>}
                     confirmLabel="Unban"
-                    onConfirmAction={() => unbanClient(client.id).then(() => { toast.success("Customer unbanned"); }).catch(() => { toast.error("Failed to unban"); })}
+                    onConfirmAction={async () => { const r = await banned.toggle(); if (r?.error) { toast.error("Failed to unban"); } else { toast.success("Customer unbanned"); } }}
                   >
                     <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                       <ShieldOff className="size-4 mr-2" /> Unban Customer
@@ -144,14 +172,14 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                   </ConfirmDialog>
                 </>
               )}
-              {client.status === "unsubscribed" && currentUserRole === "manager" && (
+              {status === "unsubscribed" && currentUserRole === "manager" && (
                 <>
                   <DropdownMenuSeparator />
                   <ConfirmDialog
                     title="Resubscribe Customer"
                     description={<>Are you sure you want to resubscribe <strong>{client.firstName} {client.lastName}</strong>? This will allow all forms of contact again.</>}
                     confirmLabel="Resubscribe"
-                    onConfirmAction={() => resubscribeClient(client.id).then(() => { toast.success("Customer resubscribed"); }).catch(() => { toast.error("Failed to resubscribe"); })}
+                    onConfirmAction={async () => { const r = await unsubscribed.toggle(); if (r?.error) { toast.error("Failed to resubscribe"); } else { toast.success("Customer resubscribed"); } }}
                   >
                     <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                       <UserCheck className="size-4 mr-2" /> Resubscribe
