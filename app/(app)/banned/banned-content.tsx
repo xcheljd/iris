@@ -50,6 +50,7 @@ import { format } from "date-fns";
 import Link from "next/link";
 import { Topbar } from "@/components/topbar";
 import { EmptyState } from "@/components/empty-state";
+import { useRemovedKeys } from "@/hooks/use-optimistic";
 import type { BannedCustomer } from "@/lib/db/schema";
 
 interface BannedRow {
@@ -72,7 +73,9 @@ function getCategoryBadge(category: string) {
 
 export function BannedContent({ banned: initialBanned, isManager }: { banned: BannedRow[]; isManager: boolean }) {
   const router = useRouter();
-  const [banned, setBanned] = useState(initialBanned);
+  // Optimistic removal: unbanned rows vanish instantly; failed actions roll back.
+  const { isRemoved, remove } = useRemovedKeys(initialBanned, (row) => row.banned.id);
+  const banned = initialBanned.filter((row) => !isRemoved(row.banned.id));
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [showBanDialog, setShowBanDialog] = useState(false);
@@ -101,15 +104,17 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
   const paged = filteredBanned.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const handleUnban = async (row: BannedRow) => {
-    if (!row.clientId) return;
-    try {
-      await unbanClient(row.clientId);
-      setBanned(banned.filter((r) => r.banned.id !== row.banned.id));
-      toast.success("Customer unbanned");
-    } catch {
+    const clientId = row.clientId;
+    if (!clientId) return;
+    const res = await remove(row.banned.id, async () => {
+      // Propagate the action's result so an `{ error }` return rolls back.
+      return (await unbanClient(clientId)) as { error: string } | undefined;
+    });
+    setUnbanTarget(null);
+    if (res?.error) {
       toast.error("Failed to unban customer");
-    } finally {
-      setUnbanTarget(null);
+    } else {
+      toast.success("Customer unbanned");
     }
   };
 
