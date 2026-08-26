@@ -27,7 +27,7 @@ Open [http://localhost:3000](http://localhost:3000). Default credentials are dis
 | Database | SQLite via better-sqlite3 |
 | ORM | Drizzle ORM |
 | Auth | NextAuth.js (Credentials provider, JWT sessions) |
-| Forms | react-hook-form + zod |
+| Forms | Hand-rolled, validated with zod |
 | Charts | Recharts (via shadcn Chart) |
 | Tests | Vitest + Testing Library |
 
