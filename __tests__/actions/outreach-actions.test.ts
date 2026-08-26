@@ -319,4 +319,57 @@ describe("Outreach Actions", () => {
       expect(result).toEqual({ error: "Follow-up not found" });
     });
   });
+
+  // Regression: rescheduleFollowUp fed `newDate` straight into `new Date(...)`,
+  // so an unparseable string wrote an Invalid Date to the row.
+  describe("rescheduleFollowUp date validation", () => {
+    async function createManagerLog(marker: string) {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+      await logOutreach({
+        clientId: FIRST_CLIENT_ID,
+        method: "call",
+        outcome: "wants_to_come_in",
+        followUpDate: "2026-12-01",
+        notes: marker,
+      });
+      const log = db.select().from(outreachLogs)
+        .where(eq(outreachLogs.clientId, FIRST_CLIENT_ID))
+        .all()
+        .find((l) => l.notes === marker);
+      expect(log).toBeDefined();
+      createdLogIds.push(log!.id);
+      return log!;
+    }
+
+    it("rejects an unparseable date without touching the row", async () => {
+      const log = await createManagerLog("reschedule-invalid-date");
+      const originalDate = log.followUpDate;
+
+      const result = await rescheduleFollowUp(log.id, "not-a-date");
+
+      expect(result).toEqual({ error: "Invalid date" });
+      const after = db.select().from(outreachLogs).where(eq(outreachLogs.id, log.id)).get();
+      expect(after!.followUpDate).toEqual(originalDate);
+    });
+
+    it("rejects a well-formed but impossible date", async () => {
+      const log = await createManagerLog("reschedule-impossible-date");
+      const originalDate = log.followUpDate;
+
+      expect(await rescheduleFollowUp(log.id, "2026-02-31")).toEqual({ error: "Invalid date" });
+
+      const after = db.select().from(outreachLogs).where(eq(outreachLogs.id, log.id)).get();
+      expect(after!.followUpDate).toEqual(originalDate);
+    });
+
+    it("still reschedules on a valid YYYY-MM-DD date", async () => {
+      const log = await createManagerLog("reschedule-valid-date");
+
+      const result = await rescheduleFollowUp(log.id, "2027-01-05");
+
+      expect(result).toBeUndefined();
+      const after = db.select().from(outreachLogs).where(eq(outreachLogs.id, log.id)).get();
+      expect(after!.followUpDate).toEqual(new Date("2027-01-05"));
+    });
+  });
 });

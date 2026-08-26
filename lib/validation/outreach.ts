@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { OUTREACH_METHOD_VALUES, OUTREACH_OUTCOME_VALUES } from "@/lib/db/schema";
 
+/** A calendar day (`YYYY-MM-DD`) — the same shape `outreachInputSchema.followUpDate` accepts. */
+export const followUpDateSchema = z.string().date();
+
 export const outreachInputSchema = z
   .object({
     clientId: z.string().uuid(),

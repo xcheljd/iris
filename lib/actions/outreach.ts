@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { calcHeatScore } from "@/lib/heat-score";
 import { MS_PER_DAY, HEAT_LOOKBACK_DAYS } from "@/lib/constants";
-import { outreachInputSchema, type OutreachInput } from "@/lib/validation/outreach";
+import { outreachInputSchema, followUpDateSchema, type OutreachInput } from "@/lib/validation/outreach";
 import { format } from "date-fns";
 import { requireAuth } from "./_shared";
 
@@ -120,6 +120,8 @@ export async function markFollowUpComplete(logId: string): Promise<{ error: stri
 
 export async function rescheduleFollowUp(logId: string, newDate: string): Promise<{ error: string } | undefined> {
   const user = await requireAuth();
+  // `new Date("whatever")` yields an Invalid Date, which Drizzle happily writes as NaN.
+  if (!followUpDateSchema.safeParse(newDate).success) return { error: "Invalid date" };
   const log = db.select({ clientId: outreachLogs.clientId, employeeId: outreachLogs.employeeId }).from(outreachLogs).where(eq(outreachLogs.id, logId)).get();
   if (!log) return { error: "Follow-up not found" };
   if (user.role !== "manager" && log.employeeId !== user.id) return { error: "Not authorized to reschedule this follow-up" };
