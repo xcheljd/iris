@@ -1,7 +1,7 @@
 "use server";
 import { db } from "@/lib/db";
 import { clients, activityEvents, approvalRequests, employees } from "@/lib/db/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import { and, eq, desc, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireAuth, requireManager } from "./_shared";
@@ -51,27 +51,52 @@ export async function reviewApprovalRequest(
   const user = await requireManager();
   const request = db.select().from(approvalRequests).where(eq(approvalRequests.id, requestId)).get();
   if (!request) return { error: "Request not found" };
-  if (request.status !== "pending") return { error: "Request already reviewed" };
 
-  // Run the downstream action first — if it throws, approval stays "pending" and is retryable.
-  // Previously the status was committed before the action, making failures unrecoverable.
+  // Claim the request atomically before doing anything else: a plain read-then-write
+  // let two concurrent reviews (double-click, double submit) both see "pending" and
+  // both run the downstream action. `WHERE status = 'pending'` makes exactly one win.
+  const targetStatus = approved ? "approved" : "rejected";
+  const claim = db.update(approvalRequests).set({
+    status: targetStatus,
+    reviewedById: user.id,
+    reviewedAt: new Date(),
+  }).where(and(
+    eq(approvalRequests.id, requestId),
+    eq(approvalRequests.status, "pending"),
+  )).run();
+  if (claim.changes === 0) return { error: "Request already reviewed" };
+
+  // The downstream action still decides the outcome — if it fails, the claim is
+  // released back to "pending" so the request stays retryable. Previously the
+  // status was committed before the action, making failures unrecoverable.
+  const release = (error: string) => {
+    db.update(approvalRequests).set({ status: "pending", reviewedById: null, reviewedAt: null })
+      .where(eq(approvalRequests.id, requestId)).run();
+    return { error };
+  };
+
   if (approved) {
-    switch (request.type) {
-      case "ban": {
-        const r = await banClient(request.clientId, "Other", request.reason);
-        if (r?.error) return { error: r.error };
-        break;
+    try {
+      switch (request.type) {
+        case "ban": {
+          const r = await banClient(request.clientId, "Other", request.reason);
+          if (r?.error) return release(r.error);
+          break;
+        }
+        case "unsubscribe": {
+          const r = await unsubscribeClient(request.clientId);
+          if (r?.error) return release(r.error);
+          break;
+        }
+        case "delete": {
+          const r = await deleteClient(request.clientId);
+          if (r?.error) return release(r.error);
+          break;
+        }
       }
-      case "unsubscribe": {
-        const r = await unsubscribeClient(request.clientId);
-        if (r?.error) return { error: r.error };
-        break;
-      }
-      case "delete": {
-        const r = await deleteClient(request.clientId);
-        if (r?.error) return { error: r.error };
-        break;
-      }
+    } catch (err) {
+      release("Failed to apply the approved action");
+      throw err;
     }
   }
 
@@ -80,24 +105,16 @@ export async function reviewApprovalRequest(
   else if (request.type === "unsubscribe") eventType = approved ? "unsub_approved" : "unsub_rejected";
   else eventType = approved ? "delete_approved" : "delete_rejected";
 
-  db.transaction((tx) => {
-    tx.update(approvalRequests).set({
-      status: approved ? "approved" : "rejected",
-      reviewedById: user.id,
-      reviewedAt: new Date(),
-    }).where(eq(approvalRequests.id, requestId)).run();
-
-    tx.insert(activityEvents).values({
-      id: randomUUID(),
-      clientId: request.clientId,
-      eventType: eventType as "ban_approved" | "ban_rejected" | "unsub_approved" | "unsub_rejected" | "delete_approved" | "delete_rejected",
-      description: approved
-        ? `${request.type} request approved by ${user.name}`
-        : `${request.type} request rejected by ${user.name}`,
-      metadata: { requestId: request.id, requestorId: request.requestorId, reason: request.reason },
-      employeeId: user.id,
-    }).run();
-  });
+  db.insert(activityEvents).values({
+    id: randomUUID(),
+    clientId: request.clientId,
+    eventType: eventType as "ban_approved" | "ban_rejected" | "unsub_approved" | "unsub_rejected" | "delete_approved" | "delete_rejected",
+    description: approved
+      ? `${request.type} request approved by ${user.name}`
+      : `${request.type} request rejected by ${user.name}`,
+    metadata: { requestId: request.id, requestorId: request.requestorId, reason: request.reason },
+    employeeId: user.id,
+  }).run();
 
   // Invalidates the (app) layout so the sidebar badge re-reads `getPendingApprovalCount`.
   revalidatePath("/", "layout");

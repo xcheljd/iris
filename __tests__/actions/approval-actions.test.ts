@@ -266,6 +266,36 @@ describe("reviewApprovalRequest", () => {
     expect(row!.status).toBe("pending");
   });
 
+  it("does not re-run the downstream action on a second review of the same request", async () => {
+    const requestId = await createPendingRequest("ban");
+
+    const callsBefore = vi.mocked(banClient).mock.calls.length;
+    await reviewApprovalRequest(requestId, true);
+    expect(vi.mocked(banClient).mock.calls.length).toBe(callsBefore + 1);
+
+    const bannedRowsAfterFirst = db
+      .select().from(bannedCustomers).where(eq(bannedCustomers.customerId, FIRST_CLIENT_ID)).all().length;
+    const approvedEventsAfterFirst = db
+      .select().from(activityEvents).where(eq(activityEvents.clientId, FIRST_CLIENT_ID)).all()
+      .filter((e) => e.eventType === "ban_approved").length;
+
+    const second = await reviewApprovalRequest(requestId, true);
+
+    expect(second?.error).toBe("Request already reviewed");
+    // Downstream action and its side effects ran exactly once.
+    expect(vi.mocked(banClient).mock.calls.length).toBe(callsBefore + 1);
+    expect(
+      db.select().from(bannedCustomers).where(eq(bannedCustomers.customerId, FIRST_CLIENT_ID)).all(),
+    ).toHaveLength(bannedRowsAfterFirst);
+    expect(
+      db.select().from(activityEvents).where(eq(activityEvents.clientId, FIRST_CLIENT_ID)).all()
+        .filter((e) => e.eventType === "ban_approved"),
+    ).toHaveLength(approvedEventsAfterFirst);
+    expect(
+      db.select().from(approvalRequests).where(eq(approvalRequests.id, requestId)).get()!.status,
+    ).toBe("approved");
+  });
+
   it("logs a review activity event on approval", async () => {
     const requestId = await createPendingRequest("ban");
     await reviewApprovalRequest(requestId, true);
