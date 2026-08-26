@@ -23,6 +23,9 @@ export async function duplicateSmartList(listId: string): Promise<{ error: strin
   const user = await requireAuth();
   const original = db.select().from(smartLists).where(eq(smartLists.id, listId)).get();
   if (!original) return { error: "Smart list not found" };
+  if (!original.isShared && original.ownerId !== user.id && user.role !== "manager") {
+    return { error: "Not authorized to duplicate this list" };
+  }
   try {
     db.insert(smartLists).values({
       id: randomUUID(),

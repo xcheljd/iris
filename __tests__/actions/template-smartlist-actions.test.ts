@@ -159,7 +159,7 @@ describe("Template & Smart List Actions", () => {
 
     it("copy is owned by the duplicating user, not the original owner", async () => {
       vi.mocked(getServerSession).mockResolvedValue(managerSession);
-      await createSmartList("Manager's List", { heatLevel: "hot" });
+      await createSmartList("Manager's List", { heatLevel: "hot" }, { isShared: true });
       const original = db.select().from(smartLists)
         .where(eq(smartLists.name, "Manager's List"))
         .get();
@@ -173,6 +173,60 @@ describe("Template & Smart List Actions", () => {
         .get();
       expect(copy).toBeDefined();
       expect(copy!.ownerId).toBe(ASSOCIATE_ID);
+      if (copy) createdListIds.push(copy.id);
+    });
+
+    // SEC-04 — duplicating was the one smart-list action with no owner guard,
+    // so a private list could be copied (filters and all) by anyone who knew
+    // its id.
+    it("associate cannot duplicate another user's private list", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+      await createSmartList("Manager's Private List", { heatLevel: "hot" });
+      const original = db.select().from(smartLists)
+        .where(eq(smartLists.name, "Manager's Private List"))
+        .get();
+      if (original) createdListIds.push(original.id);
+
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
+      const result = await duplicateSmartList(original!.id);
+      expect(result).toEqual({ error: "Not authorized to duplicate this list" });
+
+      const copy = db.select().from(smartLists)
+        .where(eq(smartLists.name, "Manager's Private List (Copy)"))
+        .get();
+      expect(copy).toBeUndefined();
+    });
+
+    it("associate can duplicate their own private list", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
+      await createSmartList("Associate's Private List", {});
+      const original = db.select().from(smartLists)
+        .where(eq(smartLists.name, "Associate's Private List"))
+        .get();
+      if (original) createdListIds.push(original.id);
+
+      expect(await duplicateSmartList(original!.id)).toBeUndefined();
+      const copy = db.select().from(smartLists)
+        .where(eq(smartLists.name, "Associate's Private List (Copy)"))
+        .get();
+      expect(copy).toBeDefined();
+      if (copy) createdListIds.push(copy.id);
+    });
+
+    it("manager can duplicate an associate's private list", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
+      await createSmartList("Associate's Other List", {});
+      const original = db.select().from(smartLists)
+        .where(eq(smartLists.name, "Associate's Other List"))
+        .get();
+      if (original) createdListIds.push(original.id);
+
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+      expect(await duplicateSmartList(original!.id)).toBeUndefined();
+      const copy = db.select().from(smartLists)
+        .where(eq(smartLists.name, "Associate's Other List (Copy)"))
+        .get();
+      expect(copy).toBeDefined();
       if (copy) createdListIds.push(copy.id);
     });
   });
