@@ -5,7 +5,7 @@ import { eq, desc, or, notInArray, sql as rawSql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { clientCreateSchema, clientPatchSchema } from "@/lib/validation/client";
-import { applyClientPatch } from "@/lib/actions/clients";
+import { saveClientEdits } from "@/lib/actions/clients";
 import { recordProductsOfInterest } from "@/lib/actions/model-catalog";
 
 // GET /api/clients — list all clients
@@ -113,7 +113,8 @@ export const PUT = withAuth(async (session, request: Request) => {
       );
     }
 
-    await applyClientPatch(id, parsed.data as Record<string, unknown>, session.user.id);
+    const result = await saveClientEdits(id, parsed.data);
+    if (result?.error) return Response.json({ error: result.error }, { status: 403 });
     return Response.json({ success: true });
   } catch (_error) {
     return Response.json({ error: "Failed to update client" }, { status: 500 });

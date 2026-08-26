@@ -8,6 +8,8 @@ import { requireAuth, requireManager } from "./_shared";
 import { recalcHeat } from "./outreach";
 import { fullName } from "@/lib/utils";
 import { recordProductsOfInterest } from "./model-catalog";
+import { applyClientPatchUnchecked } from "./_client-patch-core";
+import { clientPatchSchema } from "@/lib/validation/client";
 
 // Structural de-dupe for products of interest (objects, so Set won't dedupe).
 function dedupeProducts(list: ProductOfInterest[]): ProductOfInterest[] {
@@ -20,25 +22,22 @@ function dedupeProducts(list: ProductOfInterest[]): ProductOfInterest[] {
   return out;
 }
 
-export async function applyClientPatch(clientId: string, data: Record<string, unknown>, employeeId: string): Promise<void> {
-  const patch: Record<string, unknown> = { updatedAt: new Date() };
-  for (const [k, v] of Object.entries(data)) {
-    if (v !== undefined) patch[k] = v;
-  }
-  db.update(clients).set(patch).where(eq(clients.id, clientId)).run();
-  if (data.productsOfInterest !== undefined) {
-    recordProductsOfInterest(db, data.productsOfInterest as ProductOfInterest[]);
-  }
-  db.insert(activityEvents).values({
-    id: randomUUID(),
-    clientId,
-    eventType: "edited",
-    description: "Profile updated",
-    metadata: { fieldChanges: data },
-    employeeId,
-  }).run();
-  revalidatePath(`/clients/${clientId}`);
-  revalidatePath("/clients");
+/**
+ * Edit a client profile. Managers may edit anyone; associates only their own
+ * clients. `data` is untrusted — clientPatchSchema is the field allowlist, so
+ * protected columns (status, employeeId, heatScore…) are stripped here rather
+ * than relying on each caller to parse first.
+ */
+export async function saveClientEdits(clientId: string, data: unknown): Promise<{ error: string } | undefined> {
+  const user = await requireAuth();
+  const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
+  if (!c) return { error: "Client not found" };
+  if (user.role !== "manager" && c.employeeId !== user.id) return { error: "Not authorized" };
+
+  const parsed = clientPatchSchema.safeParse(data);
+  if (!parsed.success) return { error: "Invalid request" };
+
+  applyClientPatchUnchecked(clientId, parsed.data as Record<string, unknown>, user.id);
 }
 
 export async function banClient(clientId: string, category: "Reselling" | "Gift Card Fraud" | "Other", reason: string): Promise<{ error: string } | undefined> {

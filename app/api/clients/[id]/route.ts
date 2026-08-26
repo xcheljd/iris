@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { clients } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { clientPatchSchema } from "@/lib/validation/client";
-import { applyClientPatch } from "@/lib/actions/clients";
+import { saveClientEdits } from "@/lib/actions/clients";
 
 export const GET = withAuth(async (_session, request: Request, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
@@ -35,7 +35,8 @@ export const PUT = withAuth(async (session, request: Request, { params }: { para
       );
     }
 
-    await applyClientPatch(id, parsed.data as Record<string, unknown>, session.user.id);
+    const result = await saveClientEdits(id, parsed.data);
+    if (result?.error) return Response.json({ error: result.error }, { status: 403 });
     return Response.json({ success: true });
   } catch (_error) {
     return Response.json({ error: "Failed to update client" }, { status: 500 });
