@@ -5,7 +5,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 type OptimisticActionResult = { error: string } | undefined;
 
 /**
- * React-18-compatible optimistic boolean toggle (no native `useOptimistic`).
+ * Optimistic boolean toggle (works on React 18 and 19).
+ *
+ * NOTE (React 19): native `useOptimistic` is NOT used here deliberately — its
+ * optimistic state reverts when the transition ends, BEFORE revalidated RSC
+ * props arrive, causing a flash-back. This hook holds the override until the
+ * server prop agrees. Revisit only if React ships hold-until-reconcile
+ * semantics.
  *
  * Flips the displayed value instantly, fires `action`, then:
  * - error (`{ error }` return or throw) → rollback to the server value;
@@ -52,10 +58,12 @@ export function useOptimisticToggle(
 }
 
 /**
- * React-18-compatible optimistic list-removal override ("complete/unban makes
- * the row vanish"). Keys are marked removed instantly; a failed action rolls
- * the key back. On success the override entry is held until revalidated props
- * drop the key from `items`, at which point the reconcile effect clears it.
+ * Optimistic list-removal override ("complete/unban makes the row vanish").
+ * Works on React 18 and 19 — see note atop useOptimisticToggle for why native
+ * `useOptimistic` is not used. Keys are marked removed instantly; a failed
+ * action rolls the key back. On success the override entry is held until
+ * revalidated props drop the key from `items`, at which point the reconcile
+ * effect clears it.
  */
 export function useRemovedKeys<T>(items: T[], getKey: (item: T) => string) {
   const [removed, setRemoved] = useState<ReadonlySet<string>>(() => new Set());
