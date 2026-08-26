@@ -29,7 +29,7 @@ interface ActivityTimelineTabProps {
 
 export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
   const getEventTypeIcon = (eventType: string) => {
-    const iconMap: Record<string, JSX.Element> = {
+    const iconMap: Record<string, React.ReactElement> = {
       "created": <UserPlus className="size-4" />,
       "edited": <Edit3 className="size-4" />,
       "outreach_logged": <MessageSquare className="size-4" />,

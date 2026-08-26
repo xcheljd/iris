@@ -10,7 +10,7 @@ const MIN_SHOW = 400;
 export function NavigationProgress() {
   const { state } = useNavigationTransition();
   const barRef = useRef<HTMLDivElement>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const startRef = useRef(0);
   const [mounted, setMounted] = useState(false);
 
