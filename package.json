@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx,.mjs,.cjs",
     "typecheck": "tsc --noEmit",
-    "db:push": "drizzle-kit push",
+    "db:push": "node scripts/drop-fts.mjs && drizzle-kit push",
     "db:seed": "tsx lib/db/seed.ts",
     "test": "vitest run",
     "test:watch": "vitest",
