@@ -20,15 +20,21 @@ import { mergeClients } from "@/lib/actions";
 import { toast } from "sonner";
 import { type MergeableClient, initChoices, ResolutionPanel } from "./resolution-panel";
 
+/** One client row from the `/api/search` envelope (`{ hits, prospects, lists, … }`). */
+type SearchHit = {
+  id: string;
+  firstName: string;
+  lastName?: string | null;
+  phone?: string | null;
+};
+
 export function MergeClientDialog({ children }: { children: React.ReactNode }) {
   const client = useClient();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<"search" | "resolve">("search");
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<
-    { id: string; firstName: string; lastName?: string | null; phone?: string | null }[]
-  >([]);
+  const [results, setResults] = useState<SearchHit[]>([]);
   const [candidateClient, setCandidateClient] = useState<MergeableClient | null>(null);
   const [choices, setChoices] = useState<Record<string, "a" | "b">>({});
   const [finalNotes, setFinalNotes] = useState("");
@@ -57,15 +63,8 @@ export function MergeClientDialog({ children }: { children: React.ReactNode }) {
       abortRef.current = controller;
       fetch(`/api/search?q=${encodeURIComponent(query)}`, { signal: controller.signal })
         .then((r) => r.json())
-        .then(
-          (
-            data: {
-              id: string;
-              firstName: string;
-              lastName?: string | null;
-              phone?: string | null;
-            }[],
-          ) => setResults(data.filter((r) => r.id !== client?.id)),
+        .then((data: { hits?: SearchHit[] }) =>
+          setResults((data.hits ?? []).filter((r) => r.id !== client?.id)),
         )
         .catch((e) => {
           if (e instanceof DOMException && e.name === "AbortError") return;
@@ -76,8 +75,15 @@ export function MergeClientDialog({ children }: { children: React.ReactNode }) {
   }, [query, client?.id]);
 
   const handleSelectCandidate = async (candidateId: string) => {
-    const res = await fetch(`/api/clients/${candidateId}`);
-    const data: MergeableClient = await res.json();
+    let data: MergeableClient;
+    try {
+      const res = await fetch(`/api/clients/${candidateId}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      data = await res.json();
+    } catch {
+      toast.error("Could not load client details");
+      return;
+    }
     setCandidateClient(data);
     if (client) {
       setChoices(initChoices(client as MergeableClient, data));
