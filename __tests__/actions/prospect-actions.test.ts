@@ -544,14 +544,23 @@ describe("graduateProspectIntoExistingClient", () => {
 describe("rejectProspect", () => {
   const createdProspectIds: string[] = [];
   const createdBatchIds: string[] = [];
+  const createdClientIds: string[] = [];
 
   afterEach(() => {
+    // Prospects first — `graduated_to_client_id` is an FK into clients.
     for (const id of createdProspectIds) {
       try {
         db.delete(prospects).where(eq(prospects.id, id)).run();
       } catch {}
     }
     createdProspectIds.length = 0;
+    for (const id of createdClientIds) {
+      try {
+        db.delete(activityEvents).where(eq(activityEvents.clientId, id)).run();
+        db.delete(clients).where(eq(clients.id, id)).run();
+      } catch {}
+    }
+    createdClientIds.length = 0;
     for (const id of createdBatchIds) {
       try {
         db.delete(rvxImportBatches).where(eq(rvxImportBatches.id, id)).run();
@@ -590,6 +599,38 @@ describe("rejectProspect", () => {
     createdProspectIds.push(prospectId);
     createdBatchIds.push(batchId);
     await expect(rejectProspect(prospectId)).rejects.toThrow();
+  });
+
+  it("refuses to reject a graduated prospect, leaving status and link intact", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    const { prospectId, batchId } = insertProspect({ firstName: "AlreadyGrad" });
+    createdProspectIds.push(prospectId);
+    createdBatchIds.push(batchId);
+
+    const linkedClientId = randomUUID();
+    db.insert(clients).values({
+      id: linkedClientId,
+      firstName: "GradTarget",
+      source: "Walk-in",
+      status: "active",
+      onEmailList: false,
+      dateAdded: new Date(),
+      productsOfInterest: [],
+      tags: [],
+    }).run();
+    createdClientIds.push(linkedClientId);
+
+    db.update(prospects)
+      .set({ status: "graduated", graduatedToClientId: linkedClientId })
+      .where(eq(prospects.id, prospectId))
+      .run();
+
+    const result = await rejectProspect(prospectId);
+
+    expect(result?.error).toBe("Cannot reject a prospect that is not active");
+    const prospect = db.select().from(prospects).where(eq(prospects.id, prospectId)).get();
+    expect(prospect!.status).toBe("graduated");
+    expect(prospect!.graduatedToClientId).toBe(linkedClientId);
   });
 });
 
@@ -689,5 +730,26 @@ describe("unsubscribeProspect", () => {
     vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const result = await unsubscribeProspect("00000000-0000-0000-0000-000000000000");
     expect(result?.error).toBe("Prospect not found");
+  });
+
+  it("errors on a second unsubscribe instead of re-writing the terminal state", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    const email = `unsub-twice-${randomUUID().slice(0, 8)}@example.com`;
+    const { prospectId, batchId } = insertProspect({ firstName: "Twice", email });
+    createdProspectIds.push(prospectId);
+    createdBatchIds.push(batchId);
+    createdUnsubEmails.push(email);
+
+    expect(await unsubscribeProspect(prospectId)).toBeUndefined();
+    const first = db.select().from(prospects).where(eq(prospects.id, prospectId)).get();
+
+    const second = await unsubscribeProspect(prospectId);
+
+    expect(second?.error).toBe("Cannot unsubscribe a prospect that is not active");
+    const after = db.select().from(prospects).where(eq(prospects.id, prospectId)).get();
+    expect(after!.updatedAt).toEqual(first!.updatedAt);
+    expect(
+      db.select().from(unsubscribeList).where(eq(unsubscribeList.email, email)).all(),
+    ).toHaveLength(1);
   });
 });

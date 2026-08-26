@@ -95,6 +95,7 @@ export async function graduateProspectIntoExistingClient(
 
   const prospect = db.select().from(prospects).where(eq(prospects.id, prospectId)).get();
   if (!prospect) return { error: "Prospect not found" };
+  if (prospect.status !== "active") return { error: "Cannot graduate a prospect that is not active" };
 
   const existing = db.select().from(clients).where(eq(clients.id, existingClientId)).get();
   if (!existing) return { error: "Client not found" };
@@ -139,8 +140,13 @@ export async function graduateProspectIntoExistingClient(
   revalidatePath(`/clients/${existingClientId}`);
 }
 
-export async function rejectProspect(prospectId: string): Promise<void> {
+export async function rejectProspect(prospectId: string): Promise<{ error: string } | undefined> {
   await requireAuth();
+
+  const prospect = db.select().from(prospects).where(eq(prospects.id, prospectId)).get();
+  if (!prospect) return { error: "Prospect not found" };
+  if (prospect.status !== "active") return { error: "Cannot reject a prospect that is not active" };
+
   db.update(prospects)
     .set({ status: "rejected", updatedAt: new Date() })
     .where(eq(prospects.id, prospectId))
@@ -153,6 +159,7 @@ export async function unsubscribeProspect(prospectId: string): Promise<{ error: 
 
   const prospect = db.select().from(prospects).where(eq(prospects.id, prospectId)).get();
   if (!prospect) return { error: "Prospect not found" };
+  if (prospect.status !== "active") return { error: "Cannot unsubscribe a prospect that is not active" };
 
   db.transaction((tx) => {
     tx.update(prospects)
