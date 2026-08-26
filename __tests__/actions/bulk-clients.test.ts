@@ -403,4 +403,39 @@ describe("Bulk Client Operations", () => {
       }
     });
   });
+  // ---------------------------------------------------------------
+  // PERF-03: activity events are emitted as ONE multi-row insert
+  //
+  // Counts the prepared statements better-sqlite3 sees, so this fails if
+  // anyone reintroduces a per-client `tx.insert(activityEvents)` loop.
+  // ---------------------------------------------------------------
+  describe("activity-event batching", () => {
+    it("writes one activity_events INSERT for N clients", async () => {
+      const { sqlite } = await import("@/lib/db");
+      const ids = createTestClients(5);
+      const original = sqlite.prepare.bind(sqlite);
+      const seen: string[] = [];
+      const spy = vi.spyOn(sqlite, "prepare").mockImplementation(((source: string) => {
+        seen.push(source);
+        return original(source);
+      }) as typeof sqlite.prepare);
+
+      try {
+        vi.mocked(getServerSession).mockResolvedValue(managerSession);
+        const result = await bulkReassignOwner(ids, JORDAN_ID);
+        expect(result.ok).toBe(5);
+
+        const inserts = seen.filter((s) => /insert\s+into\s+"activity_events"/i.test(s));
+        expect(inserts).toHaveLength(1);
+        // One statement, five value tuples.
+        expect(inserts[0].match(/\(\s*\?/g) ?? []).toHaveLength(5);
+      } finally {
+        spy.mockRestore();
+        cleanupClients(ids);
+      }
+
+      const events = db.select().from(activityEvents).where(inArray(activityEvents.clientId, ids)).all();
+      expect(events).toHaveLength(0); // cleaned up
+    });
+  });
 });

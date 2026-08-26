@@ -232,16 +232,15 @@ export async function deactivateEmployee(
         const description = options.clientHandling === "reassign"
           ? `Owner reassigned to ${reassignTarget!.firstName}${reassignTarget!.lastName ? " " + reassignTarget!.lastName : ""} on deactivation of ${target.firstName}`
           : `Owner unassigned on deactivation of ${target.firstName}`;
-        for (const c of impacted) {
-          tx.insert(activityEvents).values({
-            id: randomUUID(),
-            clientId: c.id,
-            eventType: "transferred",
-            description,
-            employeeId: user.id,
-            metadata: { newEmployeeId: newOwner, reason: "employee_deactivated", deactivatedEmployeeId: employeeId },
-          }).run();
-        }
+        // One multi-row insert for the whole impacted set, not one per client.
+        tx.insert(activityEvents).values(impacted.map((c) => ({
+          id: randomUUID(),
+          clientId: c.id,
+          eventType: "transferred" as const,
+          description,
+          employeeId: user.id,
+          metadata: { newEmployeeId: newOwner, reason: "employee_deactivated", deactivatedEmployeeId: employeeId },
+        }))).run();
       }
 
       tx.update(employees).set({ active: false }).where(eq(employees.id, employeeId)).run();

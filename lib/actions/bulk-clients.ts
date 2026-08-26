@@ -29,6 +29,15 @@ interface BulkResult {
 /* -------------------------------------------------------------------------- */
 
 type TxHandle = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type ActivityEventInsert = typeof activityEvents.$inferInsert;
+
+/** Emits collected activity events as a single multi-row INSERT.
+ *  Bulk actions build their event rows inside the per-client loop and flush
+ *  once, instead of one round trip per client (same shape as the batched
+ *  promo_matches insert in lib/promo-match.ts). */
+function insertActivityEvents(tx: TxHandle, rows: ActivityEventInsert[]): void {
+  if (rows.length > 0) tx.insert(activityEvents).values(rows).run();
+}
 
 /** Narrows a caller-supplied id list to the clients the user may mutate.
  *  Managers keep the full list; an associate keeps only the ones they own.
@@ -88,23 +97,25 @@ function mutateClientTags(opts: {
   const { tx, clientIds, userId, transformTags, eventType, describe, deltaSign } = opts;
   const rows = tx.select().from(clients).where(inArray(clients.id, clientIds)).all();
   const tagDeltas = new Map<string, number>();
+  const events: ActivityEventInsert[] = [];
   let ok = 0;
   for (const row of rows) {
     const existing = (row.tags || []) as string[];
     const result = transformTags(existing);
     if (!result) continue;
     tx.update(clients).set({ tags: result.next, updatedAt: new Date() }).where(eq(clients.id, row.id)).run();
-    tx.insert(activityEvents).values({
+    events.push({
       id: randomUUID(),
       clientId: row.id,
       eventType,
       description: describe(result.changed),
       employeeId: userId,
       metadata: { tags: result.changed },
-    }).run();
+    });
     for (const t of result.changed) tagDeltas.set(t, (tagDeltas.get(t) ?? 0) + 1);
     ok++;
   }
+  insertActivityEvents(tx, events);
   // Roll up usage-count adjustments in one pass per tag name
   for (const [tag, count] of tagDeltas) {
     const existing = tx.select().from(clientTags).where(eq(clientTags.name, tag)).get();
@@ -176,16 +187,14 @@ export async function bulkReassignOwner(
     errorMessage: "Failed to reassign owner",
     mutate: (tx) => {
       tx.update(clients).set({ employeeId: newEmployeeId, updatedAt: new Date() }).where(inArray(clients.id, clientIds)).run();
-      for (const id of clientIds) {
-        tx.insert(activityEvents).values({
-          id: randomUUID(),
-          clientId: id,
-          eventType: "transferred",
-          description: newEmployeeId ? "Owner reassigned (bulk)" : "Owner cleared (bulk)",
-          employeeId: user.id,
-          metadata: { newEmployeeId },
-        }).run();
-      }
+      insertActivityEvents(tx, clientIds.map((id) => ({
+        id: randomUUID(),
+        clientId: id,
+        eventType: "transferred" as const,
+        description: newEmployeeId ? "Owner reassigned (bulk)" : "Owner cleared (bulk)",
+        employeeId: user.id,
+        metadata: { newEmployeeId },
+      })));
       return clientIds.length;
     },
   });
@@ -213,16 +222,14 @@ export async function bulkSetEmailList(
         .map((r) => r.id);
       if (eligible.length === 0) return 0;
       tx.update(clients).set({ onEmailList, updatedAt: new Date() }).where(inArray(clients.id, eligible)).run();
-      for (const id of eligible) {
-        tx.insert(activityEvents).values({
-          id: randomUUID(),
-          clientId: id,
-          eventType: "edited",
-          description: onEmailList ? "Added to email list (bulk)" : "Removed from email list (bulk)",
-          employeeId: user.id,
-          metadata: { onEmailList },
-        }).run();
-      }
+      insertActivityEvents(tx, eligible.map((id) => ({
+        id: randomUUID(),
+        clientId: id,
+        eventType: "edited" as const,
+        description: onEmailList ? "Added to email list (bulk)" : "Removed from email list (bulk)",
+        employeeId: user.id,
+        metadata: { onEmailList },
+      })));
       return eligible.length;
     },
   });
@@ -241,6 +248,7 @@ export async function bulkDeleteClients(clientIds: string[]): Promise<BulkResult
     mutate: (tx) => {
       const rows = tx.select().from(clients).where(inArray(clients.id, clientIds)).all();
       const now = new Date();
+      const events: ActivityEventInsert[] = [];
       let ok = 0;
       for (const row of rows) {
         if (row.status === "deleted") continue;
@@ -251,16 +259,17 @@ export async function bulkDeleteClients(clientIds: string[]): Promise<BulkResult
           deletedBy: user.id,
           updatedAt: now,
         }).where(eq(clients.id, row.id)).run();
-        tx.insert(activityEvents).values({
+        events.push({
           id: randomUUID(),
           clientId: row.id,
           eventType: "status_changed",
           description: "Deleted (bulk)",
           employeeId: user.id,
           metadata: { newStatus: "deleted", previousStatus: row.status },
-        }).run();
+        });
         ok++;
       }
+      insertActivityEvents(tx, events);
       return ok;
     },
   });
@@ -283,6 +292,7 @@ export async function bulkBanClients(
     mutate: (tx) => {
       const rows = tx.select().from(clients).where(inArray(clients.id, clientIds)).all();
       const now = new Date();
+      const events: ActivityEventInsert[] = [];
       let ok = 0;
       for (const row of rows) {
         // banned_customers has no unique constraint on customer_id, so re-banning
@@ -299,16 +309,17 @@ export async function bulkBanClients(
           banReasonCategory: category,
           specificBanReason: reason,
         }).run();
-        tx.insert(activityEvents).values({
+        events.push({
           id: randomUUID(),
           clientId: row.id,
           eventType: "status_changed",
           description: `Banned (bulk): ${category} — ${reason}`,
           employeeId: user.id,
           metadata: { newStatus: "banned", category, reason },
-        }).run();
+        });
         ok++;
       }
+      insertActivityEvents(tx, events);
       return ok;
     },
   });
@@ -339,20 +350,22 @@ export async function bulkUnsubscribeClients(clientIds: string[]): Promise<BulkR
           : [],
       );
 
+      const events: ActivityEventInsert[] = [];
       for (const row of rows) {
         if (row.email && !alreadyUnsubbed.has(row.email)) {
           tx.insert(unsubscribeList).values({ id: randomUUID(), email: row.email }).run();
           alreadyUnsubbed.add(row.email);
         }
-        tx.insert(activityEvents).values({
+        events.push({
           id: randomUUID(),
           clientId: row.id,
           eventType: "status_changed",
           description: "Unsubscribed (bulk)",
           employeeId: user.id,
           metadata: { newStatus: "unsubscribed" },
-        }).run();
+        });
       }
+      insertActivityEvents(tx, events);
       return clientIds.length;
     },
   });

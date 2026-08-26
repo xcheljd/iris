@@ -74,23 +74,29 @@ export async function deleteTag(id: string): Promise<{ error: string } | undefin
     db.transaction((tx) => {
       // Remove the tag from every client's tags[] JSON array before
       // deleting the registry row — otherwise it orphans silently.
+      // `clients.tags` is a JSON text column holding a string array, so the
+      // membership test belongs in SQLite's json_each — the same idiom the
+      // tag filter in lib/client-filter-conds.ts uses. This replaces a full
+      // table scan pulled into JS. No status predicate, matching the old
+      // behaviour: deleted/banned clients get the tag stripped too.
       const affected = tx
         .select({ id: clients.id, tags: clients.tags })
         .from(clients)
-        .all()
-        .filter((c) => (c.tags || []).includes(tag.name));
+        .where(sql`EXISTS (SELECT 1 FROM json_each(${clients.tags}) WHERE json_each.value = ${tag.name})`)
+        .all();
+      const events = affected.map((c) => ({
+        id: randomUUID(),
+        clientId: c.id,
+        eventType: "tag_removed" as const,
+        description: `Tag removed (tag deleted): ${tag.name}`,
+        employeeId: user.id,
+        metadata: { tagName: tag.name, source: "tag_deleted" },
+      }));
       for (const c of affected) {
         const next = (c.tags || []).filter((t) => t !== tag.name);
         tx.update(clients).set({ tags: next, updatedAt: new Date() }).where(eq(clients.id, c.id)).run();
-        tx.insert(activityEvents).values({
-          id: randomUUID(),
-          clientId: c.id,
-          eventType: "tag_removed",
-          description: `Tag removed (tag deleted): ${tag.name}`,
-          employeeId: user.id,
-          metadata: { tagName: tag.name, source: "tag_deleted" },
-        }).run();
       }
+      if (events.length > 0) tx.insert(activityEvents).values(events).run();
       tx.delete(clientTags).where(eq(clientTags.id, id)).run();
     });
     revalidatePath("/settings");
