@@ -538,102 +538,35 @@ export async function getCustomListClients(filters: Record<string, unknown>, emp
   return capRowsWithTruncationFlag(rows);
 }
 
-function countCustomFilter(all: ClientListRow[], filters: Record<string, unknown>): number {
-  const now = Date.now();
-  const staleMs = 90 * MS_PER_DAY;
-  let result = all;
-
-  // Smart-list-only filters (no Clients-page equivalent)
-  if (filters.source) result = result.filter((c) => c.source === String(filters.source));
-  if (filters.onEmailList) result = result.filter((c) => c.onEmailList);
-  if (filters.stale) {
-    result = result.filter((c) => {
-      if (c.status !== "active") return false;
-      if (!c.lastOutreachAt && !c.lastPurchaseAt) return true;
-      const last = Math.max(
-        c.lastOutreachAt ? new Date(c.lastOutreachAt).getTime() : 0,
-        c.lastPurchaseAt ? new Date(c.lastPurchaseAt).getTime() : 0,
-      );
-      return last < now - staleMs;
-    });
-  }
-  if (filters.birthdayMonth) {
-    const m = String(filters.birthdayMonth).padStart(2, "0");
-    result = result.filter((c) => c.birthday?.split("-")[1] === m);
-  }
-
-  // Shared with Clients page (normalized via smartListToClientFilters — reads
-  // both legacy heatLevel/tag and new heat/tags/tagMode/date keys).
-  const f = smartListToClientFilters(filters);
-  if (f.q) {
-    const q = f.q.toLowerCase();
-    result = result.filter((c) =>
-      `${c.firstName} ${c.lastName ?? ""}`.toLowerCase().includes(q) ||
-      (c.email ?? "").toLowerCase().includes(q) ||
-      (c.phone ?? "").includes(q),
-    );
-  }
-  if (f.nameQ) {
-    const nq = f.nameQ.toLowerCase();
-    result = result.filter((c) => `${c.firstName} ${c.lastName ?? ""}`.toLowerCase().includes(nq));
-  }
-  if (f.contactQ) {
-    const cq = f.contactQ.toLowerCase();
-    result = result.filter((c) =>
-      (c.email ?? "").toLowerCase().includes(cq) || (c.phone ?? "").includes(cq),
-    );
-  }
-  if (f.heat) result = result.filter((c) => c.heatLevel === f.heat);
-  // f.owner skipped — would require an employees join not present in the projection
-  if (f.tags && f.tags.length > 0) {
-    const wanted = f.tags;
-    if (f.tagMode === "all") {
-      result = result.filter((c) => {
-        const tags = Array.isArray(c.tags) ? (c.tags as string[]) : [];
-        return wanted.every((t) => tags.includes(t));
-      });
-    } else {
-      result = result.filter((c) => {
-        const tags = Array.isArray(c.tags) ? (c.tags as string[]) : [];
-        return wanted.some((t) => tags.includes(t));
-      });
-    }
-  }
-  if (f.lastContactFrom !== undefined) {
-    result = result.filter((c) => c.lastOutreachAt && new Date(c.lastOutreachAt).getTime() / 1000 >= f.lastContactFrom!);
-  }
-  if (f.lastContactTo !== undefined) {
-    result = result.filter((c) => c.lastOutreachAt && new Date(c.lastOutreachAt).getTime() / 1000 <= f.lastContactTo!);
-  }
-  if (f.createdFrom !== undefined) {
-    result = result.filter((c) => new Date(c.createdAt).getTime() / 1000 >= f.createdFrom!);
-  }
-  if (f.createdTo !== undefined) {
-    result = result.filter((c) => new Date(c.createdAt).getTime() / 1000 <= f.createdTo!);
-  }
-
-  return result.length;
+/**
+ * COUNT(*) over `clients` for an already-built condition list. `joinEmployees`
+ * mirrors getCustomListClients: the Owner filter references employees columns.
+ */
+function countClientsWhere(conds: (SQL<unknown> | undefined)[], joinEmployees = false): number {
+  const base = db.select({ n: rawSql<number>`count(*)` }).from(clients);
+  const q = joinEmployees ? base.leftJoin(employees, eq(clients.employeeId, employees.id)) : base;
+  return Number(q.where(and(...conds)).get()?.n ?? 0);
 }
 
 export async function getAllSmartListCounts(
   lists: Awaited<ReturnType<typeof getSmartLists>>,
   employeeId?: string,
 ): Promise<{ builtIn: Record<string, number>; custom: Record<string, number> }> {
-  const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
-  const allClients = db
-    .select(clientListProjection)
-    .from(clients)
-    .where(and(notInArray(clients.status, ["banned", "deleted"]), employeeFilter))
-    .all();
+  const nowSec = Math.floor(Date.now() / 1000);
 
+  // Both maps reuse the exact condition builders that produce the list
+  // *contents*, so a count can never drift from the rows behind it.
   const builtIn: Record<string, number> = {};
   for (const filter of BUILTIN_FILTER_IDS) {
-    builtIn[filter] = applyClientFilter(allClients, filter).length;
+    builtIn[filter] = countClientsWhere(buildBuiltInConds(filter, nowSec, employeeId));
   }
 
   const custom: Record<string, number> = {};
   for (const list of lists) {
-    custom[list.id] = countCustomFilter(allClients, list.filters as Record<string, unknown>);
+    const filters = list.filters as Record<string, unknown>;
+    const clientFilters = smartListToClientFilters(filters);
+    const needsEmployeeJoin = !!(clientFilters.owner && clientFilters.owner !== "any" && clientFilters.owner !== "__none__");
+    custom[list.id] = countClientsWhere(buildCustomConds(filters, nowSec, employeeId), needsEmployeeJoin);
   }
   return { builtIn, custom };
 }
