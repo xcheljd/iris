@@ -30,7 +30,7 @@ function dedupeProducts(list: ProductOfInterest[]): ProductOfInterest[] {
  */
 export async function saveClientEdits(clientId: string, data: unknown): Promise<{ error: string } | undefined> {
   const user = await requireAuth();
-  const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
+  const c = db.select({ employeeId: clients.employeeId }).from(clients).where(eq(clients.id, clientId)).get();
   if (!c) return { error: "Client not found" };
   if (user.role !== "manager" && c.employeeId !== user.id) return { error: "Not authorized" };
 
@@ -42,7 +42,8 @@ export async function saveClientEdits(clientId: string, data: unknown): Promise<
 
 export async function banClient(clientId: string, category: "Reselling" | "Gift Card Fraud" | "Other", reason: string): Promise<{ error: string } | undefined> {
   const user = await requireManager();
-  const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
+  const c = db.select({ firstName: clients.firstName, lastName: clients.lastName, email: clients.email, phone: clients.phone })
+    .from(clients).where(eq(clients.id, clientId)).get();
   if (!c) return { error: "Client not found" };
   db.transaction((tx) => {
     tx.update(clients).set({ status: "banned", updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
@@ -66,7 +67,7 @@ export async function banClient(clientId: string, category: "Reselling" | "Gift 
 
 export async function unsubscribeClient(clientId: string): Promise<{ error: string } | undefined> {
   const user = await requireManager();
-  const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
+  const c = db.select({ email: clients.email }).from(clients).where(eq(clients.id, clientId)).get();
   if (!c) return { error: "Client not found" };
   db.transaction((tx) => {
     tx.update(clients).set({ status: "unsubscribed", onEmailList: false, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
@@ -84,7 +85,7 @@ export async function unsubscribeClient(clientId: string): Promise<{ error: stri
 
 export async function unbanClient(clientId: string) {
   const user = await requireManager();
-  const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
+  const c = db.select({ status: clients.status }).from(clients).where(eq(clients.id, clientId)).get();
   if (!c || c.status !== "banned") return;
   db.transaction((tx) => {
     tx.update(clients).set({ status: "active", updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
@@ -101,7 +102,7 @@ export async function addUnsubscribeEmail(email: string): Promise<{ error: strin
   const user = await requireManager();
   const existing = db.select().from(unsubscribeList).where(eq(unsubscribeList.email, email)).get();
   if (existing) return { error: "Email already exists" };
-  const matchingClient = db.select().from(clients).where(eq(clients.email, email)).get();
+  const matchingClient = db.select({ id: clients.id }).from(clients).where(eq(clients.email, email)).get();
   db.transaction((tx) => {
     tx.insert(unsubscribeList).values({ id: randomUUID(), email }).run();
     if (matchingClient) {
@@ -117,7 +118,7 @@ export async function addUnsubscribeEmail(email: string): Promise<{ error: strin
 
 export async function resubscribeClient(clientId: string) {
   const user = await requireManager();
-  const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
+  const c = db.select({ email: clients.email }).from(clients).where(eq(clients.id, clientId)).get();
   if (!c) return;
   db.transaction((tx) => {
     // Restore status to active without forcing onEmailList: true — the
@@ -138,7 +139,8 @@ export async function resubscribeClient(clientId: string) {
 
 export async function toggleEmailList(clientId: string): Promise<{ error: string } | undefined> {
   const user = await requireAuth();
-  const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
+  const c = db.select({ employeeId: clients.employeeId, status: clients.status, onEmailList: clients.onEmailList })
+    .from(clients).where(eq(clients.id, clientId)).get();
   if (!c) return { error: "Client not found" };
   if (user.role !== "manager" && c.employeeId !== user.id) return { error: "Not authorized to change this client's email list" };
   if (c.status === "unsubscribed") return { error: "Cannot toggle email list for unsubscribed client" };
@@ -188,7 +190,7 @@ export async function transferClient(clientId: string, newEmployeeId: string): P
 export async function deleteClient(clientId: string): Promise<{ error: string } | undefined> {
   const user = await requireManager();
 
-  const client = db.select().from(clients).where(eq(clients.id, clientId)).get();
+  const client = db.select({ status: clients.status }).from(clients).where(eq(clients.id, clientId)).get();
   if (!client) return { error: "Client not found" };
   if (client.status === "deleted") return { error: "Client already deleted" };
 
@@ -217,7 +219,8 @@ export async function deleteClient(clientId: string): Promise<{ error: string } 
 export async function restoreClient(clientId: string): Promise<{ error: string } | undefined> {
   const user = await requireManager();
 
-  const client = db.select().from(clients).where(eq(clients.id, clientId)).get();
+  const client = db.select({ status: clients.status, previousStatus: clients.previousStatus })
+    .from(clients).where(eq(clients.id, clientId)).get();
   if (!client) return { error: "Client not found" };
   if (client.status !== "deleted") return { error: "Client is not deleted" };
 
@@ -246,7 +249,7 @@ export async function restoreClient(clientId: string): Promise<{ error: string }
 export async function purgeClient(clientId: string): Promise<{ error: string } | undefined> {
   await requireManager();
 
-  const client = db.select().from(clients).where(eq(clients.id, clientId)).get();
+  const client = db.select({ id: clients.id }).from(clients).where(eq(clients.id, clientId)).get();
   if (!client) return { error: "Client not found" };
 
   db.transaction((tx) => {

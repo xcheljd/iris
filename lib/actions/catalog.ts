@@ -63,14 +63,16 @@ function applyCorrection(
       .set({ productsOfInterest: a.productsOfInterest, updatedAt: new Date() })
       .where(eq(clients.id, a.id))
       .run();
-    tx.insert(activityEvents).values({
+  }
+  if (affected.length > 0) {
+    tx.insert(activityEvents).values(affected.map((a) => ({
       id: randomUUID(),
       clientId: a.id,
-      eventType: "edited",
+      eventType: "edited" as const,
       description: `Catalog correction: ${m} collection set to ${c}`,
       employeeId,
       metadata: { source: "catalog_correction", model: m, collection: c },
-    }).run();
+    }))).run();
   }
 
   rematchClientPromos(tx, affected);
@@ -234,6 +236,7 @@ export async function deleteCatalogRows(
         .from(clients)
         .all();
       const affected: { id: string; productsOfInterest: ProductOfInterest[] }[] = [];
+      const events: (typeof activityEvents.$inferInsert)[] = [];
       for (const row of all) {
         const poi = row.productsOfInterest ?? [];
         const hits = poi.filter((p) => presentModels.has(normalizeModel(p.model)));
@@ -241,16 +244,17 @@ export async function deleteCatalogRows(
         affected.push({ id: row.id, productsOfInterest: poi });
         for (const h of hits) {
           const m = normalizeModel(h.model);
-          tx.insert(activityEvents).values({
+          events.push({
             id: randomUUID(),
             clientId: row.id,
             eventType: "edited",
             description: `Catalog entry removed for ${m}`,
             employeeId: user.id,
             metadata: { source: "catalog_delete", model: m },
-          }).run();
+          });
         }
       }
+      if (events.length > 0) tx.insert(activityEvents).values(events).run();
 
       rematchClientPromos(tx, affected);
       affectedCount = affected.length;
@@ -296,15 +300,15 @@ export async function deleteCatalogRow(
         }
       }
 
-      for (const a of affected) {
-        tx.insert(activityEvents).values({
+      if (affected.length > 0) {
+        tx.insert(activityEvents).values(affected.map((a) => ({
           id: randomUUID(),
           clientId: a.id,
-          eventType: "edited",
+          eventType: "edited" as const,
           description: `Catalog entry removed for ${m}`,
           employeeId: user.id,
           metadata: { source: "catalog_delete", model: m },
-        }).run();
+        }))).run();
       }
 
       rematchClientPromos(tx, affected);
