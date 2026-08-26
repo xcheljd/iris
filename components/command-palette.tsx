@@ -87,10 +87,15 @@ export function CommandPalette() {
 
   // Fetch results — empty input pulls "recently viewed", non-empty pulls
   // clients + prospects + smart-lists in one round-trip.
+  const abortRef = React.useRef<AbortController | null>(null);
+
   React.useEffect(() => {
     const t = setTimeout(async () => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`, { signal: controller.signal });
         if (!res.ok) return;
         const json = await res.json();
         setHits(json.hits ?? []);

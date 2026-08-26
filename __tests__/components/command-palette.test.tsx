@@ -141,7 +141,57 @@ describe("CommandPalette", () => {
     await act(async () => {
       await new Promise((r) => setTimeout(r, 200));
     });
-    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("/api/search?q=Ali"));
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/search?q=Ali"),
+      expect.objectContaining({ signal: expect.anything() }),
+    );
+  });
+
+  it("ignores a stale in-flight response when a newer query resolves first", async () => {
+    const deferred: Array<() => void> = [];
+    global.fetch = vi.fn((url: string, init?: RequestInit) =>
+      new Promise<Response>((resolve, reject) => {
+        const q = new URL(url, "http://localhost").searchParams.get("q");
+        init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+        deferred.push(() =>
+          resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                hits: [{ id: q, firstName: `Hit-${q}`, lastName: null, phone: null }],
+                prospects: [],
+                lists: [],
+                recentlyViewed: [],
+                isPhoneticFallback: false,
+              }),
+          } as Response),
+        );
+      }),
+    ) as unknown as typeof fetch;
+
+    render(<CommandPalette />);
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }));
+    });
+    const input = screen.getByTestId("command-input");
+
+    // First query goes in flight...
+    await userEvent.type(input, "a");
+    await act(async () => { await new Promise((r) => setTimeout(r, 200)); });
+    // ...then a second one, before the first has resolved.
+    await userEvent.type(input, "b");
+    await act(async () => { await new Promise((r) => setTimeout(r, 200)); });
+
+    // Settle newest-first, so a stale response would land last and win.
+    await act(async () => {
+      for (const resolveIt of [...deferred].reverse()) {
+        resolveIt();
+        await new Promise((r) => setTimeout(r, 0));
+      }
+    });
+
+    expect(screen.getByText("Hit-ab")).toBeInTheDocument();
+    expect(screen.queryByText("Hit-a")).not.toBeInTheDocument();
   });
 
   it("navigates when clicking a nav item", async () => {
