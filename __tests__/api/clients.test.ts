@@ -17,6 +17,7 @@ import { GET as GETDuplicates } from "@/app/api/clients/check-duplicates/route";
 import { db } from "@/lib/db";
 import { clients } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { randomUUID } from "crypto";
 
 const managerSession: Session = {
   user: { id: "2d7a352d-53a0-4544-b515-902e7dd59206", name: "Marcus", role: "manager", firstName: "Marcus", lastName: null },
@@ -385,18 +386,71 @@ describe("associate session", () => {
     expect(data.length).toBeGreaterThan(0);
   });
 
-  it("GET /api/clients/[id] — associate can fetch a single client", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(associateSession);
-    const allReq = new Request("http://localhost:3000/api/clients");
-    const allRes = await GET(allReq);
-    const allData = await allRes.json();
-    const firstId = allData[0].id;
+  // Ownership scoping (SEC-02). Both fixture ids come from __tests__/setup.ts;
+  // the pair is inserted here so ownership is asserted, not inherited from the
+  // seed's random employee assignment.
+  const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23";
+  const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
+  let ownId = "";
+  let foreignId = "";
 
-    const req = new Request(`http://localhost:3000/api/clients/${firstId}`);
-    const res = await GETById(req, { params: Promise.resolve({ id: firstId }) });
+  beforeEach(() => {
+    ownId = randomUUID();
+    foreignId = randomUUID();
+    for (const [id, owner] of [[ownId, ASSOCIATE_ID], [foreignId, MANAGER_ID]] as const) {
+      db.insert(clients).values({
+        id,
+        firstName: "Scoped",
+        lastName: "Fixture",
+        employeeId: owner,
+        source: "Walk-in",
+        productsOfInterest: [],
+        tags: [],
+        onEmailList: false,
+        status: "active",
+      }).run();
+      createdIds.push(id);
+    }
+  });
+
+  it("GET /api/clients/[id] — associate can fetch their own client", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
+    const req = new Request(`http://localhost:3000/api/clients/${ownId}`);
+    const res = await GETById(req, { params: Promise.resolve({ id: ownId }) });
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.id).toBe(firstId);
+    expect(data.id).toBe(ownId);
+  });
+
+  it("GET /api/clients/[id] — associate gets 404 for another employee's client", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
+    const req = new Request(`http://localhost:3000/api/clients/${foreignId}`);
+    const res = await GETById(req, { params: Promise.resolve({ id: foreignId }) });
+    expect(res.status).toBe(404);
+    expect((await res.json()).error).toBe("Client not found");
+  });
+
+  it("GET /api/clients?id= — associate gets 404 for another employee's client", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
+    const res = await GET(new Request(`http://localhost:3000/api/clients?id=${foreignId}`));
+    expect(res.status).toBe(404);
+  });
+
+  it("GET /api/clients?id= — associate gets 200 for their own client", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
+    const res = await GET(new Request(`http://localhost:3000/api/clients?id=${ownId}`));
+    expect(res.status).toBe(200);
+    expect((await res.json()).id).toBe(ownId);
+  });
+
+  it("manager can fetch either client", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    for (const id of [ownId, foreignId]) {
+      const res = await GETById(new Request(`http://localhost:3000/api/clients/${id}`), { params: Promise.resolve({ id }) });
+      expect(res.status).toBe(200);
+      const byQuery = await GET(new Request(`http://localhost:3000/api/clients?id=${id}`));
+      expect(byQuery.status).toBe(200);
+    }
   });
 
   it("POST /api/clients — associate creates client; employeeId is the associate", async () => {

@@ -9,13 +9,14 @@ import { saveClientEdits } from "@/lib/actions/clients";
 import { recordProductsOfInterest } from "@/lib/actions/model-catalog";
 
 // GET /api/clients — list all clients
-export const GET = withAuth(async (_session, request: Request) => {
+export const GET = withAuth(async (session, request: Request) => {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
 
   if (id) {
     const client = db.select().from(clients).where(eq(clients.id, id)).get();
-    if (!client) {
+    // 404 rather than 403 for a foreign client — a 403 would confirm the id exists.
+    if (!client || (session.user.role !== "manager" && client.employeeId !== session.user.id)) {
       return Response.json({ error: "Client not found" }, { status: 404 });
     }
     return Response.json(client);

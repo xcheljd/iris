@@ -5,11 +5,12 @@ import { eq } from "drizzle-orm";
 import { clientPatchSchema } from "@/lib/validation/client";
 import { saveClientEdits } from "@/lib/actions/clients";
 
-export const GET = withAuth(async (_session, request: Request, { params }: { params: Promise<{ id: string }> }) => {
+export const GET = withAuth(async (session, request: Request, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
 
   const client = db.select().from(clients).where(eq(clients.id, id)).get();
-  if (!client) {
+  // 404 rather than 403 for a foreign client — a 403 would confirm the id exists.
+  if (!client || (session.user.role !== "manager" && client.employeeId !== session.user.id)) {
     return Response.json({ error: "Client not found" }, { status: 404 });
   }
 
