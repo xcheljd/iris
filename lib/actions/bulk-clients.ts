@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { clients, activityEvents, bannedCustomers, unsubscribeList, clientTags } from "@/lib/db/schema";
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireAuth, requireManager } from "./_shared";
@@ -29,6 +29,20 @@ interface BulkResult {
 /* -------------------------------------------------------------------------- */
 
 type TxHandle = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** Narrows a caller-supplied id list to the clients the user may mutate.
+ *  Managers keep the full list; an associate keeps only the ones they own.
+ *  Ids that drop out are silently skipped — BulkResult.ok then reports the
+ *  rows actually touched, which is the semantics the callers already expect. */
+function scopeToOwned(user: { id: string; role?: string | null }, clientIds: string[]): string[] {
+  if (user.role === "manager" || clientIds.length === 0) return clientIds;
+  return db
+    .select({ id: clients.id })
+    .from(clients)
+    .where(and(inArray(clients.id, clientIds), eq(clients.employeeId, user.id)))
+    .all()
+    .map((r) => r.id);
+}
 
 function runBulk(opts: {
   clientIds: string[];
@@ -109,11 +123,12 @@ function mutateClientTags(opts: {
 export async function bulkAddTags(clientIds: string[], tags: string[]): Promise<BulkResult> {
   const user = await requireAuth();
   if (tags.length === 0) return { ok: 0 };
+  const scoped = scopeToOwned(user, clientIds);
   return runBulk({
-    clientIds,
+    clientIds: scoped,
     errorMessage: "Failed to add tags to some clients",
     mutate: (tx) => mutateClientTags({
-      tx, clientIds, userId: user.id,
+      tx, clientIds: scoped, userId: user.id,
       transformTags: (existing) => {
         const added = tags.filter((t) => !existing.includes(t));
         if (added.length === 0) return null;
@@ -129,11 +144,12 @@ export async function bulkAddTags(clientIds: string[], tags: string[]): Promise<
 export async function bulkRemoveTags(clientIds: string[], tags: string[]): Promise<BulkResult> {
   const user = await requireAuth();
   if (tags.length === 0) return { ok: 0 };
+  const scoped = scopeToOwned(user, clientIds);
   return runBulk({
-    clientIds,
+    clientIds: scoped,
     errorMessage: "Failed to remove tags from some clients",
     mutate: (tx) => mutateClientTags({
-      tx, clientIds, userId: user.id,
+      tx, clientIds: scoped, userId: user.id,
       transformTags: (existing) => {
         const removed = tags.filter((t) => existing.includes(t));
         if (removed.length === 0) return null;
@@ -184,12 +200,20 @@ export async function bulkSetEmailList(
   onEmailList: boolean,
 ): Promise<BulkResult> {
   const user = await requireAuth();
+  const scoped = scopeToOwned(user, clientIds);
   return runBulk({
-    clientIds,
+    clientIds: scoped,
     errorMessage: "Failed to update email-list opt-in",
     mutate: (tx) => {
-      tx.update(clients).set({ onEmailList, updatedAt: new Date() }).where(inArray(clients.id, clientIds)).run();
-      for (const id of clientIds) {
+      // Unsubscribed clients are off-limits, mirroring toggleEmailList's guard —
+      // a bulk selection must not be a back door around the suppression list.
+      const eligible = tx.select({ id: clients.id, status: clients.status }).from(clients)
+        .where(inArray(clients.id, scoped)).all()
+        .filter((r) => r.status !== "unsubscribed")
+        .map((r) => r.id);
+      if (eligible.length === 0) return 0;
+      tx.update(clients).set({ onEmailList, updatedAt: new Date() }).where(inArray(clients.id, eligible)).run();
+      for (const id of eligible) {
         tx.insert(activityEvents).values({
           id: randomUUID(),
           clientId: id,
@@ -199,7 +223,7 @@ export async function bulkSetEmailList(
           metadata: { onEmailList },
         }).run();
       }
-      return clientIds.length;
+      return eligible.length;
     },
   });
 }
