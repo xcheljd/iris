@@ -283,8 +283,12 @@ export async function bulkBanClients(
     mutate: (tx) => {
       const rows = tx.select().from(clients).where(inArray(clients.id, clientIds)).all();
       const now = new Date();
-      tx.update(clients).set({ status: "banned", updatedAt: now }).where(inArray(clients.id, clientIds)).run();
+      let ok = 0;
       for (const row of rows) {
+        // banned_customers has no unique constraint on customer_id, so re-banning
+        // an already-banned client would silently add a second row.
+        if (row.status === "banned") continue;
+        tx.update(clients).set({ status: "banned", updatedAt: now }).where(eq(clients.id, row.id)).run();
         tx.insert(bannedCustomers).values({
           id: randomUUID(),
           customerId: row.id,
@@ -303,8 +307,9 @@ export async function bulkBanClients(
           employeeId: user.id,
           metadata: { newStatus: "banned", category, reason },
         }).run();
+        ok++;
       }
-      return clientIds.length;
+      return ok;
     },
   });
 }

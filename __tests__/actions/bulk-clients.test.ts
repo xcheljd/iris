@@ -300,6 +300,29 @@ describe("Bulk Client Operations", () => {
       vi.mocked(getServerSession).mockResolvedValue(associateSession);
       await expect(bulkBanClients(testClientIds, "Other", "test")).rejects.toThrow("Manager access required");
     });
+
+    it("skips already-banned clients instead of duplicating banned_customers rows", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+      const [activeId, alreadyBannedId] = testClientIds;
+
+      const first = await bulkBanClients([alreadyBannedId], "Reselling", "First ban");
+      expect(first.ok).toBe(1);
+
+      const second = await bulkBanClients([activeId, alreadyBannedId], "Other", "Second ban");
+      expect(second.ok).toBe(1);
+
+      expect(
+        db.select().from(bannedCustomers).where(eq(bannedCustomers.customerId, alreadyBannedId)).all(),
+      ).toHaveLength(1);
+      expect(
+        db.select().from(bannedCustomers).where(eq(bannedCustomers.customerId, activeId)).all(),
+      ).toHaveLength(1);
+
+      const reBanEvents = db.select().from(activityEvents)
+        .where(eq(activityEvents.clientId, alreadyBannedId)).all()
+        .filter((e) => e.eventType === "status_changed");
+      expect(reBanEvents).toHaveLength(1);
+    });
   });
 
   // ---------------------------------------------------------------
