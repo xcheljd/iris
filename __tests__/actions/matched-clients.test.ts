@@ -94,15 +94,35 @@ describe("getMatchedClients", () => {
   // PERF-05: the query is bounded so a page render can't pull the whole
   // (client × promo) join into memory.
   it("respects an explicit row limit and defaults to a generous cap", async () => {
-    const unbounded = await getMatchedClients(undefined, LIST_QUERY_LIMIT);
+    // Self-contained fixtures: other test files clear promos between runs, so
+    // ambient seed matches are not a contract (AGENTS.md testing rule).
+    const ts = Date.now();
+    const model = `MML-${ts}`;
+    const collection = `MMLCOL-${ts}`;
+    const c1 = randomUUID();
+    const c2 = randomUUID();
+    clientIds.push(c1, c2);
+    db.insert(clients).values({
+      id: c1, firstName: "Lim", lastName: "One", employeeId: ASSOCIATE_ID,
+      productsOfInterest: [{ model, collection: null, brand: null, intent: "promo" }],
+    }).run();
+    db.insert(clients).values({
+      id: c2, firstName: "Lim", lastName: "Two", employeeId: ASSOCIATE_ID,
+      productsOfInterest: [{ model, collection: null, brand: null, intent: "promo" }],
+    }).run();
+    await createPromo(model, collection, "Meridian");
+    const promo = db.select().from(promoWatches).where(eq(promoWatches.modelNumber, model)).get()!;
+    promoIds.push(promo.id);
+
+    const unbounded = await getMatchedClients(ASSOCIATE_ID, LIST_QUERY_LIMIT);
     expect(unbounded.length).toBeGreaterThan(1);
 
-    const capped = await getMatchedClients(undefined, 1);
+    const capped = await getMatchedClients(ASSOCIATE_ID, 1);
     expect(capped).toHaveLength(1);
     // Same ordering — the cap is a prefix of the full result, not a resort.
     expect(capped[0]).toEqual(unbounded[0]);
 
     // Default cap is PAGE_READ_LIMIT, above anything this fixture produces.
-    expect(await getMatchedClients()).toEqual(unbounded.slice(0, PAGE_READ_LIMIT));
+    expect(await getMatchedClients(ASSOCIATE_ID)).toEqual(unbounded.slice(0, PAGE_READ_LIMIT));
   });
 });
