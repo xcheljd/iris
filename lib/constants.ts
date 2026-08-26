@@ -9,6 +9,14 @@ export const SEC_PER_DAY = 86_400;
 /** Maximum rows returned by unbounded list queries. */
 export const LIST_QUERY_LIMIT = 10_000;
 
+/**
+ * Default cap for page-backing reads that have no pagination of their own
+ * (matched clients, prospects). Generous enough that no realistic store hits
+ * it, but bounded so a runaway table can't be pulled into a server render.
+ * Exports pass LIST_QUERY_LIMIT explicitly to get the full set.
+ */
+export const PAGE_READ_LIMIT = 1_000;
+
 /** Days of outreach history used to calculate heat score. */
 export const HEAT_LOOKBACK_DAYS = 90;
 

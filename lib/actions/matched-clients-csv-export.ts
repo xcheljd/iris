@@ -36,7 +36,9 @@ export async function exportMatchedClientsCsv(
   const user = await requireAuth();
   const employeeId = user.role === "manager" ? undefined : user.id;
 
-  let rows = await getMatchedClients(employeeId);
+  // The export is the one caller that wants everything, not the page-render
+  // cap getMatchedClients defaults to.
+  let rows = await getMatchedClients(employeeId, LIST_QUERY_LIMIT);
 
   if (scope.mode === "filter") {
     const owners = new Set(scope.owners);

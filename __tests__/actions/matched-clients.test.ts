@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { createPromo } from "@/lib/actions";
 import { getMatchedClients } from "@/lib/queries";
+import { LIST_QUERY_LIMIT, PAGE_READ_LIMIT } from "@/lib/constants";
 
 const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
 const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23";
@@ -88,5 +89,20 @@ describe("getMatchedClients", () => {
     db.update(clients).set({ deletedAt: new Date(), status: "deleted" }).where(eq(clients.id, ownClientId)).run();
     const afterDelete = await getMatchedClients();
     expect(afterDelete.some((r) => r.clientId === ownClientId)).toBe(false);
+  });
+
+  // PERF-05: the query is bounded so a page render can't pull the whole
+  // (client × promo) join into memory.
+  it("respects an explicit row limit and defaults to a generous cap", async () => {
+    const unbounded = await getMatchedClients(undefined, LIST_QUERY_LIMIT);
+    expect(unbounded.length).toBeGreaterThan(1);
+
+    const capped = await getMatchedClients(undefined, 1);
+    expect(capped).toHaveLength(1);
+    // Same ordering — the cap is a prefix of the full result, not a resort.
+    expect(capped[0]).toEqual(unbounded[0]);
+
+    // Default cap is PAGE_READ_LIMIT, above anything this fixture produces.
+    expect(await getMatchedClients()).toEqual(unbounded.slice(0, PAGE_READ_LIMIT));
   });
 });

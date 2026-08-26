@@ -7,7 +7,7 @@ import { buildClientFilterConds } from "@/lib/client-filter-conds";
 import { smartListToClientFilters } from "@/lib/smart-list-filters";
 import { toFtsQuery } from "@/lib/fts";
 import { getCatalogMap } from "@/lib/actions/model-catalog";
-import { MS_PER_DAY, SEC_PER_DAY, LIST_QUERY_LIMIT, FOLLOW_UP_LOOKAHEAD_DAYS, DEFAULT_PAGE_SIZE } from "@/lib/constants";
+import { MS_PER_DAY, SEC_PER_DAY, LIST_QUERY_LIMIT, PAGE_READ_LIMIT, FOLLOW_UP_LOOKAHEAD_DAYS, DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
 const clientListProjection = {
   id: clients.id,
@@ -313,7 +313,7 @@ export interface MatchedClientRow {
 // Excludes soft-deleted/orphaned clients (same predicate as
 // getPromoMatchCounts). Employee-scoped like the CSV exports:
 // pass the associate's id to limit to their own clients.
-export async function getMatchedClients(employeeId?: string): Promise<MatchedClientRow[]> {
+export async function getMatchedClients(employeeId?: string, limit: number = PAGE_READ_LIMIT): Promise<MatchedClientRow[]> {
   return db
     .select({
       clientId: clients.id,
@@ -341,6 +341,7 @@ export async function getMatchedClients(employeeId?: string): Promise<MatchedCli
       employeeId ? eq(clients.employeeId, employeeId) : undefined,
     ))
     .orderBy(clients.lastName, clients.firstName, promoWatches.modelNumber)
+    .limit(limit)
     .all();
 }
 
@@ -786,7 +787,10 @@ export { applyClientFilter };
 
 // ─── Prospects ────────────────────────────────────────────────────────────────
 
-export async function getProspects(status: "active" | "graduated" | "unsubscribed" | "rejected" = "active") {
+export async function getProspects(
+  status: "active" | "graduated" | "unsubscribed" | "rejected" = "active",
+  limit: number = PAGE_READ_LIMIT,
+) {
   return db
     .select({
       id: prospects.id,
@@ -808,6 +812,7 @@ export async function getProspects(status: "active" | "graduated" | "unsubscribe
     .from(prospects)
     .where(eq(prospects.status, status))
     .orderBy(desc(prospects.createdAt))
+    .limit(limit)
     .all();
 }
 
