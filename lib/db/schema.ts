@@ -105,6 +105,7 @@ export const clients = sqliteTable("clients", {
   clientsHeatScoreIdx: index("clients_heat_score_idx").on(table.heatScore),
   clientsEmailIdx: index("clients_email_idx").on(table.email),
   clientsPhoneIdx: index("clients_phone_idx").on(table.phone),
+  clientsLastViewedAtIdx: index("clients_last_viewed_at_idx").on(table.lastViewedAt),
 }));
 
 export const outreachLogs = sqliteTable("outreach_logs", {
@@ -124,6 +125,7 @@ export const outreachLogs = sqliteTable("outreach_logs", {
   outreachLogsDateIdx: index("outreach_logs_date_idx").on(table.date),
   outreachLogsFollowUpDateIdx: index("outreach_logs_follow_up_date_idx").on(table.followUpDate),
   outreachLogsCompletedIdx: index("outreach_logs_completed_idx").on(table.completed),
+  outreachLogsEmployeeIdIdx: index("outreach_logs_employee_id_idx").on(table.employeeId),
 }));
 
 export const smartLists = sqliteTable("smart_lists", {
@@ -180,6 +182,7 @@ export const promoMatches = sqliteTable("promo_matches", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
   uniqClientPromo: unique().on(table.clientId, table.promoId),
+  promoMatchesPromoIdIdx: index("promo_matches_promo_id_idx").on(table.promoId),
 }));
 
 // Durable model → collection catalog. Accumulates from promo writes and
@@ -244,6 +247,7 @@ export const activityEvents = sqliteTable("activity_events", {
 }, (table) => ({
   activityEventsClientIdIdx: index("activity_events_client_id_idx").on(table.clientId),
   activityEventsCreatedAtIdx: index("activity_events_created_at_idx").on(table.createdAt),
+  activityEventsEmployeeIdIdx: index("activity_events_employee_id_idx").on(table.employeeId),
 }));
 
 export const approvalRequests = sqliteTable("approval_requests", {
