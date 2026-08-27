@@ -78,6 +78,22 @@ describe("MergeClientDialog search", () => {
     expect(toastError).not.toHaveBeenCalled();
   });
 
+  it("toasts when the search responds with a non-2xx status", async () => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ error: "boom" }),
+      } as Response),
+    ) as unknown as typeof fetch;
+
+    await openAndType("Ali");
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith("Search failed. Please try again."),
+    );
+  });
+
   it("toasts and does not crash when the search request rejects", async () => {
     global.fetch = vi.fn(() => Promise.reject(new Error("network"))) as unknown as typeof fetch;
 

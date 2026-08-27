@@ -62,7 +62,12 @@ export function MergeClientDialog({ children }: { children: React.ReactNode }) {
       const controller = new AbortController();
       abortRef.current = controller;
       fetch(`/api/search?q=${encodeURIComponent(query)}`, { signal: controller.signal })
-        .then((r) => r.json())
+        // Without this a 401/500 falls through as a body with no `hits`, so
+        // the dialog renders "No clients found" instead of surfacing the error.
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
         .then((data: { hits?: SearchHit[] }) =>
           setResults((data.hits ?? []).filter((r) => r.id !== client?.id)),
         )
