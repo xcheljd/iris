@@ -21,11 +21,11 @@ A self-hosted clienteling/CRM web app for Meridian Watch retail — replaces a s
 ## Tech stack
 
 - **Language:** TypeScript 5 (`strict: true`, `target: ES2022`)
-- **Framework:** Next.js 15 (App Router, React Server Components), React 18
+- **Framework:** Next.js 15 (App Router, React Server Components), React 19
 - **UI:** shadcn/ui (New York style) + Tailwind CSS 3, Radix primitives, lucide icons, sonner toasts
 - **DB:** SQLite via `better-sqlite3`; ORM: Drizzle ORM (`drizzle-kit`)
 - **Auth:** NextAuth.js (Credentials provider, JWT sessions) — needs `NEXTAUTH_SECRET` + `NEXTAUTH_URL`
-- **Forms/validation:** react-hook-form + zod
+- **Forms/validation:** hand-rolled forms validated with zod
 - **Charts:** Recharts
 - **PDF parsing:** `pdfjs-dist` (client-side, worker copied via `postinstall`)
 - **Tests:** Vitest 4 + Testing Library + jsdom
