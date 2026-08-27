@@ -86,7 +86,7 @@ export function applyDeleteUnchecked(
   tx: DbOrTx,
   clientId: string,
   employeeId: string,
-  actorName: string,
+  actorName: string | null | undefined,
 ): StatusChangeResult {
   const client = tx.select({ status: clients.status }).from(clients).where(eq(clients.id, clientId)).get();
   if (!client) return { error: "Client not found" };
