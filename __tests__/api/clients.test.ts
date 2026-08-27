@@ -413,6 +413,26 @@ describe("associate session", () => {
     }
   });
 
+  it("GET /api/clients — associate list is scoped to their own clients", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
+    const res = await GET(new Request("http://localhost:3000/api/clients?limit=500"));
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    const returned = data.map((c: { id: string }) => c.id);
+    expect(returned).toContain(ownId);
+    expect(returned).not.toContain(foreignId);
+    expect(data.every((c: { employeeId: string }) => c.employeeId === ASSOCIATE_ID)).toBe(true);
+  });
+
+  it("GET /api/clients — manager list includes another employee's client", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    const res = await GET(new Request("http://localhost:3000/api/clients?limit=500"));
+    const data = await res.json();
+    const returned = data.map((c: { id: string }) => c.id);
+    expect(returned).toContain(ownId);
+    expect(returned).toContain(foreignId);
+  });
+
   it("GET /api/clients/[id] — associate can fetch their own client", async () => {
     vi.mocked(getServerSession).mockResolvedValue(associateSession);
     const req = new Request(`http://localhost:3000/api/clients/${ownId}`);

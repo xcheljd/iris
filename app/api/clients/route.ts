@@ -1,7 +1,7 @@
 import { withAuth } from "@/lib/api-helpers";
 import { db } from "@/lib/db";
 import { clients, activityEvents } from "@/lib/db/schema";
-import { eq, desc, or, notInArray, sql as rawSql } from "drizzle-orm";
+import { and, eq, desc, or, notInArray, sql as rawSql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { clientCreateSchema, clientPatchSchema } from "@/lib/validation/client";
@@ -24,7 +24,11 @@ export const GET = withAuth(async (session, request: Request) => {
 
   const pageSize = Math.min(parseInt(searchParams.get("limit") ?? "500", 10) || 500, 500);
   const pageOffset = Math.max(parseInt(searchParams.get("offset") ?? "0", 10) || 0, 0);
-  const all = db.select().from(clients).where(notInArray(clients.status, ["banned", "deleted"])).orderBy(desc(clients.heatScore)).limit(pageSize).offset(pageOffset).all();
+  // Same ownership scope as the clients page: managers see the whole ledger,
+  // associates only their own book. Without this an associate could enumerate
+  // every client here despite `?id=` and `/[id]` being scoped.
+  const ownerFilter = session.user.role === "manager" ? undefined : eq(clients.employeeId, session.user.id);
+  const all = db.select().from(clients).where(and(notInArray(clients.status, ["banned", "deleted"]), ownerFilter)).orderBy(desc(clients.heatScore)).limit(pageSize).offset(pageOffset).all();
   return Response.json(all);
 });
 
