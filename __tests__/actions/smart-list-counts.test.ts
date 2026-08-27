@@ -226,6 +226,47 @@ describe("getAllSmartListCounts parity", () => {
     expect(custom[id]).toBe(legacyCountCustomFilter(all, { heat: "hot" }));
   });
 
+  // The `q` branch is the other genuine divergence from the JS oracle: the
+  // legacy code ran substring includes() over name/email/phone, while the SQL
+  // path goes through toFtsQuery -> clients_fts MATCH (tokenized, and also
+  // covering notes/products). Pin it against the list contents, not the oracle.
+  it("a q-filtered list counts what the list actually contains", async () => {
+    const seedClient = db
+      .select({ firstName: clients.firstName })
+      .from(clients)
+      .where(notInArray(clients.status, ["banned", "deleted"]))
+      .get();
+    const filters = { q: seedClient!.firstName };
+    const id = makeList("parity q", filters);
+
+    const { custom } = await getAllSmartListCounts(
+      [{ id, filters }] as unknown as Awaited<ReturnType<typeof getSmartLists>>,
+    );
+    const { rows } = await getCustomListClients(filters);
+
+    expect(rows.length).toBeGreaterThan(0); // not a vacuous 0 === 0
+    expect(custom[id]).toBe(rows.length);
+  });
+
+  it("a q-filtered list counts what the list actually contains when scoped to one employee", async () => {
+    const owned = db
+      .select({ firstName: clients.firstName })
+      .from(clients)
+      .where(and(eq(clients.employeeId, ASSOCIATE_ID), notInArray(clients.status, ["banned", "deleted"])))
+      .get();
+    const filters = { q: owned!.firstName };
+    const id = makeList("parity q scoped", filters);
+
+    const { custom } = await getAllSmartListCounts(
+      [{ id, filters }] as unknown as Awaited<ReturnType<typeof getSmartLists>>,
+      ASSOCIATE_ID,
+    );
+    const { rows } = await getCustomListClients(filters, ASSOCIATE_ID);
+
+    expect(rows.length).toBeGreaterThan(0);
+    expect(custom[id]).toBe(rows.length);
+  });
+
   it("an owner-filtered list counts what the list actually contains", async () => {
     const filters = { owner: "Test Associate" };
     const id = makeList("parity owner", filters);
