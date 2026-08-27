@@ -21,9 +21,10 @@ export const PUT = withAuth(async (session, request: Request, { params }: { para
   try {
     const { id } = await params;
     const client = db.select().from(clients).where(eq(clients.id, id)).get();
-    if (!client) return Response.json({ error: "Client not found" }, { status: 404 });
-    if (session.user.role !== "manager" && client.employeeId !== session.user.id) {
-      return Response.json({ error: "Forbidden" }, { status: 403 });
+    // 404 rather than 403 for a foreign client — same anti-existence-leak
+    // posture as GET; a 403 would confirm the id is a real client.
+    if (!client || (session.user.role !== "manager" && client.employeeId !== session.user.id)) {
+      return Response.json({ error: "Client not found" }, { status: 404 });
     }
 
     const body = await request.json();

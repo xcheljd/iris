@@ -12,7 +12,7 @@ vi.mock("next/cache", () => ({
 import { getServerSession } from "next-auth";
 import type { Session } from "next-auth";
 import { GET, POST, PUT } from "@/app/api/clients/route";
-import { GET as GETById } from "@/app/api/clients/[id]/route";
+import { GET as GETById, PUT as PUTById } from "@/app/api/clients/[id]/route";
 import { GET as GETDuplicates } from "@/app/api/clients/check-duplicates/route";
 import { db } from "@/lib/db";
 import { clients } from "@/lib/db/schema";
@@ -461,6 +461,45 @@ describe("associate session", () => {
     const res = await GET(new Request(`http://localhost:3000/api/clients?id=${ownId}`));
     expect(res.status).toBe(200);
     expect((await res.json()).id).toBe(ownId);
+  });
+
+  it("PUT /api/clients/[id] — associate gets 404 (not 403) for another employee's client", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
+    const req = new Request(`http://localhost:3000/api/clients/${foreignId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ firstName: "Hijacked" }),
+    });
+    const res = await PUTById(req, { params: Promise.resolve({ id: foreignId }) });
+    expect(res.status).toBe(404);
+    expect((await res.json()).error).toBe("Client not found");
+    // And the client was not modified.
+    expect(db.select().from(clients).where(eq(clients.id, foreignId)).get()!.firstName).toBe("Scoped");
+  });
+
+  it("PUT /api/clients — associate gets 404 (not 403) for another employee's client", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
+    const req = new Request("http://localhost:3000/api/clients", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: foreignId, firstName: "Hijacked" }),
+    });
+    const res = await PUT(req);
+    expect(res.status).toBe(404);
+    expect((await res.json()).error).toBe("Client not found");
+    expect(db.select().from(clients).where(eq(clients.id, foreignId)).get()!.firstName).toBe("Scoped");
+  });
+
+  it("PUT /api/clients/[id] — associate can still update their own client", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
+    const req = new Request(`http://localhost:3000/api/clients/${ownId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ firstName: "Renamed" }),
+    });
+    const res = await PUTById(req, { params: Promise.resolve({ id: ownId }) });
+    expect(res.status).toBe(200);
+    expect(db.select().from(clients).where(eq(clients.id, ownId)).get()!.firstName).toBe("Renamed");
   });
 
   it("manager can fetch either client", async () => {
