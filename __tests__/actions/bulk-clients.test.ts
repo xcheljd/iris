@@ -406,8 +406,12 @@ describe("Bulk Client Operations", () => {
   // ---------------------------------------------------------------
   // PERF-03: activity events are emitted as ONE multi-row insert
   //
-  // Counts the prepared statements better-sqlite3 sees, so this fails if
-  // anyone reintroduces a per-client `tx.insert(activityEvents)` loop.
+  // Two things are asserted, deliberately: that every client got a correct
+  // persisted event (behaviour), and that they were written by a single
+  // INSERT statement (the actual perf contract — this fails if anyone
+  // reintroduces a per-client `tx.insert(activityEvents)` loop). The old
+  // version also counted `(?` parameter groups inside the SQL text, which
+  // pinned Drizzle's binding format without checking any written value.
   // ---------------------------------------------------------------
   describe("activity-event batching", () => {
     it("writes one activity_events INSERT for N clients", async () => {
@@ -427,8 +431,15 @@ describe("Bulk Client Operations", () => {
 
         const inserts = seen.filter((s) => /insert\s+into\s+"activity_events"/i.test(s));
         expect(inserts).toHaveLength(1);
-        // One statement, five value tuples.
-        expect(inserts[0].match(/\(\s*\?/g) ?? []).toHaveLength(5);
+
+        // One event per client, with the right type and actor.
+        const events = db.select().from(activityEvents).where(inArray(activityEvents.clientId, ids)).all();
+        expect(events).toHaveLength(ids.length);
+        expect([...new Set(events.map((e) => e.clientId))].sort()).toEqual([...ids].sort());
+        for (const e of events) {
+          expect(e.eventType).toBe("transferred");
+          expect(e.employeeId).toBe(MANAGER_ID);
+        }
       } finally {
         spy.mockRestore();
         cleanupClients(ids);
