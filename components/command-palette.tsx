@@ -105,7 +105,13 @@ export function CommandPalette() {
         setIsPhonetic(Boolean(json.isPhoneticFallback));
       } catch {}
     }, 150);
-    return () => clearTimeout(t);
+    // Aborting here (not just at the head of the next debounce tick) also
+    // cancels a request still in flight when the palette unmounts, so its
+    // setState batch never lands on an unmounted component.
+    return () => {
+      clearTimeout(t);
+      abortRef.current?.abort();
+    };
   }, [q]);
 
   const go = (href: string) => { setOpen(false); setQ(""); router.push(href); };

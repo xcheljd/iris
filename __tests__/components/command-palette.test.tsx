@@ -194,6 +194,42 @@ describe("CommandPalette", () => {
     expect(screen.queryByText("Hit-a")).not.toBeInTheDocument();
   });
 
+  it("aborts an in-flight search when the palette unmounts", async () => {
+    const signals: AbortSignal[] = [];
+    let settle: (() => void) | undefined;
+    global.fetch = vi.fn((_url: string, init?: RequestInit) =>
+      new Promise<Response>((resolve, reject) => {
+        if (init?.signal) {
+          signals.push(init.signal);
+          init.signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+        }
+        settle = () =>
+          resolve({
+            ok: true,
+            json: () => Promise.resolve({ hits: [{ id: "x", firstName: "Late", lastName: null, phone: null }] }),
+          } as Response);
+      }),
+    ) as unknown as typeof fetch;
+
+    const { unmount } = render(<CommandPalette />);
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }));
+    });
+    await userEvent.type(screen.getByTestId("command-input"), "a");
+    await act(async () => { await new Promise((r) => setTimeout(r, 200)); });
+    expect(signals.length).toBeGreaterThan(0);
+    expect(signals.at(-1)!.aborted).toBe(false);
+
+    unmount();
+
+    // Cleanup cancels the request rather than leaving it to setState after unmount.
+    expect(signals.at(-1)!.aborted).toBe(true);
+    await act(async () => {
+      settle?.();
+      await new Promise((r) => setTimeout(r, 0));
+    });
+  });
+
   it("navigates when clicking a nav item", async () => {
     render(<CommandPalette />);
     await act(async () => {
