@@ -54,7 +54,7 @@ const PHONES = {
 
 function buildCsv(rows: Array<[string, string, string, string, string]>): string {
   const header = "STORE #,CUST #,FIRST NAME,LAST NAME,TELEPHONE,EMAIL ADDRESS,TOTAL SALES";
-  const data = rows.map(([store, cust, first, last, phoneEmail]) => {
+  const data = rows.map(([, cust, first, last, phoneEmail]) => {
     const [phone, email] = phoneEmail.split("|");
     return `100,${cust},${first},${last},${phone},${email},120.50`;
   });

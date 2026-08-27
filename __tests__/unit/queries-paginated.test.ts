@@ -19,7 +19,6 @@ import {
 } from "@/lib/queries";
 
 const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23";
-const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
 
 // Deterministic fixture names, heat scores, and recency so ordering
 // assertions don't depend on seed data.
