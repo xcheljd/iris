@@ -5,7 +5,13 @@ import { and, eq, desc, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireAuth, requireManager } from "./_shared";
-import { banClient, unsubscribeClient, deleteClient } from "./clients";
+import {
+  ClientStatusError,
+  applyBanUnchecked,
+  applyUnsubscribeUnchecked,
+  applyDeleteUnchecked,
+  type StatusChangeResult,
+} from "./_client-status-core";
 
 export async function createApprovalRequest(
   type: "ban" | "unsubscribe" | "delete",
@@ -52,70 +58,69 @@ export async function reviewApprovalRequest(
   const request = db.select().from(approvalRequests).where(eq(approvalRequests.id, requestId)).get();
   if (!request) return { error: "Request not found" };
 
-  // Claim the request atomically before doing anything else: a plain read-then-write
-  // let two concurrent reviews (double-click, double submit) both see "pending" and
-  // both run the downstream action. `WHERE status = 'pending'` makes exactly one win.
   const targetStatus = approved ? "approved" : "rejected";
-  const claim = db.update(approvalRequests).set({
-    status: targetStatus,
-    reviewedById: user.id,
-    reviewedAt: new Date(),
-  }).where(and(
-    eq(approvalRequests.id, requestId),
-    eq(approvalRequests.status, "pending"),
-  )).run();
-  if (claim.changes === 0) return { error: "Request already reviewed" };
-
-  // The downstream action still decides the outcome — if it fails, the claim is
-  // released back to "pending" so the request stays retryable. Previously the
-  // status was committed before the action, making failures unrecoverable.
-  const release = (error: string) => {
-    db.update(approvalRequests).set({ status: "pending", reviewedById: null, reviewedAt: null })
-      .where(eq(approvalRequests.id, requestId)).run();
-    return { error };
-  };
-
-  if (approved) {
-    try {
-      switch (request.type) {
-        case "ban": {
-          const r = await banClient(request.clientId, "Other", request.reason);
-          if (r?.error) return release(r.error);
-          break;
-        }
-        case "unsubscribe": {
-          const r = await unsubscribeClient(request.clientId);
-          if (r?.error) return release(r.error);
-          break;
-        }
-        case "delete": {
-          const r = await deleteClient(request.clientId);
-          if (r?.error) return release(r.error);
-          break;
-        }
-      }
-    } catch (err) {
-      release("Failed to apply the approved action");
-      throw err;
-    }
-  }
 
   let eventType: string;
   if (request.type === "ban") eventType = approved ? "ban_approved" : "ban_rejected";
   else if (request.type === "unsubscribe") eventType = approved ? "unsub_approved" : "unsub_rejected";
   else eventType = approved ? "delete_approved" : "delete_rejected";
 
-  db.insert(activityEvents).values({
-    id: randomUUID(),
-    clientId: request.clientId,
-    eventType: eventType as "ban_approved" | "ban_rejected" | "unsub_approved" | "unsub_rejected" | "delete_approved" | "delete_rejected",
-    description: approved
-      ? `${request.type} request approved by ${user.name}`
-      : `${request.type} request rejected by ${user.name}`,
-    metadata: { requestId: request.id, requestorId: request.requestorId, reason: request.reason },
-    employeeId: user.id,
-  }).run();
+  // Claim + downstream action + audit event are ONE unit of work. The claim
+  // (`WHERE status = 'pending'`) still makes exactly one of two concurrent
+  // reviews win; committing it in the same transaction as the action means a
+  // failure — or a crash — can't leave a request marked `approved` with the
+  // ban/unsubscribe/delete never applied. The downstream helpers' DB bodies
+  // live in _client-status-core so they can join this transaction; auth was
+  // already enforced by requireManager above.
+  try {
+    db.transaction((tx) => {
+      const claim = tx.update(approvalRequests).set({
+        status: targetStatus,
+        reviewedById: user.id,
+        reviewedAt: new Date(),
+      }).where(and(
+        eq(approvalRequests.id, requestId),
+        eq(approvalRequests.status, "pending"),
+      )).run();
+      if (claim.changes === 0) throw new ClientStatusError("Request already reviewed");
 
+      if (approved) {
+        let outcome: StatusChangeResult;
+        switch (request.type) {
+          case "ban":
+            outcome = applyBanUnchecked(tx, request.clientId, "Other", request.reason, user.id);
+            break;
+          case "unsubscribe":
+            outcome = applyUnsubscribeUnchecked(tx, request.clientId, user.id);
+            break;
+          case "delete":
+            outcome = applyDeleteUnchecked(tx, request.clientId, user.id, user.name);
+            break;
+        }
+        if (outcome?.error) throw new ClientStatusError(outcome.error);
+      }
+
+      tx.insert(activityEvents).values({
+        id: randomUUID(),
+        clientId: request.clientId,
+        eventType: eventType as "ban_approved" | "ban_rejected" | "unsub_approved" | "unsub_rejected" | "delete_approved" | "delete_rejected",
+        description: approved
+          ? `${request.type} request approved by ${user.name}`
+          : `${request.type} request rejected by ${user.name}`,
+        metadata: { requestId: request.id, requestorId: request.requestorId, reason: request.reason },
+        employeeId: user.id,
+      }).run();
+    });
+  } catch (err) {
+    // Rolled back: the request is still `pending` and no audit event was written.
+    if (err instanceof ClientStatusError) return { error: err.message };
+    throw err;
+  }
+
+  revalidatePath(`/clients/${request.clientId}`);
+  if (request.type === "ban") revalidatePath("/banned");
+  else if (request.type === "unsubscribe") revalidatePath("/unsubscribed");
+  else revalidatePath("/clients");
   // Invalidates the (app) layout so the sidebar badge re-reads `getPendingApprovalCount`.
   revalidatePath("/", "layout");
 }

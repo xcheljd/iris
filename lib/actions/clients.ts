@@ -9,6 +9,7 @@ import { recalcHeat } from "./outreach";
 import { fullName } from "@/lib/utils";
 import { recordProductsOfInterest } from "./model-catalog";
 import { applyClientPatchUnchecked } from "./_client-patch-core";
+import { runStatusChange, applyBanUnchecked, applyUnsubscribeUnchecked, applyDeleteUnchecked } from "./_client-status-core";
 import { clientPatchSchema } from "@/lib/validation/client";
 
 // Structural de-dupe for products of interest (objects, so Set won't dedupe).
@@ -42,43 +43,16 @@ export async function saveClientEdits(clientId: string, data: unknown): Promise<
 
 export async function banClient(clientId: string, category: "Reselling" | "Gift Card Fraud" | "Other", reason: string): Promise<{ error: string } | undefined> {
   const user = await requireManager();
-  const c = db.select({ firstName: clients.firstName, lastName: clients.lastName, email: clients.email, phone: clients.phone })
-    .from(clients).where(eq(clients.id, clientId)).get();
-  if (!c) return { error: "Client not found" };
-  db.transaction((tx) => {
-    tx.update(clients).set({ status: "banned", updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
-    tx.insert(bannedCustomers).values({
-      id: randomUUID(),
-      customerId: clientId,
-      firstName: c.firstName,
-      lastName: c.lastName,
-      email: c.email,
-      phone: c.phone,
-      banReasonCategory: category,
-      specificBanReason: reason,
-    }).run();
-    tx.insert(activityEvents).values({
-      id: randomUUID(), clientId, eventType: "status_changed", description: `Banned: ${category} — ${reason}`, metadata: { newStatus: "banned" }, employeeId: user.id,
-    }).run();
-  });
+  const result = runStatusChange((tx) => applyBanUnchecked(tx, clientId, category, reason, user.id));
+  if (result?.error) return result;
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/banned");
 }
 
 export async function unsubscribeClient(clientId: string): Promise<{ error: string } | undefined> {
   const user = await requireManager();
-  const c = db.select({ email: clients.email }).from(clients).where(eq(clients.id, clientId)).get();
-  if (!c) return { error: "Client not found" };
-  db.transaction((tx) => {
-    tx.update(clients).set({ status: "unsubscribed", onEmailList: false, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
-    if (c.email) {
-      const existing = tx.select().from(unsubscribeList).where(eq(unsubscribeList.email, c.email)).get();
-      if (!existing) tx.insert(unsubscribeList).values({ id: randomUUID(), email: c.email }).run();
-    }
-    tx.insert(activityEvents).values({
-      id: randomUUID(), clientId, eventType: "status_changed", description: "Unsubscribed", metadata: { newStatus: "unsubscribed" }, employeeId: user.id,
-    }).run();
-  });
+  const result = runStatusChange((tx) => applyUnsubscribeUnchecked(tx, clientId, user.id));
+  if (result?.error) return result;
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/unsubscribed");
 }
@@ -190,27 +164,8 @@ export async function transferClient(clientId: string, newEmployeeId: string): P
 export async function deleteClient(clientId: string): Promise<{ error: string } | undefined> {
   const user = await requireManager();
 
-  const client = db.select({ status: clients.status }).from(clients).where(eq(clients.id, clientId)).get();
-  if (!client) return { error: "Client not found" };
-  if (client.status === "deleted") return { error: "Client already deleted" };
-
-  db.transaction((tx) => {
-    tx.update(clients).set({
-      status: "deleted",
-      previousStatus: client.status as "active" | "inactive" | "banned" | "unsubscribed",
-      deletedAt: new Date(),
-      deletedBy: user.id,
-      updatedAt: new Date(),
-    }).where(eq(clients.id, clientId)).run();
-
-    tx.insert(activityEvents).values({
-      id: randomUUID(),
-      clientId,
-      eventType: "status_changed",
-      description: `Client deleted by ${user.name}`,
-      employeeId: user.id,
-    }).run();
-  });
+  const result = runStatusChange((tx) => applyDeleteUnchecked(tx, clientId, user.id, user.name));
+  if (result?.error) return result;
 
   revalidatePath("/clients");
   revalidatePath("/settings");

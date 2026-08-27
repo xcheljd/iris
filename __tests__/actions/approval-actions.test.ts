@@ -10,20 +10,22 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
-vi.mock("@/lib/actions/clients", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/actions/clients")>();
+// The review path applies the ban/unsubscribe/delete through the raw core so
+// the change can share reviewApprovalRequest's transaction; spy there.
+vi.mock("@/lib/actions/_client-status-core", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/actions/_client-status-core")>();
   return {
     ...actual,
-    banClient: vi.fn().mockImplementation(actual.banClient),
-    unsubscribeClient: vi.fn().mockImplementation(actual.unsubscribeClient),
-    deleteClient: vi.fn().mockImplementation(actual.deleteClient),
+    applyBanUnchecked: vi.fn().mockImplementation(actual.applyBanUnchecked),
+    applyUnsubscribeUnchecked: vi.fn().mockImplementation(actual.applyUnsubscribeUnchecked),
+    applyDeleteUnchecked: vi.fn().mockImplementation(actual.applyDeleteUnchecked),
   };
 });
 
 import { getServerSession } from "next-auth";
 import type { Session } from "next-auth";
 import { createApprovalRequest, reviewApprovalRequest } from "@/lib/actions";
-import { banClient } from "@/lib/actions/clients";
+import { applyBanUnchecked } from "@/lib/actions/_client-status-core";
 import { db } from "@/lib/db";
 import {
   approvalRequests,
@@ -256,7 +258,7 @@ describe("reviewApprovalRequest", () => {
   });
 
   it("returns error and leaves request pending when the downstream action fails", async () => {
-    vi.mocked(banClient).mockResolvedValueOnce({ error: "Simulated ban failure" });
+    vi.mocked(applyBanUnchecked).mockReturnValueOnce({ error: "Simulated ban failure" });
 
     const requestId = await createPendingRequest("ban");
     const result = await reviewApprovalRequest(requestId, true);
@@ -264,14 +266,42 @@ describe("reviewApprovalRequest", () => {
     expect(result?.error).toBeDefined();
     const row = db.select().from(approvalRequests).where(eq(approvalRequests.id, requestId)).get();
     expect(row!.status).toBe("pending");
+    expect(row!.reviewedById).toBeNull();
+    // The audit event is part of the same transaction — it must not survive.
+    expect(
+      db.select().from(activityEvents).where(eq(activityEvents.clientId, FIRST_CLIENT_ID)).all()
+        .filter((e) => e.eventType === "ban_approved"),
+    ).toHaveLength(0);
+    expect(db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get()!.status).toBe("active");
+  });
+
+  it("rolls the whole review back when the downstream action throws", async () => {
+    vi.mocked(applyBanUnchecked).mockImplementationOnce(() => {
+      throw new Error("Simulated crash mid-action");
+    });
+
+    const requestId = await createPendingRequest("ban");
+    await expect(reviewApprovalRequest(requestId, true)).rejects.toThrow("Simulated crash mid-action");
+
+    const row = db.select().from(approvalRequests).where(eq(approvalRequests.id, requestId)).get();
+    expect(row!.status).toBe("pending");
+    expect(row!.reviewedAt).toBeNull();
+    expect(
+      db.select().from(activityEvents).where(eq(activityEvents.clientId, FIRST_CLIENT_ID)).all()
+        .filter((e) => e.eventType === "ban_approved"),
+    ).toHaveLength(0);
+    expect(
+      db.select().from(bannedCustomers).where(eq(bannedCustomers.customerId, FIRST_CLIENT_ID)).all(),
+    ).toHaveLength(0);
+    expect(db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get()!.status).toBe("active");
   });
 
   it("does not re-run the downstream action on a second review of the same request", async () => {
     const requestId = await createPendingRequest("ban");
 
-    const callsBefore = vi.mocked(banClient).mock.calls.length;
+    const callsBefore = vi.mocked(applyBanUnchecked).mock.calls.length;
     await reviewApprovalRequest(requestId, true);
-    expect(vi.mocked(banClient).mock.calls.length).toBe(callsBefore + 1);
+    expect(vi.mocked(applyBanUnchecked).mock.calls.length).toBe(callsBefore + 1);
 
     const bannedRowsAfterFirst = db
       .select().from(bannedCustomers).where(eq(bannedCustomers.customerId, FIRST_CLIENT_ID)).all().length;
@@ -283,7 +313,7 @@ describe("reviewApprovalRequest", () => {
 
     expect(second?.error).toBe("Request already reviewed");
     // Downstream action and its side effects ran exactly once.
-    expect(vi.mocked(banClient).mock.calls.length).toBe(callsBefore + 1);
+    expect(vi.mocked(applyBanUnchecked).mock.calls.length).toBe(callsBefore + 1);
     expect(
       db.select().from(bannedCustomers).where(eq(bannedCustomers.customerId, FIRST_CLIENT_ID)).all(),
     ).toHaveLength(bannedRowsAfterFirst);
