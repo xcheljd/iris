@@ -31,7 +31,9 @@ export function PaginationFooter({
   showBorder = false,
   extraTotal,
 }: PaginationFooterProps) {
-  if (totalPages <= 1) return null;
+  // Single page still shows the count ("1–14 of 14 clients"); only the page
+  // controls are pointless there.
+  const showControls = totalPages > 1;
 
   const start = (currentPage - 1) * pageSize + 1;
   const end = Math.min(currentPage * pageSize, totalItems);
@@ -46,6 +48,7 @@ export function PaginationFooter({
       className={`flex flex-col sm:flex-row items-center justify-between gap-2${showBorder ? " mt-4 pt-4 border-t" : ""}`}
     >
       <p className="text-xs text-muted-foreground">{countText}</p>
+      {showControls && (
       <PaginationContent>
         <PaginationItem>
           <Button
@@ -73,6 +76,7 @@ export function PaginationFooter({
           </Button>
         </PaginationItem>
       </PaginationContent>
+      )}
     </Pagination>
   );
 }

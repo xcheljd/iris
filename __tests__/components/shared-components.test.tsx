@@ -69,11 +69,21 @@ describe("PaginationFooter", () => {
     itemLabel: "clients",
   };
 
-  it("returns null when totalPages <= 1", () => {
-    const { container } = render(
-      <PaginationFooter {...defaults} totalPages={1} />,
+  // Regression (audit B5): a single page used to render nothing at all, which
+  // dropped the "1–14 of 14 clients" count from every short list.
+  it("keeps the count line but hides the page controls on a single page", () => {
+    render(
+      <PaginationFooter
+        {...defaults}
+        totalPages={1}
+        totalItems={14}
+        pageSize={20}
+      />,
     );
-    expect(container.innerHTML).toBe("");
+    expect(screen.getByText(/1–14 of 14 clients/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Go to previous page" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Go to next page" })).toBeNull();
+    expect(screen.queryByText(/Page 1 of 1/)).toBeNull();
   });
 
   it("shows Page X of Y text", () => {
