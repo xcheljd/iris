@@ -421,11 +421,11 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
                     <TableHead><ColumnHeader label="Model Number" sortKey="modelNumber" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
                     <TableHead><ColumnHeader label="Collection" sortKey="collection" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
                     <TableHead className="hidden sm:table-cell"><ColumnHeader label="Brand" sortKey="brand" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
-                    <TableHead className="hidden sm:table-cell"><ColumnHeader label="MSRP" sortKey="msrp" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
-                    <TableHead className="hidden md:table-cell"><ColumnHeader label="Disc." sortKey="discountPercent" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
-                    <TableHead className="hidden sm:table-cell"><ColumnHeader label="Sale Price" sortKey="discountPrice" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
-                    <TableHead className="hidden md:table-cell"><ColumnHeader label="Size 1" sortKey="sizeOneQty" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
-                    <TableHead className="hidden md:table-cell"><ColumnHeader label="Size 2" sortKey="sizeTwoQty" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                    <TableHead className="hidden sm:table-cell text-right"><ColumnHeader align="right" label="MSRP" sortKey="msrp" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                    <TableHead className="hidden md:table-cell text-right"><ColumnHeader align="right" label="Disc." sortKey="discountPercent" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                    <TableHead className="hidden sm:table-cell text-right"><ColumnHeader align="right" label="Sale Price" sortKey="discountPrice" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                    <TableHead className="hidden md:table-cell text-right"><ColumnHeader align="right" label="Size 1" sortKey="sizeOneQty" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                    <TableHead className="hidden md:table-cell text-right"><ColumnHeader align="right" label="Size 2" sortKey="sizeTwoQty" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
                     <TableHead className="text-right">Clients</TableHead>
                     {isManager && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>

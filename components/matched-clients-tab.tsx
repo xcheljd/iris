@@ -165,8 +165,8 @@ export function MatchedClientsTab({ clients, isManager, currentUserId }: Props) 
                   <TableHead><ColumnHeader label="Model" sortKey="promoModel" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
                   <TableHead className="hidden sm:table-cell"><ColumnHeader label="Collection" sortKey="promoCollection" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
                   <TableHead className="hidden sm:table-cell"><ColumnHeader label="Brand" sortKey="promoBrand" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
-                  <TableHead className="hidden md:table-cell"><ColumnHeader label="MSRP" sortKey="msrp" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
-                  <TableHead className="hidden md:table-cell"><ColumnHeader label="Sale" sortKey="discountPrice" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                  <TableHead className="hidden md:table-cell text-right"><ColumnHeader align="right" label="MSRP" sortKey="msrp" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
+                  <TableHead className="hidden md:table-cell text-right"><ColumnHeader align="right" label="Sale" sortKey="discountPrice" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
                   <TableHead><ColumnHeader label="Match" sortKey="matchType" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
                 </TableRow>
               </TableHeader>

@@ -15,6 +15,7 @@ export function ColumnHeader<K extends string>({
   currentDir,
   onSortAction,
   filter,
+  align = "left",
 }: {
   label: string;
   sortKey?: K;
@@ -22,10 +23,12 @@ export function ColumnHeader<K extends string>({
   currentDir?: "asc" | "desc";
   onSortAction?: (key: K) => void;
   filter?: ReactNode;
+  /** Numeric columns pass "right" so the header sits over right-aligned cells. */
+  align?: "left" | "right";
 }) {
   const isActive = sortKey != null && currentSort === sortKey;
   return (
-    <div className="flex items-center gap-1">
+    <div className={`flex items-center gap-1${align === "right" ? " justify-end" : ""}`}>
       {sortKey != null ? (
         <button
           onClick={() => onSortAction?.(sortKey)}

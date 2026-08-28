@@ -465,8 +465,9 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                         />
                       </TableHead>
 
-                      <TableHead>
+                      <TableHead className="text-right">
                         <ColumnHeader
+                          align="right"
                           label="MSRP"
                           sortKey="msrp"
                           currentSort={sort}
