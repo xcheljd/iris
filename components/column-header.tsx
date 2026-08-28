@@ -1,12 +1,16 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 
 /**
  * Header cell: label + optional sort affordance + optional filter trigger.
  * Sort is opt-in (pass sortKey/onSortAction); filter is opt-in (pass `filter` slot).
  * The chevron shows sort direction: up = asc, down = desc, faded = inactive.
+ *
+ * aria-sort belongs on the `<th>`, which the caller owns (every call site wraps
+ * this in shadcn's TableHead). Rather than thread the attribute through ~35 call
+ * sites, a sortable header writes it onto its enclosing th from an effect.
  */
 export function ColumnHeader<K extends string>({
   label,
@@ -27,12 +31,24 @@ export function ColumnHeader<K extends string>({
   align?: "left" | "right";
 }) {
   const isActive = sortKey != null && currentSort === sortKey;
+  const sortable = sortKey != null;
+  const ariaSort = !isActive ? "none" : currentDir === "asc" ? "ascending" : "descending";
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!sortable) return;
+    const th = ref.current?.closest("th");
+    if (!th) return;
+    th.setAttribute("aria-sort", ariaSort);
+    return () => th.removeAttribute("aria-sort");
+  }, [sortable, ariaSort]);
+
   return (
-    <div className={`flex items-center gap-1${align === "right" ? " justify-end" : ""}`}>
+    <div ref={ref} className={`flex items-center gap-1${align === "right" ? " justify-end" : ""}`}>
       {sortKey != null ? (
         <button
           onClick={() => onSortAction?.(sortKey)}
-          className="flex items-center gap-1 hover:text-foreground transition-colors"
+          className="flex items-center gap-1 rounded-sm hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
           {label}
           {isActive ? (

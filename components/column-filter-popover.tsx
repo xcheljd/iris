@@ -45,7 +45,6 @@ export function ColumnFilterPopover({
           size="icon"
           className="size-6 shrink-0"
           aria-label={`Filter ${label}`}
-          aria-pressed={active}
         >
           <Filter
             className={cn(

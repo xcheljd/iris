@@ -170,7 +170,7 @@ export function InterestsTab({ client }: InterestsTabProps) {
                 <TableRow>
                   <TableHead>
                     <ColumnHeader label="Intent" sortKey="intent" currentSort={sortKey} currentDir={sortDir} onSortAction={toggleSort} filter={
-                      <ColumnFilterPopover label="intent" active={intentFilter.size > 0} onClear={() => setIntentFilter(new Set())} contentWidth="w-44">
+                      <ColumnFilterPopover label="Intent" active={intentFilter.size > 0} onClear={() => setIntentFilter(new Set())} contentWidth="w-44">
                         <div className="flex flex-col p-3 gap-1">
                           {INTEREST_INTENT_VALUES.map((it) => (
                             <label key={it} className="flex items-center gap-2 text-sm cursor-pointer">
@@ -188,7 +188,7 @@ export function InterestsTab({ client }: InterestsTabProps) {
                   </TableHead>
                   <TableHead>
                     <ColumnHeader label="Model" sortKey="model" currentSort={sortKey} currentDir={sortDir} onSortAction={toggleSort} filter={
-                      <ColumnFilterPopover label="model" active={!!modelFilter} onClear={() => setModelFilter("")} contentWidth="w-56">
+                      <ColumnFilterPopover label="Model" active={!!modelFilter} onClear={() => setModelFilter("")} contentWidth="w-56">
                         <div className="p-2">
                           <Input placeholder="Model contains…" value={modelFilter} onChange={(e) => setModelFilter(e.target.value)} />
                         </div>
@@ -197,7 +197,7 @@ export function InterestsTab({ client }: InterestsTabProps) {
                   </TableHead>
                   <TableHead>
                     <ColumnHeader label="Collection" sortKey="collection" currentSort={sortKey} currentDir={sortDir} onSortAction={toggleSort} filter={
-                      <ColumnFilterPopover label="collection" active={!!collectionFilter} onClear={() => setCollectionFilter("")} contentWidth="w-56">
+                      <ColumnFilterPopover label="Collection" active={!!collectionFilter} onClear={() => setCollectionFilter("")} contentWidth="w-56">
                         <div className="p-2">
                           <Input placeholder="Collection contains…" value={collectionFilter} onChange={(e) => setCollectionFilter(e.target.value)} />
                         </div>
@@ -206,7 +206,7 @@ export function InterestsTab({ client }: InterestsTabProps) {
                   </TableHead>
                   <TableHead>
                     <ColumnHeader label="Brand" sortKey="brand" currentSort={sortKey} currentDir={sortDir} onSortAction={toggleSort} filter={
-                      <ColumnFilterPopover label="brand" active={brandFilter.size > 0} onClear={() => setBrandFilter(new Set())} contentWidth="w-44">
+                      <ColumnFilterPopover label="Brand" active={brandFilter.size > 0} onClear={() => setBrandFilter(new Set())} contentWidth="w-44">
                         <div className="flex flex-col p-3 gap-1">
                           {BRAND_VALUES.map((b) => (
                             <label key={b} className="flex items-center gap-2 text-sm cursor-pointer">
@@ -224,7 +224,7 @@ export function InterestsTab({ client }: InterestsTabProps) {
                   </TableHead>
                   <TableHead>
                     <ColumnHeader label="Promo" sortKey="promo" currentSort={sortKey} currentDir={sortDir} onSortAction={toggleSort} filter={
-                      <ColumnFilterPopover label="promo" active={promoOnly !== ""} onClear={() => setPromoOnly("")} contentWidth="w-44">
+                      <ColumnFilterPopover label="Promo" active={promoOnly !== ""} onClear={() => setPromoOnly("")} contentWidth="w-44">
                         <RadioGroup value={promoOnly} onValueChange={(v) => setPromoOnly(v as "" | "has" | "none")} className="p-3 gap-3">
                           {([["", "All"], ["has", "On promo"], ["none", "Not on promo"]] as const).map(([v, l]) => (
                             <div key={v} className="flex items-center gap-2">
