@@ -13,9 +13,10 @@ import { ProspectActionsMenu } from "@/components/prospect-actions-menu";
 import { ProspectsBulkToolbar } from "@/components/prospects-bulk-actions";
 // RVX Import disabled for demo — Coming Soon
 // import { RvxImportDialog } from "@/components/rvx-import-dialog";
-import { Upload, UserSearch, DollarSign } from "lucide-react";
+import { Upload, UserSearch } from "lucide-react";
 import Link from "next/link";
 import type { ProspectListRow } from "@/lib/queries";
+import { formatMoney } from "@/lib/utils";
 
 type ProspectStatus = "active" | "graduated" | "unsubscribed" | "rejected";
 
@@ -202,9 +203,8 @@ export function ProspectsContent({
                               <span className="text-xs text-muted-foreground truncate">{prospect.email}</span>
                             )}
                             {prospect.rvxSpend !== null && prospect.rvxSpend !== undefined && (
-                              <span className="text-xs text-muted-foreground flex items-center gap-0.5">
-                                <DollarSign className="size-3" />
-                                {prospect.rvxSpend.toFixed(2)}
+                              <span className="text-xs text-muted-foreground tabular-nums">
+                                {formatMoney(prospect.rvxSpend)}
                               </span>
                             )}
                           </div>
@@ -288,9 +288,8 @@ function ProspectListCard({
                       <span className="text-xs text-muted-foreground truncate">{prospect.email}</span>
                     )}
                     {prospect.rvxSpend !== null && prospect.rvxSpend !== undefined && (
-                      <span className="text-xs text-muted-foreground flex items-center gap-0.5">
-                        <DollarSign className="size-3" />
-                        {prospect.rvxSpend.toFixed(2)}
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {formatMoney(prospect.rvxSpend)}
                       </span>
                     )}
                   </div>

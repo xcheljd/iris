@@ -16,6 +16,7 @@ import { format, parseISO } from "date-fns";
 import { parsePromoPdf, type ParsedPromoPdf } from "@/lib/promo-pdf-parser";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BRAND_VALUES, type Brand } from "@/lib/db/schema";
+import { formatMoney } from "@/lib/utils";
 
 interface ImportPromoDialogProps {
   open: boolean;
@@ -315,14 +316,14 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
                             <div className="text-[10px] text-amber-600">PDF said: {r.pdfCollection}</div>
                           )}
                         </TableCell>
-                        <TableCell className="text-right">
-                          {r.pdfMsrp != null ? `$${r.pdfMsrp.toFixed(2)}` : (r.catalogMsrp != null ? `$${r.catalogMsrp.toFixed(2)}` : "—")}
+                        <TableCell className="text-right tabular-nums">
+                          {formatMoney(r.pdfMsrp ?? r.catalogMsrp)}
                           {r.msrpLow && (
-                            <div className="text-[10px] text-amber-600">below catalog ${r.catalogMsrp?.toFixed(2)}</div>
+                            <div className="text-[10px] text-amber-600">below catalog {formatMoney(r.catalogMsrp)}</div>
                           )}
                         </TableCell>
-                        <TableCell className="text-right">{r.discountPercent != null ? `${r.discountPercent}%` : "—"}</TableCell>
-                        <TableCell className="text-right">{r.discountPrice != null ? `$${r.discountPrice.toFixed(2)}` : "—"}</TableCell>
+                        <TableCell className="text-right tabular-nums">{r.discountPercent != null ? `${r.discountPercent}%` : "—"}</TableCell>
+                        <TableCell className="text-right tabular-nums">{formatMoney(r.discountPrice)}</TableCell>
                       </TableRow>
                     );
                   })}

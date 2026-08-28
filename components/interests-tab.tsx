@@ -20,6 +20,7 @@ import { normalizeModel } from "@/lib/normalize";
 import { useCatalog } from "@/components/use-catalog";
 import { INTEREST_INTENT_VALUES, BRAND_VALUES, type InterestIntent } from "@/lib/db/schema";
 import type { FullClient, PromoMatchWithPromo } from "@/components/client-provider";
+import { formatMoney } from "@/lib/utils";
 
 interface InterestsTabProps {
   client: FullClient;
@@ -90,7 +91,7 @@ export function InterestsTab({ client }: InterestsTabProps) {
         promoModelNumber = modelHit.promo.modelNumber;
         promoCollection = modelHit.promo.collection;
         promoLabel = modelHit.promo.discountPrice != null
-          ? `$${modelHit.promo.discountPrice.toFixed(2)} · model`
+          ? `${formatMoney(modelHit.promo.discountPrice)} · model`
           : "On promo · model";
       } else if (collHits.length > 0) {
         if (!p.model) {

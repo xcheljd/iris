@@ -36,6 +36,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Filter } from "lucide-react";
 import { ColumnHeader } from "@/components/column-header";
 import { Topbar } from "@/components/topbar";
+import { formatMoney } from "@/lib/utils";
 // Promo Import disabled for demo — Coming Soon
 // import { ImportPromoDialog } from "@/components/promo/import-promo-dialog";
 
@@ -435,9 +436,9 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
                         <TableCell className="font-medium font-mono text-sm">{promo.modelNumber}</TableCell>
                         <TableCell><Badge variant="outline">{promo.collection}</Badge></TableCell>
                         <TableCell className="hidden sm:table-cell">{brandLabel(promo.brand)}</TableCell>
-                        <TableCell className="text-right hidden sm:table-cell">{promo.msrp != null ? `$${promo.msrp.toFixed(2)}` : "—"}</TableCell>
+                        <TableCell className="text-right tabular-nums hidden sm:table-cell">{formatMoney(promo.msrp)}</TableCell>
                         <TableCell className="text-right hidden md:table-cell">{promo.discountPercent != null ? `${promo.discountPercent}%` : "—"}</TableCell>
-                        <TableCell className="text-right hidden sm:table-cell font-medium text-green-500">{promo.discountPrice != null ? `$${promo.discountPrice.toFixed(2)}` : "—"}</TableCell>
+                        <TableCell className="text-right tabular-nums hidden sm:table-cell font-medium text-green-500">{formatMoney(promo.discountPrice)}</TableCell>
                         <TableCell className="text-right hidden md:table-cell">{promo.sizeOneQty}</TableCell>
                         <TableCell className="text-right hidden md:table-cell">{promo.sizeTwoQty}</TableCell>
                         <TableCell className="text-right">

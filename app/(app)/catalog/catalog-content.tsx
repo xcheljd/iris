@@ -23,6 +23,7 @@ import { ColumnFilterPopover } from "@/components/column-filter-popover";
 import { TextFilterMenu, MultiSelectMenu, RangeFilterMenu } from "@/components/column-filters";
 import { BRAND_VALUES } from "@/lib/db/schema";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
+import { formatMoney } from "@/lib/utils";
 
 interface CatalogRow {
   model: string;
@@ -517,7 +518,7 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                         </TableCell>
                         <TableCell>{r.brand ? brandLabel(r.brand) : <span className="text-muted-foreground">—</span>}</TableCell>
                         <TableCell className="text-right tabular-nums">
-                          {r.msrp != null ? `$${r.msrp.toFixed(2)}` : <span className="text-muted-foreground">—</span>}
+                          {r.msrp != null ? formatMoney(r.msrp) : <span className="text-muted-foreground">—</span>}
                         </TableCell>
                         <TableCell><Badge variant={sourceBadge(r.source)}>{r.source}</Badge></TableCell>
                         <TableCell className="text-right">

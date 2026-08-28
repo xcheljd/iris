@@ -15,6 +15,7 @@ import { ColumnHeader } from "@/components/column-header";
 import { brandLabel } from "@/lib/brand";
 import { MatchedClientsCsvExportDialog } from "@/components/matched-clients-csv-export-dialog";
 import type { MatchedClientRow } from "@/lib/queries";
+import { formatMoney } from "@/lib/utils";
 
 const PAGE_SIZE = 15;
 
@@ -188,8 +189,8 @@ export function MatchedClientsTab({ clients, isManager, currentUserId }: Props) 
                       <TableCell className="font-mono text-sm">{c.promoModel}</TableCell>
                       <TableCell className="hidden sm:table-cell">{c.promoCollection}</TableCell>
                       <TableCell className="hidden sm:table-cell">{brandLabel(c.promoBrand)}</TableCell>
-                      <TableCell className="text-right hidden md:table-cell">{c.msrp != null ? `$${c.msrp.toFixed(2)}` : "—"}</TableCell>
-                      <TableCell className="text-right hidden md:table-cell text-green-500">{c.discountPrice != null ? `$${c.discountPrice.toFixed(2)}` : "—"}</TableCell>
+                      <TableCell className="text-right tabular-nums hidden md:table-cell">{formatMoney(c.msrp)}</TableCell>
+                      <TableCell className="text-right tabular-nums hidden md:table-cell text-green-500">{formatMoney(c.discountPrice)}</TableCell>
                       <TableCell><Badge variant={c.matchType === "model" ? "default" : "secondary"}>{c.matchType}</Badge></TableCell>
                     </TableRow>
                   );

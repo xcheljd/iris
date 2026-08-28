@@ -31,6 +31,20 @@ export function daysAgo(d: Date | string | number | null | undefined): number | 
   return Math.floor(ms / MS_PER_DAY);
 }
 
+const MONEY_FORMAT = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+});
+
+/**
+ * USD money for display: "$12,500.00". Null/undefined renders an em dash
+ * rather than "$0.00" — a missing price is not a free watch.
+ */
+export function formatMoney(n: number | null | undefined): string {
+  if (n == null) return "—";
+  return MONEY_FORMAT.format(n);
+}
+
 /**
  * Human-readable "how long ago" label for a timestamp — the display counterpart
  * to daysAgo(). Null/undefined dates read "Never" rather than a bare number.

@@ -5,6 +5,7 @@ import {
   formatDate,
   daysAgo,
   formatDaysAgo,
+  formatMoney,
   initials,
   applyClientFilter,
 } from "@/lib/utils";
@@ -150,6 +151,30 @@ describe("daysAgo", () => {
 
   it("works with ISO string input", () => {
     expect(daysAgo("2025-06-14T12:00:00.000Z")).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatMoney
+// ---------------------------------------------------------------------------
+describe("formatMoney", () => {
+  it("groups thousands", () => {
+    expect(formatMoney(12500)).toBe("$12,500.00");
+    expect(formatMoney(1234567.891)).toBe("$1,234,567.89");
+  });
+
+  it("always shows two decimals", () => {
+    expect(formatMoney(0)).toBe("$0.00");
+    expect(formatMoney(99.5)).toBe("$99.50");
+  });
+
+  it("renders an em dash for null/undefined, not $0.00", () => {
+    expect(formatMoney(null)).toBe("—");
+    expect(formatMoney(undefined)).toBe("—");
+  });
+
+  it("formats negatives", () => {
+    expect(formatMoney(-250)).toBe("-$250.00");
   });
 });
 

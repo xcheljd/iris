@@ -8,6 +8,7 @@ import { UserSearch, UserCheck, XCircle, MailX, DollarSign, Upload, ChevronRight
 import Link from "next/link";
 import { format } from "date-fns";
 import type { ProspectFunnelStats } from "@/lib/queries";
+import { formatMoney } from "@/lib/utils";
 
 interface AnalyticsProspectsTabProps {
   funnel: ProspectFunnelStats;
@@ -162,7 +163,7 @@ export function AnalyticsProspectsTab({ funnel }: AnalyticsProspectsTabProps) {
                 value !== null ? (
                   <div key={label} className="flex items-center justify-between text-sm">
                     <span className={colorClass || "text-muted-foreground"}>{label}</span>
-                    <span className={`font-medium font-mono ${colorClass}`}>${value.toFixed(2)}</span>
+                    <span className={`font-medium font-mono tabular-nums ${colorClass}`}>{formatMoney(value)}</span>
                   </div>
                 ) : null,
               )}

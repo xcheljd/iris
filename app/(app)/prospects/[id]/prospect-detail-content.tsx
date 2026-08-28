@@ -5,13 +5,14 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, UserCheck, X, BellOff, DollarSign } from "lucide-react";
+import { ChevronLeft, UserCheck, X, BellOff } from "lucide-react";
 import { toast } from "sonner";
 import { useTransition } from "react";
 import { rejectProspect, unsubscribeProspect } from "@/lib/actions";
 import { GraduateProspectDialog } from "@/components/graduate-prospect-dialog";
 import type { Prospect } from "@/lib/db/schema";
 import type { ProspectListRow } from "@/lib/queries";
+import { formatMoney } from "@/lib/utils";
 
 interface ProspectDetailContentProps {
   prospect: Prospect;
@@ -154,9 +155,8 @@ export function ProspectDetailContent({
             {prospect.rvxSpend !== null && (
               <div className="flex gap-2">
                 <span className="text-muted-foreground w-28 shrink-0">Spend</span>
-                <span className="flex items-center gap-0.5 font-medium">
-                  <DollarSign className="size-3.5" />
-                  {prospect.rvxSpend.toFixed(2)}
+                <span className="font-medium tabular-nums">
+                  {formatMoney(prospect.rvxSpend)}
                 </span>
               </div>
             )}
