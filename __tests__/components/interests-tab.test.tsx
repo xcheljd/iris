@@ -96,7 +96,7 @@ describe("InterestsTab (unified table)", () => {
     const user = userEvent.setup();
     render(<InterestsTab client={clientWithInterests} />);
     expect(screen.getByText("KX1023-01X")).toBeInTheDocument();
-    await user.click(screen.getByLabelText("Filter intent"));
+    await user.click(screen.getByLabelText("Filter Intent"));
     await user.click(screen.getByLabelText("Arrival"));
     // Arrival-only: the promo/interested model rows drop out
     expect(screen.queryByText("KX1023-01X")).not.toBeInTheDocument();
