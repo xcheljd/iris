@@ -30,6 +30,7 @@ import {
   ChevronDown,
   Trash2,
 } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import { createEmployee, resetEmployeePassword, updateEmployeeRole, toggleEmployeeActive, updateEmployee, deactivateEmployee, reorderEmployee, deleteEmployee } from "@/lib/actions";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { toast } from "sonner";
@@ -438,8 +439,8 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
               ))}
               {filteredEmployees.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={canReorder ? 6 : 5} className="text-center py-8 text-muted-foreground">
-                    No employees match your search
+                  <TableCell colSpan={canReorder ? 6 : 5} className="p-0">
+                    <EmptyState description="No employees match your search" compact />
                   </TableCell>
                 </TableRow>
               )}

@@ -25,6 +25,7 @@ import Link from "next/link";
 import { getMethodIcon, getOutcomeColor } from "@/lib/outreach-helpers";
 import { format } from "date-fns";
 import { fullName } from "@/lib/utils";
+import { EmptyState } from "@/components/empty-state";
 
 const METHOD_COLORS = ["#3b82f6", "#22c55e", "#a855f7", "#f97316"];
 
@@ -121,9 +122,7 @@ export function AnalyticsOutreachTab({
               </BarChart>
             </ChartContainer>
           ) : (
-            <p className="text-sm text-muted-foreground py-8 text-center">
-              No outreach data for the selected period
-            </p>
+            <EmptyState description="No outreach data for the selected period" compact />
           )}
         </CardContent>
       </Card>
@@ -157,7 +156,7 @@ export function AnalyticsOutreachTab({
                 </div>
               ))
             ) : (
-              <p className="text-sm text-muted-foreground">No outreach data yet</p>
+              <EmptyState description="No outreach data yet" compact />
             )}
           </CardContent>
         </Card>
@@ -191,9 +190,7 @@ export function AnalyticsOutreachTab({
                 </PieChart>
               </ChartContainer>
             ) : (
-              <p className="text-sm text-muted-foreground py-8 text-center">
-                No outreach data for the selected period
-              </p>
+              <EmptyState description="No outreach data for the selected period" compact />
             )}
           </CardContent>
         </Card>
@@ -214,9 +211,7 @@ export function AnalyticsOutreachTab({
         <CardContent>
           <div className="flex flex-col gap-2">
             {totalFiltered === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                No outreach records for the selected period
-              </p>
+              <EmptyState description="No outreach records for the selected period" compact />
             ) : (
               pagedOutreach.map((row) => (
                 <div

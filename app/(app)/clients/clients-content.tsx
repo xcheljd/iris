@@ -14,7 +14,8 @@ import { Topbar } from "@/components/topbar";
 import { formatPhone, formatDaysAgo } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, MoreHorizontal, Eye, Edit, Ban, MailX, Trash2, Mail, BookmarkPlus, FileText } from "lucide-react";
+import { Plus, MoreHorizontal, Eye, Edit, Ban, MailX, Trash2, Mail, BookmarkPlus, FileText, Users } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import { ColumnHeader } from "@/components/column-header";
 import { BanCustomerDialog, UnsubscribeCustomerDialog } from "@/components/client-status-actions";
 import { EmailRecipientsDialog } from "@/components/email-recipients-dialog";
@@ -445,7 +446,9 @@ export function ClientListContent({
             <TableBody>
               {rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">No clients match.</TableCell>
+                  <TableCell colSpan={8} className="p-0">
+                    <EmptyState icon={Users} description="No clients match." compact />
+                  </TableCell>
                 </TableRow>
               ) : rows.map((r) => {
                 const isSelected = selected.has(r.client.id);

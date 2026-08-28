@@ -17,6 +17,7 @@ import { parsePromoPdf, type ParsedPromoPdf } from "@/lib/promo-pdf-parser";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BRAND_VALUES, type Brand } from "@/lib/db/schema";
 import { formatMoney } from "@/lib/utils";
+import { EmptyState } from "@/components/empty-state";
 
 interface ImportPromoDialogProps {
   open: boolean;
@@ -182,16 +183,12 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
             </Field>
           </div>
         ) : !resolved || resolved.length === 0 ? (
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-2 text-yellow-500">
-              <AlertCircle className="size-5" />
-              <span className="font-medium">No promo rows detected</span>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Make sure the PDF has columns for MODEL, COLLECTION, MSRP, and an &quot;X% OFF&quot; sale column.
-            </p>
-            <Button variant="outline" onClick={handleReset}>Try Another File</Button>
-          </div>
+          <EmptyState
+            icon={AlertCircle}
+            title="No promo rows detected"
+            description={"Make sure the PDF has columns for MODEL, COLLECTION, MSRP, and an “X% OFF” sale column."}
+            action={{ label: "Try Another File", onClick: handleReset }}
+          />
         ) : (
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">

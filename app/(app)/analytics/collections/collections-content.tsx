@@ -185,9 +185,7 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
                 <CardContent>
                   <div className="flex flex-col gap-1">
                     {collectionClients.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        No clients interested
-                      </p>
+                      <EmptyState description="No clients interested" compact />
                     ) : (
                       pagedClients.map((client) => (
                         <Link
@@ -221,12 +219,12 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
             </>
           ) : (
             <Card>
-              <CardContent className="py-12 text-center">
-                <BarChart3 className="size-12 mx-auto text-muted-foreground mb-3 opacity-50" />
-                <p className="text-lg font-medium">Select a collection</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Click a collection to see interested clients
-                </p>
+              <CardContent>
+                <EmptyState
+                  icon={BarChart3}
+                  title="Select a collection"
+                  description="Click a collection to see interested clients"
+                />
               </CardContent>
             </Card>
           )}
