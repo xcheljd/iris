@@ -34,7 +34,7 @@ import {
   hasActiveClientFilters,
   type ClientFilterChipKey,
 } from "@/lib/smart-list-filters";
-import { ClientsActiveFilters } from "@/components/clients-active-filters";
+import { ActiveFilterChips } from "@/components/active-filter-chips";
 import { BulkActionsToolbar } from "@/components/clients-bulk-actions";
 import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -289,7 +289,7 @@ export function ClientListContent({
         </div>
 
         {/* Active filters strip — only renders when filters are active */}
-        <ClientsActiveFilters
+        <ActiveFilterChips
           chips={getActiveFilterChips(emailRecipientFilters)}
           onRemove={clearFilterChip}
           onClearAll={clearAllFilters}

@@ -3,31 +3,37 @@
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { ClientFilterChip, ClientFilterChipKey } from "@/lib/smart-list-filters";
 
-interface ClientsActiveFiltersProps {
-  chips: ClientFilterChip[];
+export interface ActiveFilterChip<K extends string = string> {
+  /** Unique key (one per filter family). The caller knows how to clear it in their own filter shape. */
+  key: K;
+  /** Human-readable label, e.g. `"Heat: hot"`. */
+  label: string;
+}
+
+interface ActiveFilterChipsProps<K extends string> {
+  chips: ReadonlyArray<ActiveFilterChip<K>>;
   /** Called when an individual chip's X is clicked. */
-  onRemove(key: ClientFilterChipKey): void;
+  onRemove(key: K): void;
   /** Called when the "Clear all" button is clicked. */
   onClearAll(): void;
   className?: string;
 }
 
 /**
- * One-line strip of removable chips that surfaces the currently-active
- * Clients-page filters. Renders nothing when no filters are active.
+ * One-line strip of removable chips that surfaces the currently-active filters
+ * on a list page. Renders nothing when no filters are active.
  *
- * The chip set is computed once by the caller via getActiveFilterChips()
- * and the parent owns the filter state — this component only emits
- * remove-this-key / clear-all signals.
+ * The chip set is computed by the caller and the parent owns the filter state —
+ * this component only emits remove-this-key / clear-all signals. `K` is the
+ * caller's own chip-key union, so handlers stay exhaustively typed.
  */
-export function ClientsActiveFilters({
+export function ActiveFilterChips<K extends string>({
   chips,
   onRemove,
   onClearAll,
   className,
-}: ClientsActiveFiltersProps) {
+}: ActiveFilterChipsProps<K>) {
   if (chips.length === 0) return null;
 
   return (
