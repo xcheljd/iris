@@ -420,7 +420,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
               currentPage={overduePage}
               totalPages={overdueTotalPages}
               onPageChangeAction={setOverduePage}
-              totalItems={overdue.length}
+              totalItems={overdueRows.length}
               pageSize={PAGE_SIZE}
               itemLabel="follow-ups"
             />
@@ -450,7 +450,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
               currentPage={upcomingPage}
               totalPages={upcomingTotalPages}
               onPageChangeAction={setUpcomingPage}
-              totalItems={upcoming.length}
+              totalItems={upcomingRows.length}
               pageSize={PAGE_SIZE}
               itemLabel="follow-ups"
             />
