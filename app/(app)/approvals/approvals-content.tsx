@@ -18,6 +18,7 @@ import {
 import Link from "next/link";
 import { Topbar } from "@/components/topbar";
 import { EmptyState } from "@/components/empty-state";
+import { StatsCard } from "@/components/stats-card";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { reviewApprovalRequest } from "@/lib/actions";
 import { toast } from "sonner";
@@ -112,39 +113,9 @@ export function ApprovalsContent({ requests: initialRequests }: ApprovalsContent
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Ban Requests</p>
-                  <p className="text-2xl font-bold text-destructive">{banCount}</p>
-                </div>
-                <Ban className="size-8 text-destructive" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Unsubscribe Requests</p>
-                  <p className="text-2xl font-bold text-orange-500">{unsubscribeCount}</p>
-                </div>
-                <MailX className="size-8 text-orange-500" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Delete Requests</p>
-                  <p className="text-2xl font-bold">{deleteCount}</p>
-                </div>
-                <Trash2 className="size-8 text-muted-foreground" />
-              </div>
-            </CardContent>
-          </Card>
+          <StatsCard label="Ban Requests" value={banCount} icon={Ban} iconClassName="text-destructive" valueClassName="text-destructive" />
+          <StatsCard label="Unsubscribe Requests" value={unsubscribeCount} icon={MailX} iconClassName="text-orange-500" valueClassName="text-orange-500" />
+          <StatsCard label="Delete Requests" value={deleteCount} icon={Trash2} />
         </div>
 
         {/* Pending Requests */}
