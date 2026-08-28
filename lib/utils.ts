@@ -31,6 +31,17 @@ export function daysAgo(d: Date | string | number | null | undefined): number | 
   return Math.floor(ms / MS_PER_DAY);
 }
 
+/**
+ * Human-readable "how long ago" label for a timestamp — the display counterpart
+ * to daysAgo(). Null/undefined dates read "Never" rather than a bare number.
+ */
+export function formatDaysAgo(d: Date | string | number | null | undefined): string {
+  const days = daysAgo(d);
+  if (days === null) return "Never";
+  if (days === 0) return "Today";
+  return `${days}d ago`;
+}
+
 export function fullName(person: { firstName: string; lastName?: string | null }): string {
   return [person.firstName, person.lastName].filter(Boolean).join(" ");
 }

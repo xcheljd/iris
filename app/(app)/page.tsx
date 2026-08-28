@@ -12,7 +12,7 @@ import { getStats, getOverdueFollowUps, getUpcomingFollowUps, getRecentActivity,
 import { getSession } from "@/lib/auth";
 import Link from "next/link";
 import { Flame, Phone, ShoppingBag, Users, AlertCircle, Calendar, ArrowRight, TrendingUp, Target, Clock, CheckCircle2 } from "lucide-react";
-import { formatDate, daysAgo } from "@/lib/utils";
+import { formatDate, formatDaysAgo } from "@/lib/utils";
 import { DashboardSkeleton } from "@/components/skeletons";
 
 export default function DashboardPage() {
@@ -97,7 +97,7 @@ async function DashboardContent() {
                           </Link>
                           <Badge variant="destructive" className="text-[10px] shrink-0">
                             <AlertCircle className="size-3 mr-1" />
-                            {daysAgo(row.log.followUpDate)}
+                            {formatDaysAgo(row.log.followUpDate)}
                           </Badge>
                         </li>
                       ))}
@@ -153,7 +153,7 @@ async function DashboardContent() {
                             {c.firstName} {c.lastName ?? ""}
                           </Link>
                           <div className="flex items-center gap-2">
-                            {c.lastOutreachAt && <span className="text-xs text-muted-foreground">Last contact {daysAgo(c.lastOutreachAt)}</span>}
+                            {c.lastOutreachAt && <span className="text-xs text-muted-foreground">Last contact {formatDaysAgo(c.lastOutreachAt)}</span>}
                             <HeatBadge level={c.heatLevel} score={c.heatScore} showScore />
                           </div>
                         </li>
@@ -234,7 +234,7 @@ async function DashboardContent() {
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="text-xs text-muted-foreground">{formatDate(ev.createdAt)}</div>
-                              <div className="text-xs text-muted-foreground">{daysAgo(ev.createdAt)}</div>
+                              <div className="text-xs text-muted-foreground">{formatDaysAgo(ev.createdAt)}</div>
                             </TableCell>
                           </TableRow>
                         );

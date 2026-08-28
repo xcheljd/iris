@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PaginationFooter } from "@/components/pagination-footer";
 import { Topbar } from "@/components/topbar";
-import { formatPhone, daysAgo } from "@/lib/utils";
+import { formatPhone, formatDaysAgo } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, MoreHorizontal, Eye, Edit, Ban, MailX, Trash2, Mail, BookmarkPlus, FileText } from "lucide-react";
@@ -448,7 +448,6 @@ export function ClientListContent({
                   <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">No clients match.</TableCell>
                 </TableRow>
               ) : rows.map((r) => {
-                const d = daysAgo(r.client.lastOutreachAt);
                 const isSelected = selected.has(r.client.id);
                 return (
                   <TableRow key={r.client.id} className={isSelected ? "bg-accent/5" : "hover:bg-muted/30"}>
@@ -472,7 +471,7 @@ export function ClientListContent({
                       </div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-xs text-muted-foreground">{r.employeeName ?? "—"}</TableCell>
-                    <TableCell className="hidden md:table-cell text-xs text-muted-foreground">{d === null ? "Never" : d === 0 ? "Today" : `${d}d ago`}</TableCell>
+                    <TableCell className="hidden md:table-cell text-xs text-muted-foreground">{formatDaysAgo(r.client.lastOutreachAt)}</TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

@@ -4,6 +4,7 @@ import {
   formatPhone,
   formatDate,
   daysAgo,
+  formatDaysAgo,
   initials,
   applyClientFilter,
 } from "@/lib/utils";
@@ -149,6 +150,34 @@ describe("daysAgo", () => {
 
   it("works with ISO string input", () => {
     expect(daysAgo("2025-06-14T12:00:00.000Z")).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatDaysAgo
+// ---------------------------------------------------------------------------
+describe("formatDaysAgo", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2025-06-15T12:00:00.000Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("returns Never for null/undefined", () => {
+    expect(formatDaysAgo(null)).toBe("Never");
+    expect(formatDaysAgo(undefined)).toBe("Never");
+  });
+
+  it("returns Today for the same day", () => {
+    expect(formatDaysAgo(new Date("2025-06-15T09:00:00.000Z"))).toBe("Today");
+  });
+
+  it("returns a suffixed day count for past dates — never a bare number", () => {
+    expect(formatDaysAgo(new Date("2025-06-10T12:00:00.000Z"))).toBe("5d ago");
+    expect(formatDaysAgo("2025-06-14T12:00:00.000Z")).toBe("1d ago");
   });
 });
 
