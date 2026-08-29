@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useTransition } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +43,7 @@ import { toast } from "sonner";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
+const SEARCH_HISTORY_KEY = "iris:recent-searches:clients";
 
 type SortKey = "name" | "heat" | "lastContact" | "owner";
 type SortDir = "asc" | "desc";
@@ -105,7 +106,12 @@ export function ClientListContent({
   const [emailRecipientsOpen, setEmailRecipientsOpen] = useState(false);
   const [csvExportOpen, setCsvExportOpen] = useState(false);
   const [saveFilterOpen, setSaveFilterOpen] = useState(false);
-  const isFirstRender = useRef(true);
+  const [isPending, startTransition] = useTransition();
+  // The query the URL currently reflects, and the id of the debounce timer
+  // waiting to commit a newer one. Both are the pagination fix: see navigate()
+  // and the debounce effect below.
+  const committedQ = useRef(currentFilters.q);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Stable filter object for the EmailRecipientsDialog — prevents refetch
   // on every parent re-render. Joining tags keeps the dep primitive.
@@ -168,8 +174,17 @@ export function ClientListContent({
     });
   }
 
-  function navigate(overrides: Partial<ClientFilters>) {
-    const next = { ...currentFilters, ...overrides };
+  function navigate(overrides: Partial<ClientFilters>, history: "push" | "replace" = "replace") {
+    // A pending search debounce would fire ~300ms from now with page: 1 and
+    // clobber this navigation, so fold the typed query in here and cancel it.
+    if (searchTimer.current !== null) {
+      clearTimeout(searchTimer.current);
+      searchTimer.current = null;
+      if (qLocal.trim()) pushSearchHistory(SEARCH_HISTORY_KEY, qLocal);
+    }
+    // qLocal is the live truth for the search box; overrides still win.
+    const next = { ...currentFilters, q: qLocal, ...overrides };
+    committedQ.current = next.q;
     const sp = new URLSearchParams();
     if (next.q) sp.set("q", next.q);
     if (next.nameQ) sp.set("nameQ", next.nameQ);
@@ -186,26 +201,46 @@ export function ClientListContent({
     if (next.sortDir !== "desc") sp.set("sortDir", next.sortDir);
     if (next.page > 1) sp.set("page", String(next.page));
     const qs = sp.toString();
-    router.replace(`/clients${qs ? `?${qs}` : ""}`);
+    const url = `/clients${qs ? `?${qs}` : ""}`;
+    // scroll: false keeps the viewport where it is (the pagination footer stays
+    // under the cursor); the transition keeps the current rows interactive
+    // while the server renders the next page instead of flashing a skeleton.
+    startTransition(() => {
+      if (history === "push") router.push(url, { scroll: false });
+      else router.replace(url, { scroll: false });
+    });
   }
 
   // Keep ref current so the debounce effect never closes over a stale navigate.
   const navigateRef = useRef(navigate);
   navigateRef.current = navigate;
 
+  // Adopt a query that arrived from outside this component — a back/forward
+  // navigation, or a deep link — so the input and the URL stay in step.
+  useEffect(() => {
+    committedQ.current = currentFilters.q;
+    setQLocal(currentFilters.q);
+  }, [currentFilters.q]);
+
   // Debounce the search query so every keystroke doesn't fire a navigation.
+  // Guarding on "has the query actually diverged from the URL" rather than on
+  // a first-render ref is what makes this mount-safe: the effect re-runs on
+  // every mount (StrictMode, and the Suspense boundary remounting this tree
+  // after each navigation), and the old ref let those re-runs commit a
+  // navigation with page: 1 that bounced the user off the page they picked.
   // After the debounce fires, push the committed (non-empty) query into
   // localStorage so the SearchInputWithHistory dropdown can surface it later.
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-    const id = setTimeout(() => {
+    if (qLocal === committedQ.current) return;
+    searchTimer.current = setTimeout(() => {
+      searchTimer.current = null;
       navigateRef.current({ q: qLocal, page: 1 });
-      if (qLocal.trim()) pushSearchHistory("iris:recent-searches:clients", qLocal);
+      if (qLocal.trim()) pushSearchHistory(SEARCH_HISTORY_KEY, qLocal);
     }, 300);
-    return () => clearTimeout(id);
+    return () => {
+      if (searchTimer.current !== null) clearTimeout(searchTimer.current);
+      searchTimer.current = null;
+    };
   }, [qLocal]);
 
   const handleSort = (key: SortKey) => {
@@ -277,7 +312,7 @@ export function ClientListContent({
             onChange={(v) => setQLocal(v)}
             placeholder="Search name, email, phone…"
             className="flex-1 max-w-md"
-            historyKey="iris:recent-searches:clients"
+            historyKey={SEARCH_HISTORY_KEY}
           />
           <DatesFilterButton
             lastContactFrom={currentFilters.lastContactFrom}
@@ -305,7 +340,7 @@ export function ClientListContent({
         />
 
         {/* Table */}
-        <Card>
+        <Card aria-busy={isPending} className={isPending ? "opacity-60 transition-opacity" : "transition-opacity"}>
           <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -533,7 +568,7 @@ export function ClientListContent({
         <PaginationFooter
           currentPage={currentFilters.page}
           totalPages={totalPages}
-          onPageChangeAction={(p) => navigate({ page: p })}
+          onPageChangeAction={(p) => navigate({ page: p }, "push")}
           totalItems={total}
           pageSize={PAGE_SIZE}
           itemLabel="clients"
