@@ -24,7 +24,7 @@ const ANNIVERSARY_ID = randomUUID();
 const BOTH_ID = randomUUID();
 const NEITHER_ID = randomUUID();
 const OTHER_OWNER_ID = randomUUID();
-const createdIds = [BIRTHDAY_ID, ANNIVERSARY_ID, BOTH_ID, NEITHER_ID, OTHER_OWNER_ID];
+const createdIds: string[] = [BIRTHDAY_ID, ANNIVERSARY_ID, BOTH_ID, NEITHER_ID, OTHER_OWNER_ID];
 
 beforeAll(() => {
   const base = { employeeId: ASSOCIATE_ID, status: "active" as const, dateAdded: new Date(), createdAt: new Date() };
