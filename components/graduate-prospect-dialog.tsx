@@ -20,6 +20,8 @@ import type { ProspectListRow } from "@/lib/queries";
 import type { ProductOfInterest } from "@/lib/db/schema";
 import { ProductsOfInterestInput } from "@/components/products-of-interest-input";
 import { useCatalog } from "@/components/use-catalog";
+import { DatePicker } from "@/components/date-picker";
+import { parseOccasionDate, toDateOnly } from "@/lib/utils";
 
 interface GraduateProspectDialogProps {
   prospect: ProspectListRow;
@@ -41,8 +43,8 @@ export function GraduateProspectDialog({
   const [lastName, setLastName] = useState(prospect.lastName ?? "");
   const [phone, setPhone] = useState(prospect.phone ?? "");
   const [email, setEmail] = useState(prospect.email ?? "");
-  const [birthday, setBirthday] = useState(prospect.birthday ?? "");
-  const [anniversary, setAnniversary] = useState(prospect.anniversary ?? "");
+  const [birthday, setBirthday] = useState(() => parseOccasionDate(prospect.birthday));
+  const [anniversary, setAnniversary] = useState(() => parseOccasionDate(prospect.anniversary));
   const [notes, setNotes] = useState(prospect.notes ?? "");
   const [preferredContact, setPreferredContact] = useState<"" | "call" | "text" | "email">("");
   const [productsOfInterest, setProductsOfInterest] = useState<ProductOfInterest[]>([]);
@@ -78,8 +80,8 @@ export function GraduateProspectDialog({
           preferredContact: preferredContact as "call" | "text" | "email",
           phone: phone.trim() || null,
           email: email.trim() || null,
-          birthday: birthday.trim() || null,
-          anniversary: anniversary.trim() || null,
+          birthday: toDateOnly(birthday),
+          anniversary: toDateOnly(anniversary),
           notes: notes.trim() || null,
           productsOfInterest,
         });
@@ -105,8 +107,8 @@ export function GraduateProspectDialog({
         preferredContact: preferredContact || undefined,
         phone: phone.trim() || null,
         email: email.trim() || null,
-        birthday: birthday.trim() || null,
-        anniversary: anniversary.trim() || null,
+        birthday: toDateOnly(birthday),
+        anniversary: toDateOnly(anniversary),
         notes: notes.trim() || null,
         productsOfInterest,
       });
@@ -168,21 +170,19 @@ export function GraduateProspectDialog({
 
               <div className="grid grid-cols-2 gap-3">
                 <Field>
-                  <FieldLabel htmlFor="grad-birthday">Birthday</FieldLabel>
-                  <Input
-                    id="grad-birthday"
-                    placeholder="MM/DD"
-                    value={birthday}
-                    onChange={(e) => setBirthday(e.target.value)}
+                  <FieldLabel>Birthday</FieldLabel>
+                  <DatePicker
+                    date={birthday ?? undefined}
+                    onSelectAction={(date) => setBirthday(date ?? null)}
+                    className="w-full"
                   />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="grad-anniversary">Anniversary</FieldLabel>
-                  <Input
-                    id="grad-anniversary"
-                    placeholder="MM/DD"
-                    value={anniversary}
-                    onChange={(e) => setAnniversary(e.target.value)}
+                  <FieldLabel>Anniversary</FieldLabel>
+                  <DatePicker
+                    date={anniversary ?? undefined}
+                    onSelectAction={(date) => setAnniversary(date ?? null)}
+                    className="w-full"
                   />
                 </Field>
               </div>
