@@ -59,6 +59,7 @@ const BUILTIN_FILTERS: { id: string; label: string; icon: React.ReactNode }[] = 
   { id: "recent_purchases", label: "Recent Purchases", icon: <Star className="size-4 text-emerald-500" /> },
   { id: "no_outreach_60", label: "No Outreach (60d)", icon: <Clock className="size-4 text-red-500" /> },
   { id: "birthdays_month", label: "Birthdays This Month", icon: <Calendar className="size-4 text-pink-500" /> },
+  { id: "anniversaries_month", label: "Anniversaries This Month", icon: <Calendar className="size-4 text-violet-500" /> },
   { id: "email_subscribers", label: "Email Subscribers", icon: <Mail className="size-4 text-blue-500" /> },
 ];
 

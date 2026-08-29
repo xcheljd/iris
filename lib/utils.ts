@@ -72,7 +72,7 @@ const RECENT_PURCHASE_DAYS = 30;
 const NO_OUTREACH_DAYS = 60;
 // ─────────────────────────────────────────────────────────────────────
 
-export function applyClientFilter<T extends { heatLevel: string; status: string; lastOutreachAt: Date | string | number | null; lastPurchaseAt: Date | string | number | null; birthday: string | null; onEmailList: boolean }>(all: T[], filter: string | null): T[] {
+export function applyClientFilter<T extends { heatLevel: string; status: string; lastOutreachAt: Date | string | number | null; lastPurchaseAt: Date | string | number | null; birthday: string | null; anniversary: string | null; onEmailList: boolean }>(all: T[], filter: string | null): T[] {
   if (!filter) return all;
   const now = Date.now();
   switch (filter) {
@@ -91,11 +91,14 @@ export function applyClientFilter<T extends { heatLevel: string; status: string;
       return all.filter((c) => c.lastPurchaseAt && (now - new Date(c.lastPurchaseAt).getTime()) < RECENT_PURCHASE_DAYS * MS_PER_DAY);
     case "no_outreach_60":
       return all.filter((c) => c.status === "active" && (!c.lastOutreachAt || (now - new Date(c.lastOutreachAt).getTime()) > NO_OUTREACH_DAYS * MS_PER_DAY));
-    case "birthdays_month": {
+    case "birthdays_month":
+    case "anniversaries_month": {
       const month = new Date().getMonth() + 1;
+      const field = filter === "birthdays_month" ? "birthday" : "anniversary";
       return all.filter((c) => {
-        if (!c.birthday) return false;
-        const m = parseInt(c.birthday.split("-")[1] || "0", 10);
+        const value = c[field];
+        if (!value) return false;
+        const m = parseInt(value.split("-")[1] || "0", 10);
         return m === month;
       });
     }

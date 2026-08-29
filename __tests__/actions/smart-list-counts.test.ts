@@ -33,6 +33,7 @@ type Row = {
   onEmailList: boolean;
   status: string;
   birthday: string | null;
+  anniversary: string | null;
   tags: unknown;
   heatLevel: string;
   lastOutreachAt: Date | null;
@@ -125,6 +126,7 @@ function loadAll(employeeId?: string): Row[] {
       onEmailList: clients.onEmailList,
       status: clients.status,
       birthday: clients.birthday,
+      anniversary: clients.anniversary,
       tags: clients.tags,
       heatLevel: clients.heatLevel,
       lastOutreachAt: clients.lastOutreachAt,

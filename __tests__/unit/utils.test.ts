@@ -263,6 +263,7 @@ describe("applyClientFilter", () => {
       lastOutreachAt: null as Date | string | number | null,
       lastPurchaseAt: null as Date | string | number | null,
       birthday: null as string | null,
+      anniversary: null as string | null,
       onEmailList: false,
       ...overrides,
     };

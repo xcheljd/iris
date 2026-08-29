@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { HeatBadge } from "@/components/heat-badge";
-import { getStats, getOverdueFollowUps, getUpcomingFollowUps, getRecentActivity, getTopHotClients, getClientsBirthdayCurrentMonth } from "@/lib/queries";
+import { getStats, getOverdueFollowUps, getUpcomingFollowUps, getRecentActivity, getTopHotClients, getClientOccasionsCurrentMonth } from "@/lib/queries";
 import { getSession } from "@/lib/auth";
 import Link from "next/link";
 import { Flame, Phone, ShoppingBag, Users, AlertCircle, Calendar, ArrowRight, TrendingUp, Target, Clock, CheckCircle2 } from "lucide-react";
@@ -27,22 +27,15 @@ async function DashboardContent() {
   const session = await getSession();
   const isManager = session?.user?.role === "manager";
   const employeeId = !isManager ? (session?.user?.id ?? undefined) : undefined;
-  const [stats, overdue, upcoming, activity, hot, birthdayClients] = await Promise.all([
+  const [stats, overdue, upcoming, activity, hot, occasionRows] = await Promise.all([
     getStats(employeeId),
     getOverdueFollowUps(employeeId),
     getUpcomingFollowUps(employeeId),
     getRecentActivity(20, employeeId),
     getTopHotClients(employeeId, 6),
-    getClientsBirthdayCurrentMonth(employeeId),
+    getClientOccasionsCurrentMonth(employeeId),
   ]);
-  const now14 = Date.now();
-  const birthdays = birthdayClients.filter((c) => {
-    if (!c.birthday) return false;
-    const [, m, d] = c.birthday.split("-").map(Number);
-    const bd = new Date(new Date().getFullYear(), (m || 1) - 1, d || 1);
-    const diff = (bd.getTime() - now14) / 86400000;
-    return diff >= -1 && diff <= 14;
-  }).slice(0, 5);
+  const occasions = occasionRows.slice(0, 5);
 
   const conversionRate = stats.outreachWeek > 0 ? Math.round((stats.purchasesWeek / stats.outreachWeek) * 100) : 0;
   const activePercent = stats.total > 0 ? Math.round((stats.active / stats.total) * 100) : 0;
@@ -165,19 +158,29 @@ async function DashboardContent() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Upcoming birthdays</CardTitle>
-                  <CardDescription>Next 14 days</CardDescription>
+                  <CardTitle className="text-base">Birthdays &amp; anniversaries this month</CardTitle>
+                  <CardDescription>Sorted by day of the month</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {birthdays.length === 0 ? <p className="text-sm text-muted-foreground">None.</p> : (
+                  {occasions.length === 0 ? <p className="text-sm text-muted-foreground">None.</p> : (
                     <ul className="flex flex-col gap-2">
-                      {birthdays.map((c) => (
-                        <li key={c.id} className="text-sm flex justify-between">
-                          <Link href={`/clients/${c.id}`} className="hover:underline">{c.firstName} {c.lastName ?? ""}</Link>
-                          <span className="text-xs text-muted-foreground">{c.birthday}</span>
+                      {occasions.map((c) => (
+                        <li key={`${c.id}-${c.occasion}`} className="text-sm flex justify-between items-center gap-2">
+                          <Link href={`/clients/${c.id}`} className="hover:underline truncate">{c.firstName} {c.lastName ?? ""}</Link>
+                          <span className="flex items-center gap-2 shrink-0">
+                            <Badge variant="outline" className="text-[10px]">
+                              {c.occasion === "birthday" ? "Birthday" : "Anniversary"}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">{c.occasionDate}</span>
+                          </span>
                         </li>
                       ))}
                     </ul>
+                  )}
+                  {occasionRows.length > occasions.length && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      +{occasionRows.length - occasions.length} more this month
+                    </p>
                   )}
                 </CardContent>
               </Card>

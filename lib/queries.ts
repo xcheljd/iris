@@ -51,15 +51,35 @@ export async function getTopHotClients(employeeId?: string, limit = 6) {
     .all();
 }
 
-export async function getClientsBirthdayCurrentMonth(employeeId?: string) {
+export type OccasionKind = "birthday" | "anniversary";
+
+export type ClientOccasionRow = ClientListRow & {
+  occasion: OccasionKind;
+  /** The stored YYYY-MM-DD date behind this occasion. */
+  occasionDate: string;
+};
+
+/**
+ * Active clients whose birthday OR anniversary falls in the current month,
+ * one row per occasion (a client with both appears twice), sorted by
+ * day-of-month. Associate-scoped by employeeId exactly like every other
+ * dashboard query.
+ */
+export async function getClientOccasionsCurrentMonth(employeeId?: string): Promise<ClientOccasionRow[]> {
   const month = String(new Date().getMonth() + 1).padStart(2, "0");
   const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
-  return db
-    .select(clientListProjection)
-    .from(clients)
-    .where(and(eq(clients.status, "active"), isNotNull(clients.birthday), rawSql`substr(${clients.birthday}, 6, 2) = ${month}`, employeeFilter))
-    .orderBy(rawSql`substr(${clients.birthday}, 9, 2)`)
-    .all();
+
+  const forColumn = (column: typeof clients.birthday | typeof clients.anniversary, occasion: OccasionKind): ClientOccasionRow[] =>
+    db
+      .select(clientListProjection)
+      .from(clients)
+      .where(and(eq(clients.status, "active"), isNotNull(column), rawSql`substr(${column}, 6, 2) = ${month}`, employeeFilter))
+      .all()
+      .map((c) => ({ ...c, occasion, occasionDate: (occasion === "birthday" ? c.birthday : c.anniversary) as string }));
+
+  const dayOf = (r: ClientOccasionRow) => parseInt(r.occasionDate.slice(8, 10), 10) || 0;
+  return [...forColumn(clients.birthday, "birthday"), ...forColumn(clients.anniversary, "anniversary")]
+    .sort((a, b) => dayOf(a) - dayOf(b));
 }
 
 export async function getClientOwnerNames(employeeId?: string): Promise<string[]> {
@@ -143,6 +163,11 @@ export async function getClientsWithEmployeePaginated(
       case "birthdays_month": {
         const bmonth = String(new Date().getMonth() + 1).padStart(2, "0");
         conds.push(rawSql`substr(${clients.birthday}, 6, 2) = ${bmonth}`);
+        break;
+      }
+      case "anniversaries_month": {
+        const amonth = String(new Date().getMonth() + 1).padStart(2, "0");
+        conds.push(rawSql`substr(${clients.anniversary}, 6, 2) = ${amonth}`);
         break;
       }
       case "email_subscribers":
@@ -437,7 +462,7 @@ export async function getSmartLists(employeeId?: string) {
   return db.select().from(smartLists).where(filter).orderBy(smartLists.name).all();
 }
 
-const BUILTIN_FILTER_TYPES = ["hot", "stale", "recent_purchases", "no_outreach_60", "birthdays_month", "email_subscribers"] as const;
+const BUILTIN_FILTER_TYPES = ["hot", "stale", "recent_purchases", "no_outreach_60", "birthdays_month", "anniversaries_month", "email_subscribers"] as const;
 export type BuiltInFilter = typeof BUILTIN_FILTER_TYPES[number];
 export const BUILTIN_FILTER_IDS = BUILTIN_FILTER_TYPES;
 
@@ -461,6 +486,10 @@ function buildBuiltInConds(filter: BuiltInFilter, nowSec: number, employeeId?: s
     case "birthdays_month": {
       const m = String(new Date().getMonth() + 1).padStart(2, "0");
       return [...base, isNotNull(clients.birthday), rawSql`substr(${clients.birthday}, 6, 2) = ${m}`];
+    }
+    case "anniversaries_month": {
+      const m = String(new Date().getMonth() + 1).padStart(2, "0");
+      return [...base, isNotNull(clients.anniversary), rawSql`substr(${clients.anniversary}, 6, 2) = ${m}`];
     }
     case "email_subscribers":
       return [...base, eq(clients.onEmailList, true), rawSql`${clients.status} != 'unsubscribed'`];
