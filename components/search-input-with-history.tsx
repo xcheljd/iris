@@ -63,9 +63,13 @@ export function SearchInputWithHistory({
     setOpen(false);
   };
 
-  const removeOne = (entry: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const removeOne = (entry: string) => {
     removeFromSearchHistory(historyKey, entry);
+    reload();
+  };
+
+  const clearAll = () => {
+    clearSearchHistory(historyKey);
     reload();
   };
 
@@ -97,28 +101,42 @@ export function SearchInputWithHistory({
       )}
       {showDropdown && (
         <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 rounded-md border bg-popover shadow-md">
-          <div className="px-2 py-1.5 text-xs text-muted-foreground flex items-center gap-1.5">
-            <Clock className="size-3" />
-            Recent searches
+          <div className="px-2 py-1.5 text-xs text-muted-foreground flex items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5">
+              <Clock className="size-3" />
+              Recent searches
+            </span>
+            <button
+              type="button"
+              className="rounded px-1 py-0.5 hover:text-foreground hover:bg-muted"
+              onMouseDown={(e) => e.preventDefault()} // keep input focus
+              onClick={clearAll}
+            >
+              Clear all
+            </button>
           </div>
           <div className="border-t" />
           <ul role="listbox" className="py-1 max-h-64 overflow-auto">
             {visible.map((entry) => (
-              <li key={entry}>
+              // The row body and the remove button are siblings, not nested —
+              // a button inside a button is invalid and untabbable.
+              <li key={entry} className="flex items-center gap-1 px-1 hover:bg-accent group">
                 <button
                   type="button"
-                  className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent flex items-center justify-between gap-2 group"
+                  className="flex-1 min-w-0 text-left px-2 py-1.5 text-sm truncate"
                   onMouseDown={(e) => e.preventDefault()} // keep input focus
                   onClick={() => applyHistory(entry)}
                 >
-                  <span className="truncate">{entry}</span>
-                  <span
-                    className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-muted rounded"
-                    onClick={(e) => removeOne(entry, e)}
-                    aria-label={`Remove "${entry}" from history`}
-                  >
-                    <X className="size-3" />
-                  </span>
+                  {entry}
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Remove recent search: ${entry}`}
+                  className="shrink-0 rounded p-1 opacity-0 transition-opacity hover:bg-muted focus-visible:opacity-100 group-hover:opacity-100 [&_svg]:size-3"
+                  onMouseDown={(e) => e.preventDefault()} // keep input focus
+                  onClick={(e) => { e.stopPropagation(); removeOne(entry); }}
+                >
+                  <X />
                 </button>
               </li>
             ))}
@@ -158,6 +176,15 @@ export function readSearchHistory(key: string): string[] {
     return parsed.filter((v): v is string => typeof v === "string" && v.length > 0);
   } catch {
     return [];
+  }
+}
+
+export function clearSearchHistory(key: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // ignore
   }
 }
 
