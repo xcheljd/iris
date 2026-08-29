@@ -9,13 +9,22 @@ const nullableStr = (max: number) =>
 // Birthday/anniversary are day-precision TEXT columns. A client that
 // JSON-serialises a Date sends "2026-08-29T07:00:00.000Z"; collapse it to the
 // canonical "YYYY-MM-DD" so the month queries (substr(col, 6, 2)) and the UI
-// see one shape. Anything else passes through untouched.
-const occasionDate = z.preprocess((v) => {
-  if (typeof v !== "string") return v;
-  const t = v.trim();
-  if (t === "") return null;
-  return /^\d{4}-\d{2}-\d{2}T/.test(t) ? t.slice(0, 10) : t;
-}, z.string().max(100).nullable());
+// see one shape. Anything else (a hand-typed "08/29", "Aug 29") is rejected —
+// it would survive into the column and silently fall out of the month buckets.
+// Shared by every write path that stores an occasion date (clients here,
+// prospect graduation in ./rvx).
+export const occasionDate = z.preprocess(
+  (v) => {
+    if (typeof v !== "string") return v;
+    const t = v.trim();
+    if (t === "") return null;
+    return /^\d{4}-\d{2}-\d{2}T/.test(t) ? t.slice(0, 10) : t;
+  },
+  z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a valid date")
+    .nullable(),
+);
 
 const blankToNull = (v: unknown) =>
   typeof v === "string" && v.trim() === "" ? null : v;

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { productOfInterestSchema } from "./client";
+import { occasionDate, productOfInterestSchema } from "./client";
 import { PREFERRED_CONTACT_VALUES } from "@/lib/db/schema";
 
 const nullableStr = (max: number) =>
@@ -16,10 +16,15 @@ export const graduateProspectSchema = z.object({
   email: z
     .preprocess((v) => (v === "" ? null : v), z.string().email("Invalid email").max(200).nullable())
     .optional(),
-  birthday: nullableStr(100).optional(),
-  anniversary: nullableStr(100).optional(),
+  birthday: occasionDate.optional(),
+  anniversary: occasionDate.optional(),
   productsOfInterest: z.array(productOfInterestSchema).default([]),
   notes: nullableStr(5000).optional(),
 });
 
 export type GraduateProspectInput = z.infer<typeof graduateProspectSchema>;
+
+// The graduate-into-existing-client path submits the same enrichment fields,
+// minus the ones the caller passes separately (prospectId, names). Same
+// canonicalisation, every field optional.
+export const graduateEnrichmentSchema = graduateProspectSchema.partial();

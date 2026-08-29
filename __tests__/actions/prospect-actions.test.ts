@@ -20,6 +20,7 @@ import {
   unsubscribeProspect,
   analyzeRvxImport,
 } from "@/lib/actions";
+import { getClientOccasionsCurrentMonth } from "@/lib/queries";
 import { db } from "@/lib/db";
 import {
   prospects,
@@ -302,6 +303,56 @@ describe("graduateProspect", () => {
     }
   });
 
+  // Regression: a graduated client's birthday has to land in the current-month
+  // bucket, which reads substr(birthday, 6, 2) — only canonical "YYYY-MM-DD"
+  // (or an ISO timestamp collapsed to one) buckets correctly.
+  it("canonicalises the birthday so the graduated client shows in this month's occasions", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    const { prospectId, batchId } = insertProspect({ firstName: "GradOccasion" });
+    createdProspectIds.push(prospectId);
+    createdBatchIds.push(batchId);
+
+    const now = new Date();
+    const thisMonth = String(now.getMonth() + 1).padStart(2, "0");
+
+    const result = await graduateProspect({
+      prospectId,
+      firstName: "GradOccasion",
+      lastName: "Voss",
+      preferredContact: "call",
+      birthday: `1990-${thisMonth}-15T07:00:00.000Z`,
+      productsOfInterest: [],
+    });
+
+    expect(result.type).toBe("created");
+    if (result.type !== "created") return;
+    createdClientIds.push(result.clientId);
+
+    const client = db.select().from(clients).where(eq(clients.id, result.clientId)).get();
+    expect(client!.birthday).toBe(`1990-${thisMonth}-15`);
+
+    const occasions = await getClientOccasionsCurrentMonth();
+    expect(occasions.some((o) => o.id === result.clientId && o.occasion === "birthday")).toBe(true);
+  });
+
+  it("rejects a free-text birthday", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    const { prospectId, batchId } = insertProspect({ firstName: "GradBadDate" });
+    createdProspectIds.push(prospectId);
+    createdBatchIds.push(batchId);
+
+    await expect(
+      graduateProspect({
+        prospectId,
+        firstName: "GradBadDate",
+        lastName: "Voss",
+        preferredContact: "call",
+        birthday: "08/29",
+        productsOfInterest: [],
+      }),
+    ).rejects.toThrow(/Use a valid date/);
+  });
+
   it("returns type=duplicate when email matches an existing client", async () => {
     vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const uniqueEmail = `grad-dup-${randomUUID().slice(0, 8)}@example.com`;
@@ -499,6 +550,40 @@ describe("graduateProspectIntoExistingClient", () => {
     const updated = db.select().from(clients).where(eq(clients.id, existingClientId)).get();
     expect(updated!.phone).toBe("5551234567");           // backfilled
     expect(updated!.email).toBe("existing@example.com"); // preserved
+  });
+
+  // The into-existing path validates the enrichment with the same schema, so
+  // the backfilled birthday is canonical here too.
+  it("canonicalises a backfilled birthday and rejects a free-text one", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+
+    const existingClientId = randomUUID();
+    db.insert(clients).values({
+      id: existingClientId,
+      firstName: "ExistingDates",
+      source: "Walk-in",
+      status: "active",
+      onEmailList: false,
+      dateAdded: new Date(),
+      productsOfInterest: [],
+      tags: [],
+    }).run();
+    createdClientIds.push(existingClientId);
+
+    const { prospectId, batchId } = insertProspect({ firstName: "EnrichDates" });
+    createdProspectIds.push(prospectId);
+    createdBatchIds.push(batchId);
+
+    await expect(
+      graduateProspectIntoExistingClient(prospectId, existingClientId, { birthday: "08/29" }),
+    ).rejects.toThrow(/Use a valid date/);
+
+    await graduateProspectIntoExistingClient(prospectId, existingClientId, {
+      birthday: "1990-08-29T07:00:00.000Z",
+    });
+
+    const updated = db.select().from(clients).where(eq(clients.id, existingClientId)).get();
+    expect(updated!.birthday).toBe("1990-08-29");
   });
 
   it("logs a 'created' activity event on the existing client", async () => {

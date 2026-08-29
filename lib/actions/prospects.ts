@@ -5,7 +5,11 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { normalizePhone, fullName } from "@/lib/utils";
-import { graduateProspectSchema, type GraduateProspectInput } from "@/lib/validation/rvx";
+import {
+  graduateEnrichmentSchema,
+  graduateProspectSchema,
+  type GraduateProspectInput,
+} from "@/lib/validation/rvx";
 import { requireAuth } from "./_shared";
 import { recordProductsOfInterest } from "./model-catalog";
 
@@ -89,9 +93,10 @@ export async function graduateProspect(input: GraduateProspectInput): Promise<
 export async function graduateProspectIntoExistingClient(
   prospectId: string,
   existingClientId: string,
-  enrichment: Partial<GraduateProspectInput>,
+  rawEnrichment: Partial<GraduateProspectInput>,
 ): Promise<{ error: string } | undefined> {
   const user = await requireAuth();
+  const enrichment = graduateEnrichmentSchema.parse(rawEnrichment);
 
   const prospect = db.select().from(prospects).where(eq(prospects.id, prospectId)).get();
   if (!prospect) return { error: "Prospect not found" };
