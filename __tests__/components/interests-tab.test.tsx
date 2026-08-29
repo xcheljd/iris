@@ -1,13 +1,19 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { InterestsTab } from "@/components/interests-tab";
 import type { FullClient } from "@/components/client-provider";
+import { saveClientEdits } from "@/lib/actions";
 
 // Mock outreach-logger since it has complex dialog dependencies
 vi.mock("@/components/outreach-logger", () => ({
   OutreachLogger: ({ trigger }: { trigger: React.ReactNode }) => <>{trigger}</>,
 }));
+
+const refresh = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
+vi.mock("@/lib/actions", () => ({ saveClientEdits: vi.fn() }));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 function makeClient(overrides: Partial<FullClient> = {}): FullClient {
   return {
@@ -109,5 +115,61 @@ describe("InterestsTab (unified table)", () => {
     // Toggling sort should not throw and keeps rows rendered
     await user.click(screen.getByText("Model"));
     expect(screen.getByText("NR-710-12L")).toBeInTheDocument();
+  });
+});
+
+describe("InterestsTab quick add", () => {
+  beforeEach(() => {
+    refresh.mockReset();
+    vi.mocked(saveClientEdits).mockReset();
+    vi.mocked(saveClientEdits).mockResolvedValue(undefined);
+  });
+
+  it("saves the new interest and shows the row immediately", async () => {
+    const user = userEvent.setup();
+    render(<InterestsTab client={clientWithNoInterests} />);
+
+    await user.type(screen.getByLabelText("Add an interest"), "vs-8840");
+    await user.click(screen.getByRole("button", { name: "Add" }));
+
+    expect(saveClientEdits).toHaveBeenCalledWith("client-2", {
+      productsOfInterest: [{ model: "VS-8840", collection: null, brand: null, intent: "interested" }],
+    });
+    // Optimistic row replaces the empty state before the refresh lands.
+    expect(await screen.findByText("VS-8840")).toBeInTheDocument();
+    expect(screen.getByLabelText("Add an interest")).toHaveValue("");
+  });
+
+  it("blocks a duplicate client-side without calling the action", async () => {
+    const user = userEvent.setup();
+    render(<InterestsTab client={clientWithInterests} />);
+
+    await user.type(screen.getByLabelText("Add an interest"), "kx1023-01x");
+    await user.click(screen.getByRole("button", { name: "Add" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("This client already has that interest");
+    expect(saveClientEdits).not.toHaveBeenCalled();
+  });
+
+  it("rejects an empty entry", async () => {
+    const user = userEvent.setup();
+    render(<InterestsTab client={clientWithNoInterests} />);
+
+    await user.click(screen.getByRole("button", { name: "Add" }));
+
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(saveClientEdits).not.toHaveBeenCalled();
+  });
+
+  it("rolls the optimistic row back when the server rejects it", async () => {
+    const user = userEvent.setup();
+    vi.mocked(saveClientEdits).mockResolvedValue({ error: "Not authorized" });
+    render(<InterestsTab client={clientWithNoInterests} />);
+
+    await user.type(screen.getByLabelText("Add an interest"), "vs-8840");
+    await user.click(screen.getByRole("button", { name: "Add" }));
+
+    expect(await screen.findByText("No products of interest recorded")).toBeInTheDocument();
+    expect(refresh).not.toHaveBeenCalled();
   });
 });
