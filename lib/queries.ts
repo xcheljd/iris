@@ -60,10 +60,12 @@ export type ClientOccasionRow = ClientListRow & {
 };
 
 /**
- * Active clients whose birthday OR anniversary falls in the current month,
- * one row per occasion (a client with both appears twice), sorted by
- * day-of-month. Associate-scoped by employeeId exactly like every other
- * dashboard query.
+ * Clients whose birthday OR anniversary falls in the current month, one row
+ * per occasion (a client with both appears twice), sorted by day-of-month.
+ * Scope: everything except banned/deleted — a birthday is the best
+ * re-engagement touchpoint for a lapsed client, so inactive clients stay on
+ * the radar. Matches the smart-list builtins' base filter exactly.
+ * Associate-scoped by employeeId exactly like every other dashboard query.
  */
 export async function getClientOccasionsCurrentMonth(employeeId?: string): Promise<ClientOccasionRow[]> {
   const month = String(new Date().getMonth() + 1).padStart(2, "0");
@@ -73,7 +75,7 @@ export async function getClientOccasionsCurrentMonth(employeeId?: string): Promi
     db
       .select(clientListProjection)
       .from(clients)
-      .where(and(eq(clients.status, "active"), isNotNull(column), rawSql`substr(${column}, 6, 2) = ${month}`, employeeFilter))
+      .where(and(notInArray(clients.status, ["banned", "deleted"]), isNotNull(column), rawSql`substr(${column}, 6, 2) = ${month}`, employeeFilter))
       .all()
       .map((c) => ({ ...c, occasion, occasionDate: (occasion === "birthday" ? c.birthday : c.anniversary) as string }));
 

@@ -24,7 +24,8 @@ const ANNIVERSARY_ID = randomUUID();
 const BOTH_ID = randomUUID();
 const NEITHER_ID = randomUUID();
 const OTHER_OWNER_ID = randomUUID();
-const createdIds: string[] = [BIRTHDAY_ID, ANNIVERSARY_ID, BOTH_ID, NEITHER_ID, OTHER_OWNER_ID];
+const INACTIVE_ID = randomUUID();
+const createdIds: string[] = [BIRTHDAY_ID, ANNIVERSARY_ID, BOTH_ID, NEITHER_ID, OTHER_OWNER_ID, INACTIVE_ID];
 
 beforeAll(() => {
   const base = { employeeId: ASSOCIATE_ID, status: "active" as const, dateAdded: new Date(), createdAt: new Date() };
@@ -34,6 +35,8 @@ beforeAll(() => {
     { ...base, id: BOTH_ID, firstName: "Bo", lastName: "Kinetic", birthday: inMonth("15"), anniversary: inMonth("02") },
     { ...base, id: NEITHER_ID, firstName: "Nell", lastName: "Chamberlain", birthday: `1985-${otherMonth}-11` },
     { ...base, id: OTHER_OWNER_ID, firstName: "Otto", lastName: "Meridian", employeeId: MANAGER_ID, anniversary: inMonth("28") },
+    // Inactive ≠ banned/deleted: occasion radar deliberately includes lapsed clients.
+    { ...base, id: INACTIVE_ID, firstName: "Ivan", lastName: "Lapsed", status: "inactive" as const, birthday: inMonth("04") },
   ]).run();
 });
 
@@ -48,10 +51,21 @@ describe("getClientOccasionsCurrentMonth", () => {
 
     expect(mine.map((r) => [r.id, r.occasion, r.occasionDate])).toEqual([
       [BOTH_ID, "anniversary", inMonth("02")],
+      [INACTIVE_ID, "birthday", inMonth("04")],
       [ANNIVERSARY_ID, "anniversary", inMonth("09")],
       [BOTH_ID, "birthday", inMonth("15")],
       [BIRTHDAY_ID, "birthday", inMonth("22")],
     ]);
+  });
+
+  it("includes inactive clients but never banned/deleted (matches the smart-list base filter)", async () => {
+    const rows = await getClientOccasionsCurrentMonth(ASSOCIATE_ID);
+
+    // Inactive lapsed client with a birthday this month IS on the radar.
+    expect(rows.some((r) => r.id === INACTIVE_ID)).toBe(true);
+    // No banned/deleted client can ever appear — the same exclusion the
+    // smart-list builtins apply as their base filter.
+    expect(rows.every((r) => !["banned", "deleted"].includes(r.status ?? ""))).toBe(true);
   });
 
   it("excludes a client whose only date falls in another month", async () => {
