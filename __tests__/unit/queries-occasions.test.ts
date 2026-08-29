@@ -11,6 +11,7 @@ import { db } from "@/lib/db";
 import { clients } from "@/lib/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { getClientOccasionsCurrentMonth, getAllSmartListCounts } from "@/lib/queries";
+import { formatOccasionDate } from "@/lib/utils";
 
 const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23";
 const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
@@ -19,13 +20,18 @@ const thisMonth = String(new Date().getMonth() + 1).padStart(2, "0");
 const otherMonth = String(((new Date().getMonth() + 6) % 12) + 1).padStart(2, "0");
 const inMonth = (day: string) => `1985-${thisMonth}-${day}`;
 
+// Older form submits JSON-serialised a Date, so some rows store a full ISO
+// timestamp instead of the canonical YYYY-MM-DD.
+const inMonthIso = (day: string) => `${inMonth(day)}T07:00:00.000Z`;
+
 const BIRTHDAY_ID = randomUUID();
 const ANNIVERSARY_ID = randomUUID();
 const BOTH_ID = randomUUID();
 const NEITHER_ID = randomUUID();
 const OTHER_OWNER_ID = randomUUID();
 const INACTIVE_ID = randomUUID();
-const createdIds: string[] = [BIRTHDAY_ID, ANNIVERSARY_ID, BOTH_ID, NEITHER_ID, OTHER_OWNER_ID, INACTIVE_ID];
+const ISO_ID = randomUUID();
+const createdIds: string[] = [BIRTHDAY_ID, ANNIVERSARY_ID, BOTH_ID, NEITHER_ID, OTHER_OWNER_ID, INACTIVE_ID, ISO_ID];
 
 beforeAll(() => {
   const base = { employeeId: ASSOCIATE_ID, status: "active" as const, dateAdded: new Date(), createdAt: new Date() };
@@ -37,6 +43,7 @@ beforeAll(() => {
     { ...base, id: OTHER_OWNER_ID, firstName: "Otto", lastName: "Meridian", employeeId: MANAGER_ID, anniversary: inMonth("28") },
     // Inactive ≠ banned/deleted: occasion radar deliberately includes lapsed clients.
     { ...base, id: INACTIVE_ID, firstName: "Ivan", lastName: "Lapsed", status: "inactive" as const, birthday: inMonth("04") },
+    { ...base, id: ISO_ID, firstName: "Iso", lastName: "Chamberlain", anniversary: inMonthIso("18") },
   ]).run();
 });
 
@@ -54,8 +61,21 @@ describe("getClientOccasionsCurrentMonth", () => {
       [INACTIVE_ID, "birthday", inMonth("04")],
       [ANNIVERSARY_ID, "anniversary", inMonth("09")],
       [BOTH_ID, "birthday", inMonth("15")],
+      [ISO_ID, "anniversary", inMonthIso("18")],
       [BIRTHDAY_ID, "birthday", inMonth("22")],
     ]);
+  });
+
+  // Regression: a row stored as a full ISO timestamp still buckets by month
+  // and sorts by day, and the dashboard renders it as a plain calendar day
+  // instead of leaking "…T07:00:00.000Z".
+  it("handles a row stored as a full ISO timestamp", async () => {
+    const rows = await getClientOccasionsCurrentMonth(ASSOCIATE_ID);
+    const iso = rows.find((r) => r.id === ISO_ID);
+
+    expect(iso).toBeDefined();
+    expect(formatOccasionDate(iso!.occasionDate)).toBe(formatOccasionDate(inMonth("18")));
+    expect(formatOccasionDate(iso!.occasionDate)).not.toContain("T07:00");
   });
 
   it("includes inactive clients but never banned/deleted (matches the smart-list base filter)", async () => {

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Phone, Mail, Calendar, User, Gift, Copy } from "lucide-react";
 import { format } from "date-fns";
+import { formatOccasionDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
@@ -128,7 +129,7 @@ export function ProfileTab({ client }: ProfileTabProps) {
               <Calendar className="size-4 text-muted-foreground" />
               <span>Birthday: </span>
               <span className="font-medium">
-                {format(new Date(client.birthday), "MMMM d")}
+                {formatOccasionDate(client.birthday, "MMMM d")}
               </span>
             </div>
           )}
@@ -138,7 +139,7 @@ export function ProfileTab({ client }: ProfileTabProps) {
               <Gift className="size-4 text-muted-foreground" />
               <span>Anniversary: </span>
               <span className="font-medium">
-                {format(new Date(client.anniversary), "MMMM d")}
+                {formatOccasionDate(client.anniversary, "MMMM d")}
               </span>
             </div>
           )}

@@ -6,6 +6,9 @@ import {
   daysAgo,
   formatDaysAgo,
   formatMoney,
+  formatOccasionDate,
+  parseOccasionDate,
+  toDateOnly,
   initials,
   applyClientFilter,
 } from "@/lib/utils";
@@ -107,6 +110,84 @@ describe("formatDate", () => {
 
   it("returns empty string for empty string", () => {
     expect(formatDate("")).toBe("");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// toDateOnly / parseOccasionDate / formatOccasionDate
+//
+// Regression: birthday/anniversary are day-precision TEXT columns holding two
+// shapes — the canonical "YYYY-MM-DD" and a full ISO timestamp left by form
+// submits that JSON-serialised a Date. The dashboard rendered the raw column,
+// so an ISO row leaked "2026-08-29T07:00:00.000Z" into the card. Every
+// assertion here is timezone-independent by construction.
+// ---------------------------------------------------------------------------
+describe("toDateOnly", () => {
+  it("serialises the local calendar day, not the UTC one", () => {
+    expect(toDateOnly(new Date(2026, 7, 29))).toBe("2026-08-29");
+    // Late-evening local time is already the next day in UTC.
+    expect(toDateOnly(new Date(2026, 7, 29, 23, 30))).toBe("2026-08-29");
+  });
+
+  it("zero-pads month and day", () => {
+    expect(toDateOnly(new Date(2000, 0, 3))).toBe("2000-01-03");
+  });
+
+  it("returns null for null/undefined", () => {
+    expect(toDateOnly(null)).toBeNull();
+    expect(toDateOnly(undefined)).toBeNull();
+  });
+});
+
+describe("parseOccasionDate", () => {
+  it("reads YYYY-MM-DD as that local calendar day", () => {
+    const d = parseOccasionDate("2000-08-13")!;
+    expect([d.getFullYear(), d.getMonth() + 1, d.getDate()]).toEqual([2000, 8, 13]);
+  });
+
+  it("reads a full ISO timestamp as the calendar day in its date part", () => {
+    const d = parseOccasionDate("2026-08-29T07:00:00.000Z")!;
+    expect([d.getFullYear(), d.getMonth() + 1, d.getDate()]).toEqual([2026, 8, 29]);
+  });
+
+  it("round-trips through toDateOnly", () => {
+    expect(toDateOnly(parseOccasionDate("1985-12-01"))).toBe("1985-12-01");
+    expect(toDateOnly(parseOccasionDate("1985-12-01T08:00:00.000Z"))).toBe("1985-12-01");
+  });
+
+  it("returns null for empty or unrecognised values", () => {
+    expect(parseOccasionDate(null)).toBeNull();
+    expect(parseOccasionDate("")).toBeNull();
+    expect(parseOccasionDate("12/25")).toBeNull();
+  });
+});
+
+describe("formatOccasionDate", () => {
+  it("formats the canonical YYYY-MM-DD form", () => {
+    expect(formatOccasionDate("2000-08-13")).toBe("Aug 13");
+  });
+
+  it("formats the full ISO timestamp form without leaking the timestamp", () => {
+    expect(formatOccasionDate("2026-08-29T07:00:00.000Z")).toBe("Aug 29");
+  });
+
+  it("gives both storage forms of the same day an identical label", () => {
+    expect(formatOccasionDate("2026-08-29T07:00:00.000Z")).toBe(formatOccasionDate("2026-08-29"));
+  });
+
+  it("accepts a custom pattern", () => {
+    expect(formatOccasionDate("2000-08-13", "MMMM d")).toBe("August 13");
+    expect(formatOccasionDate("2000-08-13", "MMM d, yyyy")).toBe("Aug 13, 2000");
+  });
+
+  it("returns empty string for null/undefined/empty", () => {
+    expect(formatOccasionDate(null)).toBe("");
+    expect(formatOccasionDate(undefined)).toBe("");
+    expect(formatOccasionDate("")).toBe("");
+  });
+
+  it("passes an unrecognised value through rather than rendering Invalid Date", () => {
+    expect(formatOccasionDate("12/25")).toBe("12/25");
   });
 });
 

@@ -12,7 +12,7 @@ import { getStats, getOverdueFollowUps, getUpcomingFollowUps, getRecentActivity,
 import { getSession } from "@/lib/auth";
 import Link from "next/link";
 import { Flame, Phone, ShoppingBag, Users, AlertCircle, Calendar, ArrowRight, TrendingUp, Target, Clock, CheckCircle2 } from "lucide-react";
-import { formatDate, formatDaysAgo } from "@/lib/utils";
+import { formatDate, formatDaysAgo, formatOccasionDate } from "@/lib/utils";
 import { DashboardSkeleton } from "@/components/skeletons";
 
 export default function DashboardPage() {
@@ -166,12 +166,12 @@ async function DashboardContent() {
                     <ul className="flex flex-col gap-2">
                       {occasions.map((c) => (
                         <li key={`${c.id}-${c.occasion}`} className="text-sm flex justify-between items-center gap-2">
-                          <Link href={`/clients/${c.id}`} className="hover:underline truncate">{c.firstName} {c.lastName ?? ""}</Link>
-                          <span className="flex items-center gap-2 shrink-0">
+                          <Link href={`/clients/${c.id}`} className="hover:underline truncate min-w-0">{c.firstName} {c.lastName ?? ""}</Link>
+                          <span className="flex items-center gap-2 shrink-0 whitespace-nowrap">
                             <Badge variant="outline" className="text-[10px]">
                               {c.occasion === "birthday" ? "Birthday" : "Anniversary"}
                             </Badge>
-                            <span className="text-xs text-muted-foreground">{c.occasionDate}</span>
+                            <span className="text-xs text-muted-foreground">{formatOccasionDate(c.occasionDate)}</span>
                           </span>
                         </li>
                       ))}
