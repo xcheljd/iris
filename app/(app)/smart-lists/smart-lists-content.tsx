@@ -39,6 +39,7 @@ import { CreateListDialog } from "@/components/smart-lists/create-list-dialog";
 import {
   smartListToClientFilters,
   clientFiltersToSearchParams,
+  visibleSmartListItems,
 } from "@/lib/smart-list-filters";
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
@@ -52,14 +53,14 @@ interface SmartListsContentProps {
   selectedListTruncated: boolean;
 }
 
-const BUILTIN_FILTERS = [
+const BUILTIN_FILTERS: { id: string; label: string; icon: React.ReactNode }[] = [
   { id: "hot", label: "Hot Clients", icon: <Flame className="size-4 text-orange-500" /> },
   { id: "stale", label: "Stale (90+ days)", icon: <Clock className="size-4 text-yellow-500" /> },
   { id: "recent_purchases", label: "Recent Purchases", icon: <Star className="size-4 text-emerald-500" /> },
   { id: "no_outreach_60", label: "No Outreach (60d)", icon: <Clock className="size-4 text-red-500" /> },
   { id: "birthdays_month", label: "Birthdays This Month", icon: <Calendar className="size-4 text-pink-500" /> },
   { id: "email_subscribers", label: "Email Subscribers", icon: <Mail className="size-4 text-blue-500" /> },
-] as const;
+];
 
 function ClientRow({ client }: { client: ClientListRow }) {
   return (
@@ -119,6 +120,10 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
   const selectedCustom = selectedCustomListId
     ? lists.find((l) => l.id === selectedCustomListId)
     : null;
+  // Empty lists are hidden from the sidebar; the selected one stays visible.
+  const visibleBuiltIns = visibleSmartListItems(BUILTIN_FILTERS, counts.builtIn, selectedBuiltInFilter);
+  const visibleLists = visibleSmartListItems(lists, counts.custom, selectedCustomListId);
+
   const selectedName = selectedBuiltIn?.label ?? selectedCustom?.name ?? null;
   const selectedCount = selectedBuiltIn
     ? counts.builtIn[selectedBuiltIn.id] ?? 0
@@ -181,6 +186,7 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
         <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6">
           {/* List Sidebar */}
           <div className="flex flex-col gap-4">
+            {visibleBuiltIns.length > 0 && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2">
@@ -188,7 +194,7 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-1">
-                {BUILTIN_FILTERS.map((f) => (
+                {visibleBuiltIns.map((f) => (
                   <SmartListItem
                     key={f.id}
                     id={f.id}
@@ -206,6 +212,7 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
                 ))}
               </CardContent>
             </Card>
+            )}
 
             <Separator />
 
@@ -226,16 +233,18 @@ export function SmartListsContent({ lists, counts, selectedListId, selectedClien
                 </div>
               </CardHeader>
               <CardContent className="flex flex-col gap-1">
-                {lists.length === 0 ? (
+                {visibleLists.length === 0 ? (
                   <div className="text-center py-4">
                     <ListFilter className="size-8 mx-auto text-muted-foreground/50 mb-2" />
-                    <p className="text-sm text-muted-foreground">No custom lists yet</p>
+                    <p className="text-sm text-muted-foreground">
+                      {lists.length === 0 ? "No custom lists yet" : "No custom lists with matches"}
+                    </p>
                     <Button size="sm" variant="outline" className="mt-2" onClick={() => setCreateOpen(true)}>
                       <Plus className="size-3 mr-1" />Create one
                     </Button>
                   </div>
                 ) : (
-                  lists.map((list) => (
+                  visibleLists.map((list) => (
                     <SmartListItem
                       key={list.id}
                       id={list.id}

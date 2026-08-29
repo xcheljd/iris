@@ -139,6 +139,20 @@ export function hasActiveClientFilters(f: ClientFilterParams): boolean {
 }
 
 /**
+ * An empty smart list is clutter, so the sidebar only advertises lists that
+ * currently match at least one client. The exception is the list the user is
+ * already viewing (reached by URL) — hiding it there would strand the
+ * selection with nothing highlighted, so it stays visible with its empty state.
+ */
+export function visibleSmartListItems<T extends { id: string }>(
+  items: T[],
+  counts: Record<string, number>,
+  selectedId: string | null,
+): T[] {
+  return items.filter((item) => (counts[item.id] ?? 0) > 0 || item.id === selectedId);
+}
+
+/**
  * Serialize ClientFilterParams to URLSearchParams for /clients navigation.
  * Mirrors the navigate() logic in clients-content.tsx so deep links work.
  */
