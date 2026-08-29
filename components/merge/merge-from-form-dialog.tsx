@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Merge } from "lucide-react";
 import { patchClientFromFormMerge } from "@/lib/actions";
+import { toDateOnly } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ClientFormData } from "@/components/client-form";
 import type { ProductOfInterest } from "@/lib/db/schema";
@@ -40,7 +41,7 @@ export function MergeFromFormDialog({
 
   const toDateStr = (v: Date | string | null | undefined): string | null => {
     if (!v) return null;
-    if (v instanceof Date) return v.toISOString().split("T")[0];
+    if (v instanceof Date) return toDateOnly(v);
     return v;
   };
 

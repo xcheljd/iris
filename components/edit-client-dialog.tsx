@@ -11,6 +11,7 @@ import type { ProductOfInterest } from "@/lib/db/schema";
 import { ClientForm, type ClientFormData } from "@/components/client-form";
 import { validateClientForm } from "@/lib/validation/client";
 import { useCatalog } from "@/components/use-catalog";
+import { parseOccasionDate, toDateOnly } from "@/lib/utils";
 
 interface EditClientDialogProps {
   client: FullClient;
@@ -31,8 +32,8 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
     customerId: client.customerId || "",
     source: client.source,
     preferredContact: client.preferredContact ?? "",
-    birthday: client.birthday ? new Date(client.birthday) : null,
-    anniversary: client.anniversary ? new Date(client.anniversary) : null,
+    birthday: parseOccasionDate(client.birthday),
+    anniversary: parseOccasionDate(client.anniversary),
     onEmailList: client.onEmailList,
     notes: client.notes || "",
     tags: (client.tags || []) as string[],
@@ -49,8 +50,8 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
       customerId: client.customerId || "",
       source: client.source,
       preferredContact: client.preferredContact ?? "",
-      birthday: client.birthday ? new Date(client.birthday) : null,
-      anniversary: client.anniversary ? new Date(client.anniversary) : null,
+      birthday: parseOccasionDate(client.birthday),
+      anniversary: parseOccasionDate(client.anniversary),
       onEmailList: client.onEmailList,
       notes: client.notes || "",
       tags: (client.tags || []) as string[],
@@ -87,7 +88,13 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
         const response = await fetch("/api/clients", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: client.id, ...formData, productsOfInterest }),
+          body: JSON.stringify({
+            id: client.id,
+            ...formData,
+            birthday: toDateOnly(formData.birthday),
+            anniversary: toDateOnly(formData.anniversary),
+            productsOfInterest,
+          }),
         });
 
         if (response.ok) {

@@ -10,6 +10,7 @@ import type { ClientFormData } from "@/components/client-form";
 import type { ClientSource, ProductOfInterest } from "@/lib/db/schema";
 import { validateClientForm } from "@/lib/validation/client";
 import { useCatalog } from "@/components/use-catalog";
+import { parseOccasionDate, toDateOnly } from "@/lib/utils";
 
 interface ClientData {
   id: string;
@@ -60,8 +61,8 @@ export function EditClientForm({ initialClient, clientId, employees }: EditClien
     employeeId: initialClient.employeeId || "",
     source: initialClient.source,
     preferredContact: initialClient.preferredContact ?? "",
-    birthday: initialClient.birthday ? new Date(initialClient.birthday) : null,
-    anniversary: initialClient.anniversary ? new Date(initialClient.anniversary) : null,
+    birthday: parseOccasionDate(initialClient.birthday),
+    anniversary: parseOccasionDate(initialClient.anniversary),
     onEmailList: initialClient.onEmailList,
     status: initialClient.status,
     notes: initialClient.notes || "",
@@ -143,7 +144,12 @@ export function EditClientForm({ initialClient, clientId, employees }: EditClien
         const response = await fetch(`/api/clients/${clientId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...formData, productsOfInterest }),
+          body: JSON.stringify({
+            ...formData,
+            birthday: toDateOnly(formData.birthday),
+            anniversary: toDateOnly(formData.anniversary),
+            productsOfInterest,
+          }),
         });
 
         if (response.ok) {

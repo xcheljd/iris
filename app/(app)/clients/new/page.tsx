@@ -11,6 +11,7 @@ import type { ProductOfInterest } from "@/lib/db/schema";
 import { MergeFromFormDialog } from "@/components/merge-client-dialog";
 import { validateClientForm } from "@/lib/validation/client";
 import { useCatalog } from "@/components/use-catalog";
+import { toDateOnly } from "@/lib/utils";
 
 export default function AddClientPage() {
   const router = useRouter();
@@ -108,7 +109,12 @@ export default function AddClientPage() {
         const response = await fetch("/api/clients", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...formData, productsOfInterest }),
+          body: JSON.stringify({
+            ...formData,
+            birthday: toDateOnly(formData.birthday),
+            anniversary: toDateOnly(formData.anniversary),
+            productsOfInterest,
+          }),
         });
 
         if (response.ok) {

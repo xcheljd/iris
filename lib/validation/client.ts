@@ -6,6 +6,17 @@ import { normalizeModel } from "@/lib/normalize";
 const nullableStr = (max: number) =>
   z.preprocess((v) => (v === "" ? null : v), z.string().max(max).nullable());
 
+// Birthday/anniversary are day-precision TEXT columns. A client that
+// JSON-serialises a Date sends "2026-08-29T07:00:00.000Z"; collapse it to the
+// canonical "YYYY-MM-DD" so the month queries (substr(col, 6, 2)) and the UI
+// see one shape. Anything else passes through untouched.
+const occasionDate = z.preprocess((v) => {
+  if (typeof v !== "string") return v;
+  const t = v.trim();
+  if (t === "") return null;
+  return /^\d{4}-\d{2}-\d{2}T/.test(t) ? t.slice(0, 10) : t;
+}, z.string().max(100).nullable());
+
 const blankToNull = (v: unknown) =>
   typeof v === "string" && v.trim() === "" ? null : v;
 
@@ -46,8 +57,8 @@ export const clientCreateSchema = z.object({
     .optional(),
   customerId: nullableStr(50).optional(),
   source: z.enum(CLIENT_SOURCE_VALUES).default("Walk-in"),
-  birthday: nullableStr(100).optional(),
-  anniversary: nullableStr(100).optional(),
+  birthday: occasionDate.optional(),
+  anniversary: occasionDate.optional(),
   onEmailList: z.boolean().default(false),
   notes: nullableStr(5000).optional(),
   tags: z.array(z.string().max(50)).default([]),
@@ -69,8 +80,8 @@ export const clientPatchSchema = z
     customerId: nullableStr(50),
     source: z.enum(CLIENT_SOURCE_VALUES),
     preferredContact: z.enum(PREFERRED_CONTACT_VALUES),
-    birthday: nullableStr(100),
-    anniversary: nullableStr(100),
+    birthday: occasionDate,
+    anniversary: occasionDate,
     onEmailList: z.boolean(),
     notes: nullableStr(5000),
     tags: z.array(z.string().max(50)),
