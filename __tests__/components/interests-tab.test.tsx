@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { InterestsTab } from "@/components/interests-tab";
 import type { FullClient } from "@/components/client-provider";
 import { saveClientEdits } from "@/lib/actions";
+import { toast } from "sonner";
 
 // Mock outreach-logger since it has complex dialog dependencies
 vi.mock("@/components/outreach-logger", () => ({
@@ -83,8 +84,9 @@ describe("InterestsTab (unified table)", () => {
     render(<InterestsTab client={clientWithInterests} />);
     // "Promo" is also a column header, so there are ≥2; the badge adds one.
     expect(screen.getAllByText("Promo").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText("Arrival")).toBeInTheDocument();
-    expect(screen.getByText("Interested")).toBeInTheDocument();
+    // "Arrival"/"Interested" also appear on the shared quick-add's intent toggles.
+    expect(screen.getAllByText("Arrival").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Interested").length).toBeGreaterThanOrEqual(1);
   });
 
   it("derives a promo badge for the model-matched entry", () => {
@@ -125,39 +127,45 @@ describe("InterestsTab quick add", () => {
     vi.mocked(saveClientEdits).mockResolvedValue(undefined);
   });
 
+  // Drive the shared ProductsOfInterestInput directly: type a model, pick the
+  // "Interested" intent, then submit from the model field (Enter triggers add).
+  async function addInterest(user: ReturnType<typeof userEvent.setup>, model: string) {
+    const modelInput = screen.getByLabelText("Model number");
+    await user.type(modelInput, model);
+    await user.click(screen.getByRole("radio", { name: "Interested" }));
+    await user.click(modelInput);
+    await user.keyboard("{Enter}");
+  }
+
   it("saves the new interest and shows the row immediately", async () => {
     const user = userEvent.setup();
     render(<InterestsTab client={clientWithNoInterests} />);
 
-    await user.type(screen.getByLabelText("Add an interest"), "vs-8840");
-    await user.click(screen.getByRole("button", { name: "Add" }));
+    await addInterest(user, "vs-8840");
 
     expect(saveClientEdits).toHaveBeenCalledWith("client-2", {
       productsOfInterest: [{ model: "VS-8840", collection: null, brand: null, intent: "interested" }],
     });
     // Optimistic row replaces the empty state before the refresh lands.
     expect(await screen.findByText("VS-8840")).toBeInTheDocument();
-    expect(screen.getByLabelText("Add an interest")).toHaveValue("");
+    expect(screen.getByLabelText("Model number")).toHaveValue("");
   });
 
   it("blocks a duplicate client-side without calling the action", async () => {
     const user = userEvent.setup();
     render(<InterestsTab client={clientWithInterests} />);
 
-    await user.type(screen.getByLabelText("Add an interest"), "kx1023-01x");
-    await user.click(screen.getByRole("button", { name: "Add" }));
+    await addInterest(user, "kx1023-01x");
 
     expect(screen.getByRole("alert")).toHaveTextContent("This client already has that interest");
     expect(saveClientEdits).not.toHaveBeenCalled();
   });
 
-  it("rejects an empty entry", async () => {
-    const user = userEvent.setup();
+  it("disables the add button until a model/collection/intent is provided", () => {
     render(<InterestsTab client={clientWithNoInterests} />);
 
-    await user.click(screen.getByRole("button", { name: "Add" }));
-
-    expect(screen.getByRole("alert")).toBeInTheDocument();
+    // The shared input's only unlabeled button is the [+ Add] action.
+    expect(screen.getByRole("button", { name: "" })).toBeDisabled();
     expect(saveClientEdits).not.toHaveBeenCalled();
   });
 
@@ -166,10 +174,15 @@ describe("InterestsTab quick add", () => {
     vi.mocked(saveClientEdits).mockResolvedValue({ error: "Not authorized" });
     render(<InterestsTab client={clientWithNoInterests} />);
 
-    await user.type(screen.getByLabelText("Add an interest"), "vs-8840");
-    await user.click(screen.getByRole("button", { name: "Add" }));
+    await addInterest(user, "vs-8840");
 
-    expect(await screen.findByText("No products of interest recorded")).toBeInTheDocument();
+    // The save is attempted, then rejected: toast the error, drop the
+    // optimistic row, and never refresh.
+    expect(saveClientEdits).toHaveBeenCalledWith("client-2", {
+      productsOfInterest: [{ model: "VS-8840", collection: null, brand: null, intent: "interested" }],
+    });
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Not authorized"));
+    expect(screen.queryByText(/VS-8840/)).not.toBeInTheDocument();
     expect(refresh).not.toHaveBeenCalled();
   });
 });

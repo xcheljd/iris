@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { MoreHorizontal, Plus, Tag } from "lucide-react";
+import { MoreHorizontal, Tag } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ColumnHeader } from "@/components/column-header";
@@ -22,7 +22,7 @@ import { useCatalog } from "@/components/use-catalog";
 import { INTEREST_INTENT_VALUES, BRAND_VALUES, type InterestIntent, type ProductOfInterest } from "@/lib/db/schema";
 import type { FullClient, PromoMatchWithPromo } from "@/components/client-provider";
 import { formatMoney } from "@/lib/utils";
-import { productOfInterestSchema } from "@/lib/validation/client";
+import { ProductsOfInterestInput } from "@/components/products-of-interest-input";
 import { saveClientEdits } from "@/lib/actions";
 
 interface InterestsTabProps {
@@ -56,11 +56,11 @@ function interestKey(p: Pick<ProductOfInterest, "model" | "collection">) {
 
 export function InterestsTab({ client }: InterestsTabProps) {
   const router = useRouter();
-  const [draft, setDraft] = useState("");
+  // Inline message shown when an add is rejected client-side (duplicate).
   const [addError, setAddError] = useState<string | null>(null);
-  // Rows added in this session, shown before the server round-trip resolves.
+  // Rows added/removed this session, shown before the server round-trip resolves.
   const [optimistic, setOptimistic] = useState<ProductOfInterest[]>([]);
-  const [isSaving, startSaving] = useTransition();
+  const [, startSaving] = useTransition();
 
   const saved = useMemo(() => client.productsOfInterest ?? [], [client.productsOfInterest]);
   // Drop optimistic rows once the refreshed client carries them.
@@ -69,39 +69,46 @@ export function InterestsTab({ client }: InterestsTabProps) {
     return [...saved, ...optimistic.filter((p) => !have.has(interestKey(p)))];
   }, [saved, optimistic]);
 
-  const handleAdd = () => {
-    const parsed = productOfInterestSchema.safeParse({
-      model: draft,
-      collection: null,
-      brand: null,
-      intent: "interested",
+  const handleProductsChange = (next: ProductOfInterest[]) => {
+    const removed = products.filter((p) => !next.some((q) => interestKey(q) === interestKey(p)));
+    const added = next.filter((p) => !products.some((q) => interestKey(q) === interestKey(p)));
+    if (added.length === 0 && removed.length === 0) return;
+
+    // Client-side dedupe. The shared input only compares model|collection|
+    // brand|intent as one tuple, which misses a model overlapping an existing
+    // model+collection row, so mirror the old quick-add's rule here: an entry
+    // is a duplicate when its model (or, on a model-less add, collection)
+    // already appears on a tracked row. A duplicate never reaches the server.
+    const duplicate = added.find((p) => {
+      const token = normalizeModel(p.model ?? "") || (p.collection ?? "").trim().toUpperCase();
+      return (
+        !!token &&
+        products.some(
+          (q) =>
+            (q.model ?? "").toUpperCase() === token ||
+            (q.collection ?? "").trim().toUpperCase() === token,
+        )
+      );
     });
-    if (!parsed.success) {
-      setAddError(parsed.error.issues[0]?.message ?? "Enter a model or collection");
-      return;
-    }
-    const entry = parsed.data;
-    // Client-side dedupe — a duplicate never reaches the server. The typed
-    // text is stored as a model, but it also counts as a duplicate when an
-    // existing row already tracks it as a collection.
-    const token = entry.model ?? "";
-    const alreadyTracked = products.some(
-      (p) =>
-        (p.model ?? "").toUpperCase() === token ||
-        (p.collection ?? "").trim().toUpperCase() === token,
-    );
-    if (alreadyTracked) {
+    if (duplicate) {
       setAddError("This client already has that interest");
       return;
     }
-
     setAddError(null);
-    setDraft("");
-    setOptimistic((prev) => [...prev, entry]);
+
+    const removedKeys = new Set(removed.map(interestKey));
+    setOptimistic((cur) => {
+      const kept = cur
+        .filter((p) => !removedKeys.has(interestKey(p)))
+        .filter((p) => !saved.some((s) => interestKey(s) === interestKey(p)));
+      return [...kept, ...added];
+    });
+
     startSaving(async () => {
-      const result = await saveClientEdits(client.id, { productsOfInterest: [...saved, entry] });
+      const result = await saveClientEdits(client.id, { productsOfInterest: next });
       if (result?.error) {
-        setOptimistic((prev) => prev.filter((p) => interestKey(p) !== interestKey(entry)));
+        const addedKeys = new Set(added.map(interestKey));
+        setOptimistic((cur) => cur.filter((p) => !addedKeys.has(interestKey(p))));
         toast.error(result.error);
         return;
       }
@@ -116,7 +123,7 @@ export function InterestsTab({ client }: InterestsTabProps) {
   const promoBrandLabel = (b: string | null | undefined) =>
     !b ? "" : b === "Chamberlain" ? "FC" : b;
 
-  const { resolve } = useCatalog();
+  const { catalogIndex, isManager, resolve } = useCatalog();
 
   const rows: Row[] = useMemo(() => {
     return products.map((p) => {
@@ -223,31 +230,19 @@ export function InterestsTab({ client }: InterestsTabProps) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <form
-          className="mb-4 flex flex-col gap-1.5"
-          onSubmit={(e) => { e.preventDefault(); handleAdd(); }}
-        >
-          <div className="flex items-center gap-2">
-            <Input
-              value={draft}
-              onChange={(e) => { setDraft(e.target.value); if (addError) setAddError(null); }}
-              placeholder="Add a model or collection…"
-              aria-label="Add an interest"
-              aria-invalid={addError ? true : undefined}
-              aria-describedby={addError ? "interest-quick-add-error" : undefined}
-              className="max-w-xs"
-            />
-            <Button type="submit" size="sm" variant="outline" disabled={isSaving}>
-              <Plus className="size-4 mr-1" />
-              Add
-            </Button>
-          </div>
+        <div className="mb-4 flex flex-col gap-1.5">
+          <ProductsOfInterestInput
+            value={products}
+            onChangeAction={handleProductsChange}
+            catalogIndex={catalogIndex}
+            isManager={isManager}
+          />
           {addError && (
-            <p id="interest-quick-add-error" role="alert" className="text-xs text-destructive">
+            <p role="alert" className="text-xs text-destructive">
               {addError}
             </p>
           )}
-        </form>
+        </div>
         {rows.length === 0 ? (
           <EmptyState icon={Tag} title="No products of interest recorded" compact />
         ) : (
