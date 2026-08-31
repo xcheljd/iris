@@ -35,7 +35,7 @@ A self-hosted clienteling/CRM web app for Meridian Watch retail — replaces a s
 
 - **`app/`** — Next.js App Router. `app/(app)/` is the authenticated layout (sidebar + command palette) with one route per domain (clients, promos, catalog, prospects, analytics, approvals, settings…). `app/api/` = REST routes. `app/login/` = auth.
 - **`lib/`** — shared logic. `lib/actions.ts` is the **server-actions barrel** (re-exports `lib/actions/*`); `lib/db/` = schema, connection, seed, FTS; domain parsers in `lib/` (`promo-pdf-parser.ts`, `rvx-parser.ts`, `rvx-catalog-parser.ts`); read queries in `lib/queries.ts`; zod schemas in `lib/validation/`.
-- **`components/`** — React components; `components/ui/` = shadcn primitives; domain groups (`catalog/`, `promo/`, `merge/`, `onboarding/`).
+- **`components/`** — React components; `components/ui/` = shadcn primitives; domain groups (`catalog/`, `promo/`, `merge/`, `onboarding/`). `components/data-table/cells.tsx` is the shared cell vocabulary every `<Table>` surface renders through — reach for a renderer there (or add one) instead of hand-writing a `<TableCell>` for money, dates, badges or dash-fallback text.
 - **`__tests__/`** — mirrors source: `unit/` (pure logic), `components/` (incl. `onboarding/`), `api/` (route handlers).
 - **`data/iris.db`** — SQLite file (gitignored); Drizzle migrations in `drizzle/` (gitignored, generated).
 - **`docs/`** — ARCHITECTURE.md, FEATURE-PROPOSALS.md, REST-API-EXPANSION.md.
