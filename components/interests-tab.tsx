@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { MonoCell, StatusBadgeCell, TextCell } from "@/components/data-table/cells";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -400,14 +401,13 @@ export function InterestsTab({ client }: InterestsTabProps) {
               <TableBody>
                 {visible.map((r, i) => (
                   <TableRow key={`${r.model ?? ""}|${r.collection ?? ""}|${r.intent}|${i}`}>
-                    <TableCell>
-                      <Badge variant={r.intent === "promo" ? "default" : r.intent === "arrival" ? "secondary" : "outline"}>
-                        {INTENT_LABEL[r.intent]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">{r.model ?? "—"}</TableCell>
-                    <TableCell>{r.collection ?? "—"}</TableCell>
-                    <TableCell>{r.brand ? promoBrandLabel(r.brand) : "—"}</TableCell>
+                    <StatusBadgeCell
+                      label={INTENT_LABEL[r.intent]}
+                      variant={r.intent === "promo" ? "default" : r.intent === "arrival" ? "secondary" : "outline"}
+                    />
+                    <MonoCell value={r.model} />
+                    <TextCell value={r.collection} />
+                    <TextCell value={r.brand ? promoBrandLabel(r.brand) : null} />
                     <TableCell>
                       {r.promoLabel === "Select models" ? (
                         <Popover>

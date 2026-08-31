@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadgeCell } from "@/components/data-table/cells";
 import { Input } from "@/components/ui/input";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
@@ -153,9 +153,7 @@ export function SettingsTagsTab({ tags: initialTags, isManager }: SettingsTagsTa
                           <span className="text-sm text-muted-foreground">{tag.color}</span>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{tag.usageCount}</Badge>
-                      </TableCell>
+                      <StatusBadgeCell label={tag.usageCount} />
                       {isManager && (
                       <TableCell className="text-right">
                         <DropdownMenu>

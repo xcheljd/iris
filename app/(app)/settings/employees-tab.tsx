@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadgeCell } from "@/components/data-table/cells";
 import { Input } from "@/components/ui/input";
 import { Field, FieldGroup, FieldSet, FieldLegend, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
@@ -365,9 +366,7 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
                     {!employee.active && <span className="ml-2 text-xs text-muted-foreground">(inactive)</span>}
                   </TableCell>
                   <TableCell className="hidden sm:table-cell text-muted-foreground">{employee.username}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{employee.role}</Badge>
-                  </TableCell>
+                  <StatusBadgeCell label={employee.role} />
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Switch

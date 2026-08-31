@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { DateTimeCell, StatusBadgeCell } from "@/components/data-table/cells";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { EmptyState } from "@/components/empty-state";
 import { PaginationFooter } from "@/components/pagination-footer";
@@ -13,7 +13,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Trash2, RotateCcw } from "lucide-react";
 import { restoreClient, purgeClient } from "@/lib/actions";
 import { toast } from "sonner";
-import { format } from "date-fns";
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
@@ -87,12 +86,13 @@ export function DeletedTab({ deletedClients, isManager }: DeletedTabProps) {
                 {paged.map((dc) => (
                   <TableRow key={dc.id}>
                     <TableCell className="font-medium">{dc.firstName} {dc.lastName ?? ""}</TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      <Badge variant="outline" className="capitalize">{dc.previousStatus ?? "active"}</Badge>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
-                      {dc.deletedAt ? format(new Date(dc.deletedAt), "MMM d, yyyy") : "—"}
-                    </TableCell>
+                    <StatusBadgeCell
+                      label={dc.previousStatus ?? "active"}
+                      variant="outline"
+                      capitalize
+                      className="hidden sm:table-cell"
+                    />
+                    <DateTimeCell value={dc.deletedAt} className="hidden sm:table-cell text-sm" />
                     {isManager && (
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
