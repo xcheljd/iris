@@ -23,7 +23,7 @@ import { ColumnFilterPopover } from "@/components/column-filter-popover";
 import { TextFilterMenu, MultiSelectMenu, RangeFilterMenu } from "@/components/column-filters";
 import { BRAND_VALUES } from "@/lib/db/schema";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
-import { formatMoney } from "@/lib/utils";
+import { MoneyCell, MonoCell, StatusBadgeCell, TextCell } from "@/components/data-table/cells";
 import { ActiveFilterChips, type ActiveFilterChip } from "@/components/active-filter-chips";
 
 type CatalogFilterChipKey = "mod" | "col" | "brands" | "msrp";
@@ -480,7 +480,7 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                   <TableBody>
                     {rows.map((r) => (
                       <TableRow key={r.model}>
-                        <TableCell className="font-mono text-sm">{r.model}</TableCell>
+                        <MonoCell value={r.model} />
                         <TableCell>
                           {editing === r.model ? (
                             <Input
@@ -494,11 +494,9 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                             r.collection
                           )}
                         </TableCell>
-                        <TableCell>{r.brand ? brandLabel(r.brand) : <span className="text-muted-foreground">—</span>}</TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {r.msrp != null ? formatMoney(r.msrp) : <span className="text-muted-foreground">—</span>}
-                        </TableCell>
-                        <TableCell><Badge variant={sourceBadge(r.source)}>{r.source}</Badge></TableCell>
+                        <TextCell value={r.brand ? brandLabel(r.brand) : null} />
+                        <MoneyCell value={r.msrp} />
+                        <StatusBadgeCell label={r.source} variant={sourceBadge(r.source)} />
                         <TableCell className="text-right">
                           {editing === r.model ? (
                             <div className="flex justify-end gap-2">

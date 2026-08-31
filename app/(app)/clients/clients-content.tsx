@@ -5,13 +5,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { HeatBadge } from "@/components/heat-badge";
+import { HeatBadgeCell, RelativeDateCell, TextCell } from "@/components/data-table/cells";
 import { SearchInputWithHistory, pushSearchHistory } from "@/components/search-input-with-history";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PaginationFooter } from "@/components/pagination-footer";
 import { Topbar } from "@/components/topbar";
-import { formatPhone, formatDaysAgo } from "@/lib/utils";
+import { formatPhone } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, MoreHorizontal, Eye, Edit, Ban, MailX, Trash2, Mail, BookmarkPlus, FileText, Users } from "lucide-react";
@@ -502,14 +502,14 @@ export function ClientListContent({
                       {r.client.phone && <div className="text-xs">{formatPhone(r.client.phone)}</div>}
                       {r.client.email && <div className="text-xs text-muted-foreground truncate">{r.client.email}</div>}
                     </TableCell>
-                    <TableCell><HeatBadge level={r.client.heatLevel} score={r.client.heatScore} showScore /></TableCell>
+                    <HeatBadgeCell level={r.client.heatLevel} score={r.client.heatScore} showScore />
                     <TableCell className="hidden md:table-cell">
                       <div className="flex gap-1 flex-wrap max-w-[180px]">
                         {(r.client.tags || []).slice(0, 3).map((t) => <Badge key={t} variant="secondary" className="text-[10px]">{t}</Badge>)}
                       </div>
                     </TableCell>
-                    <TableCell className="hidden md:table-cell text-xs text-muted-foreground">{r.employeeName ?? "—"}</TableCell>
-                    <TableCell className="hidden md:table-cell text-xs text-muted-foreground">{formatDaysAgo(r.client.lastOutreachAt)}</TableCell>
+                    <TextCell value={r.employeeName} className="hidden md:table-cell text-xs text-muted-foreground" />
+                    <RelativeDateCell value={r.client.lastOutreachAt} className="hidden md:table-cell" />
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
