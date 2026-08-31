@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { InterestsTab } from "@/components/interests-tab";
 import type { FullClient } from "@/components/client-provider";
 import { saveClientEdits } from "@/lib/actions";
+import { normalizeModel } from "@/lib/normalize";
 import { toast } from "sonner";
 
 // Mock outreach-logger since it has complex dialog dependencies
@@ -127,20 +128,36 @@ describe("InterestsTab quick add", () => {
     vi.mocked(saveClientEdits).mockResolvedValue(undefined);
   });
 
-  // Drive the shared ProductsOfInterestInput directly: type a model, pick the
-  // "Interested" intent, then submit from the model field (Enter triggers add).
-  async function addInterest(user: ReturnType<typeof userEvent.setup>, model: string) {
-    const modelInput = screen.getByLabelText("Model number");
-    await user.type(modelInput, model);
-    await user.click(screen.getByRole("radio", { name: "Interested" }));
-    await user.click(modelInput);
-    await user.keyboard("{Enter}");
+  // The bar's submit button is named exactly "Add"; the composite input's
+  // icon-only add button is named "Add interest", so an exact-name query stays
+  // unambiguous once the dialog is open.
+  const barAddButton = () => screen.getByRole("button", { name: "Add" });
+
+  // Type a token into the quick-add bar and submit it. Returns the dialog's
+  // pre-seeded model input.
+  async function openAddDialog(user: ReturnType<typeof userEvent.setup>, token: string) {
+    await user.type(screen.getByLabelText("Add an interest"), token);
+    await user.click(barAddButton());
+    return screen.findByLabelText("Model number");
   }
 
-  it("saves the new interest and shows the row immediately", async () => {
+  // Drive the shared ProductsOfInterestInput inside the dialog: the model field
+  // arrives pre-seeded (and normalized) with the bar's token and the intent
+  // already defaults to "interested", so Enter alone commits it.
+  async function addInterest(user: ReturnType<typeof userEvent.setup>, model: string) {
+    const modelInput = await openAddDialog(user, model);
+    expect(modelInput).toHaveValue(normalizeModel(model));
+    await user.click(modelInput);
+    await user.keyboard("{Enter}");
+    return modelInput;
+  }
+
+  it("opens the composite add dialog pre-seeded from the quick-add bar", async () => {
     const user = userEvent.setup();
     render(<InterestsTab client={clientWithNoInterests} />);
 
+    // Dialog not open initially: the composite input isn't in the document.
+    expect(screen.queryByLabelText("Model number")).not.toBeInTheDocument();
     await addInterest(user, "vs-8840");
 
     expect(saveClientEdits).toHaveBeenCalledWith("client-2", {
@@ -148,7 +165,21 @@ describe("InterestsTab quick add", () => {
     });
     // Optimistic row replaces the empty state before the refresh lands.
     expect(await screen.findByText("VS-8840")).toBeInTheDocument();
-    expect(screen.getByLabelText("Model number")).toHaveValue("");
+  });
+
+  it("commits with Enter without touching the intent toggle", async () => {
+    const user = userEvent.setup();
+    render(<InterestsTab client={clientWithNoInterests} />);
+
+    const modelInput = await openAddDialog(user, "vs-8840");
+    // F11: a seeded model defaults the intent, so Enter is not a dead key.
+    expect(screen.getByRole("radio", { name: "Interested" })).toBeChecked();
+    await user.click(modelInput);
+    await user.keyboard("{Enter}");
+
+    expect(saveClientEdits).toHaveBeenCalledWith("client-2", {
+      productsOfInterest: [{ model: "VS-8840", collection: null, brand: null, intent: "interested" }],
+    });
   });
 
   it("blocks a duplicate client-side without calling the action", async () => {
@@ -161,11 +192,101 @@ describe("InterestsTab quick add", () => {
     expect(saveClientEdits).not.toHaveBeenCalled();
   });
 
-  it("disables the add button until a model/collection/intent is provided", () => {
+  it("renders the rejection message inside the open dialog", async () => {
+    const user = userEvent.setup();
+    render(<InterestsTab client={clientWithInterests} />);
+
+    await addInterest(user, "kx1023-01x");
+
+    // Regression: the alert used to live in the quick-add bar, behind the
+    // modal overlay, so the user never saw why nothing happened.
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
+      "This client already has that interest",
+    );
+  });
+
+  it("keeps the typed fields when the add is rejected", async () => {
+    const user = userEvent.setup();
+    render(<InterestsTab client={clientWithInterests} />);
+
+    const modelInput = await addInterest(user, "kx1023-01x");
+
+    // F4: a rejected add must not clear the draft — the user has to be able to
+    // correct the model rather than retype it.
+    expect(modelInput).toHaveValue("KX1023-01X");
+    expect(screen.getByRole("radio", { name: "Interested" })).toBeChecked();
+  });
+
+  it("reports a same model+collection add that only differs by intent", async () => {
+    const user = userEvent.setup();
+    render(<InterestsTab client={clientWithInterests} />);
+
+    // KX1023-01X / Solaris is already tracked with intent "promo". The server
+    // dedupe rule ignores intent, so this add is a no-op — say so out loud
+    // instead of silently swallowing it.
+    const modelInput = await openAddDialog(user, "kx1023-01x");
+    await user.type(screen.getByLabelText("Collection"), "Solaris");
+    await user.click(modelInput);
+    await user.keyboard("{Enter}");
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "That interest is already tracked — change it from Edit Client.",
+    );
+    expect(saveClientEdits).not.toHaveBeenCalled();
+  });
+
+  it("does not open the dialog from an empty quick-add bar", async () => {
+    const user = userEvent.setup();
     render(<InterestsTab client={clientWithNoInterests} />);
 
-    // The shared input's only unlabeled button is the [+ Add] action.
-    expect(screen.getByRole("button", { name: "" })).toBeDisabled();
+    await user.click(barAddButton());
+    expect(screen.queryByLabelText("Model number")).not.toBeInTheDocument();
+    expect(saveClientEdits).not.toHaveBeenCalled();
+  });
+
+  it("does not open the dialog from a whitespace-only quick-add bar", async () => {
+    const user = userEvent.setup();
+    render(<InterestsTab client={clientWithNoInterests} />);
+
+    await user.type(screen.getByLabelText("Add an interest"), "   ");
+    await user.click(barAddButton());
+    expect(screen.queryByLabelText("Model number")).not.toBeInTheDocument();
+    expect(saveClientEdits).not.toHaveBeenCalled();
+  });
+
+  it("closes the dialog on Done", async () => {
+    const user = userEvent.setup();
+    render(<InterestsTab client={clientWithNoInterests} />);
+
+    await openAddDialog(user, "vs-8840");
+    await user.click(screen.getByRole("button", { name: "Done" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("re-seeds with the new token when the dialog is reopened after an add", async () => {
+    const user = userEvent.setup();
+    render(<InterestsTab client={clientWithNoInterests} />);
+
+    await addInterest(user, "vs-8840");
+    await user.click(screen.getByRole("button", { name: "Done" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    expect(await openAddDialog(user, "nr-710-12l")).toHaveValue("NR-710-12L");
+  });
+
+  it("does not carry a stale seed when the dialog is closed without adding", async () => {
+    const user = userEvent.setup();
+    render(<InterestsTab client={clientWithNoInterests} />);
+
+    await openAddDialog(user, "vs-8840");
+    await user.click(screen.getByRole("button", { name: "Done" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    // Closing clears the bar, so the next open seeds from the new token only.
+    expect(screen.getByLabelText("Add an interest")).toHaveValue("");
+    expect(await openAddDialog(user, "nr-710-12l")).toHaveValue("NR-710-12L");
     expect(saveClientEdits).not.toHaveBeenCalled();
   });
 

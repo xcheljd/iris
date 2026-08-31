@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,10 +14,29 @@ import type { CatalogEntry } from "@/lib/actions/model-catalog";
 
 interface Props {
   value: ProductOfInterest[];
-  onChangeAction: (next: ProductOfInterest[]) => void;
+  /**
+   * Receives the next list. Return `false` to reject the change — the draft
+   * fields are then left intact so the user can correct them. Returning
+   * nothing (the common case) counts as accepted and clears the draft.
+   */
+  onChangeAction: (next: ProductOfInterest[]) => void | boolean;
   catalogIndex?: Record<string, CatalogEntry> | null;
   isManager?: boolean;
   collectionSuggestions?: string[];
+  /**
+   * Pre-seed the model field (e.g. from a quick-add search bar), normalized at
+   * mount. Read **once**: later changes to this prop are ignored, so a caller
+   * that needs to re-seed must unmount the input first. `interests-tab` relies
+   * on Radix unmounting `DialogContent` when the dialog closes — do not add
+   * `forceMount` there without also adding an explicit re-seed effect.
+   */
+  initialModel?: string;
+  /**
+   * Render the existing entries as read-only badges. Add-only surfaces (the
+   * interests tab's "Add interest" dialog) pass `false` so a stray click can't
+   * bulk-delete tracked interests. Defaults to `true` for the edit forms.
+   */
+  allowRemove?: boolean;
 }
 
 const INTENT_LABELS: Record<InterestIntent, string> = {
@@ -38,11 +57,13 @@ function describe(p: ProductOfInterest) {
 
 /**
  * Structured products-of-interest editor. Each entry is
- * { model, collection, intent }; intent must be picked explicitly (no
- * default) and ≥1 of model/collection is required. When the entered model
- * is already in the catalog, the collection autofills and brand autofills
- * if the catalog has one; associates are locked to both. For unknown models
- * (not yet in catalog) brand is required before the entry can be added.
+ * { model, collection, brand, intent }; intent must be picked explicitly
+ * (no default, unless `initialModel` seeds one) and ≥1 of
+ * model/collection/brand is required — the server schema refines on
+ * `model || collection || brand`, so a brand-only interest is legal. When the
+ * entered model is already in the catalog, the collection autofills and brand
+ * autofills if the catalog has one; associates are locked to both. For unknown
+ * models (not yet in catalog) brand is required before the entry can be added.
  */
 export function ProductsOfInterestInput({
   value,
@@ -50,11 +71,20 @@ export function ProductsOfInterestInput({
   catalogIndex = null,
   isManager = false,
   collectionSuggestions,
+  initialModel = "",
+  allowRemove = true,
 }: Props) {
-  const [model, setModel] = useState("");
+  const [model, setModel] = useState(() => normalizeModel(initialModel));
   const [collection, setCollection] = useState("");
   const [brand, setBrand] = useState<Brand | "">("");
-  const [intent, setIntent] = useState<InterestIntent | "">("");
+  // A seeded model means the user already committed to adding something, so
+  // default the intent rather than leaving Enter a dead key.
+  const [intent, setIntent] = useState<InterestIntent | "">(() =>
+    normalizeModel(initialModel) ? "interested" : "",
+  );
+  // Select the seeded text on first focus so it can be typed over; later
+  // focuses (after the user has edited or added) must not hijack the caret.
+  const selectOnFocus = useRef(normalizeModel(initialModel) !== "");
   const listId = useId();
   const suggestions = collectionSuggestions ?? MERIDIAN_COLLECTIONS;
 
@@ -92,8 +122,14 @@ export function ProductsOfInterestInput({
       brand: brand || null,
       intent: it,
     };
-    if (!value.some((p) => keyOf(p) === keyOf(entry))) onChangeAction([...value, entry]);
-    reset();
+    if (value.some((p) => keyOf(p) === keyOf(entry))) {
+      reset();
+      return;
+    }
+    // A parent may reject the add (duplicate, save in flight). Keep the draft
+    // fields intact in that case so the user can correct and retry.
+    const accepted = onChangeAction([...value, entry]);
+    if (accepted !== false) reset();
   }
 
   const add = () => {
@@ -126,6 +162,11 @@ export function ProductsOfInterestInput({
           placeholder="Model number"
           value={model}
           onChange={(e) => setModel(e.target.value)}
+          onFocus={(e) => {
+            if (!selectOnFocus.current) return;
+            selectOnFocus.current = false;
+            e.currentTarget.select();
+          }}
           onBlur={() => setModel((v) => normalizeModel(v))}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
           className="font-mono"
@@ -155,7 +196,7 @@ export function ProductsOfInterestInput({
             {BRAND_VALUES.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Button type="button" onClick={add} variant="outline" className="shrink-0" disabled={addDisabled}>
+        <Button type="button" onClick={add} variant="outline" className="shrink-0" disabled={addDisabled} aria-label="Add interest">
           <Plus className="size-4" />
         </Button>
       </div>
@@ -186,16 +227,18 @@ export function ProductsOfInterestInput({
         {value.map((p) => (
           <Badge key={keyOf(p)} variant="secondary" className="cursor-default">
             {describe(p)}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="size-5 ml-1"
-              onClick={() => remove(p)}
-              aria-label={`Remove ${describe(p)}`}
-            >
-              <X className="size-3" />
-            </Button>
+            {allowRemove && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="size-5 ml-1"
+                onClick={() => remove(p)}
+                aria-label={`Remove ${describe(p)}`}
+              >
+                <X className="size-3" />
+              </Button>
+            )}
           </Badge>
         ))}
       </div>

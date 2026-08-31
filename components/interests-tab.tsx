@@ -9,7 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { MoreHorizontal, Tag } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { MoreHorizontal, Plus, Tag } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ColumnHeader } from "@/components/column-header";
@@ -56,11 +57,16 @@ function interestKey(p: Pick<ProductOfInterest, "model" | "collection">) {
 
 export function InterestsTab({ client }: InterestsTabProps) {
   const router = useRouter();
-  // Inline message shown when an add is rejected client-side (duplicate).
+  // Inline message shown inside the add dialog when an add is rejected
+  // client-side (duplicate, already tracked, or a save still in flight).
   const [addError, setAddError] = useState<string | null>(null);
+  // Quick-add bar: the typed token opens the add dialog and doubles as the
+  // seed for the composite input's model field. Cleared when the dialog closes.
+  const [draft, setDraft] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
   // Rows added/removed this session, shown before the server round-trip resolves.
   const [optimistic, setOptimistic] = useState<ProductOfInterest[]>([]);
-  const [, startSaving] = useTransition();
+  const [saving, startSaving] = useTransition();
 
   const saved = useMemo(() => client.productsOfInterest ?? [], [client.productsOfInterest]);
   // Drop optimistic rows once the refreshed client carries them.
@@ -69,10 +75,25 @@ export function InterestsTab({ client }: InterestsTabProps) {
     return [...saved, ...optimistic.filter((p) => !have.has(interestKey(p)))];
   }, [saved, optimistic]);
 
-  const handleProductsChange = (next: ProductOfInterest[]) => {
+  // Returns `false` when the add is rejected, which tells the composite input
+  // to keep the draft fields instead of clearing them.
+  const handleProductsChange = (next: ProductOfInterest[]): boolean | void => {
+    // A save is already in flight. Accepting a second one would race it onto a
+    // list built from pre-save state, so reject and let the user retry.
+    if (saving) {
+      setAddError("Still saving the last interest — try again in a moment.");
+      return false;
+    }
+
     const removed = products.filter((p) => !next.some((q) => interestKey(q) === interestKey(p)));
     const added = next.filter((p) => !products.some((q) => interestKey(q) === interestKey(p)));
-    if (added.length === 0 && removed.length === 0) return;
+    if (added.length === 0 && removed.length === 0) {
+      // `interestKey` deliberately ignores intent (it mirrors the server's
+      // dedupe rule), so a same model+collection add with a different intent
+      // lands here as a no-op. Say so rather than swallowing it.
+      setAddError("That interest is already tracked — change it from Edit Client.");
+      return false;
+    }
 
     // Client-side dedupe. The shared input only compares model|collection|
     // brand|intent as one tuple, which misses a model overlapping an existing
@@ -92,7 +113,7 @@ export function InterestsTab({ client }: InterestsTabProps) {
     });
     if (duplicate) {
       setAddError("This client already has that interest");
-      return;
+      return false;
     }
     setAddError(null);
 
@@ -114,6 +135,14 @@ export function InterestsTab({ client }: InterestsTabProps) {
       }
       router.refresh();
     });
+  };
+
+  // Every close path funnels through here — Radix's onOpenChange only fires
+  // for Escape/overlay/X, not for the footer's Done button.
+  const closeAdd = () => {
+    setAddOpen(false);
+    setDraft("");
+    setAddError(null);
   };
 
   const matched = client.matches.filter(
@@ -230,19 +259,66 @@ export function InterestsTab({ client }: InterestsTabProps) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="mb-4 flex flex-col gap-1.5">
-          <ProductsOfInterestInput
-            value={products}
-            onChangeAction={handleProductsChange}
-            catalogIndex={catalogIndex}
-            isManager={isManager}
+        <form
+          className="mb-4 flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!draft.trim()) return;
+            setAddError(null);
+            setAddOpen(true);
+          }}
+        >
+          <Input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Add a model or collection…"
+            aria-label="Add an interest"
+            className="max-w-xs"
           />
-          {addError && (
-            <p role="alert" className="text-xs text-destructive">
-              {addError}
-            </p>
-          )}
-        </div>
+          <Button type="submit" size="sm" variant="outline">
+            <Plus className="size-4 mr-1" />
+            Add
+          </Button>
+        </form>
+        {/* Composite add dialog — same input the edit form uses, pre-seeded
+            with the quick-add token so the bar stays one keystroke ahead. */}
+        <Dialog open={addOpen} onOpenChange={(o) => (o ? setAddOpen(true) : closeAdd())}>
+          <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle>Add interest</DialogTitle>
+              <DialogDescription>
+                Pick an intent and confirm the model or collection. Cataloged models fill in the rest.
+              </DialogDescription>
+            </DialogHeader>
+            {/* Add-only surface: existing interests show as read-only badges so a
+                stray click can't delete one with no undo. */}
+            <ProductsOfInterestInput
+              value={products}
+              onChangeAction={handleProductsChange}
+              catalogIndex={catalogIndex}
+              isManager={isManager}
+              initialModel={draft.trim()}
+              allowRemove={false}
+            />
+            {addError && (
+              <p role="alert" className="text-xs text-destructive">
+                {addError}
+              </p>
+            )}
+            <DialogFooter className="sm:justify-start">
+              {/* One child: DialogFooter's mobile flex-col-reverse would otherwise
+                  float Done above the caption that explains it. */}
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                <p className="text-xs text-muted-foreground">
+                  The interest saves as soon as you add it here.
+                </p>
+                <Button type="button" variant="outline" size="sm" onClick={closeAdd}>
+                  Done
+                </Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         {rows.length === 0 ? (
           <EmptyState icon={Tag} title="No products of interest recorded" compact />
         ) : (
