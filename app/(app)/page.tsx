@@ -13,6 +13,7 @@ import { getSession } from "@/lib/auth";
 import Link from "next/link";
 import { Flame, Phone, ShoppingBag, Users, AlertCircle, Calendar, ArrowRight, TrendingUp, Target, Clock, CheckCircle2 } from "lucide-react";
 import { formatDate, formatDaysAgo, formatOccasionDate } from "@/lib/utils";
+import { DateTimeCell, TextCell } from "@/components/data-table/cells";
 import { DashboardSkeleton } from "@/components/skeletons";
 
 export default function DashboardPage() {
@@ -229,16 +230,14 @@ async function DashboardContent() {
                                 <span className="text-sm text-muted-foreground">&mdash;</span>
                               )}
                             </TableCell>
-                            <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
-                              {a.employeeName || "—"}
-                            </TableCell>
+                            <TextCell
+                              value={a.employeeName}
+                              className="hidden sm:table-cell text-sm text-muted-foreground"
+                            />
                             <TableCell className="hidden md:table-cell text-sm text-muted-foreground max-w-[200px] truncate">
                               {ev.description}
                             </TableCell>
-                            <TableCell className="text-right">
-                              <div className="text-xs text-muted-foreground">{formatDate(ev.createdAt)}</div>
-                              <div className="text-xs text-muted-foreground">{formatDaysAgo(ev.createdAt)}</div>
-                            </TableCell>
+                            <DateTimeCell value={ev.createdAt} showRelative className="text-right" />
                           </TableRow>
                         );
                       })}

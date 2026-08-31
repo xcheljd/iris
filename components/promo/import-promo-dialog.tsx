@@ -17,6 +17,7 @@ import { parsePromoPdf, type ParsedPromoPdf } from "@/lib/promo-pdf-parser";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BRAND_VALUES, type Brand } from "@/lib/db/schema";
 import { formatMoney } from "@/lib/utils";
+import { MoneyCell, PercentCell } from "@/components/data-table/cells";
 import { EmptyState } from "@/components/empty-state";
 
 interface ImportPromoDialogProps {
@@ -313,14 +314,16 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
                             <div className="text-[10px] text-amber-600">PDF said: {r.pdfCollection}</div>
                           )}
                         </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {formatMoney(r.pdfMsrp ?? r.catalogMsrp)}
-                          {r.msrpLow && (
-                            <div className="text-[10px] text-amber-600">below catalog {formatMoney(r.catalogMsrp)}</div>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">{r.discountPercent != null ? `${r.discountPercent}%` : "—"}</TableCell>
-                        <TableCell className="text-right tabular-nums">{formatMoney(r.discountPrice)}</TableCell>
+                        <MoneyCell
+                          value={r.pdfMsrp ?? r.catalogMsrp}
+                          note={
+                            r.msrpLow ? (
+                              <div className="text-[10px] text-amber-600">below catalog {formatMoney(r.catalogMsrp)}</div>
+                            ) : null
+                          }
+                        />
+                        <PercentCell value={r.discountPercent} />
+                        <MoneyCell value={r.discountPrice} />
                       </TableRow>
                     );
                   })}

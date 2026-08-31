@@ -8,6 +8,7 @@ import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { MonoCell } from "@/components/data-table/cells";
 import { FileSpreadsheet, Upload, AlertCircle, CheckCircle2, Info, AlertTriangle } from "lucide-react";
 import { analyzeCatalogRvx, importCatalogRvx, type CatalogImportAnalysis } from "@/lib/actions";
 import { toast } from "sonner";
@@ -162,7 +163,7 @@ export function ImportCatalogDialog({ open, onOpenChangeAction }: ImportCatalogD
                     <TableBody>
                       {analysis.collectionChanges.slice(0, 25).map((c) => (
                         <TableRow key={c.model}>
-                          <TableCell className="font-mono text-sm">{c.model}</TableCell>
+                          <MonoCell value={c.model} />
                           <TableCell>{c.from}</TableCell>
                           <TableCell className="font-medium">{c.to}</TableCell>
                         </TableRow>
