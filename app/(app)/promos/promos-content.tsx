@@ -36,7 +36,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Filter } from "lucide-react";
 import { ColumnHeader } from "@/components/column-header";
 import { Topbar } from "@/components/topbar";
-import { formatMoney } from "@/lib/utils";
+import { MoneyCell, MonoCell, PercentCell, StatusBadgeCell } from "@/components/data-table/cells";
 // Promo Import disabled for demo — Coming Soon
 // import { ImportPromoDialog } from "@/components/promo/import-promo-dialog";
 
@@ -433,21 +433,22 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
                 <TableBody>
                   {paginated.map((promo) => (
                       <TableRow key={promo.id}>
-                        <TableCell className="font-medium font-mono text-sm">{promo.modelNumber}</TableCell>
-                        <TableCell><Badge variant="outline">{promo.collection}</Badge></TableCell>
+                        <MonoCell value={promo.modelNumber} className="font-medium" />
+                        <StatusBadgeCell label={promo.collection} variant="outline" />
                         <TableCell className="hidden sm:table-cell">{brandLabel(promo.brand)}</TableCell>
-                        <TableCell className="text-right tabular-nums hidden sm:table-cell">{formatMoney(promo.msrp)}</TableCell>
-                        <TableCell className="text-right hidden md:table-cell">{promo.discountPercent != null ? `${promo.discountPercent}%` : "—"}</TableCell>
-                        <TableCell className="text-right tabular-nums hidden sm:table-cell font-medium text-green-500">{formatMoney(promo.discountPrice)}</TableCell>
+                        <MoneyCell value={promo.msrp} className="hidden sm:table-cell" />
+                        <PercentCell value={promo.discountPercent} className="hidden md:table-cell" />
+                        <MoneyCell value={promo.discountPrice} emphasis="sale" className="hidden sm:table-cell" />
                         <TableCell className="text-right hidden md:table-cell">{promo.sizeOneQty}</TableCell>
                         <TableCell className="text-right hidden md:table-cell">{promo.sizeTwoQty}</TableCell>
-                        <TableCell className="text-right">
-                          {(matchCounts[promo.id] ?? 0) > 0 && (
-                            <Badge variant="secondary">
-                              {matchCounts[promo.id]} client{matchCounts[promo.id] !== 1 ? "s" : ""}
-                            </Badge>
-                          )}
-                        </TableCell>
+                        <StatusBadgeCell
+                          className="text-right"
+                          label={
+                            (matchCounts[promo.id] ?? 0) > 0
+                              ? `${matchCounts[promo.id]} client${matchCounts[promo.id] !== 1 ? "s" : ""}`
+                              : null
+                          }
+                        />
                         {isManager && (
                         <TableCell className="text-right">
                           <DropdownMenu>

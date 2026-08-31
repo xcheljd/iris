@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -15,7 +14,7 @@ import { ColumnHeader } from "@/components/column-header";
 import { brandLabel } from "@/lib/brand";
 import { MatchedClientsCsvExportDialog } from "@/components/matched-clients-csv-export-dialog";
 import type { MatchedClientRow } from "@/lib/queries";
-import { formatMoney } from "@/lib/utils";
+import { MoneyCell, MonoCell, StatusBadgeCell, TextCell } from "@/components/data-table/cells";
 
 const PAGE_SIZE = 15;
 
@@ -183,15 +182,15 @@ export function MatchedClientsTab({ clients, isManager, currentUserId }: Props) 
                         ) : fullName(c)}
                       </TableCell>
                       <TableCell>{c.ownerName ?? "Unassigned"}</TableCell>
-                      <TableCell className="hidden md:table-cell capitalize">{c.preferredContact ?? "—"}</TableCell>
-                      <TableCell className="hidden sm:table-cell">{c.phone ?? "—"}</TableCell>
-                      <TableCell className="hidden lg:table-cell">{c.email ?? "—"}</TableCell>
-                      <TableCell className="font-mono text-sm">{c.promoModel}</TableCell>
+                      <TextCell value={c.preferredContact} className="hidden md:table-cell capitalize" />
+                      <TextCell value={c.phone} className="hidden sm:table-cell" />
+                      <TextCell value={c.email} className="hidden lg:table-cell" />
+                      <MonoCell value={c.promoModel} />
                       <TableCell className="hidden sm:table-cell">{c.promoCollection}</TableCell>
                       <TableCell className="hidden sm:table-cell">{brandLabel(c.promoBrand)}</TableCell>
-                      <TableCell className="text-right tabular-nums hidden md:table-cell">{formatMoney(c.msrp)}</TableCell>
-                      <TableCell className="text-right tabular-nums hidden md:table-cell text-green-500">{formatMoney(c.discountPrice)}</TableCell>
-                      <TableCell><Badge variant={c.matchType === "model" ? "default" : "secondary"}>{c.matchType}</Badge></TableCell>
+                      <MoneyCell value={c.msrp} className="hidden md:table-cell" />
+                      <MoneyCell value={c.discountPrice} emphasis="sale" className="hidden md:table-cell" />
+                      <StatusBadgeCell label={c.matchType} variant={c.matchType === "model" ? "default" : "secondary"} />
                     </TableRow>
                   );
                 })}
