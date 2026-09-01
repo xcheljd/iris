@@ -61,3 +61,86 @@ Object.defineProperty(window, "matchMedia", {
 if (typeof window !== "undefined" && !Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = function () {};
 }
+
+// ---------------------------------------------------------------------------
+// localStorage regression: expose a working Storage in the jsdom environment.
+//
+// The SearchInputWithHistory suite and the ClientListContent pagination suite
+// call `localStorage.clear()` directly in their beforeEach hooks (and read the
+// same store via `window.localStorage`). jsdom only provides a usable
+// localStorage when the document runs on a non-opaque origin; on the default
+// `about:blank` / `null` origin the property is inaccessible, so the bare
+// global is left `undefined` and every one of those specs throws
+// "localStorage is not defined" before a single assertion runs (13 tests).
+//
+// Install a real in-memory Storage whenever one is missing, point BOTH
+// `globalThis` and `window` at the SAME instance (so the tests' bare
+// `localStorage.clear()` and the components' `window.localStorage` stay in
+// sync), then assert it is actually wired up — a future environment change
+// that silently drops it should fail loudly here instead of as 13 cryptic
+// per-spec errors downstream.
+// ---------------------------------------------------------------------------
+function installTestLocalStorage(): Storage {
+  const store = new Map<string, string>();
+  const storage: Storage = {
+    get length() {
+      return store.size;
+    },
+    clear() {
+      store.clear();
+    },
+    getItem(key: string) {
+      return store.has(key) ? (store.get(key) as string) : null;
+    },
+    key(index: number) {
+      return Array.from(store.keys())[index] ?? null;
+    },
+    removeItem(key: string) {
+      store.delete(key);
+    },
+    setItem(key: string, value: string) {
+      store.set(key, String(value));
+    },
+  };
+
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    writable: true,
+    value: storage,
+  });
+  if (typeof window !== "undefined") {
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      writable: true,
+      value: storage,
+    });
+  }
+  return storage;
+}
+
+function resolveLocalStorage(): Storage {
+  try {
+    const existing = (globalThis as { localStorage?: Storage | undefined }).localStorage;
+    if (existing && typeof existing.clear === "function") return existing;
+  } catch {
+    // jsdom may throw on opaque origins — fall through and install a stub.
+  }
+  return installTestLocalStorage();
+}
+
+// Regression assertion: the SearchInputWithHistory / ClientListContent
+// pagination suites depend on a callable localStorage in beforeEach. Asserting
+// it here surfaces a broken environment at suite setup rather than as the 13
+// "localStorage is not defined" spec failures.
+const TEST_LOCAL_STORAGE = resolveLocalStorage();
+if (
+  !TEST_LOCAL_STORAGE ||
+  typeof TEST_LOCAL_STORAGE.clear !== "function" ||
+  typeof TEST_LOCAL_STORAGE.getItem !== "function" ||
+  typeof TEST_LOCAL_STORAGE.setItem !== "function"
+) {
+  throw new Error(
+    "localStorage regression: no usable localStorage in the test environment — " +
+      "SearchInputWithHistory and ClientListContent pagination suites depend on it.",
+  );
+}
