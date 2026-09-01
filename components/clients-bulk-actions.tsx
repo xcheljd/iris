@@ -419,7 +419,7 @@ function ReassignOwnerDialog({
                 <ChevronDown className="size-4 opacity-50" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)]" align="start">
+            <PopoverContent className="p-0 w-(--radix-popover-trigger-width)" align="start">
               <Command>
                 <CommandInput placeholder="Search owners…" />
                 <CommandList>

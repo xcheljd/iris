@@ -15,7 +15,7 @@ const items = [
 export function MobileNav() {
   const pathname = usePathname();
   return (
-    <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-5 border-t bg-background/95 backdrop-blur">
+    <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-5 border-t bg-background/95 backdrop-blur-sm">
       {items.map((it) => {
         const active = pathname === it.href || (it.href !== "/" && pathname.startsWith(it.href + "/"));
         return (

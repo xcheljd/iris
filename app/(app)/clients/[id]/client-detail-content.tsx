@@ -81,7 +81,7 @@ export function ClientDetailContent({ client, currentUserRole }: { client: FullC
            </div>
 
            {/* Desktop: persistent sidebar */}
-           <div className="hidden md:block md:w-[280px] md:flex-shrink-0 md:border-r md:overflow-y-auto bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+           <div className="hidden md:block md:w-[280px] md:shrink-0 md:border-r md:overflow-y-auto bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/60">
              <ClientSidebar />
           </div>
 

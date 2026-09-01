@@ -222,7 +222,7 @@ function HintOverlay({ hint }: { hint: HintDefinition }) {
     <>
       {/* Dark backdrop */}
       <div
-        className="fixed inset-0 z-[9996]"
+        className="fixed inset-0 z-9996"
         style={{ backgroundColor: "rgba(0, 0, 0, 0.3)" }}
         aria-hidden="true"
         onClick={dismissHint}
@@ -345,7 +345,7 @@ function HintPopover({
 
   return (
     <div
-      className="fixed z-[9998]"
+      className="fixed z-9998"
       style={{
         top: popoverTop,
         left: clampedLeft,

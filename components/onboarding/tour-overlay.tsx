@@ -305,7 +305,7 @@ export function TourOverlay() {
     <>
       {/* Dark backdrop */}
       <div
-        className="fixed inset-0 z-[9998]"
+        className="fixed inset-0 z-9998"
         style={{
           backgroundColor: "rgba(0, 0, 0, 0.5)",
         }}
@@ -392,7 +392,7 @@ export function ResumeTourButton() {
     <button
       type="button"
       onClick={resumeTour}
-      className="fixed bottom-6 right-6 z-[10002] flex items-center gap-2 rounded-full border bg-background px-4 py-2.5 shadow-lg transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      className="fixed bottom-6 right-6 z-10002 flex items-center gap-2 rounded-full border bg-background px-4 py-2.5 shadow-lg transition-colors hover:bg-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       aria-label="Resume Tour"
       style={{ minHeight: 44, minWidth: 44 }}
     >

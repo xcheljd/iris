@@ -29,7 +29,7 @@ export function Topbar({ title, children }: { title?: string; children?: React.R
   const showChildren = !navigating;
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/95 backdrop-blur px-4">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/95 backdrop-blur-sm px-4">
       <SidebarTrigger />
       <Separator orientation="vertical" className="mx-1 h-4" />
       {displayTitle && <h1 className="text-sm font-medium">{displayTitle}</h1>}

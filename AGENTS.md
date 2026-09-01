@@ -22,7 +22,7 @@ A self-hosted clienteling/CRM web app for Meridian Watch retail — replaces a s
 
 - **Language:** TypeScript 5 (`strict: true`, `target: ES2022`)
 - **Framework:** Next.js 15 (App Router, React Server Components), React 19
-- **UI:** shadcn/ui (New York style) + Tailwind CSS 3, Radix primitives, lucide icons, sonner toasts
+- **UI:** shadcn/ui (New York style) + Tailwind CSS 4, Radix primitives, lucide icons, sonner toasts
 - **DB:** SQLite via `better-sqlite3`; ORM: Drizzle ORM (`drizzle-kit`)
 - **Auth:** NextAuth.js (Credentials provider, JWT sessions) — needs `NEXTAUTH_SECRET` + `NEXTAUTH_URL`
 - **Forms/validation:** hand-rolled forms validated with zod
@@ -55,6 +55,13 @@ A self-hosted clienteling/CRM web app for Meridian Watch retail — replaces a s
   `"root": true` — without it ESLint 8 walks up past the repo, which breaks linting from a
   git worktree under `.claude/worktrees/` (it finds the parent checkout's identical config and
   aborts on a duplicate `@next/next` plugin).
+- **Styling:** Tailwind 4 is **CSS-first** — there is no `tailwind.config.ts`. Design tokens live
+  in the `@theme inline` block of `app/globals.css` (`inline` so utilities emit
+  `hsl(var(--token))` at the use site, which is what makes the `.dark` overrides and
+  `chart.tsx`'s inline `--color-*` behave as they did under v3). Plugins are registered with
+  `@plugin` (`tailwindcss-animate`), dark mode with `@custom-variant`, and `container` is an
+  `@utility`. Source files are auto-detected; `postcss.config.mjs` runs only
+  `@tailwindcss/postcss` (v4 prefixes via Lightning CSS, so autoprefixer is gone).
 - **Heat scoring:** computed in exactly one place — `lib/heat-score.ts` (`calcHeatScore`).
   Seeds, migrations and tests call it; nothing reimplements the rules inline. The seed is
   deterministic (mulberry32 PRNG, override with `SEED=<n>`) — do not reintroduce

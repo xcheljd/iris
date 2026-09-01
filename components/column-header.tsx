@@ -48,7 +48,7 @@ export function ColumnHeader<K extends string>({
       {sortKey != null ? (
         <button
           onClick={() => onSortAction?.(sortKey)}
-          className="flex items-center gap-1 rounded-sm hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex items-center gap-1 rounded-sm hover:text-foreground transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
         >
           {label}
           {isActive ? (

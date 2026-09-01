@@ -77,7 +77,7 @@ function WelcomeDialog({
 }: TooltipProps) {
   return (
     <div
-      className="fixed inset-0 z-[10000] flex items-center justify-center"
+      className="fixed inset-0 z-10000 flex items-center justify-center"
       role="dialog"
       aria-modal="true"
       aria-label={step.title}
@@ -270,7 +270,7 @@ function SpotlightTooltip({
     if (waitingForElement) {
       return (
         <div
-          className="fixed inset-0 z-[10000] flex items-center justify-center"
+          className="fixed inset-0 z-10000 flex items-center justify-center"
           role="status"
           aria-live="polite"
           aria-label="Loading tour step"
@@ -296,7 +296,7 @@ function SpotlightTooltip({
 
   return (
     <div
-      className="fixed z-[10000]"
+      className="fixed z-10000"
       style={{
         top: tooltipTop,
         left: clampedLeft,
