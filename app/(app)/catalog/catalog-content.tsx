@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import type { OnChangeFn, SortingState } from "@tanstack/react-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +19,8 @@ import { brandLabel } from "@/lib/brand";
 // Catalog Import disabled for demo — Coming Soon
 // import { ImportCatalogDialog } from "@/components/catalog/import-catalog-dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { ColumnHeader } from "@/components/column-header";
+import { DataTable, type DataTableColumn } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { ColumnFilterPopover } from "@/components/column-filter-popover";
 import { TextFilterMenu, MultiSelectMenu, RangeFilterMenu } from "@/components/column-filters";
 import { BRAND_VALUES } from "@/lib/db/schema";
@@ -99,12 +101,17 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
     router.replace(`/catalog${sp.toString() ? `?${sp.toString()}` : ""}`);
   }
 
-  const handleSort = (k: SortKey) => {
-    if (sort === k) {
-      navigate({ dir: dir === "asc" ? "desc" : "asc", page: 1 });
-    } else {
-      navigate({ sort: k, dir: "asc", page: 1 });
-    }
+  // The engine compares state slices shallowly, so this has to keep its
+  // identity between renders that did not change the sort.
+  const sorting = useMemo<SortingState>(() => [{ id: sort, desc: dir === "desc" }], [sort, dir]);
+
+  // The table only ever holds one sort, and removal is disabled, so the
+  // updater always resolves to a single column: same column flips direction,
+  // a new one starts ascending — and either way we go back to page 1.
+  const handleSortingChange: OnChangeFn<SortingState> = (updater) => {
+    const [next] = typeof updater === "function" ? updater(sorting) : updater;
+    if (!next) return;
+    navigate({ sort: next.id as SortKey, dir: next.desc ? "desc" : "asc", page: 1 });
   };
 
   const sourceBadge = (s: CatalogRow["source"]) =>
@@ -227,6 +234,162 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
       router.refresh();
     });
   };
+
+  // Rebuilt every render — cheap, because the engine keys its row model on
+  // `data` alone, and the inline-edit cells have to see the current draft.
+  const columns: DataTableColumn<CatalogRow>[] = [
+    {
+      id: "model",
+      accessorFn: (r) => r.model,
+      header: (ctx) => (
+        <DataTableColumnHeader
+          ctx={ctx}
+          label="Model"
+          filter={
+            <ColumnFilterPopover label="Model" active={!!mod} onClear={() => navigate({ mod: "", page: 1 })}>
+              <TextFilterMenu
+                value={mod}
+                onChange={(v) => navigate({ mod: v, page: 1 })}
+                placeholder="Filter model…"
+              />
+            </ColumnFilterPopover>
+          }
+        />
+      ),
+      cell: ({ row }) => <MonoCell value={row.original.model} />,
+    },
+    {
+      id: "collection",
+      accessorFn: (r) => r.collection,
+      header: (ctx) => (
+        <DataTableColumnHeader
+          ctx={ctx}
+          label="Collection"
+          filter={
+            <ColumnFilterPopover label="Collection" active={!!col} onClear={() => navigate({ col: "", page: 1 })}>
+              <TextFilterMenu
+                value={col}
+                onChange={(v) => navigate({ col: v, page: 1 })}
+                placeholder="Filter collection…"
+              />
+            </ColumnFilterPopover>
+          }
+        />
+      ),
+      cell: ({ row }) => (
+        <TableCell>
+          {editing === row.original.model ? (
+            <Input
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") saveCorrection(row.original.model, draft); if (e.key === "Escape") setEditing(null); }}
+              className="h-8 max-w-[200px]"
+            />
+          ) : (
+            row.original.collection
+          )}
+        </TableCell>
+      ),
+    },
+    {
+      id: "brand",
+      accessorFn: (r) => r.brand,
+      header: (ctx) => (
+        <DataTableColumnHeader
+          ctx={ctx}
+          label="Brand"
+          filter={
+            <ColumnFilterPopover
+              label="Brand"
+              active={brands.length > 0}
+              onClear={() => navigate({ brands: [], page: 1 })}
+            >
+              <MultiSelectMenu
+                options={BRAND_VALUES.map((b) => ({ value: b, label: brandLabel(b) }))}
+                selected={brands}
+                onChange={(next) => navigate({ brands: next, page: 1 })}
+                placeholder="Search brands…"
+              />
+            </ColumnFilterPopover>
+          }
+        />
+      ),
+      cell: ({ row }) => <TextCell value={row.original.brand ? brandLabel(row.original.brand) : null} />,
+    },
+    {
+      id: "msrp",
+      accessorFn: (r) => r.msrp,
+      meta: { headClassName: "text-right" },
+      header: (ctx) => (
+        <DataTableColumnHeader
+          ctx={ctx}
+          align="right"
+          label="MSRP"
+          filter={
+            <ColumnFilterPopover
+              label="MSRP"
+              active={msrpMin != null || msrpMax != null}
+              onClear={() => navigate({ msrpMin: undefined, msrpMax: undefined, page: 1 })}
+            >
+              <RangeFilterMenu
+                min={msrpMin ?? 0}
+                max={msrpMax ?? msrpCeiling}
+                ceiling={msrpCeiling}
+                onChange={({ min, max }) =>
+                  navigate({
+                    msrpMin: min > 0 ? min : undefined,
+                    msrpMax: max < msrpCeiling ? max : undefined,
+                    page: 1,
+                  })
+                }
+              />
+            </ColumnFilterPopover>
+          }
+        />
+      ),
+      cell: ({ row }) => <MoneyCell value={row.original.msrp} />,
+    },
+    {
+      id: "source",
+      header: "Source",
+      cell: ({ row }) => <StatusBadgeCell label={row.original.source} variant={sourceBadge(row.original.source)} />,
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      meta: { headClassName: "text-right" },
+      cell: ({ row }) => (
+        <TableCell className="text-right">
+          {editing === row.original.model ? (
+            <div className="flex justify-end gap-2">
+              <Button size="sm" disabled={pending} onClick={() => saveCorrection(row.original.model, draft)}>Save</Button>
+              <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
+            </div>
+          ) : (
+            <div className="flex justify-end gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => { setEditing(row.original.model); setDraft(row.original.collection); }}
+              >
+                <Pencil className="size-4 mr-1" />Correct
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-destructive hover:text-destructive"
+                aria-label={`Delete ${row.original.model}`}
+                onClick={() => setDeleteTarget(row.original.model)}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </div>
+          )}
+        </TableCell>
+      ),
+    },
+  ];
 
   return (
     <>
@@ -368,167 +531,18 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
             ) : rows.length === 0 ? (
               <EmptyState icon={Library} title="No matches for current filters" compact />
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>
-                        <ColumnHeader
-                          label="Model"
-                          sortKey="model"
-                          currentSort={sort}
-                          currentDir={dir}
-                          onSortAction={handleSort}
-                          filter={
-                            <ColumnFilterPopover
-                              label="Model"
-                              active={!!mod}
-                              onClear={() => navigate({ mod: "", page: 1 })}
-                            >
-                              <TextFilterMenu
-                                value={mod}
-                                onChange={(v) => navigate({ mod: v, page: 1 })}
-                                placeholder="Filter model…"
-                              />
-                            </ColumnFilterPopover>
-                          }
-                        />
-                      </TableHead>
-
-                      <TableHead>
-                        <ColumnHeader
-                          label="Collection"
-                          sortKey="collection"
-                          currentSort={sort}
-                          currentDir={dir}
-                          onSortAction={handleSort}
-                          filter={
-                            <ColumnFilterPopover
-                              label="Collection"
-                              active={!!col}
-                              onClear={() => navigate({ col: "", page: 1 })}
-                            >
-                              <TextFilterMenu
-                                value={col}
-                                onChange={(v) => navigate({ col: v, page: 1 })}
-                                placeholder="Filter collection…"
-                              />
-                            </ColumnFilterPopover>
-                          }
-                        />
-                      </TableHead>
-
-                      <TableHead>
-                        <ColumnHeader
-                          label="Brand"
-                          sortKey="brand"
-                          currentSort={sort}
-                          currentDir={dir}
-                          onSortAction={handleSort}
-                          filter={
-                            <ColumnFilterPopover
-                              label="Brand"
-                              active={brands.length > 0}
-                              onClear={() => navigate({ brands: [], page: 1 })}
-                            >
-                              <MultiSelectMenu
-                                options={BRAND_VALUES.map((b) => ({ value: b, label: brandLabel(b) }))}
-                                selected={brands}
-                                onChange={(next) => navigate({ brands: next, page: 1 })}
-                                placeholder="Search brands…"
-                              />
-                            </ColumnFilterPopover>
-                          }
-                        />
-                      </TableHead>
-
-                      <TableHead className="text-right">
-                        <ColumnHeader
-                          align="right"
-                          label="MSRP"
-                          sortKey="msrp"
-                          currentSort={sort}
-                          currentDir={dir}
-                          onSortAction={handleSort}
-                          filter={
-                            <ColumnFilterPopover
-                              label="MSRP"
-                              active={msrpMin != null || msrpMax != null}
-                              onClear={() => navigate({ msrpMin: undefined, msrpMax: undefined, page: 1 })}
-                            >
-                              <RangeFilterMenu
-                                min={msrpMin ?? 0}
-                                max={msrpMax ?? msrpCeiling}
-                                ceiling={msrpCeiling}
-                                onChange={({ min, max }) =>
-                                  navigate({
-                                    msrpMin: min > 0 ? min : undefined,
-                                    msrpMax: max < msrpCeiling ? max : undefined,
-                                    page: 1,
-                                  })
-                                }
-                              />
-                            </ColumnFilterPopover>
-                          }
-                        />
-                      </TableHead>
-
-                      <TableHead>Source</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rows.map((r) => (
-                      <TableRow key={r.model}>
-                        <MonoCell value={r.model} />
-                        <TableCell>
-                          {editing === r.model ? (
-                            <Input
-                              autoFocus
-                              value={draft}
-                              onChange={(e) => setDraft(e.target.value)}
-                              onKeyDown={(e) => { if (e.key === "Enter") saveCorrection(r.model, draft); if (e.key === "Escape") setEditing(null); }}
-                              className="h-8 max-w-[200px]"
-                            />
-                          ) : (
-                            r.collection
-                          )}
-                        </TableCell>
-                        <TextCell value={r.brand ? brandLabel(r.brand) : null} />
-                        <MoneyCell value={r.msrp} />
-                        <StatusBadgeCell label={r.source} variant={sourceBadge(r.source)} />
-                        <TableCell className="text-right">
-                          {editing === r.model ? (
-                            <div className="flex justify-end gap-2">
-                              <Button size="sm" disabled={pending} onClick={() => saveCorrection(r.model, draft)}>Save</Button>
-                              <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
-                            </div>
-                          ) : (
-                            <div className="flex justify-end gap-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => { setEditing(r.model); setDraft(r.collection); }}
-                              >
-                                <Pencil className="size-4 mr-1" />Correct
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="text-destructive hover:text-destructive"
-                                aria-label={`Delete ${r.model}`}
-                                onClick={() => setDeleteTarget(r.model)}
-                              >
-                                <Trash2 className="size-4" />
-                              </Button>
-                            </div>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              <DataTable
+                chrome={false}
+                columns={columns}
+                data={rows}
+                getRowId={(r) => r.model}
+                manualSorting
+                manualFiltering
+                manualPagination
+                rowCount={total}
+                state={{ sorting }}
+                onSortingChange={handleSortingChange}
+              />
             )}
           </CardContent>
         </Card>
