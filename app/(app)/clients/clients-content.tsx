@@ -1,22 +1,21 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo, useTransition } from "react";
-import { Card } from "@/components/ui/card";
+import type { OnChangeFn, PaginationState, RowSelectionState, SortingState } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { HeatBadgeCell, RelativeDateCell, TextCell } from "@/components/data-table/cells";
+import { DataTable, type DataTableColumn } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { SearchInputWithHistory, pushSearchHistory } from "@/components/search-input-with-history";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TableCell } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { PaginationFooter } from "@/components/pagination-footer";
 import { Topbar } from "@/components/topbar";
 import { formatPhone } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, MoreHorizontal, Eye, Edit, Ban, MailX, Trash2, Mail, BookmarkPlus, FileText, Users } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
-import { ColumnHeader } from "@/components/column-header";
 import { BanCustomerDialog, UnsubscribeCustomerDialog } from "@/components/client-status-actions";
 import { EmailRecipientsDialog } from "@/components/email-recipients-dialog";
 import { ClientsCsvExportDialog } from "@/components/clients-csv-export-dialog";
@@ -101,7 +100,7 @@ export function ClientListContent({
 }) {
   const router = useRouter();
   const [qLocal, setQLocal] = useState(currentFilters.q);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [deleteTarget, setDeleteTarget] = useState<ClientRow | null>(null);
   const [emailRecipientsOpen, setEmailRecipientsOpen] = useState(false);
   const [csvExportOpen, setCsvExportOpen] = useState(false);
@@ -243,29 +242,37 @@ export function ClientListContent({
     };
   }, [qLocal]);
 
-  const handleSort = (key: SortKey) => {
-    if (currentFilters.sort === key) {
-      navigate({ sortDir: currentFilters.sortDir === "asc" ? "desc" : "asc", page: 1 });
-    } else {
-      navigate({ sort: key, sortDir: "asc", page: 1 });
-    }
+  // Both slices are compared shallowly by the table, so they have to keep
+  // their identity between renders that did not change them.
+  const sorting = useMemo<SortingState>(
+    () => [{ id: currentFilters.sort, desc: currentFilters.sortDir === "desc" }],
+    [currentFilters.sort, currentFilters.sortDir],
+  );
+  const pagination = useMemo<PaginationState>(
+    () => ({ pageIndex: currentFilters.page - 1, pageSize: PAGE_SIZE }),
+    [currentFilters.page],
+  );
+
+  // Sort removal and descending-first are off in the engine, so the updater
+  // always resolves to one column: same column flips, a new one starts asc.
+  const handleSortingChange: OnChangeFn<SortingState> = (updater) => {
+    const [next] = typeof updater === "function" ? updater(sorting) : updater;
+    if (!next) return;
+    navigate({ sort: next.id as SortKey, sortDir: next.desc ? "desc" : "asc", page: 1 });
   };
 
-  const totalPages = Math.ceil(total / PAGE_SIZE);
-
-  const toggleAll = () => {
-    if (selected.size === rows.length) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(rows.map((r) => r.client.id)));
-    }
+  // "push" so browser back returns to the page the user came from.
+  const handlePaginationChange: OnChangeFn<PaginationState> = (updater) => {
+    const next = typeof updater === "function" ? updater(pagination) : updater;
+    navigate({ page: next.pageIndex + 1 }, "push");
   };
 
-  const toggleOne = (id: string) => {
-    const next = new Set(selected);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    setSelected(next);
-  };
+  // Selection is keyed by client id (`getRowId` below), so the map keys are
+  // the ids the bulk actions need — minus any the user has toggled back off.
+  const selectedIds = useMemo(
+    () => Object.keys(rowSelection).filter((id) => rowSelection[id]),
+    [rowSelection],
+  );
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -278,6 +285,227 @@ export function ClientListContent({
       router.refresh();
     }
   };
+
+  // Rebuilt every render — cheap, because the engine keys its row model on
+  // `data` alone. The checkbox column is the engine's (`selection` below).
+  const columns: DataTableColumn<ClientRow>[] = [
+    {
+      id: "name",
+      accessorFn: (r) => `${r.client.firstName} ${r.client.lastName ?? ""}`,
+      header: (ctx) => (
+        <DataTableColumnHeader
+          ctx={ctx}
+          label="Name"
+          filter={
+            <ColumnFilterPopover
+              label="Name"
+              active={!!currentFilters.nameQ}
+              onClear={() => navigate({ nameQ: "", page: 1 })}
+            >
+              <TextFilterMenu
+                value={currentFilters.nameQ}
+                onChange={(v) => navigate({ nameQ: v, page: 1 })}
+                placeholder="Filter name…"
+              />
+            </ColumnFilterPopover>
+          }
+        />
+      ),
+      cell: ({ row: { original: r } }) => (
+        <TableCell>
+          <Link href={`/clients/${r.client.id}`} className="font-medium hover:underline">
+            {r.client.firstName} {r.client.lastName ?? ""}
+          </Link>
+          {r.client.status !== "active" && <Badge variant="outline" className="ml-2 text-[10px] capitalize">{r.client.status}</Badge>}
+        </TableCell>
+      ),
+    },
+    {
+      id: "contact",
+      header: (ctx) => (
+        <DataTableColumnHeader
+          ctx={ctx}
+          label="Contact"
+          filter={
+            <ColumnFilterPopover
+              label="Contact"
+              active={!!currentFilters.contactQ}
+              onClear={() => navigate({ contactQ: "", page: 1 })}
+            >
+              <TextFilterMenu
+                value={currentFilters.contactQ}
+                onChange={(v) => navigate({ contactQ: v, page: 1 })}
+                placeholder="Filter email or phone…"
+              />
+            </ColumnFilterPopover>
+          }
+        />
+      ),
+      cell: ({ row: { original: r } }) => (
+        <TableCell className="max-w-[200px]">
+          {r.client.phone && <div className="text-xs">{formatPhone(r.client.phone)}</div>}
+          {r.client.email && <div className="text-xs text-muted-foreground truncate">{r.client.email}</div>}
+        </TableCell>
+      ),
+    },
+    {
+      id: "heat",
+      accessorFn: (r) => r.client.heatScore,
+      header: (ctx) => (
+        <DataTableColumnHeader
+          ctx={ctx}
+          label="Heat"
+          filter={
+            <ColumnFilterPopover
+              label="Heat"
+              active={currentFilters.heat !== "any"}
+              onClear={() => navigate({ heat: "any", page: 1 })}
+            >
+              <SingleSelectMenu
+                value={currentFilters.heat}
+                onChange={(v) => navigate({ heat: v, page: 1 })}
+                options={[
+                  { value: "any", label: "Any heat" },
+                  { value: "hot", label: "Hot" },
+                  { value: "warm", label: "Warm" },
+                  { value: "cold", label: "Cold" },
+                ]}
+              />
+            </ColumnFilterPopover>
+          }
+        />
+      ),
+      cell: ({ row: { original: r } }) => (
+        <HeatBadgeCell level={r.client.heatLevel} score={r.client.heatScore} showScore />
+      ),
+    },
+    {
+      id: "tags",
+      meta: { headClassName: "hidden md:table-cell" },
+      header: (ctx) => (
+        <DataTableColumnHeader
+          ctx={ctx}
+          label="Tags"
+          filter={
+            <ColumnFilterPopover
+              label="Tags"
+              active={currentFilters.tags.length > 0}
+              onClear={() => navigate({ tags: [], tagMode: "any", page: 1 })}
+            >
+              <TagsFilterMenu
+                allTags={allTags}
+                selected={currentFilters.tags}
+                mode={currentFilters.tagMode}
+                onChange={({ selected, mode }) => navigate({ tags: selected, tagMode: mode, page: 1 })}
+              />
+            </ColumnFilterPopover>
+          }
+        />
+      ),
+      cell: ({ row: { original: r } }) => (
+        <TableCell className="hidden md:table-cell">
+          <div className="flex gap-1 flex-wrap max-w-[180px]">
+            {(r.client.tags || []).slice(0, 3).map((t) => <Badge key={t} variant="secondary" className="text-[10px]">{t}</Badge>)}
+          </div>
+        </TableCell>
+      ),
+    },
+    {
+      id: "owner",
+      accessorFn: (r) => r.employeeName,
+      meta: { headClassName: "hidden md:table-cell" },
+      header: (ctx) => (
+        <DataTableColumnHeader
+          ctx={ctx}
+          label="Owner"
+          filter={
+            <ColumnFilterPopover
+              label="Owner"
+              active={currentFilters.owner !== "any"}
+              onClear={() => navigate({ owner: "any", page: 1 })}
+            >
+              <SingleSelectMenu
+                searchable
+                value={currentFilters.owner}
+                onChange={(v) => navigate({ owner: v, page: 1 })}
+                options={[
+                  { value: "any", label: "Any owner" },
+                  { value: "__none__", label: "Unassigned" },
+                  ...ownerNames.map((name) => ({ value: name, label: name })),
+                ]}
+              />
+            </ColumnFilterPopover>
+          }
+        />
+      ),
+      cell: ({ row: { original: r } }) => (
+        <TextCell value={r.employeeName} className="hidden md:table-cell text-xs text-muted-foreground" />
+      ),
+    },
+    {
+      id: "lastContact",
+      accessorFn: (r) => r.client.lastOutreachAt,
+      meta: { headClassName: "hidden md:table-cell" },
+      header: (ctx) => <DataTableColumnHeader ctx={ctx} label="Last contact" />,
+      cell: ({ row: { original: r } }) => (
+        <RelativeDateCell value={r.client.lastOutreachAt} className="hidden md:table-cell" />
+      ),
+    },
+    {
+      id: "actions",
+      meta: { headClassName: "w-10" },
+      header: () => <span className="sr-only">Actions</span>,
+      cell: ({ row: { original: r } }) => (
+        <TableCell>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-7" aria-label="Actions">
+                <MoreHorizontal className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href={`/clients/${r.client.id}`}><Eye className="size-4 mr-2" /> View</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/clients/${r.client.id}/edit`}><Edit className="size-4 mr-2" /> Edit</Link>
+              </DropdownMenuItem>
+              {r.client.status === "active" && (
+                <>
+                  <DropdownMenuSeparator />
+                  <BanCustomerDialog clientId={r.client.id} clientName={`${r.client.firstName} ${r.client.lastName ?? ""}`}>
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      <Ban className="size-4 mr-2" /> Ban Customer
+                    </DropdownMenuItem>
+                  </BanCustomerDialog>
+                  <UnsubscribeCustomerDialog clientId={r.client.id} clientName={`${r.client.firstName} ${r.client.lastName ?? ""}`}>
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      <MailX className="size-4 mr-2" /> Unsubscribe
+                    </DropdownMenuItem>
+                  </UnsubscribeCustomerDialog>
+                </>
+              )}
+              {currentUserRole === "manager" && r.client.status !== "deleted" && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget(r)}>
+                    <Trash2 className="size-4 mr-2" />
+                    Delete Client
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </TableCell>
+      ),
+    },
+  ];
 
   return (
     <>
@@ -332,246 +560,31 @@ export function ClientListContent({
 
         {/* Bulk actions */}
         <BulkActionsToolbar
-          selectedIds={Array.from(selected)}
-          onClearAction={() => setSelected(new Set())}
+          selectedIds={selectedIds}
+          onClearAction={() => setRowSelection({})}
           allTags={allTags}
           owners={employeeOptions}
           isManager={currentUserRole === "manager"}
         />
 
         {/* Table */}
-        <Card aria-busy={isPending} className={isPending ? "opacity-60 transition-opacity" : "transition-opacity"}>
-          <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-10">
-                  <span className="sr-only">Select all</span>
-                  <Checkbox
-                    checked={rows.length > 0 && selected.size === rows.length}
-                    onCheckedChange={toggleAll}
-                    aria-label="Select all clients"
-                  />
-                </TableHead>
-                <TableHead>
-                  <ColumnHeader
-                    label="Name"
-                    sortKey="name"
-                    currentSort={currentFilters.sort}
-                    currentDir={currentFilters.sortDir}
-                    onSortAction={handleSort}
-                    filter={
-                      <ColumnFilterPopover
-                        label="Name"
-                        active={!!currentFilters.nameQ}
-                        onClear={() => navigate({ nameQ: "", page: 1 })}
-                      >
-                        <TextFilterMenu
-                          value={currentFilters.nameQ}
-                          onChange={(v) => navigate({ nameQ: v, page: 1 })}
-                          placeholder="Filter name…"
-                        />
-                      </ColumnFilterPopover>
-                    }
-                  />
-                </TableHead>
-                <TableHead>
-                  <ColumnHeader
-                    label="Contact"
-                    filter={
-                      <ColumnFilterPopover
-                        label="Contact"
-                        active={!!currentFilters.contactQ}
-                        onClear={() => navigate({ contactQ: "", page: 1 })}
-                      >
-                        <TextFilterMenu
-                          value={currentFilters.contactQ}
-                          onChange={(v) => navigate({ contactQ: v, page: 1 })}
-                          placeholder="Filter email or phone…"
-                        />
-                      </ColumnFilterPopover>
-                    }
-                  />
-                </TableHead>
-                <TableHead>
-                  <ColumnHeader
-                    label="Heat"
-                    sortKey="heat"
-                    currentSort={currentFilters.sort}
-                    currentDir={currentFilters.sortDir}
-                    onSortAction={handleSort}
-                    filter={
-                      <ColumnFilterPopover
-                        label="Heat"
-                        active={currentFilters.heat !== "any"}
-                        onClear={() => navigate({ heat: "any", page: 1 })}
-                      >
-                        <SingleSelectMenu
-                          value={currentFilters.heat}
-                          onChange={(v) => navigate({ heat: v, page: 1 })}
-                          options={[
-                            { value: "any", label: "Any heat" },
-                            { value: "hot", label: "Hot" },
-                            { value: "warm", label: "Warm" },
-                            { value: "cold", label: "Cold" },
-                          ]}
-                        />
-                      </ColumnFilterPopover>
-                    }
-                  />
-                </TableHead>
-                <TableHead className="hidden md:table-cell">
-                  <ColumnHeader
-                    label="Tags"
-                    filter={
-                      <ColumnFilterPopover
-                        label="Tags"
-                        active={currentFilters.tags.length > 0}
-                        onClear={() => navigate({ tags: [], tagMode: "any", page: 1 })}
-                      >
-                        <TagsFilterMenu
-                          allTags={allTags}
-                          selected={currentFilters.tags}
-                          mode={currentFilters.tagMode}
-                          onChange={({ selected, mode }) => navigate({ tags: selected, tagMode: mode, page: 1 })}
-                        />
-                      </ColumnFilterPopover>
-                    }
-                  />
-                </TableHead>
-                <TableHead className="hidden md:table-cell">
-                  <ColumnHeader
-                    label="Owner"
-                    sortKey="owner"
-                    currentSort={currentFilters.sort}
-                    currentDir={currentFilters.sortDir}
-                    onSortAction={handleSort}
-                    filter={
-                      <ColumnFilterPopover
-                        label="Owner"
-                        active={currentFilters.owner !== "any"}
-                        onClear={() => navigate({ owner: "any", page: 1 })}
-                      >
-                        <SingleSelectMenu
-                          searchable
-                          value={currentFilters.owner}
-                          onChange={(v) => navigate({ owner: v, page: 1 })}
-                          options={[
-                            { value: "any", label: "Any owner" },
-                            { value: "__none__", label: "Unassigned" },
-                            ...ownerNames.map((name) => ({ value: name, label: name })),
-                          ]}
-                        />
-                      </ColumnFilterPopover>
-                    }
-                  />
-                </TableHead>
-                <TableHead className="hidden md:table-cell">
-                  <ColumnHeader
-                    label="Last contact"
-                    sortKey="lastContact"
-                    currentSort={currentFilters.sort}
-                    currentDir={currentFilters.sortDir}
-                    onSortAction={handleSort}
-                  />
-                </TableHead>
-                <TableHead className="w-10"><span className="sr-only">Actions</span></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="p-0">
-                    <EmptyState icon={Users} description="No clients match." compact />
-                  </TableCell>
-                </TableRow>
-              ) : rows.map((r) => {
-                const isSelected = selected.has(r.client.id);
-                return (
-                  <TableRow key={r.client.id} className={isSelected ? "bg-accent/5" : "hover:bg-muted/30"}>
-                    <TableCell>
-                      <Checkbox checked={isSelected} onCheckedChange={() => toggleOne(r.client.id)} />
-                    </TableCell>
-                    <TableCell>
-                      <Link href={`/clients/${r.client.id}`} className="font-medium hover:underline">
-                        {r.client.firstName} {r.client.lastName ?? ""}
-                      </Link>
-                      {r.client.status !== "active" && <Badge variant="outline" className="ml-2 text-[10px] capitalize">{r.client.status}</Badge>}
-                    </TableCell>
-                    <TableCell className="max-w-[200px]">
-                      {r.client.phone && <div className="text-xs">{formatPhone(r.client.phone)}</div>}
-                      {r.client.email && <div className="text-xs text-muted-foreground truncate">{r.client.email}</div>}
-                    </TableCell>
-                    <HeatBadgeCell level={r.client.heatLevel} score={r.client.heatScore} showScore />
-                    <TableCell className="hidden md:table-cell">
-                      <div className="flex gap-1 flex-wrap max-w-[180px]">
-                        {(r.client.tags || []).slice(0, 3).map((t) => <Badge key={t} variant="secondary" className="text-[10px]">{t}</Badge>)}
-                      </div>
-                    </TableCell>
-                    <TextCell value={r.employeeName} className="hidden md:table-cell text-xs text-muted-foreground" />
-                    <RelativeDateCell value={r.client.lastOutreachAt} className="hidden md:table-cell" />
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="size-7" aria-label="Actions">
-                            <MoreHorizontal className="size-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild>
-                            <Link href={`/clients/${r.client.id}`}><Eye className="size-4 mr-2" /> View</Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link href={`/clients/${r.client.id}/edit`}><Edit className="size-4 mr-2" /> Edit</Link>
-                          </DropdownMenuItem>
-                          {r.client.status === "active" && (
-                            <>
-                              <DropdownMenuSeparator />
-                              <BanCustomerDialog clientId={r.client.id} clientName={`${r.client.firstName} ${r.client.lastName ?? ""}`}>
-                                <DropdownMenuItem
-                                  className="text-destructive focus:text-destructive"
-                                  onSelect={(e) => e.preventDefault()}
-                                >
-                                  <Ban className="size-4 mr-2" /> Ban Customer
-                                </DropdownMenuItem>
-                              </BanCustomerDialog>
-                              <UnsubscribeCustomerDialog clientId={r.client.id} clientName={`${r.client.firstName} ${r.client.lastName ?? ""}`}>
-                                <DropdownMenuItem
-                                  className="text-destructive focus:text-destructive"
-                                  onSelect={(e) => e.preventDefault()}
-                                >
-                                  <MailX className="size-4 mr-2" /> Unsubscribe
-                                </DropdownMenuItem>
-                              </UnsubscribeCustomerDialog>
-                            </>
-                          )}
-                          {currentUserRole === "manager" && r.client.status !== "deleted" && (
-                            <>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget(r)}>
-                                <Trash2 className="size-4 mr-2" />
-                                Delete Client
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-          </div>
-        </Card>
-
-        <PaginationFooter
-          currentPage={currentFilters.page}
-          totalPages={totalPages}
-          onPageChangeAction={(p) => navigate({ page: p }, "push")}
-          totalItems={total}
-          pageSize={PAGE_SIZE}
-          itemLabel="clients"
+        <DataTable
+          busy={isPending}
+          columns={columns}
+          data={rows}
+          getRowId={(r) => r.client.id}
+          manualSorting
+          manualFiltering
+          manualPagination
+          rowCount={total}
+          state={{ sorting, pagination, rowSelection }}
+          onSortingChange={handleSortingChange}
+          onPaginationChange={handlePaginationChange}
+          onRowSelectionChange={setRowSelection}
+          selection={{ label: "clients" }}
+          empty={<EmptyState icon={Users} description="No clients match." compact />}
+          rowClassName={(row) => (row.getIsSelected() ? "bg-accent/5" : "hover:bg-muted/30")}
+          pagination={{ itemLabel: "clients" }}
         />
       </div>
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { StrictMode } from "react";
-import { render, screen, act } from "@testing-library/react";
+import { render, screen, act, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ClientListContent } from "@/app/(app)/clients/clients-content";
 
@@ -155,5 +155,73 @@ describe("ClientListContent pagination", () => {
     const sp = new URLSearchParams(lastNavigationUrl()!.split("?")[1]);
     expect(sp.get("page")).toBe("2");
     expect(sp.get("q")).toBe("voss");
+  });
+});
+
+// The list renders through the shared DataTable engine; page-scoped selection
+// moved from a local Set to the engine's rowSelection map, keyed by client id.
+describe("ClientListContent selection", () => {
+  beforeEach(() => {
+    push.mockReset();
+    replace.mockReset();
+    localStorage.clear();
+  });
+
+  it("feeds the checked ids to the bulk actions toolbar", async () => {
+    const user = userEvent.setup();
+    renderList({ rows: makeRows(3) });
+
+    await user.click(within(screen.getAllByRole("row")[1]).getAllByRole("checkbox")[0]);
+    expect(screen.getByText("1 selected")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: "Select all clients" }));
+    expect(screen.getByText("3 selected")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: "Select all clients" }));
+    expect(screen.queryByText(/selected$/)).not.toBeInTheDocument();
+  });
+
+  it("marks the selected row", async () => {
+    const user = userEvent.setup();
+    renderList({ rows: makeRows(2) });
+
+    await user.click(within(screen.getAllByRole("row")[1]).getAllByRole("checkbox")[0]);
+    expect(screen.getAllByRole("row")[1]).toHaveClass("bg-accent/5");
+    expect(screen.getAllByRole("row")[2]).toHaveClass("hover:bg-muted/30");
+  });
+});
+
+describe("ClientListContent table", () => {
+  beforeEach(() => {
+    push.mockReset();
+    replace.mockReset();
+    localStorage.clear();
+  });
+
+  it("renders the empty state across the full row", () => {
+    renderList({ rows: [], total: 0 });
+    expect(screen.getByText("No clients match.")).toBeInTheDocument();
+    expect(screen.getAllByRole("cell")[0]).toHaveAttribute("colspan", "8");
+  });
+
+  it("reflects the URL sort on the th", () => {
+    renderList({ currentFilters: { ...BASE_FILTERS, sort: "heat", sortDir: "desc" } });
+    expect(screen.getByRole("columnheader", { name: /Heat/ })).toHaveAttribute("aria-sort", "descending");
+    expect(screen.getByRole("columnheader", { name: /Name/ })).toHaveAttribute("aria-sort", "none");
+  });
+
+  it("sorts a new column ascending and flips the active one", async () => {
+    const user = userEvent.setup();
+    renderList({ currentFilters: { ...BASE_FILTERS, sort: "heat", sortDir: "desc" } });
+
+    await user.click(screen.getByRole("button", { name: /^Name/ }));
+    let sp = new URLSearchParams(lastNavigationUrl()!.split("?")[1]);
+    expect(sp.get("sort")).toBe("name");
+    expect(sp.get("sortDir")).toBe("asc");
+
+    await user.click(screen.getByRole("button", { name: /^Heat/ }));
+    sp = new URLSearchParams(lastNavigationUrl()!.split("?")[1]);
+    expect(sp.get("sort")).toBeNull(); // "heat" is the default, so it is omitted
+    expect(sp.get("sortDir")).toBe("asc");
   });
 });
