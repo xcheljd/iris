@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import type { OnChangeFn, PaginationState, SortingState } from "@tanstack/react-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatsCard } from "@/components/stats-card";
 import { Button } from "@/components/ui/button";
@@ -17,8 +18,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MatchedClientsTab } from "@/components/matched-clients-tab";
 import type { MatchedClientRow } from "@/lib/queries";
-import { PaginationFooter } from "@/components/pagination-footer";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TableCell } from "@/components/ui/table";
 import {
   Tag, Plus, Trash2, Watch,
   MoreHorizontal, ClipboardPaste,
@@ -34,13 +34,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Filter } from "lucide-react";
-import { ColumnHeader } from "@/components/column-header";
 import { Topbar } from "@/components/topbar";
 import { MoneyCell, MonoCell, PercentCell, StatusBadgeCell } from "@/components/data-table/cells";
+import { DataTable, type DataTableColumn, type DataTableSortFn } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/column-header";
 // Promo Import disabled for demo — Coming Soon
 // import { ImportPromoDialog } from "@/components/promo/import-promo-dialog";
 
 const PAGE_SIZE = 15;
+
+// The comparators this surface already sorted with: text columns compare with
+// `localeCompare`, numeric columns subtract, and a null number reads as
+// -Infinity so blanks lead ascending. Passing them is not optional — the engine
+// registers no sorting-function registry, so a column that omits `sortFn`
+// silently falls back to `basic` (and warns in development).
+//
+// One deliberate fix: the old code coerced *every* null to -Infinity, so a null
+// brand sorted as the literal string "-Infinity" — i.e. somewhere around "I",
+// mid-alphabet. Text nulls now read as "" and lead, like every other column.
+const textSort: DataTableSortFn<PromoWatch> = (a, b, columnId) =>
+  String(a.getValue(columnId) ?? "").localeCompare(String(b.getValue(columnId) ?? ""));
+
+const numericSort: DataTableSortFn<PromoWatch> = (a, b, columnId) =>
+  ((a.getValue(columnId) as number | null) ?? -Infinity) -
+  ((b.getValue(columnId) as number | null) ?? -Infinity);
 
 interface PromosContentProps {
   promos: PromoWatch[];
@@ -70,26 +87,22 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
   const [isCreating, setIsCreating] = useState(false);
   const [newPromo, setNewPromo] = useState({ modelNumber: "", collection: "", brand: "", msrp: "", discountPercent: "", discountPrice: "", sizeOneQty: "", sizeTwoQty: "" });
   const [searchQuery, setSearchQuery] = useState("");
-  const [page, setPage] = useState(1);
+  const [pageIndex, setPageIndex] = useState(0);
   const [deleteTarget, setDeleteTarget] = useState<PromoWatch | null>(null);
   const [clearAllOpen, setClearAllOpen] = useState(false);
   // Promo Import disabled for demo — Coming Soon
   // const [importOpen, setImportOpen] = useState(false);
 
-  type SortKey = "modelNumber" | "collection" | "brand" | "msrp" | "discountPercent" | "discountPrice" | "sizeOneQty" | "sizeTwoQty";
-  const [sortKey, setSortKey] = useState<SortKey | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  // Promos is the first client-side engine surface: nothing here is in the URL
+  // but the tab, so sorting and pagination stay plain local state and TanStack's
+  // sorted/paginated row models do the work (no `manual*` flags).
+  const [sorting, setSorting] = useState<SortingState>([]);
   const [brandFilter, setBrandFilter] = useState<Set<string>>(new Set());
   const [collectionFilter, setCollectionFilter] = useState<Set<string>>(new Set());
   const [priceMax, setPriceMax] = useState("");
   const [discMin, setDiscMin] = useState("");
   const [size1Pos, setSize1Pos] = useState(false);
   const [size2Pos, setSize2Pos] = useState(false);
-
-  const toggleSort = (k: SortKey) => {
-    if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortKey(k); setSortDir("asc"); }
-  };
 
   const distinctCollections = useMemo(
     () => Array.from(new Set(promos.map((p) => p.collection))).sort(),
@@ -114,24 +127,22 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
     if (discMin.trim()) { const m = parseFloat(discMin); if (!isNaN(m)) r = r.filter((p) => (p.discountPercent ?? 0) >= m); }
     if (size1Pos) r = r.filter((p) => p.sizeOneQty > 0);
     if (size2Pos) r = r.filter((p) => p.sizeTwoQty > 0);
-    if (sortKey) {
-      const val = (p: PromoWatch) => {
-        const v = p[sortKey];
-        return v == null ? (typeof v === "string" ? "" : -Infinity) : v;
-      };
-      r = [...r].sort((a, b) => {
-        const av = val(a), bv = val(b);
-        const dir = sortDir === "asc" ? 1 : -1;
-        if (typeof av === "string" || typeof bv === "string") return String(av).localeCompare(String(bv)) * dir;
-        return ((av as number) - (bv as number)) * dir;
-      });
-    }
     return r;
-  }, [promos, searchQuery, brandFilter, collectionFilter, priceMax, discMin, size1Pos, size2Pos, sortKey, sortDir]);
+  }, [promos, searchQuery, brandFilter, collectionFilter, priceMax, discMin, size1Pos, size2Pos]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  // The engine compares state slices shallowly, so this has to keep its
+  // identity between renders that did not move the page. The clamp reproduces
+  // the old `Math.min(page, totalPages)`: a delete that shrinks the list shows
+  // the last real page without rewriting the stored index.
+  const pagination = useMemo<PaginationState>(() => {
+    const lastIndex = Math.max(0, Math.ceil(filtered.length / PAGE_SIZE) - 1);
+    return { pageIndex: Math.min(pageIndex, lastIndex), pageSize: PAGE_SIZE };
+  }, [filtered.length, pageIndex]);
+
+  const handlePaginationChange: OnChangeFn<PaginationState> = (updater) => {
+    const next = typeof updater === "function" ? updater(pagination) : updater;
+    setPageIndex(next.pageIndex);
+  };
 
   const totalRetailValue = promos.reduce((sum, p) => sum + (p.msrp || 0), 0);
   const totalSavings = promos.reduce((sum, p) => sum + ((p.msrp || 0) - (p.discountPrice || 0)), 0);
@@ -195,6 +206,115 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
       setClearAllOpen(false);
     } catch { toast.error("Failed to clear promos"); }
   };
+
+  // Rebuilt every render — cheap, because the engine keys its row model on
+  // `data` alone, and the Clients and Actions cells have to see the current
+  // match counts and delete target.
+  const columns: DataTableColumn<PromoWatch>[] = [
+    {
+      id: "modelNumber",
+      accessorFn: (p) => p.modelNumber,
+      sortFn: textSort,
+      header: (ctx) => <DataTableColumnHeader ctx={ctx} label="Model Number" />,
+      cell: ({ row }) => <MonoCell value={row.original.modelNumber} className="font-medium" />,
+    },
+    {
+      id: "collection",
+      accessorFn: (p) => p.collection,
+      sortFn: textSort,
+      header: (ctx) => <DataTableColumnHeader ctx={ctx} label="Collection" />,
+      cell: ({ row }) => <StatusBadgeCell label={row.original.collection} variant="outline" />,
+    },
+    {
+      id: "brand",
+      accessorFn: (p) => p.brand,
+      sortFn: textSort,
+      meta: { headClassName: "hidden sm:table-cell" },
+      header: (ctx) => <DataTableColumnHeader ctx={ctx} label="Brand" />,
+      cell: ({ row }) => <TableCell className="hidden sm:table-cell">{brandLabel(row.original.brand)}</TableCell>,
+    },
+    {
+      id: "msrp",
+      accessorFn: (p) => p.msrp,
+      sortFn: numericSort,
+      meta: { headClassName: "hidden sm:table-cell text-right" },
+      header: (ctx) => <DataTableColumnHeader ctx={ctx} align="right" label="MSRP" />,
+      cell: ({ row }) => <MoneyCell value={row.original.msrp} className="hidden sm:table-cell" />,
+    },
+    {
+      id: "discountPercent",
+      accessorFn: (p) => p.discountPercent,
+      sortFn: numericSort,
+      meta: { headClassName: "hidden md:table-cell text-right" },
+      header: (ctx) => <DataTableColumnHeader ctx={ctx} align="right" label="Disc." />,
+      cell: ({ row }) => <PercentCell value={row.original.discountPercent} className="hidden md:table-cell" />,
+    },
+    {
+      id: "discountPrice",
+      accessorFn: (p) => p.discountPrice,
+      sortFn: numericSort,
+      meta: { headClassName: "hidden sm:table-cell text-right" },
+      header: (ctx) => <DataTableColumnHeader ctx={ctx} align="right" label="Sale Price" />,
+      cell: ({ row }) => <MoneyCell value={row.original.discountPrice} emphasis="sale" className="hidden sm:table-cell" />,
+    },
+    {
+      id: "sizeOneQty",
+      accessorFn: (p) => p.sizeOneQty,
+      sortFn: numericSort,
+      meta: { headClassName: "hidden md:table-cell text-right" },
+      header: (ctx) => <DataTableColumnHeader ctx={ctx} align="right" label="Size 1" />,
+      cell: ({ row }) => <TableCell className="text-right hidden md:table-cell">{row.original.sizeOneQty}</TableCell>,
+    },
+    {
+      id: "sizeTwoQty",
+      accessorFn: (p) => p.sizeTwoQty,
+      sortFn: numericSort,
+      meta: { headClassName: "hidden md:table-cell text-right" },
+      header: (ctx) => <DataTableColumnHeader ctx={ctx} align="right" label="Size 2" />,
+      cell: ({ row }) => <TableCell className="text-right hidden md:table-cell">{row.original.sizeTwoQty}</TableCell>,
+    },
+    {
+      id: "clients",
+      header: "Clients",
+      enableSorting: false,
+      meta: { headClassName: "text-right" },
+      cell: ({ row }) => {
+        const count = matchCounts[row.original.id] ?? 0;
+        return (
+          <StatusBadgeCell
+            className="text-right"
+            label={count > 0 ? `${count} client${count !== 1 ? "s" : ""}` : null}
+          />
+        );
+      },
+    },
+  ];
+
+  if (isManager) {
+    columns.push({
+      id: "actions",
+      header: "Actions",
+      enableSorting: false,
+      meta: { headClassName: "text-right" },
+      cell: ({ row }) => (
+        <TableCell className="text-right">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="Actions">
+                <MoreHorizontal className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(row.original)}>
+                <Trash2 className="size-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </TableCell>
+      ),
+    });
+  }
 
   return (
     <>
@@ -338,7 +458,7 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
             <SearchInput
               placeholder="Search model or collection..."
               value={searchQuery}
-              onChangeAction={(v) => { setSearchQuery(v); setPage(1); }}
+              onChangeAction={(v) => { setSearchQuery(v); setPageIndex(0); }}
               className="max-w-sm"
             />
             <Popover>
@@ -354,7 +474,7 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
                   <div className="flex flex-wrap gap-x-3 gap-y-1">
                     {BRAND_VALUES.map((b) => (
                       <label key={b} className="flex items-center gap-1.5 text-sm cursor-pointer">
-                        <Checkbox checked={brandFilter.has(b)} onCheckedChange={() => { toggleIn(brandFilter, b, setBrandFilter); setPage(1); }} />
+                        <Checkbox checked={brandFilter.has(b)} onCheckedChange={() => { toggleIn(brandFilter, b, setBrandFilter); setPageIndex(0); }} />
                         {brandLabel(b)}
                       </label>
                     ))}
@@ -365,7 +485,7 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
                   <div className="flex flex-col max-h-32 overflow-y-auto gap-1">
                     {distinctCollections.map((c) => (
                       <label key={c} className="flex items-center gap-1.5 text-sm cursor-pointer">
-                        <Checkbox checked={collectionFilter.has(c)} onCheckedChange={() => { toggleIn(collectionFilter, c, setCollectionFilter); setPage(1); }} />
+                        <Checkbox checked={collectionFilter.has(c)} onCheckedChange={() => { toggleIn(collectionFilter, c, setCollectionFilter); setPageIndex(0); }} />
                         {c}
                       </label>
                     ))}
@@ -374,26 +494,26 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <div className="text-xs font-medium mb-1">Max MSRP</div>
-                    <Input type="number" value={priceMax} onChange={(e) => { setPriceMax(e.target.value); setPage(1); }} placeholder="e.g. 500" className="h-8" />
+                    <Input type="number" value={priceMax} onChange={(e) => { setPriceMax(e.target.value); setPageIndex(0); }} placeholder="e.g. 500" className="h-8" />
                   </div>
                   <div>
                     <div className="text-xs font-medium mb-1">Min Disc. %</div>
-                    <Input type="number" value={discMin} onChange={(e) => { setDiscMin(e.target.value); setPage(1); }} placeholder="e.g. 20" className="h-8" />
+                    <Input type="number" value={discMin} onChange={(e) => { setDiscMin(e.target.value); setPageIndex(0); }} placeholder="e.g. 20" className="h-8" />
                   </div>
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="flex items-center gap-1.5 text-sm cursor-pointer">
-                    <Checkbox checked={size1Pos} onCheckedChange={(c) => { setSize1Pos(c === true); setPage(1); }} /> Size 1 in stock (&gt;0)
+                    <Checkbox checked={size1Pos} onCheckedChange={(c) => { setSize1Pos(c === true); setPageIndex(0); }} /> Size 1 in stock (&gt;0)
                   </label>
                   <label className="flex items-center gap-1.5 text-sm cursor-pointer">
-                    <Checkbox checked={size2Pos} onCheckedChange={(c) => { setSize2Pos(c === true); setPage(1); }} /> Size 2 in stock (&gt;0)
+                    <Checkbox checked={size2Pos} onCheckedChange={(c) => { setSize2Pos(c === true); setPageIndex(0); }} /> Size 2 in stock (&gt;0)
                   </label>
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="w-full"
-                  onClick={() => { setBrandFilter(new Set()); setCollectionFilter(new Set()); setPriceMax(""); setDiscMin(""); setSize1Pos(false); setSize2Pos(false); setPage(1); }}
+                  onClick={() => { setBrandFilter(new Set()); setCollectionFilter(new Set()); setPriceMax(""); setDiscMin(""); setSize1Pos(false); setSize2Pos(false); setPageIndex(0); }}
                 >
                   Clear filters
                 </Button>
@@ -413,75 +533,20 @@ export function PromosContent({ promos: initialPromos, isManager, matchCounts = 
           ) : filtered.length === 0 ? (
             <EmptyState description="No promos match your search" compact />
           ) : (
-            <>
-              <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead><ColumnHeader label="Model Number" sortKey="modelNumber" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
-                    <TableHead><ColumnHeader label="Collection" sortKey="collection" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
-                    <TableHead className="hidden sm:table-cell"><ColumnHeader label="Brand" sortKey="brand" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
-                    <TableHead className="hidden sm:table-cell text-right"><ColumnHeader align="right" label="MSRP" sortKey="msrp" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
-                    <TableHead className="hidden md:table-cell text-right"><ColumnHeader align="right" label="Disc." sortKey="discountPercent" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
-                    <TableHead className="hidden sm:table-cell text-right"><ColumnHeader align="right" label="Sale Price" sortKey="discountPrice" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
-                    <TableHead className="hidden md:table-cell text-right"><ColumnHeader align="right" label="Size 1" sortKey="sizeOneQty" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
-                    <TableHead className="hidden md:table-cell text-right"><ColumnHeader align="right" label="Size 2" sortKey="sizeTwoQty" currentSort={sortKey ?? undefined} currentDir={sortDir} onSortAction={toggleSort} /></TableHead>
-                    <TableHead className="text-right">Clients</TableHead>
-                    {isManager && <TableHead className="text-right">Actions</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginated.map((promo) => (
-                      <TableRow key={promo.id}>
-                        <MonoCell value={promo.modelNumber} className="font-medium" />
-                        <StatusBadgeCell label={promo.collection} variant="outline" />
-                        <TableCell className="hidden sm:table-cell">{brandLabel(promo.brand)}</TableCell>
-                        <MoneyCell value={promo.msrp} className="hidden sm:table-cell" />
-                        <PercentCell value={promo.discountPercent} className="hidden md:table-cell" />
-                        <MoneyCell value={promo.discountPrice} emphasis="sale" className="hidden sm:table-cell" />
-                        <TableCell className="text-right hidden md:table-cell">{promo.sizeOneQty}</TableCell>
-                        <TableCell className="text-right hidden md:table-cell">{promo.sizeTwoQty}</TableCell>
-                        <StatusBadgeCell
-                          className="text-right"
-                          label={
-                            (matchCounts[promo.id] ?? 0) > 0
-                              ? `${matchCounts[promo.id]} client${matchCounts[promo.id] !== 1 ? "s" : ""}`
-                              : null
-                          }
-                        />
-                        {isManager && (
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="Actions">
-                                <MoreHorizontal className="size-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(promo)}>
-                                <Trash2 className="size-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                        )}
-                      </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              </div>
-
-              <PaginationFooter
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChangeAction={setPage}
-                totalItems={filtered.length}
-                pageSize={PAGE_SIZE}
-                variant="icons"
-                showBorder
-              />
-            </>
+            <DataTable
+              chrome={false}
+              columns={columns}
+              data={filtered}
+              getRowId={(p) => p.id}
+              // The sorted row model resets the page on every re-sort, and the
+              // core one on every data change; this surface never did either —
+              // filters reset the page explicitly and a shrinking list clamps.
+              autoResetPageIndex={false}
+              state={{ sorting, pagination }}
+              onSortingChange={setSorting}
+              onPaginationChange={handlePaginationChange}
+              pagination={{ variant: "icons", showBorder: true }}
+            />
           )}
         </CardContent>
       </Card>
