@@ -296,13 +296,6 @@ export async function getStats(employeeId?: string) {
   };
 }
 
-export async function getPromos() {
-  // Insertion/append order (rowid) — the promo list reflects import order;
-  // newly imported/added rows append to the bottom. Stable across the
-  // same-second timestamps a single import batch produces.
-  return db.select().from(promoWatches).orderBy(rawSql`rowid`).limit(LIST_QUERY_LIMIT).all();
-}
-
 /**
  * Sortable promo columns, keyed by the `sort` value the URL carries. The map
  * *is* the whitelist: an unknown key never reaches SQL because it can't index
@@ -337,7 +330,11 @@ export interface PromoListOptions {
   /** Only rows with stock in that size. */
   size1Pos?: boolean;
   size2Pos?: boolean;
-  /** Omit for the list's native import order (rowid). */
+  /**
+   * Omit for the list's native import order: rowid ascending, so newly
+   * imported or added rows sit at the bottom — stable across the same-second
+   * timestamps a single import batch produces.
+   */
   sort?: PromoSortKey;
   sortDir?: "asc" | "desc";
   page?: number;
@@ -345,11 +342,12 @@ export interface PromoListOptions {
 }
 
 /**
- * The promo list, filtered/sorted/paged in SQL.
+ * The promo list, filtered/sorted/paged in SQL. Replaces the unbounded
+ * `getPromos()` the promos page used to render the whole store through.
  *
- * Access model is `getPromos`': promos are company-wide, so there is no owner
- * scoping and no auth check here — this is a read query and its caller carries
- * the gate (`middleware.ts` for the session, the page for the role). That is
+ * Promos are company-wide, so there is no owner scoping and no auth check
+ * here — this is a read query and its caller carries the gate
+ * (`middleware.ts` for the session, the page for the role). That is
  * deliberately *not* `listCatalog`'s shape: catalog is a `"use server"` action
  * calling `requireManager()` because its whole route is manager-only, while the
  * promos page renders for associates too and only gates its write UI.

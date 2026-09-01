@@ -42,6 +42,17 @@ A self-hosted clienteling/CRM web app for Meridian Watch retail — replaces a s
 
 **Data flow:** client form → zod → server action (`lib/actions/*`) → Drizzle → SQLite. PDF/CSV imports parse client-side (pdfjs-dist) or in `lib/` parsers, then bulk-insert.
 
+**List surfaces are server-driven, without exception.** Clients, catalog and
+promos all render through `components/data-table/data-table.tsx` with
+`manualSorting` / `manualFiltering` / `manualPagination` + `rowCount` on, over a
+paginated query (`getClientsWithEmployeePaginated`, `listCatalog`, `listPromos`)
+that filters, sorts and slices in SQL. Search/sort/filter/page live in
+`searchParams`, the page component parses them, and one `navigate()` in the
+content component is the single URL writer — never a `useState` copy of the
+list, and never TanStack's client-side row models. Sort keys are whitelisted
+server-side (index a `Record` of columns; never interpolate a URL value into
+SQL). A new list surface follows the same shape.
+
 ## Conventions
 
 - **Commits:** Conventional Commits — `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`, `test:`, `perf:`. Optional scope in parens: `feat(ux)`, `feat(a11y)`, `fix(onboarding)`, `chore(demo)`, `refactor(ui)`.
