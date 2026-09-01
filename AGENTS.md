@@ -21,7 +21,7 @@ A self-hosted clienteling/CRM web app for Meridian Watch retail — replaces a s
 ## Tech stack
 
 - **Language:** TypeScript 5 (`strict: true`, `target: ES2022`)
-- **Framework:** Next.js 15 (App Router, React Server Components), React 19
+- **Framework:** Next.js 16 (App Router, React Server Components, Turbopack), React 19
 - **UI:** shadcn/ui (New York style) + Tailwind CSS 4, Radix primitives, lucide icons, sonner toasts
 - **DB:** SQLite via `better-sqlite3`; ORM: Drizzle ORM (`drizzle-kit`)
 - **Auth:** NextAuth.js (Credentials provider, JWT sessions) — needs `NEXTAUTH_SECRET` + `NEXTAUTH_URL`
@@ -102,5 +102,12 @@ A self-hosted clienteling/CRM web app for Meridian Watch retail — replaces a s
 - **Fresh clone has no DB.** Run `pnpm db:push && pnpm db:seed` first. Default login: `Marcus` / `meridian` (shown on login page). This applies to a fresh **git worktree** too — `lib/db/index.ts` resolves `data/iris.db` from `process.cwd()` and `data/` is gitignored, so every DB-touching suite dies with `no such table: clients` until you seed.
 - **`postinstall` copies the PDF worker** (`node_modules/pdfjs-dist/.../pdf.worker.min.mjs` → `public/`). If you prune node_modules manually, re-run `pnpm install` or promo PDF import breaks silently.
 - **Tests use a dedicated database** at `.vitest/iris.db` — created and seeded by `__tests__/global-setup.ts` (`drizzle-kit push` + `seed.ts`) each run. `data/iris.db` (the demo DB, served by `pnpm dev`) is never touched by a test run. `fileParallelism: false` still applies — tests share that one *test* DB.
+- **Turbopack decodes image assets that webpack only copied.** `next build` uses Turbopack by
+  default in Next 16, and it hard-fails on a malformed icon (`app/favicon.ico` had a truncated
+  AND mask and had to be repaired). If a build dies with `unable to decode image data`, the
+  asset is genuinely corrupt — fix the asset, don't reach for `--webpack`.
+- **`middleware.ts` is deprecated in favour of `proxy.ts`** (Next 16 prints a warning on every
+  build). It still works and is untested, so the rename is deliberately not done yet; do it with
+  `npx @next/codemod@canary middleware-to-proxy .` and add a test for the auth gate first.
 - **WAL grows.** `data/iris.db-wal` can balloon during heavy test/dev runs; checkpoint or delete WAL/SHM while the server is stopped.
 - **NextAuth requires env vars** in `.env.local` (`NEXTAUTH_SECRET`, `NEXTAUTH_URL`) or auth fails at runtime.
