@@ -47,14 +47,23 @@ A self-hosted clienteling/CRM web app for Meridian Watch retail — replaces a s
 - **Commits:** Conventional Commits — `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`, `test:`, `perf:`. Optional scope in parens: `feat(ux)`, `feat(a11y)`, `fix(onboarding)`, `chore(demo)`, `refactor(ui)`.
 - **Branching:** trunk-based, single `main` branch. Remote is `origin` → https://github.com/xcheljd/iris (private). No PR template — direct commits.
 - **Naming:** components PascalCase, lib/util modules kebab-case. Tests mirror source path under `__tests__/`.
-- **Lint:** `next/core-web-vitals` + `next/typescript`, run as `eslint .` over the **whole**
-  repo. (`next lint` only covered `app/`, `components/`, `lib/`, `pages/` and `src/`, which
-  left `__tests__/`, `hooks/` and every root config unlinted; it is also removed in Next.js
-  16.) Exclusions live in `.eslintignore` — build output, generated files, `public/`, and
-  `remotion-demo/`. Unused vars **must** be prefixed `_` (enforced). `.eslintrc.json` sets
-  `"root": true` — without it ESLint 8 walks up past the repo, which breaks linting from a
-  git worktree under `.claude/worktrees/` (it finds the parent checkout's identical config and
-  aborts on a duplicate `@next/next` plugin).
+- **Lint:** ESLint 9 **flat config** (`eslint.config.mjs`) composing
+  `eslint-config-next/core-web-vitals` + `eslint-config-next/typescript`, run as `eslint .`
+  over the **whole** repo — 344 files, including `__tests__/`, `hooks/`, `scripts/` and every
+  root config. (`next lint` only covered `app/`, `components/`, `lib/`, `pages/` and `src/`,
+  and is removed in Next.js 16.) Exclusions are the `ignores` block, not `.eslintignore`
+  (unsupported since ESLint 9). Unused vars **must** be prefixed `_` (enforced).
+  - No `root: true` any more, and none needed: flat config loads exactly one config file,
+    found from the working directory upward, so a checkout under `.claude/worktrees/` no
+    longer picks up the parent repo's config and dies on a duplicate `@next/next` plugin.
+  - **ESLint 10 is not usable yet.** `eslint-config-next@16` depends on
+    `eslint-plugin-react@^7.37`, whose newest release (7.37.5) still calls the
+    `context.getFilename()` API that ESLint 10 removed — every lint run crashes with
+    `contextOrFilename.getFilename is not a function`. Revisit when eslint-plugin-react ships
+    an ESLint 10 build.
+  - `pnpm lint` is expected to report **0 errors and ~45 warnings**. The warnings are almost
+    all React Compiler rules newly enabled by `eslint-plugin-react-hooks@7`, deliberately
+    demoted from error in `eslint.config.mjs`; fix them and promote them back.
 - **Styling:** Tailwind 4 is **CSS-first** — there is no `tailwind.config.ts`. Design tokens live
   in the `@theme inline` block of `app/globals.css` (`inline` so utilities emit
   `hsl(var(--token))` at the use site, which is what makes the `.dark` overrides and
