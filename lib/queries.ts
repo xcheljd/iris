@@ -974,36 +974,127 @@ export { applyClientFilter };
 
 // ─── Prospects ────────────────────────────────────────────────────────────────
 
-export async function getProspects(
-  status: "active" | "graduated" | "unsubscribed" | "rejected" = "active",
-  limit: number = PAGE_READ_LIMIT,
-) {
-  return db
-    .select({
-      id: prospects.id,
-      rvxCustomerId: prospects.rvxCustomerId,
-      rvxStoreId: prospects.rvxStoreId,
-      rvxSpend: prospects.rvxSpend,
-      firstName: prospects.firstName,
-      lastName: prospects.lastName,
-      phone: prospects.phone,
-      email: prospects.email,
-      status: prospects.status,
-      productsOfInterest: prospects.productsOfInterest,
-      notes: prospects.notes,
-      birthday: prospects.birthday,
-      anniversary: prospects.anniversary,
-      importBatchId: prospects.importBatchId,
-      createdAt: prospects.createdAt,
-    })
-    .from(prospects)
-    .where(eq(prospects.status, status))
-    .orderBy(desc(prospects.createdAt))
-    .limit(limit)
-    .all();
+export const PROSPECT_STATUSES = ["active", "graduated", "unsubscribed", "rejected"] as const;
+export type ProspectStatus = (typeof PROSPECT_STATUSES)[number];
+
+const prospectListProjection = {
+  id: prospects.id,
+  rvxCustomerId: prospects.rvxCustomerId,
+  rvxStoreId: prospects.rvxStoreId,
+  rvxSpend: prospects.rvxSpend,
+  firstName: prospects.firstName,
+  lastName: prospects.lastName,
+  phone: prospects.phone,
+  email: prospects.email,
+  status: prospects.status,
+  productsOfInterest: prospects.productsOfInterest,
+  notes: prospects.notes,
+  birthday: prospects.birthday,
+  anniversary: prospects.anniversary,
+  importBatchId: prospects.importBatchId,
+  createdAt: prospects.createdAt,
+};
+
+/**
+ * Sortable prospect columns, keyed by the `sort` value the URL carries. The
+ * map *is* the whitelist, exactly as `promoSortColumns` is: an unknown key
+ * cannot index it, so no URL value is ever interpolated into an ORDER BY.
+ * `name` orders on first then last name, which is how the list reads.
+ */
+const prospectSortColumns = {
+  name: prospects.firstName,
+  phone: prospects.phone,
+  email: prospects.email,
+  spend: prospects.rvxSpend,
+  added: prospects.createdAt,
+} as const;
+
+export type ProspectSortKey = keyof typeof prospectSortColumns;
+
+/** The sort keys a caller may accept off a URL. */
+export const PROSPECT_SORT_KEYS = Object.keys(prospectSortColumns) as ProspectSortKey[];
+
+export interface ProspectListOptions {
+  /** Which tab's list to read. */
+  status?: ProspectStatus;
+  /** Free text across first name, last name, phone and email. */
+  q?: string;
+  /** Omit for the list's native order: newest first. */
+  sort?: ProspectSortKey;
+  sortDir?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
 }
 
-export type ProspectListRow = Awaited<ReturnType<typeof getProspects>>[number];
+/**
+ * One tab of the prospect list, filtered/sorted/paged in SQL. Replaces the
+ * unbounded `getProspects()`, which the prospects page called four times per
+ * render — once per status — and then filtered and rendered in full.
+ *
+ * Prospects are store-wide (no owner column), so there is no scoping here and
+ * no auth check: this is a read query and `middleware.ts` carries the session
+ * gate, the same arrangement as `listPromos`.
+ *
+ * `counts` is the whole table grouped by status, so the tab badges keep
+ * describing their lists while a search narrows the table underneath.
+ */
+export async function listProspects(opts: ProspectListOptions = {}) {
+  const { status = "active", q = "", sort, sortDir = "asc", page = 1, pageSize = DEFAULT_PAGE_SIZE } = opts;
+
+  const conds: (SQL<unknown> | undefined)[] = [eq(prospects.status, status)];
+  const term = q.trim();
+  // SQLite's LIKE is ASCII-case-insensitive, which is what the old
+  // `.toLowerCase().includes()` filter did. A NULL column never matches,
+  // which is what the old optional-chained `?.includes()` did.
+  if (term) {
+    conds.push(or(
+      containsLike(prospects.firstName, term),
+      containsLike(prospects.lastName, term),
+      containsLike(prospects.phone, term),
+      containsLike(prospects.email, term),
+    ));
+  }
+  const whereClause = and(...conds);
+
+  const totalRow = db.select({ n: rawSql<number>`count(*)` }).from(prospects).where(whereClause).get();
+  const total = Number(totalRow?.n ?? 0);
+
+  // A list that shrank under a stale `?page=` shows its last real page rather
+  // than an empty table; the caller renders the page number that came back.
+  const lastPage = Math.max(1, Math.ceil(total / pageSize));
+  const effectivePage = Math.min(Math.max(1, page), lastPage);
+
+  const dirFn = sortDir === "desc" ? desc : asc;
+  // rowid breaks ties so a value shared across a page boundary can't repeat or
+  // vanish between pages. With no sort the list keeps its native order —
+  // newest first, which is what every tab showed before.
+  const orderClauses: SQL<unknown>[] = sort
+    ? sort === "name"
+      ? [dirFn(prospects.firstName) as SQL<unknown>, dirFn(prospects.lastName) as SQL<unknown>, rawSql`rowid`]
+      : [dirFn(prospectSortColumns[sort]) as SQL<unknown>, rawSql`rowid`]
+    : [desc(prospects.createdAt) as SQL<unknown>, rawSql`rowid`];
+
+  const rows = db
+    .select(prospectListProjection)
+    .from(prospects)
+    .where(whereClause)
+    .orderBy(...orderClauses)
+    .limit(pageSize)
+    .offset((effectivePage - 1) * pageSize)
+    .all();
+
+  const countRows = db
+    .select({ status: prospects.status, n: rawSql<number>`count(*)` })
+    .from(prospects)
+    .groupBy(prospects.status)
+    .all();
+  const counts: Record<ProspectStatus, number> = { active: 0, graduated: 0, unsubscribed: 0, rejected: 0 };
+  for (const row of countRows) counts[row.status] = Number(row.n);
+
+  return { rows, total, page: effectivePage, counts };
+}
+
+export type ProspectListRow = Awaited<ReturnType<typeof listProspects>>["rows"][number];
 
 export async function getProspectFunnelStats() {
   const statusRows = db

@@ -42,16 +42,24 @@ A self-hosted clienteling/CRM web app for Meridian Watch retail — replaces a s
 
 **Data flow:** client form → zod → server action (`lib/actions/*`) → Drizzle → SQLite. PDF/CSV imports parse client-side (pdfjs-dist) or in `lib/` parsers, then bulk-insert.
 
-**List surfaces are server-driven, without exception.** Clients, catalog and
-promos all render through `components/data-table/data-table.tsx` with
+**Every list surface renders through the DataTable engine**
+(`components/data-table/data-table.tsx`), and a list backed by a query is
+server-driven. Clients, catalog, promos and prospects all run with
 `manualSorting` / `manualFiltering` / `manualPagination` + `rowCount` on, over a
-paginated query (`getClientsWithEmployeePaginated`, `listCatalog`, `listPromos`)
-that filters, sorts and slices in SQL. Search/sort/filter/page live in
-`searchParams`, the page component parses them, and one `navigate()` in the
-content component is the single URL writer — never a `useState` copy of the
+paginated query (`getClientsWithEmployeePaginated`, `listCatalog`, `listPromos`,
+`listProspects`) that filters, sorts and slices in SQL. Search/sort/filter/page
+live in `searchParams`, the page component parses them, and one `navigate()` in
+the content component is the single URL writer — never a `useState` copy of the
 list, and never TanStack's client-side row models. Sort keys are whitelisted
 server-side (index a `Record` of columns; never interpolate a URL value into
 SQL). A new list surface follows the same shape.
+
+The two exceptions are **unsubscribed** and **approvals**, which run the engine
+in client-side mode (`manual*` off, state in `useState`): both read a whole
+bounded set into the browser and then *mutate their own copy* — a resubscribe or
+a review drops the row without a refetch — so there is no server page to sort or
+slice against. Both still pre-filter `data` themselves and reset to page 1 when
+they do. If either grows a query it pages against, it moves to the shape above.
 
 ## Conventions
 
