@@ -16,7 +16,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { promoWatches, promoMatches } from "@/lib/db/schema";
-import { inArray, sql } from "drizzle-orm";
+import { inArray, sql, eq } from "drizzle-orm";
 import { listPromos, getPromoMatchCounts, PROMO_SORT_KEYS } from "@/lib/queries";
 
 /** Unique enough that no seeded promo can drift into a fixture assertion. */
@@ -177,6 +177,41 @@ describe("listPromos search and filters", () => {
     // Filters stack.
     expect(models(await listPromos({ q, brands: ["Meridian"], size1Pos: true, msrpMax: 500, pageSize: 100 })))
       .toEqual([`${PREFIX}-005`]);
+  });
+
+  it("matches a literal % and _ instead of treating them as wildcards", async () => {
+    const id = randomUUID();
+    const model = `${PREFIX}-TRAIT_100%`;
+    db.insert(promoWatches).values({
+      id,
+      modelNumber: model,
+      collection: `${PREFIX}-PctCol`,
+      brand: null,
+      msrp: null,
+      discountPercent: null,
+      discountPrice: null,
+      sizeOneQty: 0,
+      sizeTwoQty: 0,
+      promoStart: null,
+      promoEnd: null,
+    }).run();
+    try {
+      // A trailing `%` used to broaden to every model; now it must match only
+      // the row that literally contains "TRAIT_100%".
+      expect(models(await listPromos({ q: "TRAIT_100%", pageSize: 100 }))).toEqual([model]);
+      // `_` is a single-char wildcard unescaped; here only the literal `_` matches.
+      expect(models(await listPromos({ q: `${PREFIX}-TRAIT_`, pageSize: 100 }))).toEqual([model]);
+      // A bare `%` used to match the whole table; now it must only surface rows
+      // that literally contain a percent sign in a searched field — just ours.
+      const barePct = await listPromos({ q: "%", pageSize: 100 });
+      expect(barePct.rows.filter((r) => r.modelNumber.startsWith(PREFIX)).map((r) => r.modelNumber))
+        .toEqual([model]);
+      const prefixTotal = (await listPromos({ q: PREFIX, pageSize: 100 })).total;
+      expect(barePct.total).toBeGreaterThan(0);
+      expect(barePct.total).toBeLessThan(prefixTotal);
+    } finally {
+      db.delete(promoWatches).where(eq(promoWatches.id, id)).run();
+    }
   });
 
   it("keeps `total` in step with the rows every filter returns", async () => {

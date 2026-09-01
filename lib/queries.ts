@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bannedCustomers, unsubscribeList, employees, clientTags, outreachTemplates, smartLists, rvxImportBatches, prospects } from "@/lib/db/schema";
-import { eq, desc, asc, and, or, isNull, isNotNull, lte, gte, gt, like, inArray, notInArray, sql as rawSql } from "drizzle-orm";
+import { eq, desc, asc, and, or, isNull, isNotNull, lte, gte, gt, inArray, notInArray, sql as rawSql } from "drizzle-orm";
+import { containsLike, containsLikeLower } from "@/lib/like";
 import type { SQL } from "drizzle-orm";
 import { BRAND_VALUES, type Brand } from "@/lib/db/schema";
 import { applyClientFilter } from "@/lib/utils";
@@ -370,9 +371,9 @@ export async function listPromos(opts: PromoListOptions = {}) {
   // `.toLowerCase().includes()` filter did.
   if (term) {
     conds.push(or(
-      like(promoWatches.modelNumber, `%${term}%`),
-      like(promoWatches.collection, `%${term}%`),
-      like(promoWatches.brand, `%${term}%`),
+      containsLike(promoWatches.modelNumber, term),
+      containsLike(promoWatches.collection, term),
+      containsLike(promoWatches.brand, term),
     ));
   }
   const validBrands = brands.filter((b): b is Brand => (BRAND_VALUES as readonly string[]).includes(b));
@@ -789,9 +790,8 @@ export interface SearchSmartListHit {
  * or products of interest, so no FTS5 surface — see lib/db/fts-setup.ts).
  */
 export async function searchProspects(query: string): Promise<SearchProspectHit[]> {
-  const cleaned = query.toLowerCase().replace(/[%_]/g, "");
-  if (!cleaned) return [];
-  const q = `%${cleaned}%`;
+  const term = query.toLowerCase();
+  if (!term.trim()) return [];
   return db.select({
     id: prospects.id,
     firstName: prospects.firstName,
@@ -802,10 +802,10 @@ export async function searchProspects(query: string): Promise<SearchProspectHit[
     .where(and(
       eq(prospects.status, "active"),
       or(
-        rawSql`lower(${prospects.firstName}) like ${q}`,
-        rawSql`lower(COALESCE(${prospects.lastName}, '')) like ${q}`,
-        rawSql`lower(COALESCE(${prospects.email}, '')) like ${q}`,
-        rawSql`COALESCE(${prospects.phone}, '') like ${q}`,
+        containsLikeLower(prospects.firstName, term),
+        containsLikeLower(prospects.lastName, term),
+        containsLikeLower(prospects.email, term),
+        containsLike(prospects.phone, term),
       ),
     ))
     .limit(5)
@@ -818,9 +818,8 @@ export async function searchProspects(query: string): Promise<SearchProspectHit[
  * filter view.
  */
 export async function searchSmartLists(query: string, employeeId?: string): Promise<SearchSmartListHit[]> {
-  const cleaned = query.toLowerCase().replace(/[%_]/g, "");
-  if (!cleaned) return [];
-  const q = `%${cleaned}%`;
+  const term = query.toLowerCase();
+  if (!term.trim()) return [];
   const visibility = employeeId ? or(eq(smartLists.ownerId, employeeId), eq(smartLists.isShared, true)) : undefined;
   return db.select({
     id: smartLists.id,
@@ -828,7 +827,7 @@ export async function searchSmartLists(query: string, employeeId?: string): Prom
     isShared: smartLists.isShared,
   })
     .from(smartLists)
-    .where(and(visibility, rawSql`lower(${smartLists.name}) like ${q}`))
+    .where(and(visibility, containsLikeLower(smartLists.name, term)))
     .orderBy(smartLists.name)
     .limit(5)
     .all();
