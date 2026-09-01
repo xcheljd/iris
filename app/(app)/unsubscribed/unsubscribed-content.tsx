@@ -2,18 +2,20 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import type { PaginationState, RowSelectionState, SortingState } from "@tanstack/react-table";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
-import { PaginationFooter } from "@/components/pagination-footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatsCard } from "@/components/stats-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Separator } from "@/components/ui/separator";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SearchInput } from "@/components/search-input";
 import { EmptyState } from "@/components/empty-state";
+import { TableCell } from "@/components/ui/table";
+import { DateTimeCell, MonoCell, TextCell } from "@/components/data-table/cells";
+import { DataTable, type DataTableColumn } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Tooltip,
@@ -39,7 +41,7 @@ import {
 } from "lucide-react";
 import { addUnsubscribeEmail, resubscribeClient } from "@/lib/actions";
 import { toast } from "sonner";
-import { format, isAfter, isBefore, subDays, startOfMonth, endOfMonth } from "date-fns";
+import { isAfter, isBefore, subDays, startOfMonth, endOfMonth } from "date-fns";
 import Link from "next/link";
 import { Topbar } from "@/components/topbar";
 
@@ -84,10 +86,16 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
   const [addEmail, setAddEmail] = useState("");
   const [addEmailError, setAddEmailError] = useState("");
   const [dateRange, setDateRange] = useState<DateRange>("all");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [page, setPage] = useState(1);
+  // The whole list is already in the browser, so the engine owns the row
+  // models and this component only holds the state slices it feeds them —
+  // search and the date range still filter `data` before it goes in.
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: PAGE_SIZE });
   const [removeTarget, setRemoveTarget] = useState<UnsubscribedRow | null>(null);
   const [batchRemoveOpen, setBatchRemoveOpen] = useState(false);
+
+  const toFirstPage = () => setPagination((p) => ({ ...p, pageIndex: 0 }));
 
   const filteredBySearch = useMemo(
     () =>
@@ -110,37 +118,21 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
     [filteredBySearch, dateRange]
   );
 
-  const totalPages = Math.ceil(filteredList.length / PAGE_SIZE);
-  const paged = filteredList.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  const allSelected =
-    paged.length > 0 && paged.every((r) => selected.has(r.unsub.id));
-
-  const toggleSelect = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const toggleAll = () => {
-    if (allSelected) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(paged.map((r) => r.unsub.id)));
-    }
-  };
+  // Selection is keyed by unsubscribe-record id (`getRowId` below), so the map
+  // keys are the ids the bulk remove needs — minus any toggled back off.
+  const selectedIds = useMemo(
+    () => Object.keys(rowSelection).filter((id) => rowSelection[id]),
+    [rowSelection],
+  );
 
   const handleRemove = async (row: UnsubscribedRow) => {
     if (!row.clientId) return;
     try {
       await resubscribeClient(row.clientId);
       setList(list.filter((l) => l.unsub.id !== row.unsub.id));
-      setSelected((prev) => {
-        const next = new Set(prev);
-        next.delete(row.unsub.id);
+      setRowSelection((prev) => {
+        const next = { ...prev };
+        delete next[row.unsub.id];
         return next;
       });
       toast.success("Removed from unsubscribe list");
@@ -153,11 +145,12 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
 
   const handleBatchRemove = async () => {
     try {
+      const selected = new Set(selectedIds);
       const rows = list.filter((l) => selected.has(l.unsub.id) && l.clientId);
       await Promise.all(rows.map((row) => resubscribeClient(row.clientId!)));
       setList(list.filter((l) => !selected.has(l.unsub.id)));
       toast.success(`Removed ${selected.size} record${selected.size !== 1 ? "s" : ""}`);
-      setSelected(new Set());
+      setRowSelection({});
     } catch {
       toast.error("Failed to remove some records");
     } finally {
@@ -201,6 +194,113 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
   };
 
   const matchCount = list.filter((l) => l.clientId).length;
+
+  // Rebuilt every render — cheap, because the engine keys its row model on
+  // `data` alone, and the Actions cell has to see the current handlers. The
+  // date column sorts on the timestamp rather than the Date object so the
+  // comparator never falls back to string ordering.
+  const columns: DataTableColumn<UnsubscribedRow>[] = [
+    {
+      id: "name",
+      accessorFn: (r) => `${r.firstName ?? ""} ${r.lastName ?? ""}`.trim(),
+      header: (ctx) => <DataTableColumnHeader ctx={ctx} label="Name" />,
+      cell: ({ row: { original: r } }) =>
+        r.clientId ? (
+          <TableCell>
+            <Link href={`/clients/${r.clientId}`} className="text-sm font-medium hover:underline">
+              {r.firstName} {r.lastName || ""}
+            </Link>
+          </TableCell>
+        ) : (
+          <TableCell className="text-sm text-muted-foreground">No client match</TableCell>
+        ),
+    },
+    {
+      id: "customerId",
+      accessorFn: (r) => r.customerId,
+      meta: { headClassName: "hidden sm:table-cell" },
+      header: (ctx) => <DataTableColumnHeader ctx={ctx} label="Customer ID" />,
+      cell: ({ row: { original: r } }) => (
+        <MonoCell value={r.customerId ? `#${r.customerId}` : null} className="hidden sm:table-cell text-xs" />
+      ),
+    },
+    {
+      id: "email",
+      accessorFn: (r) => r.unsub.email,
+      header: (ctx) => <DataTableColumnHeader ctx={ctx} label="Email" />,
+      cell: ({ row: { original: r } }) => <TextCell value={r.unsub.email} className="text-sm" />,
+    },
+    {
+      id: "unsubscribedAt",
+      accessorFn: (r) => (r.unsub.unsubscribedAt ? new Date(r.unsub.unsubscribedAt).getTime() : 0),
+      meta: { headClassName: "text-right" },
+      header: (ctx) => <DataTableColumnHeader ctx={ctx} align="right" label="Unsubscribed" />,
+      cell: ({ row: { original: r } }) => <DateTimeCell value={r.unsub.unsubscribedAt} className="text-right" />,
+    },
+    {
+      id: "actions",
+      enableSorting: false,
+      meta: { headClassName: "w-10" },
+      header: () => <span className="sr-only">Actions</span>,
+      cell: ({ row: { original: r } }) => (
+        <TableCell className="text-right">
+          {isManager ? (
+            r.clientId ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="size-7 p-0" aria-label="Actions">
+                    <MoreHorizontal className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link href={`/clients/${r.clientId}`}>
+                      <ExternalLink className="size-4 mr-2" />
+                      View Client
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleResubscribe(r)}>
+                    <Mail className="size-4 mr-2" />
+                    Resubscribe
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => setRemoveTarget(r)}
+                  >
+                    <Trash2 className="size-4 mr-2" />
+                    Remove
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="destructive" size="sm" className="h-7" onClick={() => setRemoveTarget(r)}>
+                    <Trash2 className="size-3.5 mr-1" />
+                    Remove
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Remove from unsubscribe list</TooltipContent>
+              </Tooltip>
+            )
+          ) : r.clientId ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="sm" className="size-7 p-0" asChild>
+                  <Link href={`/clients/${r.clientId}`}>
+                    <ExternalLink className="size-4" />
+                    <span className="sr-only">View Client</span>
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>View Client</TooltipContent>
+            </Tooltip>
+          ) : null}
+        </TableCell>
+      ),
+    },
+  ];
 
   return (
     <>
@@ -267,19 +367,26 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 flex-wrap">
-            <CardTitle>Unsubscribe List</CardTitle>
             <div className="flex items-center gap-2">
-              {isManager && selected.size > 0 && (
+              <CardTitle>Unsubscribe List</CardTitle>
+              {filteredList.length > 0 && (
+                <Badge variant="secondary">
+                  {filteredList.length} record{filteredList.length !== 1 ? "s" : ""}
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {isManager && selectedIds.length > 0 && (
                 <Button
                   variant="destructive"
                   size="sm"
                   onClick={() => setBatchRemoveOpen(true)}
                 >
                   <Trash2 className="size-4 mr-1" />
-                  Remove ({selected.size})
+                  Remove ({selectedIds.length})
                 </Button>
               )}
-              <Select value={dateRange} onValueChange={(v) => { setDateRange(v as DateRange); setPage(1); }}>
+              <Select value={dateRange} onValueChange={(v) => { setDateRange(v as DateRange); toFirstPage(); }}>
                 <SelectTrigger className="w-[160px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -296,7 +403,7 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
           <SearchInput
             placeholder="Search by email, name, or customer ID..."
             value={searchQuery}
-            onChangeAction={(v) => { setSearchQuery(v); setPage(1); }}
+            onChangeAction={(v) => { setSearchQuery(v); toFirstPage(); }}
           />
         </CardHeader>
         <CardContent>
@@ -307,148 +414,22 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
               description={searchQuery || dateRange !== "all" ? "Try adjusting your search or date filter" : "Unsubscribed email addresses will appear here"}
             />
           ) : (
-            <>
-              {isManager && (
-              <div className="flex items-center gap-3 mb-3 px-1">
-                <Checkbox
-                  checked={allSelected}
-                  onCheckedChange={toggleAll}
-                  aria-label="Select all"
-                />
-                <span className="text-xs text-muted-foreground">
-                  {allSelected ? "Deselect all" : "Select all"}
-                </span>
-                <Separator orientation="vertical" className="h-4" />
-                <Badge variant="secondary">
-                  {filteredList.length} record{filteredList.length !== 1 ? "s" : ""}
-                </Badge>
-              </div>
-              )}
-              <div className="flex flex-col gap-1">
-                {paged.map((record) => (
-                  <div
-                    key={record.unsub.id}
-                    className={`flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors ${
-                      selected.has(record.unsub.id) ? "bg-muted/30" : ""
-                    }`}
-                  >
-                    {isManager && (
-                    <Checkbox
-                      checked={selected.has(record.unsub.id)}
-                      onCheckedChange={() => toggleSelect(record.unsub.id)}
-                      aria-label={`Select ${record.unsub.email}`}
-                    />
-                    )}
-                    <div className="flex-1 min-w-0 flex items-center justify-between gap-4">
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 min-w-0">
-                        {/* Name / Client link */}
-                        <div className="min-w-0 sm:w-[180px]">
-                          {record.clientId ? (
-                            <Link
-                              href={`/clients/${record.clientId}`}
-                              className="text-sm font-medium hover:underline truncate block"
-                            >
-                              {record.firstName} {record.lastName || ""}
-                            </Link>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">No client match</span>
-                          )}
-                        </div>
-                        {/* Customer ID */}
-                        <div className="hidden sm:block sm:w-[110px] sm:shrink-0">
-                          {record.customerId ? (
-                            <Badge variant="outline" className="font-mono text-xs">
-                              #{record.customerId}
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </div>
-                        {/* Email */}
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <Mail className="size-3.5 text-muted-foreground shrink-0" />
-                          <span className="text-sm truncate">{record.unsub.email}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 sm:gap-3 shrink-0 flex-wrap">
-                        <span className="text-xs text-muted-foreground">
-                          {record.unsub.unsubscribedAt
-                            ? format(new Date(record.unsub.unsubscribedAt), "MMM d, yyyy")
-                            : "—"}
-                        </span>
-                        {isManager ? (
-                          record.clientId ? (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="size-7 p-0" aria-label="Actions">
-                                  <MoreHorizontal className="size-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/clients/${record.clientId}`}>
-                                    <ExternalLink className="size-4 mr-2" />
-                                    View Client
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => handleResubscribe(record)}
-                                >
-                                  <Mail className="size-4 mr-2" />
-                                  Resubscribe
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  className="text-destructive focus:text-destructive"
-                                  onClick={() => setRemoveTarget(record)}
-                                >
-                                  <Trash2 className="size-4 mr-2" />
-                                  Remove
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          ) : (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  className="h-7"
-                                  onClick={() => setRemoveTarget(record)}
-                                >
-                                  <Trash2 className="size-3.5 mr-1" />
-                                  Remove
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Remove from unsubscribe list</TooltipContent>
-                            </Tooltip>
-                          )
-                        ) : record.clientId ? (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button variant="ghost" size="sm" className="size-7 p-0" asChild>
-                                <Link href={`/clients/${record.clientId}`}>
-                                  <ExternalLink className="size-4" />
-                                </Link>
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>View Client</TooltipContent>
-                          </Tooltip>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <PaginationFooter
-                currentPage={page}
-                totalPages={totalPages}
-                onPageChangeAction={setPage}
-                totalItems={filteredList.length}
-                pageSize={PAGE_SIZE}
-                itemLabel="records"
-              />
-            </>
+            <DataTable
+              chrome={false}
+              columns={columns}
+              data={filteredList}
+              getRowId={(r) => r.unsub.id}
+              // Search and the date range already narrowed `data`, and a
+              // re-sort must not bounce the reader off the page they picked.
+              autoResetPageIndex={false}
+              state={{ sorting, pagination, rowSelection }}
+              onSortingChange={setSorting}
+              onPaginationChange={setPagination}
+              onRowSelectionChange={setRowSelection}
+              {...(isManager ? { selection: { label: "records" } } : {})}
+              rowClassName={(row) => (row.getIsSelected() ? "bg-muted/30" : "hover:bg-muted/50")}
+              pagination={{ itemLabel: "records", showBorder: true }}
+            />
           )}
         </CardContent>
       </Card>
@@ -477,8 +458,8 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
       <ConfirmDialog
         open={batchRemoveOpen}
         onOpenChangeAction={setBatchRemoveOpen}
-        title={`Remove ${selected.size} Records`}
-        description={`Are you sure you want to remove ${selected.size} email${selected.size !== 1 ? "s" : ""} from the unsubscribe list? They may receive marketing emails again.`}
+        title={`Remove ${selectedIds.length} Records`}
+        description={`Are you sure you want to remove ${selectedIds.length} email${selectedIds.length !== 1 ? "s" : ""} from the unsubscribe list? They may receive marketing emails again.`}
         confirmLabel="Remove All"
         onConfirmAction={handleBatchRemove}
         variant="destructive"
