@@ -1,11 +1,13 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PromosContent } from "@/app/(app)/promos/promos-content";
 import type { PromoWatch } from "@/lib/db/schema";
 
+const replace = vi.fn();
+
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), replace, refresh: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }));
 
@@ -59,18 +61,46 @@ const PROMOS: PromoWatch[] = [
 
 type Props = Parameters<typeof PromosContent>[0];
 
+const SUMMARY: Props["summary"] = {
+  count: 2,
+  retailValue: 1200,
+  savings: 300,
+  promoStart: null,
+  promoEnd: null,
+};
+
+const FILTERS: Props["filters"] = {
+  q: "",
+  brands: [],
+  collections: [],
+  size1Pos: false,
+  size2Pos: false,
+  dir: "asc",
+  page: 1,
+};
+
 function renderPromos(overrides: Partial<Props> = {}) {
-  return render(
-    <PromosContent promos={PROMOS} isManager matchCounts={{ p1: 3 }} {...overrides} />,
-  );
+  const props: Props = {
+    promos: PROMOS,
+    total: PROMOS.length,
+    summary: SUMMARY,
+    collections: ["Ashwood", "Solaris"],
+    filters: FILTERS,
+    isManager: true,
+    matchCounts: { p1: 3 },
+    ...overrides,
+  };
+  return render(<PromosContent {...props} />);
 }
 
-/** Header row first, then one row per visible promo. */
+/** Header row first, then one row per promo on this server page. */
 function tableRows() {
   return screen.getAllByRole("row");
 }
 
 describe("PromosContent on the DataTable engine", () => {
+  beforeEach(() => replace.mockReset());
+
   it("renders every column in order, with Actions only for managers", () => {
     const { unmount } = renderPromos();
     expect(screen.getAllByRole("columnheader").map((th) => th.textContent)).toEqual([
@@ -123,74 +153,112 @@ describe("PromosContent on the DataTable engine", () => {
     expect(within(tableRows()[2]).getAllByRole("cell")[8].textContent).toBe("");
   });
 
-  it("sorts client-side on a header click and flips on the second", async () => {
-    const user = userEvent.setup();
-    renderPromos();
-
-    const modelHeader = screen.getByRole("columnheader", { name: /Model Number/ });
-    expect(modelHeader).toHaveAttribute("aria-sort", "none");
-    expect(within(tableRows()[1]).getAllByRole("cell")[0].textContent).toBe("MR-1200");
-
-    // Ascending first — no server round-trip, the engine reorders the rows.
-    await user.click(screen.getByRole("button", { name: /^Model Number/ }));
-    expect(modelHeader).toHaveAttribute("aria-sort", "ascending");
-    expect(within(tableRows()[1]).getAllByRole("cell")[0].textContent).toBe("AS-0450");
-
-    await user.click(screen.getByRole("button", { name: /^Model Number/ }));
-    expect(modelHeader).toHaveAttribute("aria-sort", "descending");
-    expect(within(tableRows()[1]).getAllByRole("cell")[0].textContent).toBe("MR-1200");
+  it("reads its stats off the unfiltered summary, not the page", () => {
+    renderPromos({
+      promos: [PROMOS[0]],
+      total: 1,
+      summary: { count: 40, retailValue: 48_000, savings: 12_000, promoStart: null, promoEnd: null },
+      filters: { ...FILTERS, q: "MR" },
+    });
+    expect(screen.getByText("40")).toBeInTheDocument();
+    expect(screen.getByText("$48,000")).toBeInTheDocument();
+    expect(screen.getByText("$12,000")).toBeInTheDocument();
   });
 
-  it("sorts nulls first on a numeric column", async () => {
-    const user = userEvent.setup();
-    renderPromos();
+  it("shows the promo period from the summary's date bounds", () => {
+    renderPromos({
+      summary: { ...SUMMARY, promoStart: "2026-09-01", promoEnd: "2026-09-14" },
+    });
+    expect(screen.getByText("Current Promo Period")).toBeInTheDocument();
+    expect(screen.getByText("Sep 1 — Sep 14, 2026")).toBeInTheDocument();
+  });
 
+  it("reflects the URL sort on the th and navigates on a header click", async () => {
+    const user = userEvent.setup();
+    const { unmount } = renderPromos();
+
+    // No sort in the URL: the list is in import order and no column claims it.
+    expect(screen.getByRole("columnheader", { name: /Model Number/ })).toHaveAttribute("aria-sort", "none");
+
+    // A first click sorts ascending — which is the default direction, so `dir`
+    // stays out of the URL.
+    await user.click(screen.getByRole("button", { name: /^Model Number/ }));
+    expect(replace).toHaveBeenLastCalledWith("/promos?sort=modelNumber", { scroll: false });
+    unmount();
+
+    renderPromos({ filters: { ...FILTERS, sort: "modelNumber", dir: "asc" } });
+    expect(screen.getByRole("columnheader", { name: /Model Number/ })).toHaveAttribute("aria-sort", "ascending");
+
+    // Same column flips…
+    await user.click(screen.getByRole("button", { name: /^Model Number/ }));
+    expect(replace).toHaveBeenLastCalledWith("/promos?sort=modelNumber&dir=desc", { scroll: false });
+
+    // …a different column starts ascending again.
     await user.click(screen.getByRole("button", { name: /^MSRP/ }));
-    expect(within(tableRows()[1]).getAllByRole("cell")[0].textContent).toBe("AS-0450");
-    expect(within(tableRows()[1]).getAllByRole("cell")[3].textContent).toBe("—");
+    expect(replace).toHaveBeenLastCalledWith("/promos?sort=msrp", { scroll: false });
   });
 
-  it("paginates client-side and keeps the page across a re-sort", async () => {
+  it("keeps the whole server page — the engine must not re-slice it", async () => {
     const user = userEvent.setup();
-    const many = Array.from({ length: 20 }, (_, i) =>
+    const page = Array.from({ length: 15 }, (_, i) =>
       promo({ id: `m${i}`, modelNumber: `MR-${String(i).padStart(2, "0")}` }),
     );
-    renderPromos({ promos: many, matchCounts: {} });
+    renderPromos({ promos: page, total: 40, matchCounts: {}, summary: { ...SUMMARY, count: 40 } });
 
-    // 20 rows, 15 to a page.
     expect(tableRows()).toHaveLength(16);
-    expect(screen.getByText("1–15 of 20")).toBeInTheDocument();
+    expect(screen.getByText("1–15 of 40")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Go to next page" }));
-    expect(tableRows()).toHaveLength(6);
-    expect(screen.getByText("16–20 of 20")).toBeInTheDocument();
-
-    // Re-sorting must not bounce the reader back to page 1.
-    await user.click(screen.getByRole("button", { name: /^Model Number/ }));
-    expect(screen.getByText("16–20 of 20")).toBeInTheDocument();
+    expect(replace).toHaveBeenLastCalledWith("/promos?page=2", { scroll: false });
   });
 
-  it("resets to page 1 when a search narrows the list", async () => {
+  it("renders the page the server served and pages on from there", async () => {
     const user = userEvent.setup();
-    const many = Array.from({ length: 20 }, (_, i) =>
-      promo({ id: `m${i}`, modelNumber: `MR-${String(i).padStart(2, "0")}` }),
-    );
-    renderPromos({ promos: many, matchCounts: {} });
+    const page = Array.from({ length: 15 }, (_, i) => promo({ id: `m${i}` }));
+    renderPromos({
+      promos: page,
+      total: 40,
+      matchCounts: {},
+      summary: { ...SUMMARY, count: 40 },
+      filters: { ...FILTERS, page: 2 },
+    });
 
-    await user.click(screen.getByRole("button", { name: "Go to next page" }));
-    expect(screen.getByText("16–20 of 20")).toBeInTheDocument();
-
-    await user.type(screen.getByPlaceholderText("Search model or collection..."), "MR-1");
-    expect(screen.getByText("1–10 of 10")).toBeInTheDocument();
+    expect(screen.getByText("16–30 of 40")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Go to previous page" }));
+    expect(replace).toHaveBeenLastCalledWith("/promos", { scroll: false });
   });
 
-  it("shows the filtered-empty state instead of the table", async () => {
+  it("debounces a search into one navigation that resets to page 1", async () => {
     const user = userEvent.setup();
-    renderPromos();
+    renderPromos({ filters: { ...FILTERS, page: 3 } });
 
-    await user.type(screen.getByPlaceholderText("Search model or collection..."), "zzz");
+    await user.type(screen.getByPlaceholderText("Search model, collection or brand..."), "MR-1");
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/promos?q=MR-1", { scroll: false }));
+    expect(replace).toHaveBeenCalledTimes(1);
+  });
+
+  it("navigates on a filter toggle and clears every filter at once", async () => {
+    const user = userEvent.setup();
+    renderPromos({ filters: { ...FILTERS, q: "MR", brands: ["Meridian"], size1Pos: true, page: 2 } });
+
+    await user.click(screen.getByRole("button", { name: /Filters/ }));
+    await user.click(await screen.findByRole("checkbox", { name: "Ashford" }));
+    expect(replace).toHaveBeenLastCalledWith("/promos?q=MR&brands=Meridian%2CAshford&s1=1", { scroll: false });
+
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(replace).toHaveBeenLastCalledWith("/promos", { scroll: false });
+  });
+
+  it("shows the filtered-empty state instead of the table", () => {
+    renderPromos({ promos: [], total: 0, filters: { ...FILTERS, q: "zzz" } });
     expect(screen.getByText("No promos match your search")).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("shows the no-promos-at-all state when the whole list is empty", () => {
+    renderPromos({ promos: [], total: 0, summary: { ...SUMMARY, count: 0 } });
+    expect(screen.getByText("No active promos")).toBeInTheDocument();
+    expect(screen.queryByText("No promos match your search")).not.toBeInTheDocument();
   });
 
   it("opens the delete confirmation from the manager actions menu", async () => {
