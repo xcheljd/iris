@@ -1,13 +1,14 @@
 import { db } from "@/lib/db";
 import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bannedCustomers, unsubscribeList, employees, clientTags, outreachTemplates, smartLists, rvxImportBatches, prospects } from "@/lib/db/schema";
-import { eq, desc, asc, and, or, isNull, isNotNull, lte, gte, notInArray, sql as rawSql } from "drizzle-orm";
+import { eq, desc, asc, and, or, isNull, isNotNull, lte, gte, gt, like, inArray, notInArray, sql as rawSql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
+import { BRAND_VALUES, type Brand } from "@/lib/db/schema";
 import { applyClientFilter } from "@/lib/utils";
 import { buildClientFilterConds } from "@/lib/client-filter-conds";
 import { smartListToClientFilters } from "@/lib/smart-list-filters";
 import { toFtsQuery } from "@/lib/fts";
 import { getCatalogMap } from "@/lib/actions/model-catalog";
-import { MS_PER_DAY, SEC_PER_DAY, LIST_QUERY_LIMIT, PAGE_READ_LIMIT, FOLLOW_UP_LOOKAHEAD_DAYS, DEFAULT_PAGE_SIZE } from "@/lib/constants";
+import { MS_PER_DAY, SEC_PER_DAY, LIST_QUERY_LIMIT, PAGE_READ_LIMIT, FOLLOW_UP_LOOKAHEAD_DAYS, DEFAULT_PAGE_SIZE, PROMO_PAGE_SIZE } from "@/lib/constants";
 
 const clientListProjection = {
   id: clients.id,
@@ -302,16 +303,174 @@ export async function getPromos() {
   return db.select().from(promoWatches).orderBy(rawSql`rowid`).limit(LIST_QUERY_LIMIT).all();
 }
 
+/**
+ * Sortable promo columns, keyed by the `sort` value the URL carries. The map
+ * *is* the whitelist: an unknown key never reaches SQL because it can't index
+ * this object, so no URL value is ever interpolated into an ORDER BY.
+ */
+const promoSortColumns = {
+  modelNumber: promoWatches.modelNumber,
+  collection: promoWatches.collection,
+  brand: promoWatches.brand,
+  msrp: promoWatches.msrp,
+  discountPercent: promoWatches.discountPercent,
+  discountPrice: promoWatches.discountPrice,
+  sizeOneQty: promoWatches.sizeOneQty,
+  sizeTwoQty: promoWatches.sizeTwoQty,
+} as const;
+
+export type PromoSortKey = keyof typeof promoSortColumns;
+
+/** The sort keys a caller may accept off a URL. */
+export const PROMO_SORT_KEYS = Object.keys(promoSortColumns) as PromoSortKey[];
+
+export interface PromoListOptions {
+  /** Free text across model number, collection and brand. */
+  q?: string;
+  /** Brand enum values; anything outside BRAND_VALUES is dropped. */
+  brands?: string[];
+  collections?: string[];
+  /** Upper bound on MSRP. Unpriced rows are excluded, as they always were. */
+  msrpMax?: number;
+  /** Lower bound on discount percent; a missing discount counts as 0. */
+  discMin?: number;
+  /** Only rows with stock in that size. */
+  size1Pos?: boolean;
+  size2Pos?: boolean;
+  /** Omit for the list's native import order (rowid). */
+  sort?: PromoSortKey;
+  sortDir?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}
+
+/**
+ * The promo list, filtered/sorted/paged in SQL.
+ *
+ * Access model is `getPromos`': promos are company-wide, so there is no owner
+ * scoping and no auth check here — this is a read query and its caller carries
+ * the gate (`middleware.ts` for the session, the page for the role). That is
+ * deliberately *not* `listCatalog`'s shape: catalog is a `"use server"` action
+ * calling `requireManager()` because its whole route is manager-only, while the
+ * promos page renders for associates too and only gates its write UI.
+ *
+ * Returns the unfiltered summary and collection list alongside the page, the
+ * way `listCatalog` returns its needs-review/flagged/ceiling extras: the header
+ * stats, the promo-period banner and the filter menu all describe the *whole*
+ * list and must not move when a filter narrows the table.
+ */
+export async function listPromos(opts: PromoListOptions = {}) {
+  const {
+    q = "", brands = [], collections = [], msrpMax, discMin,
+    size1Pos = false, size2Pos = false,
+    sort, sortDir = "asc", page = 1, pageSize = PROMO_PAGE_SIZE,
+  } = opts;
+
+  const conds: (SQL<unknown> | undefined)[] = [];
+  const term = q.trim();
+  // SQLite's LIKE is ASCII-case-insensitive, which is what the old
+  // `.toLowerCase().includes()` filter did.
+  if (term) {
+    conds.push(or(
+      like(promoWatches.modelNumber, `%${term}%`),
+      like(promoWatches.collection, `%${term}%`),
+      like(promoWatches.brand, `%${term}%`),
+    ));
+  }
+  const validBrands = brands.filter((b): b is Brand => (BRAND_VALUES as readonly string[]).includes(b));
+  if (validBrands.length) conds.push(inArray(promoWatches.brand, validBrands));
+  if (collections.length) conds.push(inArray(promoWatches.collection, collections));
+  // `msrp <= max` drops NULL rows, matching the old `(msrp ?? Infinity) <= max`;
+  // COALESCE keeps the discount bound's old `(discountPercent ?? 0) >= min`.
+  if (msrpMax != null) conds.push(lte(promoWatches.msrp, msrpMax));
+  if (discMin != null) conds.push(rawSql`COALESCE(${promoWatches.discountPercent}, 0) >= ${discMin}`);
+  if (size1Pos) conds.push(gt(promoWatches.sizeOneQty, 0));
+  if (size2Pos) conds.push(gt(promoWatches.sizeTwoQty, 0));
+  const whereClause = conds.length ? and(...conds) : undefined;
+
+  const totalRow = db.select({ n: rawSql<number>`count(*)` }).from(promoWatches).where(whereClause).get();
+  const total = Number(totalRow?.n ?? 0);
+
+  // Reproduces the clamp the client-side surface applied to its stored page
+  // index: a list that shrank under a stale `?page=` shows the last real page
+  // rather than an empty table. The caller renders the returned page number.
+  const lastPage = Math.max(1, Math.ceil(total / pageSize));
+  const effectivePage = Math.min(Math.max(1, page), lastPage);
+
+  const dirFn = sortDir === "desc" ? desc : asc;
+  // rowid breaks ties, so a value shared across a page boundary can't repeat or
+  // vanish between pages — and it reproduces the stable client-side sort, which
+  // fell back to import order for equal keys. NULLs keep SQLite's placement
+  // (first ascending, last descending), which is where the old comparators put
+  // them once a null brand stopped reading as the string "-Infinity".
+  const orderClauses: SQL<unknown>[] = sort
+    ? [dirFn(promoSortColumns[sort]) as SQL<unknown>, rawSql`rowid`]
+    : [rawSql`rowid`];
+
+  const rows = db
+    .select()
+    .from(promoWatches)
+    .where(whereClause)
+    .orderBy(...orderClauses)
+    .limit(pageSize)
+    .offset((effectivePage - 1) * pageSize)
+    .all();
+
+  // Unfiltered aggregates: the stat cards and the promo-period banner.
+  // NULLIF drops the empty-string dates the old `.filter(Boolean)` skipped.
+  const summaryRow = db
+    .select({
+      count: rawSql<number>`count(*)`,
+      retailValue: rawSql<number>`COALESCE(SUM(COALESCE(${promoWatches.msrp}, 0)), 0)`,
+      savings: rawSql<number>`COALESCE(SUM(COALESCE(${promoWatches.msrp}, 0) - COALESCE(${promoWatches.discountPrice}, 0)), 0)`,
+      promoStart: rawSql<string | null>`MIN(NULLIF(${promoWatches.promoStart}, ''))`,
+      promoEnd: rawSql<string | null>`MAX(NULLIF(${promoWatches.promoEnd}, ''))`,
+    })
+    .from(promoWatches)
+    .get();
+
+  const collectionRows = db
+    .selectDistinct({ collection: promoWatches.collection })
+    .from(promoWatches)
+    .orderBy(asc(promoWatches.collection))
+    .all();
+
+  return {
+    rows,
+    total,
+    page: effectivePage,
+    summary: {
+      count: Number(summaryRow?.count ?? 0),
+      retailValue: Number(summaryRow?.retailValue ?? 0),
+      savings: Number(summaryRow?.savings ?? 0),
+      promoStart: summaryRow?.promoStart ?? null,
+      promoEnd: summaryRow?.promoEnd ?? null,
+    },
+    collections: collectionRows.map((r) => r.collection),
+  };
+}
+
 // Distinct matched-client count per promo, excluding deleted/soft-deleted
 // and orphaned clients (mirrors what View Matches shows). One row per
 // (client, promo) is guaranteed by the promo_matches unique constraint,
 // so count(*) == distinct clients.
-export async function getPromoMatchCounts(): Promise<Record<string, number>> {
+//
+// Always one grouped query — never one per promo. Pass the promo ids actually
+// being rendered to group only their matches: the promos table reads at most a
+// page's worth of these badges, so counting every promo in the store (and
+// shipping the whole map to the client) is work nobody looks at. Omit the
+// argument for the full map.
+export async function getPromoMatchCounts(promoIds?: string[]): Promise<Record<string, number>> {
+  if (promoIds?.length === 0) return {};
   const rows = db
     .select({ promoId: promoMatches.promoId, n: rawSql<number>`count(*)` })
     .from(promoMatches)
     .leftJoin(clients, eq(promoMatches.clientId, clients.id))
-    .where(and(isNull(clients.deletedAt), notInArray(clients.status, ["deleted"])))
+    .where(and(
+      isNull(clients.deletedAt),
+      notInArray(clients.status, ["deleted"]),
+      promoIds ? inArray(promoMatches.promoId, promoIds) : undefined,
+    ))
     .groupBy(promoMatches.promoId)
     .all();
   const map: Record<string, number> = {};
