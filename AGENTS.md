@@ -25,7 +25,7 @@ A self-hosted clienteling/CRM web app for Meridian Watch retail — replaces a s
 - **UI:** shadcn/ui (New York style) + Tailwind CSS 4, Radix primitives, lucide icons, sonner toasts
 - **DB:** SQLite via `better-sqlite3`; ORM: Drizzle ORM (`drizzle-kit`)
 - **Auth:** NextAuth.js (Credentials provider, JWT sessions) — needs `NEXTAUTH_SECRET` + `NEXTAUTH_URL`
-- **Forms/validation:** hand-rolled forms validated with zod
+- **Forms/validation:** hand-rolled forms validated with zod 4
 - **Charts:** Recharts
 - **PDF parsing:** `pdfjs-dist` (client-side, worker copied via `postinstall`)
 - **Tests:** Vitest 4 + Testing Library + jsdom
@@ -71,6 +71,15 @@ A self-hosted clienteling/CRM web app for Meridian Watch retail — replaces a s
   `@plugin` (`tailwindcss-animate`), dark mode with `@custom-variant`, and `container` is an
   `@utility`. Source files are auto-detected; `postcss.config.mjs` runs only
   `@tailwindcss/postcss` (v4 prefixes via Lightning CSS, so autoprefixer is gone).
+- **Validation (zod 4):** use the top-level format schemas — `z.email()`, `z.uuid()`,
+  `z.iso.date()` — not `z.string().email()/.uuid()/.date()`. Custom messages go in the `error`
+  option (`z.enum(V, { error: () => "…" })`); `errorMap` is gone. Issue codes are plain strings
+  (`ctx.addIssue({ code: "custom" })`), and there is no `z.ZodIssueCode`. Read failures off
+  `error.issues`, never `error.errors`.
+  - The REST routes return `parsed.error.flatten().fieldErrors` as their `details` payload.
+    That is a response contract; `.flatten()` is deprecated in zod 4, so
+    `__tests__/unit/validation-error-shape.test.ts` pins the shape — keep it passing or migrate
+    the routes to `z.flattenError()` and update it deliberately.
 - **Heat scoring:** computed in exactly one place — `lib/heat-score.ts` (`calcHeatScore`).
   Seeds, migrations and tests call it; nothing reimplements the rules inline. The seed is
   deterministic (mulberry32 PRNG, override with `SEED=<n>`) — do not reintroduce

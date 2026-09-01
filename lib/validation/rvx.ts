@@ -10,11 +10,11 @@ export const graduateProspectSchema = z.object({
   firstName: z.string().min(1, "First name is required").max(100),
   lastName: z.string().min(1, "Last name is required").max(100),
   preferredContact: z.enum(PREFERRED_CONTACT_VALUES, {
-    errorMap: () => ({ message: "Preferred contact method is required" }),
+    error: () => "Preferred contact method is required",
   }),
   phone: nullableStr(20).optional(),
   email: z
-    .preprocess((v) => (v === "" ? null : v), z.string().email("Invalid email").max(200).nullable())
+    .preprocess((v) => (v === "" ? null : v), z.email("Invalid email").max(200).nullable())
     .optional(),
   birthday: occasionDate.optional(),
   anniversary: occasionDate.optional(),

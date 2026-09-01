@@ -6,10 +6,10 @@ import { randomUUID } from "crypto";
 import { z } from "zod";
 
 const notePostSchema = z.object({
-  clientId: z.string().uuid(),
+  clientId: z.uuid(),
   text: z.string().min(1).max(2000),
 });
-const noteDeleteSchema = z.object({ noteId: z.string().uuid() });
+const noteDeleteSchema = z.object({ noteId: z.uuid() });
 
 export const POST = withAuth(async (session, request: Request) => {
   try {
