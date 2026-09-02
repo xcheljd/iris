@@ -13,6 +13,13 @@ const nullableStr = (max: number) =>
 // it would survive into the column and silently fall out of the month buckets.
 // Shared by every write path that stores an occasion date (clients here,
 // prospect graduation in ./rvx).
+//
+// `z.iso.date()`, not a shape regex: the regex validated the *format* and not
+// the *calendar*, so "2026-02-31" and "2026-13-01" were both accepted. A
+// birthday stored as "2026-02-31" reads back through parseOccasionDate as
+// March 3 in the UI while the month bucket `substr(birthday, 6, 2)` still
+// files it under February — two answers, no error anywhere. This is also the
+// house style AGENTS.md prescribes, and what followUpDateSchema already uses.
 export const occasionDate = z.preprocess(
   (v) => {
     if (typeof v !== "string") return v;
@@ -20,10 +27,7 @@ export const occasionDate = z.preprocess(
     if (t === "") return null;
     return /^\d{4}-\d{2}-\d{2}T/.test(t) ? t.slice(0, 10) : t;
   },
-  z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a valid date")
-    .nullable(),
+  z.iso.date("Use a valid date").nullable(),
 );
 
 const blankToNull = (v: unknown) =>

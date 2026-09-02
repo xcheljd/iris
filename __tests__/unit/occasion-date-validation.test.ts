@@ -41,6 +41,38 @@ describe("clientCreateSchema — occasion dates", () => {
     const result = clientCreateSchema.safeParse({ ...baseCreate, birthday: "08/29" });
     expect(result.success).toBe(false);
   });
+
+  // F-6: the schema used a shape regex (/^\d{4}-\d{2}-\d{2}$/), which
+  // validates the format but not the calendar. "2026-02-31" was accepted,
+  // parseOccasionDate read it back as March 3 for the profile, and the SQL
+  // month bucket substr(birthday, 6, 2) filed it under February — the client
+  // page and the "Birthdays this month" card disagreed, permanently, with no
+  // error anywhere.
+  it.each([
+    "2026-02-31",
+    "2026-02-30",
+    "2025-02-29",
+    "2026-13-01",
+    "2026-00-10",
+    "2026-04-31",
+    "2026-01-32",
+    "2026-01-00",
+  ])("rejects the well-shaped but non-existent date %s", (bad) => {
+    for (const schema of [clientCreateSchema, clientPatchSchema, graduateProspectSchema]) {
+      const result = schema.safeParse({ ...baseCreate, prospectId: "p1", birthday: bad });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues.some((i) => i.message === "Use a valid date")).toBe(true);
+      }
+    }
+  });
+
+  it.each(["2024-02-29", "2026-02-28", "2026-12-31", "2026-01-01"])(
+    "still accepts the real calendar date %s",
+    (good) => {
+      expect(clientCreateSchema.parse({ ...baseCreate, birthday: good }).birthday).toBe(good);
+    },
+  );
 });
 
 describe("graduateProspectSchema — occasion dates", () => {
