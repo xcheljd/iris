@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { clients, activityEvents, bannedCustomers, unsubscribeList } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import { normalizeEmail, sameEmail } from "@/lib/email-identity";
 
 // drizzle better-sqlite3 transaction handle (same shape as `db`).
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -73,9 +74,13 @@ export function applyUnsubscribeUnchecked(
   if (!c) return { error: "Client not found" };
 
   tx.update(clients).set({ status: "unsubscribed", onEmailList: false, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
-  if (c.email) {
-    const existing = tx.select().from(unsubscribeList).where(eq(unsubscribeList.email, c.email)).get();
-    if (!existing) tx.insert(unsubscribeList).values({ id: randomUUID(), email: c.email }).run();
+  // Normalized both ways: the suppression list holds one canonical row per
+  // address, and a mixed-case client email must not slip past the existence
+  // check and insert a second row for the same person.
+  const email = normalizeEmail(c.email);
+  if (email) {
+    const existing = tx.select().from(unsubscribeList).where(sameEmail(unsubscribeList.email, email)).get();
+    if (!existing) tx.insert(unsubscribeList).values({ id: randomUUID(), email }).run();
   }
   tx.insert(activityEvents).values({
     id: randomUUID(), clientId, eventType: "status_changed", description: "Unsubscribed", metadata: { newStatus: "unsubscribed" }, employeeId,

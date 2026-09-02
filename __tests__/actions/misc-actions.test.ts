@@ -165,6 +165,60 @@ describe("Misc Actions", () => {
       const result = await addUnsubscribeEmail(testEmail);
       expect(result?.error).toBe("Email already exists");
     });
+
+    // F-8: the UI deduped case-insensitively, the UNIQUE TEXT column collates
+    // BINARY, and the action matched clients with a plain eq(). Quick-Adding
+    // "Alex@Example.com" for a client stored as "alex@example.com" passed the
+    // UI check, passed the constraint, marked nobody unsubscribed, and left a
+    // row reading "No client match" forever — straight into the orphan bucket.
+    it("matches a differently-cased client email and marks them unsubscribed", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+      const stored = `case-client-${Date.now()}@example.com`;
+      db.update(clients)
+        .set({ email: stored, status: "active", onEmailList: true })
+        .where(eq(clients.id, FIRST_CLIENT_ID))
+        .run();
+
+      const res = await addUnsubscribeEmail(stored.toUpperCase());
+      expect(res).toBeUndefined();
+
+      const entry = db.select().from(unsubscribeList).where(eq(unsubscribeList.email, stored)).get();
+      expect(entry).toBeDefined();
+      if (entry) cleanupUnsubIds.push(entry.id);
+      // Stored lowercased, not as typed.
+      expect(entry!.email).toBe(stored);
+
+      const client = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
+      expect(client!.status).toBe("unsubscribed");
+    });
+
+    it("rejects a differently-cased address already on the list", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+      const email = `case-dup-${Date.now()}@example.com`;
+
+      await addUnsubscribeEmail(email);
+      const entry = db.select().from(unsubscribeList).where(eq(unsubscribeList.email, email)).get();
+      if (entry) cleanupUnsubIds.push(entry.id);
+
+      await expect(addUnsubscribeEmail(email.toUpperCase())).resolves.toEqual({
+        error: "Email already exists",
+      });
+    });
+
+    // The only write path in the app with no zod schema at all: its sole gate
+    // was a hand-rolled regex in the UI that accepts "a@b.c." and "a@b..c".
+    it.each(["a@b.c.", "a@b..c", "not-an-email", "", "   "])(
+      "rejects the malformed address %j before it reaches the suppression list",
+      async (bad) => {
+        vi.mocked(getServerSession).mockResolvedValue(managerSession);
+        const before = db.select().from(unsubscribeList).all().length;
+
+        await expect(addUnsubscribeEmail(bad)).resolves.toEqual({
+          error: "Enter a valid email address",
+        });
+        expect(db.select().from(unsubscribeList).all().length).toBe(before);
+      },
+    );
   });
 
   describe("resubscribeClient", () => {

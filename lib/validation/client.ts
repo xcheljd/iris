@@ -102,6 +102,16 @@ export const clientPatchSchema = z
   })
   .partial();
 
+// The Quick Add box on /unsubscribed. `unsubscribe_list.email` is a UNIQUE
+// TEXT column, and SQLite TEXT collates BINARY — case-sensitively — so
+// "Alex@Example.com" and "alex@example.com" are two distinct rows there and
+// neither matches the other's client. Lowercase at this boundary so the
+// suppression list holds one canonical shape per address.
+export const unsubscribeEmailSchema = z.preprocess(
+  (v) => (typeof v === "string" ? v.trim() : v),
+  z.email("Enter a valid email address").max(200).transform((s) => s.toLowerCase()),
+);
+
 // A ban recorded against someone who has no client record — a walk-in the
 // manager only knows by name and contact details. `banned_customers.customer_id`
 // stays null, so nothing joins back to `clients` and no activity event is

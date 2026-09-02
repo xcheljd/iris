@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bannedCustomers, unsubscribeList, employees, clientTags, outreachTemplates, smartLists, rvxImportBatches, prospects } from "@/lib/db/schema";
 import { eq, desc, asc, and, or, isNull, isNotNull, lte, gte, gt, inArray, notInArray, sql as rawSql } from "drizzle-orm";
 import { containsLike, containsLikeLower } from "@/lib/like";
+import { sameEmail } from "@/lib/email-identity";
 import type { SQL } from "drizzle-orm";
 import { BRAND_VALUES, type Brand } from "@/lib/db/schema";
 import { applyClientFilter } from "@/lib/utils";
@@ -554,7 +555,11 @@ export async function getUnsubscribeList() {
     lastName: clients.lastName,
     customerId: clients.customerId,
   }).from(unsubscribeList)
-    .leftJoin(clients, eq(unsubscribeList.email, clients.email))
+    // Case-insensitive: `clients.email` holds mixed case by construction (the
+    // client write path never lowercases), so a raw column-to-column join left
+    // suppression rows reading "No client match" against a client that is
+    // plainly there.
+    .leftJoin(clients, sameEmail(unsubscribeList.email, clients.email))
     .orderBy(desc(unsubscribeList.unsubscribedAt)).limit(LIST_QUERY_LIMIT).all();
   return rows;
 }

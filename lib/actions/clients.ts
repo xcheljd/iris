@@ -10,7 +10,8 @@ import { fullName } from "@/lib/utils";
 import { recordProductsOfInterest } from "./model-catalog";
 import { applyClientPatchUnchecked } from "./_client-patch-core";
 import { runStatusChange, applyBanUnchecked, applyUnsubscribeUnchecked, applyDeleteUnchecked } from "./_client-status-core";
-import { clientPatchSchema, banWalkInSchema } from "@/lib/validation/client";
+import { clientPatchSchema, banWalkInSchema, unsubscribeEmailSchema } from "@/lib/validation/client";
+import { sameEmail } from "@/lib/email-identity";
 
 // Structural de-dupe for products of interest (objects, so Set won't dedupe).
 function dedupeProducts(list: ProductOfInterest[]): ProductOfInterest[] {
@@ -107,11 +108,26 @@ export async function unbanClient(clientId: string): Promise<{ error: string } |
   revalidatePath("/banned");
 }
 
-export async function addUnsubscribeEmail(email: string): Promise<{ error: string } | undefined> {
+/**
+ * Add an address to the compliance suppression list by hand.
+ *
+ * This was the one write path in the app with no zod schema at all — its only
+ * gate was a hand-rolled regex in the UI that accepts "a@b.c." and "a@b..c" —
+ * and it neither lowercased nor case-folded its lookups, while the UI's own
+ * dedupe check *was* case-insensitive. Quick-Adding "Alex@Example.com" for a
+ * client stored as "alex@example.com" therefore passed the UI check, passed
+ * the UNIQUE constraint (SQLite TEXT collates BINARY), never marked the client
+ * unsubscribed, and left a row reading "No client match" forever.
+ */
+export async function addUnsubscribeEmail(rawEmail: string): Promise<{ error: string } | undefined> {
   const user = await requireManager();
-  const existing = db.select().from(unsubscribeList).where(eq(unsubscribeList.email, email)).get();
+  const parsed = unsubscribeEmailSchema.safeParse(rawEmail);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid email" };
+  const email = parsed.data;
+
+  const existing = db.select().from(unsubscribeList).where(sameEmail(unsubscribeList.email, email)).get();
   if (existing) return { error: "Email already exists" };
-  const matchingClient = db.select({ id: clients.id }).from(clients).where(eq(clients.email, email)).get();
+  const matchingClient = db.select({ id: clients.id }).from(clients).where(sameEmail(clients.email, email)).get();
   db.transaction((tx) => {
     tx.insert(unsubscribeList).values({ id: randomUUID(), email }).run();
     if (matchingClient) {
@@ -153,8 +169,11 @@ export async function resubscribeClient(clientId: string) {
     // being on the suppression list. Removing from the suppression list
     // means they CAN be re-added, not that they ARE on it.
     tx.update(clients).set({ status: "active", updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+    // Case-insensitive: the suppression row may have been written in a
+    // different case than the client's own email, and a case-sensitive delete
+    // would leave it behind as an unremovable orphan.
     if (c.email) {
-      tx.delete(unsubscribeList).where(eq(unsubscribeList.email, c.email)).run();
+      tx.delete(unsubscribeList).where(sameEmail(unsubscribeList.email, c.email)).run();
     }
     tx.insert(activityEvents).values({
       id: randomUUID(), clientId, eventType: "status_changed", description: "Resubscribed", metadata: { newStatus: "active" }, employeeId: user.id,
