@@ -195,7 +195,9 @@ describe("POST /api/clients", () => {
     expect(res2.status).toBe(409);
     const data2 = await res2.json();
     expect(data2.error).toBe("Duplicate found");
-    expect(data2).toHaveProperty("duplicate");
+    // F-7: the 409 used to echo the whole matched client row back. It is a
+    // generic conflict now — see "POST /api/clients duplicate conflict" below.
+    expect(data2).not.toHaveProperty("duplicate");
   });
 
   it("should return 409 for duplicate phone", async () => {
@@ -366,6 +368,179 @@ describe("GET /api/clients/check-duplicates", () => {
     expect(checkRes.status).toBe(200);
     const data = await checkRes.json();
     expect(data.duplicate).toBeNull();
+  });
+
+  // F-7: the check normalized the *query* phone and compared it against the
+  // raw column. Nothing on the write path normalizes a phone into storage —
+  // the seed stores "(702) 555-0133" — so eq(clients.phone, "7025550133")
+  // never matched and the phone half of the pre-submit warning was dead.
+  it("matches a formatted stored phone against an unformatted query", async () => {
+    const id = randomUUID();
+    db.insert(clients).values({
+      id,
+      firstName: "Formatted",
+      lastName: "Phone",
+      phone: "(702) 555-0133",
+      employeeId: managerSession.user.id,
+    }).run();
+    createdIds.push(id);
+
+    const res = await GETDuplicates(
+      new Request("http://localhost:3000/api/clients/check-duplicates?phone=7025550133"),
+    );
+    const data = await res.json();
+    expect(data.duplicate).not.toBeNull();
+    expect(data.duplicate.id).toBe(id);
+  });
+
+  it("matches the other direction too — formatted query, unformatted store", async () => {
+    const id = randomUUID();
+    db.insert(clients).values({
+      id,
+      firstName: "Unformatted",
+      lastName: "Phone",
+      phone: "7025550144",
+      employeeId: managerSession.user.id,
+    }).run();
+    createdIds.push(id);
+
+    const res = await GETDuplicates(
+      new Request(`http://localhost:3000/api/clients/check-duplicates?phone=${encodeURIComponent("(702) 555-0144")}`),
+    );
+    const data = await res.json();
+    expect(data.duplicate?.id).toBe(id);
+  });
+
+  it("matches an email regardless of case", async () => {
+    const id = randomUUID();
+    db.insert(clients).values({
+      id,
+      firstName: "Mixed",
+      lastName: "Case",
+      email: "Mixed.Case@Example.com",
+      employeeId: managerSession.user.id,
+    }).run();
+    createdIds.push(id);
+
+    const res = await GETDuplicates(
+      new Request("http://localhost:3000/api/clients/check-duplicates?email=mixed.case@example.com"),
+    );
+    const data = await res.json();
+    expect(data.duplicate?.id).toBe(id);
+  });
+
+  it("ignores soft-deleted clients", async () => {
+    const id = randomUUID();
+    db.insert(clients).values({
+      id,
+      firstName: "Deleted",
+      lastName: "Client",
+      email: "deleted-dup@example.com",
+      status: "deleted",
+      deletedAt: new Date(),
+      employeeId: managerSession.user.id,
+    }).run();
+    createdIds.push(id);
+
+    const res = await GETDuplicates(
+      new Request("http://localhost:3000/api/clients/check-duplicates?email=deleted-dup@example.com"),
+    );
+    expect((await res.json()).duplicate).toBeNull();
+  });
+});
+
+// F-7: POST ran its duplicate query with no status filter and answered with
+// `{ duplicate: existing }` — the entire matched row, soft-deleted ones
+// included, and not owner-scoped. An associate could be handed another
+// associate's client record just by guessing an email or phone.
+describe("POST /api/clients duplicate conflict", () => {
+  it("returns a generic 409 without echoing the matched client back", async () => {
+    const id = randomUUID();
+    db.insert(clients).values({
+      id,
+      firstName: "Existing",
+      lastName: "Person",
+      email: "conflict-payload@example.com",
+      phone: "(702) 555-0155",
+      notes: "Private note that must not leak",
+      employeeId: managerSession.user.id,
+    }).run();
+    createdIds.push(id);
+
+    const res = await POST(
+      new Request("http://localhost:3000/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: "New",
+          lastName: "Person",
+          preferredContact: "call",
+          email: "conflict-payload@example.com",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body).toEqual({ error: "Duplicate found" });
+    expect(JSON.stringify(body)).not.toContain("Private note");
+  });
+
+  it("blocks a formatted-vs-unformatted phone collision the old gate let through", async () => {
+    const id = randomUUID();
+    db.insert(clients).values({
+      id,
+      firstName: "Stored",
+      lastName: "Formatted",
+      phone: "(702) 555-0166",
+      employeeId: managerSession.user.id,
+    }).run();
+    createdIds.push(id);
+
+    const res = await POST(
+      new Request("http://localhost:3000/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: "Same",
+          lastName: "Number",
+          preferredContact: "call",
+          phone: "7025550166",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(409);
+  });
+
+  it("does not 409 against a soft-deleted client", async () => {
+    const id = randomUUID();
+    db.insert(clients).values({
+      id,
+      firstName: "Gone",
+      lastName: "Client",
+      email: "gone-dup@example.com",
+      status: "deleted",
+      deletedAt: new Date(),
+      employeeId: managerSession.user.id,
+    }).run();
+    createdIds.push(id);
+
+    const res = await POST(
+      new Request("http://localhost:3000/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: "Fresh",
+          lastName: "Start",
+          preferredContact: "call",
+          email: "gone-dup@example.com",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    createdIds.push((await res.json()).id);
   });
 });
 

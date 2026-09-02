@@ -4,7 +4,8 @@ import { clients, activityEvents, unsubscribeList, prospects } from "@/lib/db/sc
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
-import { normalizePhone, fullName } from "@/lib/utils";
+import { fullName } from "@/lib/utils";
+import { findDuplicateClient } from "@/lib/duplicate-client";
 import {
   graduateEnrichmentSchema,
   graduateProspectSchema,
@@ -25,21 +26,9 @@ export async function graduateProspect(input: GraduateProspectInput): Promise<
   if (!prospect) return { type: "error", error: "Prospect not found" };
   if (prospect.status !== "active") return { type: "error", error: "Prospect is not active" };
 
-  // Duplicate check against live clients
-  const allClients = db
-    .select({ id: clients.id, firstName: clients.firstName, lastName: clients.lastName, email: clients.email, phone: clients.phone, deletedAt: clients.deletedAt })
-    .from(clients)
-    .all();
-
-  const email = parsed.email?.toLowerCase() ?? null;
-  const phone = normalizePhone(parsed.phone ?? null);
-
-  const match = allClients.find(
-    (c) =>
-      c.deletedAt === null &&
-      ((email && c.email?.toLowerCase() === email) ||
-        (phone && normalizePhone(c.phone) === phone)),
-  );
+  // Duplicate check against live clients — contact details only, same rule
+  // and same implementation as the new-client form and POST /api/clients.
+  const match = findDuplicateClient({ email: parsed.email, phone: parsed.phone });
 
   if (match) {
     return {

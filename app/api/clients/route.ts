@@ -1,11 +1,12 @@
 import { withAuth } from "@/lib/api-helpers";
 import { db } from "@/lib/db";
 import { clients, activityEvents } from "@/lib/db/schema";
-import { and, eq, desc, or, notInArray, sql as rawSql } from "drizzle-orm";
+import { and, eq, desc, notInArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { clientCreateSchema, clientPatchSchema } from "@/lib/validation/client";
 import { saveClientEdits } from "@/lib/actions/clients";
+import { findDuplicateClient } from "@/lib/duplicate-client";
 import { recordProductsOfInterest } from "@/lib/actions/model-catalog";
 
 // GET /api/clients — list all clients
@@ -46,15 +47,16 @@ export const POST = withAuth(async (session, request: Request) => {
     const data = parsed.data;
     const id = randomUUID();
 
-    const existing = db.select().from(clients).where(
-      or(
-        data.email ? eq(clients.email, data.email) : rawSql`0`,
-        data.phone ? eq(clients.phone, data.phone) : rawSql`0`,
-      )
-    ).get();
+    // Contact details only: two people genuinely can share a name, so the
+    // hard gate does not block on one — that stays a pre-submit warning.
+    const existing = findDuplicateClient({ email: data.email, phone: data.phone });
 
     if (existing) {
-      return Response.json({ error: "Duplicate found", duplicate: existing }, { status: 409 });
+      // Generic conflict, no row echoed back. The old response returned the
+      // entire matched client — including soft-deleted ones, unfiltered and
+      // not owner-scoped — so an associate could be handed another
+      // associate's client record just by guessing an email or phone.
+      return Response.json({ error: "Duplicate found" }, { status: 409 });
     }
 
     db.insert(clients).values({
