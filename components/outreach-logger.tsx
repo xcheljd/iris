@@ -10,6 +10,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { DatePicker } from "@/components/date-picker";
 import { logOutreach } from "@/lib/actions";
+import { toDateOnly } from "@/lib/utils";
 import { toast } from "sonner";
 import { Phone, MessageSquare, Mail, User } from "lucide-react";
 
@@ -71,7 +72,9 @@ export function OutreachLogger({
         outcome: outcome as "no_answer" | "voicemail" | "voicemail_full" | "responded" | "not_interested" | "wants_to_come_in" | "purchased",
         purchasedModel: purchasedModel || undefined,
         notes: notes || undefined,
-        followUpDate: followUp ? followUp.toISOString().split("T")[0] : null,
+        // toDateOnly, not toISOString(): the picker hands back a local-midnight
+        // Date, whose UTC date part is a day early east of Greenwich.
+        followUpDate: toDateOnly(followUp),
         templateId: templateId || undefined,
       });
       if (result?.error) { toast.error(result.error); return; }

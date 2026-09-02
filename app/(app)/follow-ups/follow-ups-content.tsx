@@ -30,7 +30,7 @@ import { markFollowUpComplete, rescheduleFollowUp } from "@/lib/actions";
 import { toast } from "sonner";
 import { format, differenceInDays } from "date-fns";
 import { Topbar } from "@/components/topbar";
-import { fullName } from "@/lib/utils";
+import { fullName, toDateOnly } from "@/lib/utils";
 import { useRemovedKeys } from "@/hooks/use-optimistic";
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
@@ -103,7 +103,11 @@ function FollowUpCard({
   const handleSnooze = async () => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const dateStr = tomorrow.toISOString().split("T")[0];
+    // toDateOnly, not toISOString(): `tomorrow` carries the current *time*, so
+    // west of Greenwich any snooze after ~17:00 local rolls the UTC date
+    // forward and schedules two days out. handleReschedule above is already
+    // local-correct via date-fns `format`.
+    const dateStr = toDateOnly(tomorrow)!;
     try {
       await rescheduleFollowUp(row.log.id, dateStr);
       toast.success("Follow-up snoozed until tomorrow");
