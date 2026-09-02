@@ -694,9 +694,9 @@ describe("associate session", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        firstName: "Assoc",
+        firstName: `Assoc-${uniqueSuffix}`,
         preferredContact: "call",
-        lastName: "Created",
+        lastName: `Created-${uniqueSuffix}`,
         phone: `555-${uniqueSuffix}`,
         email: `assoc-create-${uniqueSuffix}@example.com`,
         source: "Walk-in",
