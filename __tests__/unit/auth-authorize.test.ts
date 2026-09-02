@@ -111,6 +111,79 @@ describe("authOptions credentials authorize()", () => {
 
 });
 
+// F-4: `role` and `active` live in both the JWT and `employees`, and the jwt
+// callback used to copy them once at sign-in (`if (user)`) and never again.
+// requireManager() reads role straight off the session, so a demotion or a
+// deactivation did not take effect for SESSION_MAX_AGE_SECONDS (30 days).
+describe("authOptions jwt() reconciliation", () => {
+  type JwtCallback = (params: {
+    token: Record<string, unknown>;
+    user?: { id: string; role: string; firstName: string; lastName: string | null };
+  }) => Promise<Record<string, unknown>>;
+  const jwt = authOptions.callbacks!.jwt as unknown as JwtCallback;
+
+  // A session read: next-auth invokes the callback with only the decoded
+  // token, never a `user`.
+  const refresh = (token: Record<string, unknown>) => jwt({ token });
+
+  it("copies the signed-in user's fields on the initial call", async () => {
+    const token = await jwt({
+      token: {},
+      user: { id: ACTIVE_ID, role: "associate", firstName: "Ada", lastName: "Lovelace" },
+    });
+
+    expect(token).toMatchObject({ id: ACTIVE_ID, role: "associate", firstName: "Ada", lastName: "Lovelace" });
+  });
+
+  it("re-reads a demoted employee's role on the next session read", async () => {
+    db.update(employees).set({ role: "manager" }).where(eq(employees.id, ACTIVE_ID)).run();
+    const promoted = await refresh({ id: ACTIVE_ID, role: "associate" });
+    expect(promoted.role).toBe("manager");
+
+    // Demote in the DB only — exactly what updateEmployeeRole does.
+    db.update(employees).set({ role: "associate" }).where(eq(employees.id, ACTIVE_ID)).run();
+
+    const demoted = await refresh({ id: ACTIVE_ID, role: "manager" });
+    expect(demoted.role).toBe("associate");
+  });
+
+  it("invalidates the session of a deactivated employee", async () => {
+    db.update(employees).set({ active: false }).where(eq(employees.id, ACTIVE_ID)).run();
+    try {
+      await expect(refresh({ id: ACTIVE_ID, role: "manager" })).rejects.toThrow(
+        "Session employee is no longer active",
+      );
+    } finally {
+      db.update(employees).set({ active: true }).where(eq(employees.id, ACTIVE_ID)).run();
+    }
+  });
+
+  it("restores the session once the employee is re-activated", async () => {
+    db.update(employees).set({ active: false }).where(eq(employees.id, ACTIVE_ID)).run();
+    await expect(refresh({ id: ACTIVE_ID, role: "associate" })).rejects.toThrow();
+
+    db.update(employees).set({ active: true }).where(eq(employees.id, ACTIVE_ID)).run();
+    await expect(refresh({ id: ACTIVE_ID, role: "associate" })).resolves.toMatchObject({ role: "associate" });
+  });
+
+  it("invalidates the session of a soft-deleted employee", async () => {
+    db.update(employees).set({ deletedAt: new Date() }).where(eq(employees.id, ACTIVE_ID)).run();
+    try {
+      await expect(refresh({ id: ACTIVE_ID, role: "manager" })).rejects.toThrow();
+    } finally {
+      db.update(employees).set({ deletedAt: null }).where(eq(employees.id, ACTIVE_ID)).run();
+    }
+  });
+
+  it("invalidates a token whose employee row is gone (JWT outlived a re-seed)", async () => {
+    await expect(refresh({ id: randomUUID(), role: "manager" })).rejects.toThrow();
+  });
+
+  it("passes an id-less token through rather than throwing", async () => {
+    await expect(refresh({})).resolves.toEqual({});
+  });
+});
+
 describe("isSessionEmployeeStale", () => {
   it("is false while the session's employee row exists", async () => {
     await expect(isSessionEmployeeStale(ACTIVE_ID)).resolves.toBe(false);

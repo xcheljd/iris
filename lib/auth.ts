@@ -34,13 +34,42 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt", maxAge: SESSION_MAX_AGE_SECONDS },
   pages: { signIn: "/login" },
   callbacks: {
+    /**
+     * Runs once at sign-in with `user` set, and again on **every** session
+     * read with only `token` — which is the reconciliation point.
+     *
+     * `role` and `active` live in both the JWT and `employees`, and nothing
+     * else re-reads them: `requireManager()` trusts `session.user.role`
+     * verbatim. Without this the token wins for SESSION_MAX_AGE_SECONDS, so a
+     * demoted or deactivated employee keeps every manager capability — ban,
+     * delete, purge, merge, reassign owner, reset passwords, promote
+     * themselves back — for up to 30 days.
+     *
+     * Throwing here is how next-auth v4 invalidates a session: the session
+     * route catches it, clears the session cookie, and `getServerSession`
+     * returns `null`, so the next read signs the employee out.
+     */
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
         token.firstName = user.firstName;
         token.lastName = user.lastName;
+        return token;
       }
+
+      if (!token.id) return token;
+      const row = db
+        .select({ role: employees.role, active: employees.active, deletedAt: employees.deletedAt })
+        .from(employees)
+        .where(eq(employees.id, token.id))
+        .get();
+
+      // Gone (a JWT that outlived a re-seed), deactivated, or soft-deleted —
+      // all three mean this token must stop being a session.
+      if (!row || !row.active || row.deletedAt) throw new Error("Session employee is no longer active");
+
+      token.role = row.role;
       return token;
     },
     async session({ session, token }) {
