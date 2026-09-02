@@ -39,7 +39,7 @@ import {
   MoreHorizontal,
   UserX,
 } from "lucide-react";
-import { addUnsubscribeEmail, resubscribeClient } from "@/lib/actions";
+import { addUnsubscribeEmail, removeUnsubscribeEntry, resubscribeClient } from "@/lib/actions";
 import { toast } from "sonner";
 import { isAfter, isBefore, subDays, startOfMonth, endOfMonth } from "date-fns";
 import Link from "next/link";
@@ -125,10 +125,21 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
     [rowSelection],
   );
 
+  // A row with no `clientId` is an orphan suppression-list entry — a seeded
+  // opt-out or a Quick Add for a non-client. It still renders a destructive
+  // "Remove" button, so it needs a removal path that isn't keyed on a client:
+  // `removeUnsubscribeEntry` deletes the row by its own id.
   const handleRemove = async (row: UnsubscribedRow) => {
-    if (!row.clientId) return;
     try {
-      await resubscribeClient(row.clientId);
+      if (row.clientId) {
+        await resubscribeClient(row.clientId);
+      } else {
+        const res = await removeUnsubscribeEntry(row.unsub.id);
+        if (res?.error) {
+          toast.error(res.error);
+          return;
+        }
+      }
       setList(list.filter((l) => l.unsub.id !== row.unsub.id));
       setRowSelection((prev) => {
         const next = { ...prev };

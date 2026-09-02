@@ -18,6 +18,7 @@ import {
   banWalkIn,
   unsubscribeClient,
   resubscribeClient,
+  removeUnsubscribeEntry,
   toggleEmailList,
 } from "@/lib/actions";
 import { db } from "@/lib/db";
@@ -250,6 +251,40 @@ describe("Client Actions", () => {
     it("should do nothing if client does not exist", async () => {
       await resubscribeClient("nonexistent-id");
       // Should not throw
+    });
+  });
+
+  // F-1: resubscribeClient's `delete(unsubscribeList) WHERE email = <client's
+  // email>` was the only delete on the table, and it is only reachable through
+  // a valid clientId. Suppression-list rows with no matching client — seeded
+  // opt-outs, Quick Adds for non-clients — had no removal path at all.
+  describe("removeUnsubscribeEntry", () => {
+    it("deletes an orphan suppression-list row by its own id", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+
+      const id = randomUUID();
+      const email = `orphan-${id.slice(0, 8)}@example.com`;
+      db.insert(unsubscribeList).values({ id, email }).run();
+      // No client anywhere carries this email — the F-1 orphan shape.
+      expect(db.select().from(clients).where(eq(clients.email, email)).get()).toBeUndefined();
+
+      const res = await removeUnsubscribeEntry(id);
+
+      expect(res).toBeUndefined();
+      expect(db.select().from(unsubscribeList).where(eq(unsubscribeList.id, id)).get()).toBeUndefined();
+    });
+
+    it("reports { error } for an id that is not on the list", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+
+      await expect(removeUnsubscribeEntry(randomUUID())).resolves.toEqual({
+        error: "Unsubscribe entry not found",
+      });
+    });
+
+    it("requires a manager", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
+      await expect(removeUnsubscribeEntry(randomUUID())).rejects.toThrow("Manager access required");
     });
   });
 

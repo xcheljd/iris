@@ -116,6 +116,24 @@ export async function addUnsubscribeEmail(email: string): Promise<{ error: strin
   revalidatePath("/unsubscribed");
 }
 
+/**
+ * Delete one suppression-list row by its own id.
+ *
+ * `resubscribeClient` is the only other `delete(unsubscribeList)` and it is
+ * reached through a client id, so a row with no matching client — a seeded
+ * opt-out, or a Quick Add for a non-client — had no removal path at all. This
+ * is that path: it takes the row's identity, so it does not depend on the
+ * email matching a client's, and it touches no client status because there is
+ * no client to touch.
+ */
+export async function removeUnsubscribeEntry(unsubId: string): Promise<{ error: string } | undefined> {
+  await requireManager();
+  const row = db.select({ id: unsubscribeList.id }).from(unsubscribeList).where(eq(unsubscribeList.id, unsubId)).get();
+  if (!row) return { error: "Unsubscribe entry not found" };
+  db.delete(unsubscribeList).where(eq(unsubscribeList.id, unsubId)).run();
+  revalidatePath("/unsubscribed");
+}
+
 export async function resubscribeClient(clientId: string) {
   const user = await requireManager();
   const c = db.select({ email: clients.email }).from(clients).where(eq(clients.id, clientId)).get();

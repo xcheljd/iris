@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { UnsubscribedContent } from "@/app/(app)/unsubscribed/unsubscribed-content";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const resubscribeClient = vi.fn();
+const removeUnsubscribeEntry = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
@@ -15,7 +16,10 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/lib/actions", () => ({
   addUnsubscribeEmail: vi.fn(),
   resubscribeClient: (...args: unknown[]) => resubscribeClient(...args),
+  removeUnsubscribeEntry: (...args: unknown[]) => removeUnsubscribeEntry(...args),
 }));
+
+import { toast } from "sonner";
 
 vi.mock("@/components/topbar", () => ({
   Topbar: ({ children }: { children?: React.ReactNode }) => <div data-testid="topbar">{children}</div>,
@@ -71,7 +75,11 @@ function nameColumn(): string[] {
 }
 
 describe("UnsubscribedContent on the DataTable engine", () => {
-  beforeEach(() => resubscribeClient.mockReset());
+  beforeEach(() => {
+    resubscribeClient.mockReset();
+    removeUnsubscribeEntry.mockReset();
+    vi.mocked(toast.error).mockReset();
+  });
 
   it("renders a real header row, with the checkbox column only for managers", () => {
     const { unmount } = renderUnsubscribed();
@@ -209,6 +217,37 @@ describe("UnsubscribedContent on the DataTable engine", () => {
     await user.click(within(tableRows()[1]).getByRole("button", { name: "Actions" }));
     await user.click(await screen.findByRole("menuitem", { name: /Remove/ }));
     expect(await screen.findByText("Remove from Unsubscribe List")).toBeInTheDocument();
+  });
+
+  // F-1: `handleRemove` opened with `if (!row.clientId) return;`, so the
+  // destructive Remove button rendered on every unmatched row was a total
+  // no-op — no server call, no toast, no removal — and no other code path in
+  // the repo could delete an orphan `unsubscribe_list` row.
+  it("removes an orphan row by its unsubscribe id rather than doing nothing", async () => {
+    const user = userEvent.setup();
+    removeUnsubscribeEntry.mockResolvedValue(undefined);
+    renderUnsubscribed();
+
+    expect(nameColumn()).toContain("No client match");
+
+    await user.click(within(tableRows()[3]).getByRole("button", { name: /Remove/ }));
+    await user.click(await screen.findByRole("button", { name: "Remove" }));
+
+    expect(removeUnsubscribeEntry).toHaveBeenCalledWith("u3");
+    expect(resubscribeClient).not.toHaveBeenCalled();
+    await waitFor(() => expect(nameColumn()).not.toContain("No client match"));
+  });
+
+  it("surfaces a failed orphan removal instead of dropping the row", async () => {
+    const user = userEvent.setup();
+    removeUnsubscribeEntry.mockResolvedValue({ error: "Unsubscribe entry not found" });
+    renderUnsubscribed();
+
+    await user.click(within(tableRows()[3]).getByRole("button", { name: /Remove/ }));
+    await user.click(await screen.findByRole("button", { name: "Remove" }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Unsubscribe entry not found"));
+    expect(nameColumn()).toContain("No client match");
   });
 
   it("bulk-removes every selected record from the header checkbox", async () => {
