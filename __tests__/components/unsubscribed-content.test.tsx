@@ -79,6 +79,7 @@ describe("UnsubscribedContent on the DataTable engine", () => {
     resubscribeClient.mockReset();
     removeUnsubscribeEntry.mockReset();
     vi.mocked(toast.error).mockReset();
+    vi.mocked(toast.success).mockReset();
   });
 
   it("renders a real header row, with the checkbox column only for managers", () => {
@@ -252,14 +253,60 @@ describe("UnsubscribedContent on the DataTable engine", () => {
 
   it("bulk-removes every selected record from the header checkbox", async () => {
     const user = userEvent.setup();
+    resubscribeClient.mockResolvedValue(undefined);
+    removeUnsubscribeEntry.mockResolvedValue(undefined);
     renderUnsubscribed();
 
     await user.click(screen.getByRole("checkbox", { name: "Select all records" }));
     await user.click(screen.getByRole("button", { name: "Remove (3)" }));
     await user.click(await screen.findByRole("button", { name: "Remove All" }));
 
-    // The unmatched record has no client to resubscribe; the other two do.
+    // Two rows have a client to resubscribe; the unmatched one is removed by
+    // its own suppression-list id.
     expect(resubscribeClient).toHaveBeenCalledTimes(2);
     expect(resubscribeClient.mock.calls.map(([id]) => id).sort()).toEqual(["client-u1", "client-u2"]);
+    expect(removeUnsubscribeEntry).toHaveBeenCalledTimes(1);
+    expect(removeUnsubscribeEntry).toHaveBeenCalledWith("u3");
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Removed 3 records"));
+  });
+
+  // Report candidate #2: the batch awaited only the rows *with* a clientId,
+  // then spliced every selected id out of local state and toasted
+  // `Removed ${selected.size}`. Select three where one can't be removed and
+  // you got two server calls, three rows gone from the list, "Removed 3
+  // records", and the third one back on the next refresh.
+  it("splices and counts only the records that actually came back removed", async () => {
+    const user = userEvent.setup();
+    resubscribeClient.mockImplementation(async (id: unknown) => {
+      if (id === "client-u2") throw new Error("boom");
+    });
+    removeUnsubscribeEntry.mockResolvedValue({ error: "Unsubscribe entry not found" });
+    renderUnsubscribed();
+
+    await user.click(screen.getByRole("checkbox", { name: "Select all records" }));
+    await user.click(screen.getByRole("button", { name: "Remove (3)" }));
+    await user.click(await screen.findByRole("button", { name: "Remove All" }));
+
+    // Only Zoe's row succeeded.
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Removed 1 record"));
+    expect(toast.error).toHaveBeenCalledWith("Failed to remove 2 records");
+    await waitFor(() => expect(nameColumn()).toEqual(["Ada Byron", "No client match"]));
+    // The two failures stay selected so they can be retried.
+    expect(screen.getByRole("button", { name: "Remove (2)" })).toBeInTheDocument();
+  });
+
+  it("reports a wholly failed batch without emptying the list", async () => {
+    const user = userEvent.setup();
+    resubscribeClient.mockRejectedValue(new Error("offline"));
+    removeUnsubscribeEntry.mockRejectedValue(new Error("offline"));
+    renderUnsubscribed();
+
+    await user.click(screen.getByRole("checkbox", { name: "Select all records" }));
+    await user.click(screen.getByRole("button", { name: "Remove (3)" }));
+    await user.click(await screen.findByRole("button", { name: "Remove All" }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Failed to remove 3 records"));
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(nameColumn()).toEqual(["Zoe Chan", "Ada Byron", "No client match"]);
   });
 });

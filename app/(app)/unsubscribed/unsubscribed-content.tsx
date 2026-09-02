@@ -154,19 +154,49 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
     }
   };
 
+  // The local diff and the toast are both driven by what actually came back
+  // removed. Before, this awaited only the rows *with* a clientId, then
+  // spliced every selected id out of local state and toasted
+  // `Removed ${selected.size}`: select three rows where one is unmatched and
+  // you got two server calls, three rows gone from the list, "Removed 3
+  // records", and the third back on the next refresh.
   const handleBatchRemove = async () => {
-    try {
-      const selected = new Set(selectedIds);
-      const rows = list.filter((l) => selected.has(l.unsub.id) && l.clientId);
-      await Promise.all(rows.map((row) => resubscribeClient(row.clientId!)));
-      setList(list.filter((l) => !selected.has(l.unsub.id)));
-      toast.success(`Removed ${selected.size} record${selected.size !== 1 ? "s" : ""}`);
-      setRowSelection({});
-    } catch {
-      toast.error("Failed to remove some records");
-    } finally {
-      setBatchRemoveOpen(false);
+    const selected = new Set(selectedIds);
+    const rows = list.filter((l) => selected.has(l.unsub.id));
+
+    // allSettled, not all: one failure must not discard the outcome of the
+    // rows that did succeed.
+    const results = await Promise.allSettled(
+      rows.map(async (row) => {
+        if (row.clientId) {
+          await resubscribeClient(row.clientId);
+        } else {
+          const res = await removeUnsubscribeEntry(row.unsub.id);
+          if (res?.error) throw new Error(res.error);
+        }
+        return row.unsub.id;
+      }),
+    );
+
+    const removed = new Set(
+      results.flatMap((r) => (r.status === "fulfilled" ? [r.value] : [])),
+    );
+    // Functional updater: N actions resolve against one render's `list`, so a
+    // captured array would let the last one to settle resurrect the rest.
+    setList((prev) => prev.filter((l) => !removed.has(l.unsub.id)));
+    // Keep failed rows selected so they can be retried.
+    setRowSelection((prev) =>
+      Object.fromEntries(Object.entries(prev).filter(([id]) => !removed.has(id))),
+    );
+
+    if (removed.size > 0) {
+      toast.success(`Removed ${removed.size} record${removed.size !== 1 ? "s" : ""}`);
     }
+    const failed = results.length - removed.size;
+    if (failed > 0) {
+      toast.error(`Failed to remove ${failed} record${failed !== 1 ? "s" : ""}`);
+    }
+    setBatchRemoveOpen(false);
   };
 
   const handleResubscribe = async (record: UnsubscribedRow) => {
