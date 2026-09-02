@@ -10,7 +10,7 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("@/lib/actions", () => ({
-  banClient: vi.fn(),
+  banWalkIn: vi.fn(),
   unbanClient: vi.fn(),
 }));
 
@@ -23,7 +23,7 @@ vi.mock("@/components/topbar", () => ({
 }));
 
 import { toast } from "sonner";
-import { unbanClient } from "@/lib/actions";
+import { unbanClient, banWalkIn } from "@/lib/actions";
 
 function deferred<T>() {
   let resolve!: (v: T) => void;
@@ -140,5 +140,64 @@ describe("BannedContent unban", () => {
 
     expect(screen.getByText("Bad Actor")).toBeInTheDocument();
     expect(toast.error).toHaveBeenCalled();
+  });
+});
+
+// F-2: the dialog used to call banClient(banForm.clientId || "") — a field no
+// input ever wrote — and never looked at the result, so a manager got a green
+// "Customer banned successfully" for a ban that never happened.
+describe("BannedContent ban walk-in dialog", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  async function openDialogAndFill(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole("button", { name: /ban customer/i }));
+    await user.type(await screen.findByLabelText("First Name *"), "Casey");
+    await user.type(screen.getByLabelText("Last Name"), "Rivera");
+    await user.type(screen.getByLabelText("Email"), "casey@example.test");
+    await user.type(screen.getByLabelText("Phone"), "(702) 555-0100");
+    await user.type(screen.getByLabelText("Reason / Details"), "Flipping allocations");
+  }
+
+  it("sends the typed walk-in fields to banWalkIn", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    vi.mocked(banWalkIn).mockResolvedValue(undefined);
+
+    render(
+      <TooltipProvider>
+        <BannedContent banned={[]} isManager />
+      </TooltipProvider>
+    );
+
+    await openDialogAndFill(user);
+    await user.click(screen.getAllByRole("button", { name: /^Ban Customer$/ }).at(-1)!);
+
+    expect(banWalkIn).toHaveBeenCalledWith({
+      firstName: "Casey",
+      lastName: "Rivera",
+      email: "casey@example.test",
+      phone: "(702) 555-0100",
+      category: "Other",
+      reason: "Flipping allocations",
+    });
+    expect(toast.success).toHaveBeenCalledWith("Customer banned successfully");
+  });
+
+  it("toasts the action's error instead of success when the ban is rejected", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    vi.mocked(banWalkIn).mockResolvedValue({ error: "First name is required" });
+
+    render(
+      <TooltipProvider>
+        <BannedContent banned={[]} isManager />
+      </TooltipProvider>
+    );
+
+    await openDialogAndFill(user);
+    await user.click(screen.getAllByRole("button", { name: /^Ban Customer$/ }).at(-1)!);
+
+    expect(toast.error).toHaveBeenCalledWith("First name is required");
+    expect(toast.success).not.toHaveBeenCalled();
   });
 });

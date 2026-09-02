@@ -44,7 +44,7 @@ import {
   Eye,
 } from "lucide-react";
 import { SearchInput } from "@/components/search-input";
-import { banClient, unbanClient } from "@/lib/actions";
+import { banWalkIn, unbanClient } from "@/lib/actions";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import Link from "next/link";
@@ -80,8 +80,10 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
   const [page, setPage] = useState(1);
   const [showBanDialog, setShowBanDialog] = useState(false);
   const [unbanTarget, setUnbanTarget] = useState<BannedRow | null>(null);
+  // This dialog only ever bans a walk-in — someone with no client record. A
+  // client with a profile is banned from their own page (client-status-actions),
+  // which goes through `banClient` and flips their status.
   const [banForm, setBanForm] = useState({
-    clientId: "",
     firstName: "",
     lastName: "",
     email: "",
@@ -125,11 +127,21 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
     }
     setBanSubmitting(true);
     try {
-      await banClient(banForm.clientId || "", banForm.category, banForm.reason);
+      const res = await banWalkIn({
+        firstName: banForm.firstName,
+        lastName: banForm.lastName,
+        email: banForm.email,
+        phone: banForm.phone,
+        category: banForm.category,
+        reason: banForm.reason,
+      });
+      if (res?.error) {
+        toast.error(res.error);
+        return;
+      }
       toast.success("Customer banned successfully");
       setShowBanDialog(false);
       setBanForm({
-        clientId: "",
         firstName: "",
         lastName: "",
         email: "",

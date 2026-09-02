@@ -98,6 +98,23 @@ export const clientPatchSchema = z
   })
   .partial();
 
+// A ban recorded against someone who has no client record — a walk-in the
+// manager only knows by name and contact details. `banned_customers.customer_id`
+// stays null, so nothing joins back to `clients` and no activity event is
+// written (activity_events.client_id is a non-null FK).
+export const banWalkInSchema = z.object({
+  firstName: z.string().trim().min(1, "First name is required").max(100),
+  lastName: z.preprocess((v) => (typeof v === "string" && v.trim() === "" ? null : v), z.string().trim().max(100).nullable()).default(null),
+  email: z
+    .preprocess((v) => (typeof v === "string" && v.trim() === "" ? null : v), z.email("Invalid email").max(200).nullable())
+    .default(null),
+  phone: z.preprocess((v) => (typeof v === "string" && v.trim() === "" ? null : v), z.string().trim().max(20).nullable()).default(null),
+  category: z.enum(["Reselling", "Gift Card Fraud", "Other"], {
+    error: () => "Ban category is required",
+  }),
+  reason: z.preprocess((v) => (typeof v === "string" && v.trim() === "" ? null : v), z.string().trim().max(5000).nullable()).default(null),
+});
+
 // Lightweight form-side validation before submitting (H-14).
 // Date fields are excluded — the date picker guarantees format correctness.
 export function validateClientForm(data: {

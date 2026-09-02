@@ -15,6 +15,7 @@ import { getServerSession } from "next-auth";
 import type { Session } from "next-auth";
 import {
   banClient,
+  banWalkIn,
   unsubscribeClient,
   resubscribeClient,
   toggleEmailList,
@@ -84,6 +85,95 @@ describe("Client Actions", () => {
 
       // Should not throw
       await banClient("nonexistent-id", "Other", "No reason");
+    });
+  });
+
+  // F-2: the /banned "Ban Customer" dialog collects a walk-in's name and
+  // contact details and has no client picker. It used to call
+  // banClient("") — "Client not found" — and toast success anyway.
+  describe("banWalkIn", () => {
+    const walkInIds: string[] = [];
+    afterEach(() => {
+      for (const id of walkInIds) db.delete(bannedCustomers).where(eq(bannedCustomers.id, id)).run();
+      walkInIds.length = 0;
+    });
+
+    it("inserts a banned_customers row with a null customer_id and no client", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+
+      const email = `walkin-${randomUUID().slice(0, 8)}@example.com`;
+      const res = await banWalkIn({
+        firstName: "Casey",
+        lastName: "Rivera",
+        email,
+        phone: "(702) 555-0100",
+        category: "Reselling",
+        reason: "Flipping allocations",
+      });
+      expect(res).toBeUndefined();
+
+      const row = db.select().from(bannedCustomers).where(eq(bannedCustomers.email, email)).get();
+      expect(row).toBeDefined();
+      walkInIds.push(row!.id);
+      expect(row!.customerId).toBeNull();
+      expect(row!.firstName).toBe("Casey");
+      expect(row!.lastName).toBe("Rivera");
+      expect(row!.phone).toBe("(702) 555-0100");
+      expect(row!.banReasonCategory).toBe("Reselling");
+      expect(row!.specificBanReason).toBe("Flipping allocations");
+    });
+
+    it("stores blank optional fields as null rather than empty strings", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+
+      const before = db.select().from(bannedCustomers).all().length;
+      const res = await banWalkIn({
+        firstName: "Solo",
+        lastName: "",
+        email: "",
+        phone: "",
+        category: "Other",
+        reason: "",
+      });
+      expect(res).toBeUndefined();
+
+      const rows = db.select().from(bannedCustomers).all();
+      expect(rows.length).toBe(before + 1);
+      const row = rows.find((r) => r.firstName === "Solo")!;
+      walkInIds.push(row.id);
+      expect(row.lastName).toBeNull();
+      expect(row.email).toBeNull();
+      expect(row.phone).toBeNull();
+      expect(row.specificBanReason).toBeNull();
+    });
+
+    it("returns { error } and writes nothing for a blank first name", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+
+      const before = db.select().from(bannedCustomers).all().length;
+      const res = await banWalkIn({ firstName: "   ", category: "Other", reason: "" });
+
+      expect(res).toEqual({ error: "First name is required" });
+      expect(db.select().from(bannedCustomers).all().length).toBe(before);
+    });
+
+    it("returns { error } for a malformed email", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+
+      const res = await banWalkIn({
+        firstName: "Casey",
+        email: "not-an-email",
+        category: "Other",
+        reason: "",
+      });
+      expect(res).toEqual({ error: "Invalid email" });
+    });
+
+    it("requires a manager", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
+      await expect(
+        banWalkIn({ firstName: "Casey", category: "Other", reason: "" }),
+      ).rejects.toThrow("Manager access required");
     });
   });
 

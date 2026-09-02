@@ -10,7 +10,7 @@ import { fullName } from "@/lib/utils";
 import { recordProductsOfInterest } from "./model-catalog";
 import { applyClientPatchUnchecked } from "./_client-patch-core";
 import { runStatusChange, applyBanUnchecked, applyUnsubscribeUnchecked, applyDeleteUnchecked } from "./_client-status-core";
-import { clientPatchSchema } from "@/lib/validation/client";
+import { clientPatchSchema, banWalkInSchema } from "@/lib/validation/client";
 
 // Structural de-dupe for products of interest (objects, so Set won't dedupe).
 function dedupeProducts(list: ProductOfInterest[]): ProductOfInterest[] {
@@ -46,6 +46,32 @@ export async function banClient(clientId: string, category: "Reselling" | "Gift 
   const result = runStatusChange((tx) => applyBanUnchecked(tx, clientId, category, reason, user.id));
   if (result?.error) return result;
   revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/banned");
+}
+
+/**
+ * Ban someone who has no client record — the /banned dialog's walk-in path.
+ * Writes a `banned_customers` row with a null `customer_id`; there is no
+ * client to flip to `status: "banned"` and no `activity_events` row to write
+ * (its `client_id` is a non-null FK).
+ */
+export async function banWalkIn(data: unknown): Promise<{ error: string } | undefined> {
+  await requireManager();
+  const parsed = banWalkInSchema.safeParse(data);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid request" };
+  const { firstName, lastName, email, phone, category, reason } = parsed.data;
+
+  db.insert(bannedCustomers).values({
+    id: randomUUID(),
+    customerId: null,
+    firstName,
+    lastName,
+    email,
+    phone,
+    banReasonCategory: category,
+    specificBanReason: reason,
+  }).run();
+
   revalidatePath("/banned");
 }
 
