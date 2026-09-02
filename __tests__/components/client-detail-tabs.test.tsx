@@ -157,7 +157,7 @@ describe("ClientDetailTabs optimistic toggles", () => {
   describe("unban", () => {
     it('flips banned menu items to active instantly pre-await, toasts "Customer unbanned"', async () => {
       const user = userEvent.setup({ pointerEventsCheck: 0 });
-      const d = deferred<void>();
+      const d = deferred<{ error: string } | undefined>();
       vi.mocked(unbanClient).mockReturnValue(d.promise);
 
       renderTabs(makeClient({ status: "banned", onEmailList: false }));
@@ -179,7 +179,7 @@ describe("ClientDetailTabs optimistic toggles", () => {
 
     it("rolls back when the action throws", async () => {
       const user = userEvent.setup({ pointerEventsCheck: 0 });
-      const d = deferred<void>();
+      const d = deferred<{ error: string } | undefined>();
       vi.mocked(unbanClient).mockReturnValue(d.promise);
 
       renderTabs(makeClient({ status: "banned", onEmailList: false }));

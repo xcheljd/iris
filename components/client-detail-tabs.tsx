@@ -39,8 +39,9 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
     client?.status === "banned",
     async () => {
       if (!client) return undefined;
-      await unbanClient(client.id);
-      return undefined;
+      // Propagate the result: unbanClient reports { error } when there was no
+      // ban to lift, and swallowing it would hold the optimistic flip forever.
+      return await unbanClient(client.id);
     }
   );
   const unsubscribed = useOptimisticToggle(

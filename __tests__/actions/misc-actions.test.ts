@@ -101,7 +101,7 @@ describe("Misc Actions", () => {
       expect(banned).toBeDefined();
 
       // Now unban by client ID
-      await unbanClient(FIRST_CLIENT_ID);
+      await expect(unbanClient(FIRST_CLIENT_ID)).resolves.toBeUndefined();
 
       // Client should be active again
       const client = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
@@ -114,9 +114,23 @@ describe("Misc Actions", () => {
       expect(deleted).toBeUndefined();
     });
 
-    it("should do nothing for nonexistent or non-banned client", async () => {
-      // Should not throw
-      await unbanClient("nonexistent-client-id");
+    // F-3: unbanClient returned a bare `undefined` when there was nothing to
+    // unban — indistinguishable from success. `useRemovedKeys.remove` treats a
+    // non-{ error } result as success and *holds* the optimistic removal until
+    // revalidated props drop the key; the untouched ban row never does, so the
+    // row vanished from /banned and stayed vanished until a full reload while
+    // the ban was still in the DB.
+    it("reports { error } for a client that is not banned", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+      db.update(clients).set({ status: "active" }).where(eq(clients.id, FIRST_CLIENT_ID)).run();
+
+      await expect(unbanClient(FIRST_CLIENT_ID)).resolves.toEqual({ error: "Client is not banned" });
+    });
+
+    it("reports { error } for a nonexistent client instead of a silent success", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+
+      await expect(unbanClient("nonexistent-client-id")).resolves.toEqual({ error: "Client not found" });
     });
   });
 

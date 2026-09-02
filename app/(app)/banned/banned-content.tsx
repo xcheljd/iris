@@ -105,13 +105,14 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
   const totalPages = Math.ceil(filteredBanned.length / PAGE_SIZE);
   const paged = filteredBanned.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
+  // Only reachable for a row with a client — the Unban menu is gated on
+  // `row.clientId` below, because `unbanClient` is keyed on a client id and a
+  // walk-in ban has none.
   const handleUnban = async (row: BannedRow) => {
     const clientId = row.clientId;
     if (!clientId) return;
-    const res = await remove(row.banned.id, async () => {
-      // Propagate the action's result so an `{ error }` return rolls back.
-      return (await unbanClient(clientId)) as { error: string } | undefined;
-    });
+    // Propagate the action's result so an `{ error }` return rolls back.
+    const res = await remove(row.banned.id, () => unbanClient(clientId));
     setUnbanTarget(null);
     if (res?.error) {
       toast.error("Failed to unban customer");
@@ -321,7 +322,11 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
                         </p>
                       </div>
                     </AccordionTrigger>
-                    {isManager && (
+                    {/* Gated on `row.clientId`: every action in this menu is
+                        keyed on a client id, and a walk-in ban has none.
+                        Rendering "Unban" unconditionally made it a silent
+                        no-op on exactly those rows. */}
+                    {isManager && row.clientId && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
@@ -335,14 +340,12 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {row.clientId && (
-                          <DropdownMenuItem asChild>
-                            <Link href={`/clients/${row.clientId}`}>
-                              <Eye className="size-4 mr-2" />
-                              View Client Page
-                            </Link>
-                          </DropdownMenuItem>
-                        )}
+                        <DropdownMenuItem asChild>
+                          <Link href={`/clients/${row.clientId}`}>
+                            <Eye className="size-4 mr-2" />
+                            View Client Page
+                          </Link>
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"

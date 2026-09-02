@@ -83,10 +83,19 @@ export async function unsubscribeClient(clientId: string): Promise<{ error: stri
   revalidatePath("/unsubscribed");
 }
 
-export async function unbanClient(clientId: string) {
+/**
+ * Lift a client's ban. Reports `{ error }` rather than a bare `undefined` when
+ * there was no ban to lift: callers treat a non-`{ error }` result as success,
+ * and `useRemovedKeys` *holds* an optimistic removal on success. A silent
+ * "nothing to do" therefore made the row vanish from /banned and stay vanished
+ * — the reconcile effect only clears the override once the key leaves the
+ * server props, and the untouched ban row never does.
+ */
+export async function unbanClient(clientId: string): Promise<{ error: string } | undefined> {
   const user = await requireManager();
   const c = db.select({ status: clients.status }).from(clients).where(eq(clients.id, clientId)).get();
-  if (!c || c.status !== "banned") return;
+  if (!c) return { error: "Client not found" };
+  if (c.status !== "banned") return { error: "Client is not banned" };
   db.transaction((tx) => {
     tx.update(clients).set({ status: "active", updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
     tx.delete(bannedCustomers).where(eq(bannedCustomers.customerId, clientId)).run();

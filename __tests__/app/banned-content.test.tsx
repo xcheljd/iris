@@ -69,7 +69,7 @@ describe("BannedContent unban", () => {
   it("vanishes the row instantly on confirm, before the action settles, and toasts success", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     const d = deferred<{ error: string } | undefined>();
-    vi.mocked(unbanClient).mockReturnValue(d.promise as unknown as Promise<void>);
+    vi.mocked(unbanClient).mockReturnValue(d.promise);
 
     render(
       <TooltipProvider>
@@ -97,7 +97,7 @@ describe("BannedContent unban", () => {
   it("rolls back — the row returns when the action resolves { error } (documents the old ad-hoc-filter bug)", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     const d = deferred<{ error: string } | undefined>();
-    vi.mocked(unbanClient).mockReturnValue(d.promise as unknown as Promise<void>);
+    vi.mocked(unbanClient).mockReturnValue(d.promise);
 
     render(
       <TooltipProvider>
@@ -122,7 +122,7 @@ describe("BannedContent unban", () => {
   it("rolls back — the row returns when the action throws", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     const d = deferred<{ error: string } | undefined>();
-    vi.mocked(unbanClient).mockReturnValue(d.promise as unknown as Promise<void>);
+    vi.mocked(unbanClient).mockReturnValue(d.promise);
 
     render(
       <TooltipProvider>
@@ -140,6 +140,36 @@ describe("BannedContent unban", () => {
 
     expect(screen.getByText("Bad Actor")).toBeInTheDocument();
     expect(toast.error).toHaveBeenCalled();
+  });
+
+  // F-3: the Unban menu item rendered on every row, unconditionally — unlike
+  // "View Client Page", which was already gated on `row.clientId`. On a
+  // client-less ban row (the seeded walk-ins) confirming Unban hit
+  // `handleUnban`'s `if (!clientId) return;`: no server call, no toast, no
+  // removal. Every action in this menu is keyed on a client id, so the menu
+  // itself is now gated.
+  it("offers no actions menu on a ban row with no client", () => {
+    render(
+      <TooltipProvider>
+        <BannedContent
+          banned={[{ banned: { ...bannedCustomer, id: "banned-2", customerId: null }, clientId: null }]}
+          isManager
+        />
+      </TooltipProvider>
+    );
+
+    expect(screen.getByText("Bad Actor")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Actions" })).not.toBeInTheDocument();
+  });
+
+  it("still offers the actions menu on a ban row that has a client", () => {
+    render(
+      <TooltipProvider>
+        <BannedContent banned={[row]} isManager />
+      </TooltipProvider>
+    );
+
+    expect(screen.getByRole("button", { name: "Actions" })).toBeInTheDocument();
   });
 });
 
