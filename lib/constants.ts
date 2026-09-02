@@ -26,8 +26,10 @@ export const FOLLOW_UP_LOOKAHEAD_DAYS = 7;
 /** Minimum password length enforced at account creation and recovery. */
 export const MIN_PASSWORD_LENGTH = 6;
 
-/** NextAuth JWT session lifetime in seconds (30 days). */
-export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+/** NextAuth JWT session lifetime in seconds (1 hour). Reconciliation in the
+ * `jwt` callback (lib/auth.ts) enforces role/active on every read; this keeps
+ * a minted token's blind lifetime short on a retail-floor device. */
+export const SESSION_MAX_AGE_SECONDS = 60 * 60;
 
 /** bcrypt salt rounds for password hashing. */
 export const BCRYPT_SALT_ROUNDS = 10;
