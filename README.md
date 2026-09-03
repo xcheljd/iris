@@ -40,6 +40,14 @@ Production: `pnpm build && pnpm start`. The restore endpoint exits cleanly after
 | Tests | Vitest + Testing Library (94 files, 1,157 tests) |
 | Lint | ESLint 9 (flat config) |
 
+## Screenshots
+
+| | |
+|---|---|
+| <img src="docs/screenshots/01-login.png" width="49%" /> | <img src="docs/screenshots/02-clients.png" width="49%" /> |
+| <img src="docs/screenshots/03-client-detail.png" width="49%" /> | <img src="docs/screenshots/04-promos.png" width="49%" /> |
+| <img src="docs/screenshots/05-catalog.png" width="49%" /> | <img src="docs/screenshots/06-analytics.png" width="49%" /> |
+
 ## Auth & Security Model
 
 - **JWT sessions with server-side reconciliation.** The token's role/active status is re-read from `employees` on every refresh: a demoted or deactivated employee's session dies at the next token refresh, not at the 1-hour expiry cap. `SESSION_MAX_AGE_SECONDS` is 1 hour, bounding how long a stolen token stays blindly valid on a floor device.
