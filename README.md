@@ -47,6 +47,8 @@ Production: `pnpm build && pnpm start`. The restore endpoint exits cleanly after
 - **PII care.** Duplicate-phone conflicts on the client-create path never leak whether a matching (possibly deleted) client exists — the API returns 409 without naming the row.
 
 ## Scripts
+
+| Script | Description |
 |--------|-------------|
 | `pnpm dev` | Start development server |
 | `pnpm build` | Production build |
