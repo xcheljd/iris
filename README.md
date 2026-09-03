@@ -46,57 +46,7 @@ Production: `pnpm build && pnpm start`. The restore endpoint exits cleanly after
 - **Server-action gating.** Every mutation re-checks role and ownership server-side; the UI is convenience, not the security boundary.
 - **PII care.** Duplicate-phone conflicts on the client-create path never leak whether a matching (possibly deleted) client exists — the API returns 409 without naming the row.
 
-## Project Structure
-
-```
-app/                  # Next.js App Router pages
-  (app)/              # Authenticated app layout (sidebar, command palette)
-    analytics/        # Outreach analytics + collection insights
-    approvals/        # Manager approval queue (ban, unsubscribe, delete)
-    banned/           # Banned customer management
-    catalog/          # Model catalog: RVX import, corrections, flag queue
-    change-password/  # Self-service password change
-    clients/          # Client list, detail, new, edit
-    follow-ups/       # Follow-up manager
-    promos/           # Promo watches: PDF import, matched-clients tab, CSV export
-    prospects/        # RVX customer-CSV import + graduation flow
-    settings/         # Employee, tag, template, backup, onboarding
-    smart-lists/      # Saved filter management
-    unsubscribed/     # Unsubscribe list management
-  api/                # REST API routes (auth, backup, search, notes, etc.)
-  login/              # Authentication page
-components/           # React components
-  data-table/         # Shared table engine: cells vocabulary + TanStack v9 wrapper
-  ui/                 # shadcn/ui primitives
-  catalog/            # Catalog import dialog
-  promo/              # Promo PDF import dialog
-  merge/              # Client merge resolution panel + dialog
-  onboarding/         # Tour + hints
-lib/                  # Shared logic
-  actions.ts          # Server-actions barrel (re-exports lib/actions/*.ts)
-  actions/            # Per-domain action modules (clients, promos, catalog, …)
-  auth.ts             # NextAuth configuration + JWT reconciliation
-  backup-client.ts    # Backup download + localStorage reminder
-  db/                 # Schema, connection, ensure-schema, seed, FTS setup
-  heat-score.ts       # Client engagement scoring
-  duplicate-client.ts # Unified duplicate-contact gate (email + phone)
-  like.ts             # LIKE-escape helper for safe SQL pattern search
-  rvx-parser.ts       # RVX customer-CSV parser (prospects)
-  rvx-catalog-parser.ts # RVX Selling Analysis SpreadsheetML parser (catalog)
-  promo-pdf-parser.ts # pdfjs-dist text-layer parser for promo PDFs
-  promo-csv-parser.ts # Tab-delimited paste parser (legacy)
-  promo-match.ts      # Promo-client matching (model + collection, via catalog)
-  queries.ts          # Read-side database queries
-  normalize.ts        # normalizeModel (uppercase model identifiers)
-  validation/         # Zod schemas (client, outreach, rvx)
-data/                 # SQLite database file (gitignored)
-public/               # Static assets, including pdf.worker.min.mjs (copied via postinstall)
-docs/                 # Project documentation (see docs/README.md)
-```
-
 ## Scripts
-
-| Script | Description |
 |--------|-------------|
 | `pnpm dev` | Start development server |
 | `pnpm build` | Production build |
