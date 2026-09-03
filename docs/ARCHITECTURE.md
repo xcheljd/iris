@@ -4,7 +4,7 @@
 
 ## Overview
 
-Iris is a single-tenant, self-hosted CRM for Meridian Watch retail clienteling. Next.js App Router on top of SQLite (better-sqlite3, WAL), with credential-based auth.
+Iris is a single-tenant, self-hosted CRM for retail clienteling — inventory organized by model number and collection (watches, jewelry, luxury goods). Next.js App Router on top of SQLite (better-sqlite3, WAL), with credential-based auth.
 
 ```
 Browser
@@ -189,9 +189,9 @@ The dialog (`components/promo/import-promo-dialog.tsx`):
 3. Manager bulk-assigns brand for uncatalogued rows.
 4. `importPromos` writes catalog-resolved brand/collection to `promo_watches`; the PDF's collection still goes through `recordModelCollection("promo")` so the sticky-flag pipeline fires for HQ relabels.
 
-### RVX Catalog Import
+### POS Report Catalog Import
 
-`docs/Archive/plan-009-…` describes the design. In short: the RVX "Selling Analysis By Style" SpreadsheetML export feeds `model_catalog` at `source = "curated"`, overwriting brand/MSRP/collection on every match. The catalog-import dialog includes a static reminder of the RVX filter set (Client = All, Suppress Zeros = No, Stores = All, widest date range) and a post-analyze narrowness warning when >30% of previously-curated models are missing from the new file.
+The catalog import accepts "Selling Analysis By Style" SpreadsheetML exports — the report format used by retail POS platforms (built against KWI's export; any platform emitting the same SpreadsheetML shape works). The report feeds `model_catalog` at `source = "curated"`, overwriting brand/MSRP/collection on every match. The catalog-import dialog includes a static reminder of the source filter set (Client = All, Suppress Zeros = No, Stores = All, widest date range) and a post-analyze narrowness warning when >30% of previously-curated models are missing from the new file.
 
 Parser (`lib/rvx-catalog-parser.ts`) dedupes by Vendor Style and prefers rows with the most info (brand + msrp) — the wider "Client = All" filter emits one row per (style, color) tuple but the catalog is keyed by style alone.
 

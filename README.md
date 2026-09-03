@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/xcheljd/iris/actions/workflows/ci.yml/badge.svg)](https://github.com/xcheljd/iris/actions/workflows/ci.yml)
 
-A lightweight, self-hosted customer relationship management tool purpose-built for Meridian Watch retail clienteling. Replaces a sprawling Excel workbook with a fast, mobile-friendly web app: client dossiers, promo-watch matching against a model catalog, follow-up management, outreach analytics, and role-gated approvals — all on a single-file SQLite database with zero external services.
+A lightweight, self-hosted customer relationship management tool for retail clienteling: client dossiers, promo-watch matching against a model catalog, follow-up management, outreach analytics, and role-gated approvals. Built for product categories where inventory is organized by model number and collection — watches, fine jewelry, luxury goods — where a single spreadsheet stops scaling fast. One Node process, one SQLite database, zero external services.
 
 **Self-contained by design.** One Node process, one SQLite file, no SaaS in the loop. Client data never leaves the machine; backup and restore are a file download and a file upload, not a vendor relationship.
 
@@ -62,7 +62,7 @@ Production: `pnpm build && pnpm start`. The restore endpoint exits cleanly after
 
 | Role | Access |
 |------|--------|
-| **Manager** | Full CRUD, dashboard, employee management, promo + catalog config (PDF/RVX imports), analytics, banned/unsubscribed, approval queue, prospect import, database backup/restore |
+| **Manager** | Full CRUD, dashboard, employee management, promo + catalog config (PDF + POS report imports), analytics, banned/unsubscribed, approval queue, prospect import, database backup/restore |
 | **Associate** | CRUD on own clients, view all clients, outreach logging, personal smart lists, prospect graduation/reject/unsubscribe |
 
 Destructive actions (ban, delete, unsubscribe-list removal) flow through a manager approval queue rather than firing directly.

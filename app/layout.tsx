@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Iris — Meridian CRM",
-  description: "Retail CRM for Meridian Watch store",
+  description: "Retail clienteling CRM — clients, promo matching, analytics. Self-hosted, single process.",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
