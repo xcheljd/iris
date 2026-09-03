@@ -44,9 +44,14 @@ Production: `pnpm build && pnpm start`. The restore endpoint exits cleanly after
 
 | | |
 |---|---|
-| <img src="docs/screenshots/01-login.png" width="49%" /> | <img src="docs/screenshots/02-clients.png" width="49%" /> |
-| <img src="docs/screenshots/03-client-detail.png" width="49%" /> | <img src="docs/screenshots/04-promos.png" width="49%" /> |
-| <img src="docs/screenshots/05-catalog.png" width="49%" /> | <img src="docs/screenshots/06-analytics.png" width="49%" /> |
+| <img src="docs/screenshots/01-login-light.png" width="49%" /> | <img src="docs/screenshots/01-login-dark.png" width="49%" /> |
+| <img src="docs/screenshots/02-clients-light.png" width="49%" /> | <img src="docs/screenshots/02-clients-dark.png" width="49%" /> |
+| <img src="docs/screenshots/03-client-detail-light.png" width="49%" /> | <img src="docs/screenshots/03-client-detail-dark.png" width="49%" /> |
+| <img src="docs/screenshots/04-promos-light.png" width="49%" /> | <img src="docs/screenshots/04-promos-dark.png" width="49%" /> |
+| <img src="docs/screenshots/05-catalog-light.png" width="49%" /> | <img src="docs/screenshots/05-catalog-dark.png" width="49%" /> |
+| <img src="docs/screenshots/06-analytics-light.png" width="49%" /> | <img src="docs/screenshots/06-analytics-dark.png" width="49%" /> |
+
+Every surface ships in both light and dark themes — the toggle is in the top bar, and the choice persists per user.
 
 ## Auth & Security Model
 
