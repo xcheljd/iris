@@ -1,11 +1,16 @@
 # Iris — Every thread, remembered
 
-A lightweight, self-hosted customer relationship management tool purpose-built for Meridian Watch retail clienteling. Replaces a sprawling Excel workbook with a fast, mobile-friendly web app built on Next.js and shadcn/ui.
+[![CI](https://github.com/xcheljd/iris/actions/workflows/ci.yml/badge.svg)](https://github.com/xcheljd/iris/actions/workflows/ci.yml)
+
+A lightweight, self-hosted customer relationship management tool purpose-built for Meridian Watch retail clienteling. Replaces a sprawling Excel workbook with a fast, mobile-friendly web app: client dossiers, promo-watch matching against a model catalog, follow-up management, outreach analytics, and role-gated approvals — all on a single-file SQLite database with zero external services.
+
+**Self-contained by design.** One Node process, one SQLite file, no SaaS in the loop. Client data never leaves the machine; backup and restore are a file download and a file upload, not a vendor relationship.
+
+**Built like a product, not a spreadsheet.** 1,157 tests across 94 files, ESLint-gated, CI-validated on every push. Server-driven data tables (TanStack Table v9) keep client, promo, prospect, and approval lists fast and consistent. Access is role-gated at the server-action layer — associates never hold a client record the server wouldn't let them keep.
 
 ## Quick Start
 
 ```bash
-# Install dependencies
 pnpm install
 
 # Set up the database
@@ -18,18 +23,28 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000). Default credentials are displayed on the login page.
 
+Production: `pnpm build && pnpm start`. The restore endpoint exits cleanly after a database swap so PM2 or systemd restarts the process with the new database in place.
+
 ## Tech Stack
 
 | Layer | Choice |
 |-------|--------|
-| Framework | Next.js 15 (App Router, React Server Components) |
-| UI | shadcn/ui (New York style) + Tailwind CSS |
-| Database | SQLite via better-sqlite3 |
+| Framework | Next.js 16 (App Router, React Server Components) on React 19 |
+| UI | shadcn/ui + Tailwind CSS 4 (CSS-first config) |
+| Tables | TanStack Table v9 — shared engine (`components/data-table/`) across all list surfaces |
+| Database | SQLite via better-sqlite3, full-text search (FTS5) |
 | ORM | Drizzle ORM |
 | Auth | NextAuth.js (Credentials provider, JWT sessions) |
-| Forms | Hand-rolled, validated with zod |
+| Validation | zod 4 on every mutation boundary |
 | Charts | Recharts (via shadcn Chart) |
-| Tests | Vitest + Testing Library |
+| Tests | Vitest + Testing Library (94 files, 1,157 tests) |
+| Lint | ESLint 9 (flat config) |
+
+## Auth & Security Model
+
+- **JWT sessions with server-side reconciliation.** The token's role/active status is re-read from `employees` on every refresh: a demoted or deactivated employee's session dies at the next token refresh, not at the 1-hour expiry cap. `SESSION_MAX_AGE_SECONDS` is 1 hour, bounding how long a stolen token stays blindly valid on a floor device.
+- **Server-action gating.** Every mutation re-checks role and ownership server-side; the UI is convenience, not the security boundary.
+- **PII care.** Duplicate-phone conflicts on the client-create path never leak whether a matching (possibly deleted) client exists — the API returns 409 without naming the row.
 
 ## Project Structure
 
@@ -51,6 +66,7 @@ app/                  # Next.js App Router pages
   api/                # REST API routes (auth, backup, search, notes, etc.)
   login/              # Authentication page
 components/           # React components
+  data-table/         # Shared table engine: cells vocabulary + TanStack v9 wrapper
   ui/                 # shadcn/ui primitives
   catalog/            # Catalog import dialog
   promo/              # Promo PDF import dialog
@@ -59,10 +75,12 @@ components/           # React components
 lib/                  # Shared logic
   actions.ts          # Server-actions barrel (re-exports lib/actions/*.ts)
   actions/            # Per-domain action modules (clients, promos, catalog, …)
-  auth.ts             # NextAuth configuration
+  auth.ts             # NextAuth configuration + JWT reconciliation
   backup-client.ts    # Backup download + localStorage reminder
   db/                 # Schema, connection, ensure-schema, seed, FTS setup
   heat-score.ts       # Client engagement scoring
+  duplicate-client.ts # Unified duplicate-contact gate (email + phone)
+  like.ts             # LIKE-escape helper for safe SQL pattern search
   rvx-parser.ts       # RVX customer-CSV parser (prospects)
   rvx-catalog-parser.ts # RVX Selling Analysis SpreadsheetML parser (catalog)
   promo-pdf-parser.ts # pdfjs-dist text-layer parser for promo PDFs
@@ -73,7 +91,7 @@ lib/                  # Shared logic
   validation/         # Zod schemas (client, outreach, rvx)
 data/                 # SQLite database file (gitignored)
 public/               # Static assets, including pdf.worker.min.mjs (copied via postinstall)
-docs/                 # Project documentation
+docs/                 # Project documentation (see docs/README.md)
 ```
 
 ## Scripts
@@ -83,10 +101,11 @@ docs/                 # Project documentation
 | `pnpm dev` | Start development server |
 | `pnpm build` | Production build |
 | `pnpm start` | Start production server |
-| `pnpm lint` | Run ESLint |
-| `pnpm db:push` | Push schema changes to database |
+| `pnpm lint` | Run ESLint (flat config, v9) |
+| `pnpm typecheck` | TypeScript, no emit |
+| `pnpm db:push` | Drop FTS triggers, then push schema changes to database |
 | `pnpm db:seed` | Seed database with sample data |
-| `pnpm test` | Run tests |
+| `pnpm test` | Run tests (Vitest) |
 | `pnpm test:watch` | Run tests in watch mode |
 
 ## Roles
@@ -96,6 +115,8 @@ docs/                 # Project documentation
 | **Manager** | Full CRUD, dashboard, employee management, promo + catalog config (PDF/RVX imports), analytics, banned/unsubscribed, approval queue, prospect import, database backup/restore |
 | **Associate** | CRUD on own clients, view all clients, outreach logging, personal smart lists, prospect graduation/reject/unsubscribe |
 
+Destructive actions (ban, delete, unsubscribe-list removal) flow through a manager approval queue rather than firing directly.
+
 ## Backup & Restore
 
 The Settings → Backup tab (managers only) provides:
@@ -104,53 +125,19 @@ The Settings → Backup tab (managers only) provides:
 - **Restore** — uploads a `.db` file, validates SQLite magic bytes, atomically swaps in the new file, and saves the previous database as `iris.db.bak` before restarting the server
 - **Weekly reminder** — a dialog appears every Monday when the last backup is more than 7 days ago; stored in `localStorage`
 
-The restore endpoint calls `process.exit(0)` after a short delay so that PM2 or systemd restarts the process automatically with the new database in place.
-
 ## Onboarding
 
-The app includes a built-in onboarding system (no external tour libraries) that guides new users through key features on first login.
+A built-in onboarding system (no external tour libraries) guides new users through key features on first login:
 
-### Guided Tour
+- **Guided tour** — spotlight walkthrough on first login; 8 steps for associates, 12 for managers; progress persisted in the database so it resumes across browsers; replayable from Settings → Onboarding
+- **Contextual hints** — one-time hints for Add Client, Edit Client, Log Outreach, and the command palette, dismissed permanently on first interaction
+- **Settings → Onboarding** — completion status, per-step progress, replay button
 
-- Auto-triggers on first login with a step-by-step spotlight walkthrough
-- **8 base steps** for associates, **12 for managers** (4 extra: Approvals, Employee Management, Backup, Analytics)
-- Supports Next / Back / Skip navigation
-- Tour progress is persisted in the database (`onboarding_state` JSON column on the `employees` table via Drizzle ORM) so it resumes across browsers and sessions
-- Replayable at any time from **Settings → Onboarding**
-
-### Contextual Hints
-
-After completing the tour, one-time hints appear for four secondary features:
-
-| Hint | Trigger Page |
-|------|-------------|
-| Add Client | `/clients` |
-| Edit Client | `/clients/[id]` |
-| Log Outreach | `/clients/[id]` |
-| Command Palette | Any page |
-
-Hints are dismissed permanently on first interaction.
-
-### Settings Onboarding Tab
-
-A new **Onboarding** tab in Settings shows:
-
-- Tour completion status
-- Per-step progress breakdown
-- **Replay Tour** button to restart the walkthrough
-
-### Architecture
-
-Built entirely with shadcn/ui primitives:
-
-- **OnboardingProvider** — React context that manages tour and hint state
-- **TourOverlay** — full-screen backdrop with a spotlight cutout around the target element
-- **TourTooltip** — positioned tooltip with step content and navigation controls
-- **HintManager** — renders contextual hints based on the current route
+Built from shadcn/ui primitives: `OnboardingProvider` (state context), `TourOverlay` (spotlight cutout), `TourTooltip`, and `HintManager` (route-triggered hints).
 
 ## Documentation
 
-See [docs/README.md](docs/README.md) for the full documentation index.
+See [docs/README.md](docs/README.md) for the documentation index — architecture reference, feature backlog, and the archived plan/audit trail. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) covers the data model, auth flow, and design decisions, including the server-driven-list rule that the data-table engine implements.
 
 ## Environment Variables
 
