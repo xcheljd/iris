@@ -37,7 +37,12 @@ screenshots/
 .claude/
 
 # Remotion demo (local scratch)
-remotion-demo/
+remotion-demo/*
+!remotion-demo/src/
+!remotion-demo/out/
+!remotion-demo/VOICEOVER.md
+!remotion-demo/CREDITS.md
+!remotion-demo/package.json
 
 # Planning notes (local only)
 plans/
