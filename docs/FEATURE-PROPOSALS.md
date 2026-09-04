@@ -210,6 +210,21 @@ Currently, when a RVX import row matches an existing client (by customerId, emai
 
 ---
 
+### 21. Ownership-Transfer Visibility — Distinguish Transferred Clients
+
+**Problem:** When a client transfers ownership from one employee to another (via Settings → team management), the client record looks identical to every other client in the new owner's book. There is no way to see, at a glance or by filter, which clients were *transferred in* versus *originally mine* — losing context like "these came from Cameron when he left" and making follow-up prioritization harder for the incoming owner.
+
+**Proposed shape (open for discussion):**
+- Record transfer provenance on the client record (`transferredFrom` / `transferredAt`, set by the reassignment action).
+- Surface it one of two ways (or both):
+  - **New tab/filter** in the client list ("Transferred") scoped to the current user's received transfers.
+  - **A filter/indicator on the existing list** (small badge or smart-list integration), so transferred clients are distinguishable inline.
+- Possibly extend to a "transfer history" view for managers (who owned what, when).
+
+**Status:** Future discussion — scope not settled. Needs decisions on: tab vs filter vs both, whether transfers are a first-class listable state or metadata on the client, and manager-only vs per-associate visibility.
+
+---
+
 ## Feature Priority Matrix
 
 | # | Feature | Status | Notes |

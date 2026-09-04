@@ -21,6 +21,10 @@ type Props = {
   zoomScale?: number;
   /** Voiceover mp3 in public/vo/ — starts 10 frames into the scene. */
   vo?: string;
+  /** Optional second VO line, played after the first ends (frames computed by caller). */
+  vo2?: string;
+  /** Frames after scene start to begin vo2. */
+  vo2From?: number;
 };
 
 const EASE = Easing.bezier(0.16, 1, 0.3, 1);
@@ -34,6 +38,8 @@ export const AppScene: React.FC<Props> = ({
   zoomTo = "center center",
   zoomScale = 1.05,
   vo,
+  vo2,
+  vo2From,
 }) => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
@@ -95,6 +101,11 @@ export const AppScene: React.FC<Props> = ({
       {vo ? (
         <Sequence from={10}>
           <Audio src={staticFile(`vo/${vo}`)} />
+        </Sequence>
+      ) : null}
+      {vo2 ? (
+        <Sequence from={vo2From ?? 10}>
+          <Audio src={staticFile(`vo/${vo2}`)} />
         </Sequence>
       ) : null}
 

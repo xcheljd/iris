@@ -30,7 +30,7 @@ const D = {
   title: 116, // VO 2.38s — brand intro
   login: 147, // VO 2.40s + dwell
   dashboard: 210, // VO 4.49s + slow scroll
-  clients: 208, // VO 4.42s — theme-flip moment + dwell on Lisa
+  clients: 300, // VO 4.42s — theme-flip moment + dwell on Lisa
   detail: 269, // VO 6.48s + full-dossier scroll
   followups: 151, // VO 2.52s + dwell
   promos: 215, // VO 4.68s — MSRP/Sale now populated
@@ -128,7 +128,7 @@ export const Demo: React.FC = () => {
           <AppScene
             src="clips/01-login.webm"
             trimBefore={30}
-            caption="It starts when you clock in"
+            caption="It starts when you log in"
             zoomTo="center center"
             zoomScale={1.05}
             vo="02-login.mp3"
@@ -151,11 +151,13 @@ export const Demo: React.FC = () => {
         <TransitionSeries.Sequence durationInFrames={D.clients}>
           <AppScene
             src="clips/03-clients-search.webm"
-            trimBefore={80}
-            caption="Find anyone. Instantly."
+            trimBefore={30}
+            caption="All your active clients, one place"
             zoomTo="0% 0%"
             zoomScale={1.05}
             vo="04-clients.mp3"
+            vo2="04b-clients-search.mp3"
+            vo2From={95}
           />
         </TransitionSeries.Sequence>
         {xfade()}
