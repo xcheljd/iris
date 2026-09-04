@@ -26,24 +26,24 @@ export const HEIGHT = 1080;
 //
 // Durations in frames @30fps, timed to the VO reads.
 const D = {
-  problem: 216, // VO 6.31s — cold open, stakes
+  problem: 219, // VO 6.31s — cold open, stakes
   title: 116, // VO 2.38s — brand intro
-  login: 96, // VO 2.40s
-  dashboard: 159, // VO 4.49s
-  clients: 156, // VO 4.42s — theme-flip moment happens visually inside this scene
-  detail: 218, // VO 6.48s
-  followups: 100, // VO 2.52s
-  promos: 164, // VO 4.68s
-  promoMatches: 138, // VO 3.79s
-  collections: 167, // VO 4.78s
-  catalog: 188, // VO 5.47s
-  smartLists: 140, // VO 3.86s
-  prospects: 195, // VO 5.71s
-  analytics: 198, // VO 5.78s
-  settings: 189, // VO 5.50s
-  commandPalette: 117, // VO 3.10s
-  capabilities: 150, // VO 3.82s — value centerpiece
-  outro: 215, // VO 5.57s — close
+  login: 147, // VO 2.40s + dwell
+  dashboard: 210, // VO 4.49s + slow scroll
+  clients: 208, // VO 4.42s — theme-flip moment + dwell on Lisa
+  detail: 269, // VO 6.48s + full-dossier scroll
+  followups: 151, // VO 2.52s + dwell
+  promos: 215, // VO 4.68s — MSRP/Sale now populated
+  promoMatches: 189, // VO 3.79s + sort dwell
+  collections: 218, // VO 4.78s + scroll
+  catalog: 239, // VO 5.47s — clean 15-row catalog
+  smartLists: 191, // VO 3.86s + dwell
+  prospects: 246, // VO 5.71s + scroll
+  analytics: 248, // VO 5.78s + two tabs
+  settings: 240, // VO 5.50s + employees tab
+  commandPalette: 168, // VO 3.10s + results dwell
+  capabilities: 157, // VO 3.82s — value centerpiece
+  outro: 221, // VO 5.57s — close
 };
 
 const T = 18; // 0.6s cross-fade — VO-paced rhythm
@@ -139,7 +139,7 @@ export const Demo: React.FC = () => {
         <TransitionSeries.Sequence durationInFrames={D.dashboard}>
           <AppScene
             src="clips/02-dashboard.webm"
-            trimBefore={40}
+            trimBefore={50}
             caption="The floor, at a glance"
             zoomTo="50% 0%"
             zoomScale={1.06}
@@ -151,7 +151,7 @@ export const Demo: React.FC = () => {
         <TransitionSeries.Sequence durationInFrames={D.clients}>
           <AppScene
             src="clips/03-clients-search.webm"
-            trimBefore={60}
+            trimBefore={80}
             caption="Find anyone. Instantly."
             zoomTo="0% 0%"
             zoomScale={1.05}
@@ -163,7 +163,7 @@ export const Demo: React.FC = () => {
         <TransitionSeries.Sequence durationInFrames={D.detail}>
           <AppScene
             src="clips/04-client-detail.webm"
-            trimBefore={30}
+            trimBefore={40}
             caption="The whole relationship, one place"
             zoomTo="center center"
             zoomScale={1.07}
@@ -175,7 +175,7 @@ export const Demo: React.FC = () => {
         <TransitionSeries.Sequence durationInFrames={D.followups}>
           <AppScene
             src="clips/05-followups.webm"
-            trimBefore={40}
+            trimBefore={50}
             caption="Never drop the thread"
             zoomTo="50% 0%"
             zoomScale={1.05}
@@ -189,7 +189,7 @@ export const Demo: React.FC = () => {
         <TransitionSeries.Sequence durationInFrames={D.promos}>
           <AppScene
             src="clips/07-promos.webm"
-            trimBefore={40}
+            trimBefore={50}
             caption="This week's promos, matched"
             zoomTo="50% 0%"
             zoomScale={1.05}
@@ -201,7 +201,7 @@ export const Demo: React.FC = () => {
         <TransitionSeries.Sequence durationInFrames={D.promoMatches}>
           <AppScene
             src="clips/11-promo-matches.webm"
-            trimBefore={24}
+            trimBefore={30}
             caption="Every promo, every match"
             zoomTo="50% 0%"
             zoomScale={1.05}
@@ -213,7 +213,7 @@ export const Demo: React.FC = () => {
         <TransitionSeries.Sequence durationInFrames={D.collections}>
           <AppScene
             src="clips/08-collections.webm"
-            trimBefore={40}
+            trimBefore={50}
             caption="Know what's in demand"
             zoomTo="0% 0%"
             zoomScale={1.06}
@@ -225,7 +225,7 @@ export const Demo: React.FC = () => {
         <TransitionSeries.Sequence durationInFrames={D.catalog}>
           <AppScene
             src="clips/12-catalog.webm"
-            trimBefore={50}
+            trimBefore={60}
             caption="The full model catalog"
             zoomTo="0% 0%"
             zoomScale={1.06}
@@ -237,7 +237,7 @@ export const Demo: React.FC = () => {
         <TransitionSeries.Sequence durationInFrames={D.smartLists}>
           <AppScene
             src="clips/13-smart-lists.webm"
-            trimBefore={40}
+            trimBefore={50}
             caption="Smart lists, saved filters"
             zoomTo="50% 0%"
             zoomScale={1.05}
@@ -251,7 +251,7 @@ export const Demo: React.FC = () => {
         <TransitionSeries.Sequence durationInFrames={D.prospects}>
           <AppScene
             src="clips/10-prospects.webm"
-            trimBefore={40}
+            trimBefore={50}
             caption="Prospects ready for outreach"
             zoomTo="50% 0%"
             zoomScale={1.05}
@@ -265,7 +265,7 @@ export const Demo: React.FC = () => {
         <TransitionSeries.Sequence durationInFrames={D.analytics}>
           <AppScene
             src="clips/09-analytics.webm"
-            trimBefore={60}
+            trimBefore={70}
             caption="See the whole floor's effort"
             zoomTo="50% 0%"
             zoomScale={1.05}
@@ -289,7 +289,7 @@ export const Demo: React.FC = () => {
         <TransitionSeries.Sequence durationInFrames={D.commandPalette}>
           <AppScene
             src="clips/14-command-palette.webm"
-            trimBefore={90}
+            trimBefore={110}
             caption="Find anything, from anywhere"
             zoomTo="center center"
             zoomScale={1.05}
