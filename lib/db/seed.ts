@@ -77,24 +77,27 @@ for (const t of tagData) insTag.run(randomUUID(), t.name, t.color);
 
 // Promo watches
 const promos = [
-  { model: "IX1002-01X", collection: "CAMBRIDGE", brand: "Meridian", s1: 4, s2: 0 },
-  { model: "HX1021-01X", collection: "WAYFINDER", brand: "Meridian", s1: 2, s2: 1 },
-  { model: "IX1010-01X", collection: "SOLARIS", brand: "Meridian", s1: 0, s2: 0 },
-  { model: "LX1020-01X", collection: "CRIMSON ACE", brand: "Meridian", s1: 6, s2: 3 },
-  { model: "IX1006-01X", collection: "SENTINEL", brand: "Meridian", s1: 1, s2: 0 },
-  { model: "IX1022-01X", collection: "OCTA", brand: "Meridian", s1: 0, s2: 5 },
-  { model: "70Z004", collection: "DEEPSTAR", brand: "Ashford", s1: 3, s2: 2 },
-  { model: "70Z003", collection: "ARCLINE", brand: "Ashford", s1: 0, s2: 0 },
-  { model: "AL-525", collection: "RIDGELINE", brand: "Voss", s1: 2, s2: 0 },
-  { model: "FC-220", collection: "HERITAGE", brand: "Chamberlain", s1: 1, s2: 1 },
+  { model: "IX1002-01X", collection: "CAMBRIDGE", brand: "Meridian", s1: 4, s2: 0, msrp: 3450, discountPercent: 15 },
+  { model: "HX1021-01X", collection: "WAYFINDER", brand: "Meridian", s1: 2, s2: 1, msrp: 2795, discountPercent: 20 },
+  { model: "IX1010-01X", collection: "SOLARIS", brand: "Meridian", s1: 0, s2: 0, msrp: 4150, discountPercent: 10 },
+  { model: "LX1020-01X", collection: "CRIMSON ACE", brand: "Meridian", s1: 6, s2: 3, msrp: 1895, discountPercent: 25 },
+  { model: "IX1006-01X", collection: "SENTINEL", brand: "Meridian", s1: 1, s2: 0, msrp: 2950, discountPercent: 15 },
+  { model: "IX1022-01X", collection: "OCTA", brand: "Meridian", s1: 0, s2: 5, msrp: 3550, discountPercent: 10 },
+  { model: "70Z004", collection: "DEEPSTAR", brand: "Ashford", s1: 3, s2: 2, msrp: 1295, discountPercent: 20 },
+  { model: "70Z003", collection: "ARCLINE", brand: "Ashford", s1: 0, s2: 0, msrp: 1150, discountPercent: 15 },
+  { model: "AL-525", collection: "RIDGELINE", brand: "Voss", s1: 2, s2: 0, msrp: 895, discountPercent: 25 },
+  { model: "FC-220", collection: "HERITAGE", brand: "Chamberlain", s1: 1, s2: 1, msrp: 695, discountPercent: 15 },
 ];
 const insPromo = sqlite.prepare(
-  "INSERT INTO promo_watches (id,model_number,collection,brand,size_one_qty,size_two_qty,date_added) VALUES (?,?,?,?,?,?,?)",
+  "INSERT INTO promo_watches (id,model_number,collection,brand,size_one_qty,size_two_qty,msrp,discount_percent,discount_price,date_added) VALUES (?,?,?,?,?,?,?,?,?,?)",
 );
 const promoIds: { id: string; model: string; collection: string; brand: string }[] = [];
 for (const p of promos) {
   const id = randomUUID();
-  insPromo.run(id, p.model, p.collection, p.brand, p.s1, p.s2, now - 30 * day);
+  const discountPrice = p.discountPercent
+    ? Math.round(p.msrp * (1 - p.discountPercent / 100) / 5) * 5
+    : null;
+  insPromo.run(id, p.model, p.collection, p.brand, p.s1, p.s2, p.msrp, p.discountPercent, discountPrice, now - 30 * day);
   promoIds.push({ id, model: p.model, collection: p.collection, brand: p.brand });
 }
 
