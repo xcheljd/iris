@@ -210,7 +210,8 @@ for (let i = 0; i < 22; i++) {
   const source = pick(sources);
   const onEmail = rand() > 0.3 ? 1 : 0;
   const dateAdded = now - Math.floor(rand() * 600) * day;
-  const lastOutreach = rand() > 0.25 ? now - Math.floor(rand() * 180) * day : null;
+  // Fallback only: used when a client ends up with no outreach logs at all.
+  const outreachFallback = rand() > 0.25 ? now - Math.floor(rand() * 180) * day : null;
   const lastPurchase = rand() > 0.6 ? now - Math.floor(rand() * 365) * day : null;
   const birthdayMonth = Math.floor(rand() * 12) + 1;
   const birthdayDay = Math.floor(rand() * 28) + 1;
@@ -231,6 +232,13 @@ for (let i = 0; i < 22; i++) {
     const followUpDate = rand() > 0.6 ? now + Math.floor(rand() * 14 - 3) * day : null;
     plannedLogs.push({ method, outcome, oDate, purchasedModel, followUpDate });
   }
+
+  // logOutreach stamps clients.last_outreach_at on every log it writes, so a
+  // client with logs must show its newest log as the last contact — seeding a
+  // log without this left "Last contact" blank on the dossier.
+  const lastOutreach = plannedLogs.length
+    ? Math.max(...plannedLogs.map((l) => l.oDate))
+    : outreachFallback;
 
   const last90 = plannedLogs
     .filter((l) => now - l.oDate <= HEAT_LOOKBACK_DAYS * day)
