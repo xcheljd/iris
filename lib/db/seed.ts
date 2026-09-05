@@ -300,6 +300,14 @@ for (let i = 0; i < 22; i++) {
   }
   sqlite.prepare("UPDATE clients SET preferred_contact=? WHERE id=?").run(preferred, id);
 
+  // Keep the client's note consistent with the computed preferred contact —
+  // the note text renders on the dossier, and "Prefers in-person" on an
+  // email-only client reads as a data bug on screen.
+  const contactLabel =
+    preferred === "email" ? "email" : preferred === "text" ? "text" : "calls";
+  const note = `${interests[0] ? `Interested in ${interests[0].model ?? interests[0].collection}. ` : ""}Prefers ${contactLabel} contact.`;
+  sqlite.prepare("UPDATE clients SET notes=? WHERE id=?").run(note, id);
+
   // Promo matches — mirrors the runtime matcher (exact model, else exact
   // collection, else exact brand), consistent with createPromo/importPromos.
   for (const p of promoIds) {
