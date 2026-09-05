@@ -1,0 +1,70 @@
+{
+  "dossier": {
+    "file": "/home/xcheljd/Labs/iris/remotion-demo/public/story/dossier.mp4",
+    "frames": 617,
+    "seconds": 20.566666666666666,
+    "srcFps": 5.643395767453175,
+    "marks": {
+      "toOutreach": 10.411,
+      "outreachShown": 12.501
+    }
+  },
+  "promos": {
+    "file": "/home/xcheljd/Labs/iris/remotion-demo/public/story/promos.mp4",
+    "frames": 776,
+    "seconds": 25.866666666666667,
+    "srcFps": 5.411464574233698,
+    "marks": {
+      "travelStart": 1.505,
+      "parked": 5.217,
+      "click": 18.22,
+      "matched": 18.837
+    }
+  },
+  "followups": {
+    "file": "/home/xcheljd/Labs/iris/remotion-demo/public/story/followups.mp4",
+    "frames": 266,
+    "seconds": 8.866666666666667,
+    "srcFps": 2.140845070422535,
+    "marks": {}
+  },
+  "log-email": {
+    "file": "/home/xcheljd/Labs/iris/remotion-demo/public/story/log-email.mp4",
+    "frames": 327,
+    "seconds": 10.9,
+    "srcFps": 7.89642824350381,
+    "marks": {
+      "open": 1.264,
+      "save": 5.45,
+      "saved": 5.874
+    }
+  },
+  "log-purchase": {
+    "file": "/home/xcheljd/Labs/iris/remotion-demo/public/story/log-purchase.mp4",
+    "frames": 534,
+    "seconds": 17.8,
+    "srcFps": 8.093980102298914,
+    "marks": {
+      "open": 1.263,
+      "save": 7.562,
+      "saveClicked": 8.785
+    }
+  },
+  "clients": {
+    "file": "/home/xcheljd/Labs/iris/remotion-demo/public/story/clients.mp4",
+    "frames": 298,
+    "seconds": 9.933333333333334,
+    "srcFps": 5.336824086194744,
+    "marks": {}
+  },
+  "analytics": {
+    "file": "/home/xcheljd/Labs/iris/remotion-demo/public/story/analytics.mp4",
+    "frames": 398,
+    "seconds": 13.266666666666667,
+    "srcFps": 9.797271836611651,
+    "marks": {
+      "flip": 6.004,
+      "dark": 8.245
+    }
+  }
+}

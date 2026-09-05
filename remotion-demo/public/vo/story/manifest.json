@@ -1,0 +1,87 @@
+{
+  "01-promise": {
+    "text": "On July sixth, Lisa Chen stood at the counter and told me she'd be back for the Solaris.",
+    "seconds": 5.328,
+    "frames": 160
+  },
+  "02-job": {
+    "text": "That's the whole job. A hundred small promises you have to keep.",
+    "seconds": 4.032,
+    "frames": 121
+  },
+  "03-spreadsheet": {
+    "text": "A spreadsheet can hold a name. It can't hold a promise.",
+    "seconds": 3.48,
+    "frames": 105
+  },
+  "04-iris": {
+    "text": "Iris.",
+    "seconds": 0.936,
+    "frames": 29
+  },
+  "05-sheet": {
+    "text": "Monday, the promo sheet lands. Ten models, one page, no context.",
+    "seconds": 4.944,
+    "frames": 149
+  },
+  "06-reads": {
+    "text": "Iris reads it against the catalog, and against everyone who ever said they wanted one.",
+    "seconds": 5.256,
+    "frames": 158
+  },
+  "07-price": {
+    "text": "Solaris. Forty-one fifty, now thirty-seven thirty-five. Seven clients are waiting on it.",
+    "seconds": 6.12,
+    "frames": 184
+  },
+  "08-promise-july": {
+    "text": "One of them made me a promise in July.",
+    "seconds": 2.328,
+    "frames": 70
+  },
+  "09-due": {
+    "text": "The follow-up came due today. I didn't have to remember that.",
+    "seconds": 3.6,
+    "frames": 108
+  },
+  "10-dossier": {
+    "text": "Everything's on one page. What she wanted, what we said, and that she's email only, so I don't text her.",
+    "seconds": 6.72,
+    "frames": 202
+  },
+  "11-logged": {
+    "text": "One line. Logged.",
+    "seconds": 1.752,
+    "frames": 53
+  },
+  "12-thursday": {
+    "text": "She came in Thursday.",
+    "seconds": 1.512,
+    "frames": 46
+  },
+  "13-hot": {
+    "text": "Warm becomes hot. Because the work happened, not because I typed it.",
+    "seconds": 4.368,
+    "frames": 132
+  },
+  "14-floor": {
+    "text": "Now do that twenty-two more times. Then do it for the whole floor.",
+    "seconds": 4.104,
+    "frames": 124
+  },
+  "15-managers": {
+    "text": "Managers see who's calling, who's converting, where the book is going cold.",
+    "seconds": 4.488,
+    "frames": 135
+  },
+  "16a-selfhosted": {
+    "text": "Self-hosted. Your data, your building.",
+    "seconds": 2.64,
+    "frames": 80
+  },
+  "16b-outro": {
+    "text": "Iris. Every thread, remembered.",
+    "seconds": 2.376,
+    "frames": 72
+  }
+}
