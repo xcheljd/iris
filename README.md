@@ -40,6 +40,13 @@ Production: `pnpm build && pnpm start`. The restore endpoint exits cleanly after
 | Tests | Vitest + Testing Library (94 files, 1,157 tests) |
 | Lint | ESLint 9 (flat config) |
 
+## Demo
+
+| |
+|---|
+| [<img src="docs/screenshots/02-clients-light.png" width="100%" alt="Iris product demo" />](remotion-demo/out/iris-demo.mp4) |
+| [▶ Watch the 2-minute demo](remotion-demo/out/iris-demo.mp4) |
+
 ## Screenshots
 
 | | |

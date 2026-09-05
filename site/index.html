@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Iris — Every thread, remembered</title>
+  <meta name="description" content="A lightweight, self-hosted customer relationship management tool for retail clienteling: client dossiers, promo-watch matching, follow-ups, outreach analytics, and role-gated approvals." />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#top">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">Iris</span>
+      </a>
+      <a class="header-cta" href="https://github.com/xcheljd/iris" target="_blank" rel="noreferrer">View on GitHub</a>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="container hero-inner">
+        <h1 class="hero-title">Iris — Every thread, remembered</h1>
+        <p class="hero-pitch">
+          A lightweight, self-hosted customer relationship management tool for retail clienteling:
+          client dossiers, promo-watch matching against a model catalog, follow-up management, outreach
+          analytics, and role-gated approvals — built for product categories where inventory is organized
+          by model number and collection. One Node process, one SQLite database, zero external services.
+        </p>
+        <div class="hero-ctas">
+          <a class="button button-primary" href="#demo">Watch the demo</a>
+          <a class="button button-secondary" href="https://github.com/xcheljd/iris" target="_blank" rel="noreferrer">View on GitHub</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Demo video -->
+    <section class="section demo" id="demo">
+      <div class="container">
+        <h2 class="section-title">Watch the demo</h2>
+        <p class="section-sub">Two minutes, end to end — clients, promos, follow-ups, and analytics.</p>
+        <div class="video-frame">
+          <video controls preload="metadata" poster="img/02-clients-light.png">
+            <source src="iris-demo.mp4" type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+        </div>
+      </div>
+    </section>
+<!-- Screenshots gallery -->
+    <section class="section screenshots" id="screenshots">
+      <div class="container">
+        <h2 class="section-title">Six surfaces, light &amp; dark</h2>
+        <p class="section-sub">Every screen ships in both themes — the toggle lives in the top bar, and the choice persists per user.</p>
+        <div class="gallery">
+          <figure class="gallery-item">
+            <img src="img/01-login-light.png" alt="Login screen, light theme" loading="lazy" />
+            <img src="img/01-login-dark.png" alt="Login screen, dark theme" loading="lazy" />
+            <figcaption>Login</figcaption>
+          </figure>
+          <figure class="gallery-item">
+            <img src="img/02-clients-light.png" alt="Clients list, light theme" loading="lazy" />
+            <img src="img/02-clients-dark.png" alt="Clients list, dark theme" loading="lazy" />
+            <figcaption>Clients</figcaption>
+          </figure>
+          <figure class="gallery-item">
+            <img src="img/03-client-detail-light.png" alt="Client detail, light theme" loading="lazy" />
+            <img src="img/03-client-detail-dark.png" alt="Client detail, dark theme" loading="lazy" />
+            <figcaption>Client detail</figcaption>
+          </figure>
+          <figure class="gallery-item">
+            <img src="img/04-promos-light.png" alt="Promotions, light theme" loading="lazy" />
+            <img src="img/04-promos-dark.png" alt="Promotions, dark theme" loading="lazy" />
+            <figcaption>Promotions</figcaption>
+          </figure>
+          <figure class="gallery-item">
+            <img src="img/05-catalog-light.png" alt="Catalog, light theme" loading="lazy" />
+            <img src="img/05-catalog-dark.png" alt="Catalog, dark theme" loading="lazy" />
+            <figcaption>Catalog</figcaption>
+          </figure>
+          <figure class="gallery-item">
+            <img src="img/06-analytics-light.png" alt="Analytics, light theme" loading="lazy" />
+            <img src="img/06-analytics-dark.png" alt="Analytics, dark theme" loading="lazy" />
+            <figcaption>Analytics</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- Feature grid -->
+    <section class="section features" id="features">
+      <div class="container">
+        <h2 class="section-title">Built like a product, not a spreadsheet</h2>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <h3>Client dossiers</h3>
+            <p>Complete per-client history — purchases, preferences, and context that make follow-ups feel personal.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Promo matching</h3>
+            <p>Automatically match promos against the model catalog so the right offer finds the right client.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Follow-ups</h3>
+            <p>Structured outreach logging and smart lists keep every follow-up on time and in context.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Analytics</h3>
+            <p>Outreach and sales analytics that show what's working — surfaces and trends at a glance.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Roles &amp; approvals</h3>
+            <p>Manager and associate roles with server-action gating; destructive actions flow through an approval queue.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Self-hosted</h3>
+            <p>One Node process, one SQLite file, zero SaaS in the loop. Backup and restore are a download and an upload.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Light &amp; dark themes</h3>
+            <p>Every surface ships in both themes, with a top-bar toggle and a per-user persisting preference.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Command palette</h3>
+            <p>Navigate the whole app by keyboard — jump to clients, promos, prospects, or settings in a keystroke.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tech stack -->
+    <section class="section stack" id="stack">
+      <div class="container">
+        <h2 class="section-title">The stack</h2>
+        <ul class="stack-list">
+          <li>Next.js 16</li>
+          <li>SQLite</li>
+          <li>Drizzle ORM</li>
+          <li>TanStack Table</li>
+          <li>shadcn/ui</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p>Private — internal use only.</p>
+      <p>Built with Claude Code, Cline, and Remotion.</p>
+    </div>
+  </footer>
+</body>
+</html>
