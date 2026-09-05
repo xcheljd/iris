@@ -233,6 +233,14 @@ for (let i = 0; i < 22; i++) {
     plannedLogs.push({ method, outcome, oDate, purchasedModel, followUpDate });
   }
 
+  // Hero-client pin for the demo video: Lisa Chen's newest follow-up is due
+  // "today" so the follow-ups scene reads as an active due item, not an
+  // upcoming one. Deterministic given `now` (seed run date).
+  if (fn === "Lisa" && ln === "Chen" && plannedLogs.length) {
+    const newest = plannedLogs.reduce((a, b) => (b.oDate > a.oDate ? b : a));
+    newest.followUpDate = now;
+  }
+
   // logOutreach stamps clients.last_outreach_at on every log it writes, so a
   // client with logs must show its newest log as the last contact — seeding a
   // log without this left "Last contact" blank on the dossier.
