@@ -6,9 +6,11 @@ import { LightLeak } from "@remotion/light-leaks";
 import { loadFont } from "@remotion/google-fonts/Inter";
 import { ProblemScene } from "./scenes/ProblemScene";
 import { Title } from "./scenes/Title";
-import { AppScene } from "./scenes/AppScene";
+import { AppScene, type Focus } from "./scenes/AppScene";
 import { Capabilities } from "./scenes/Capabilities";
 import { Outro } from "./scenes/Outro";
+import { Connector } from "./story/Connector";
+import { ValueLift } from "./story/ValueLift";
 
 loadFont();
 
@@ -45,6 +47,57 @@ const D = {
   capabilities: 157, // VO 3.82s — value centerpiece
   outro: 221, // VO 5.57s — close
 };
+
+// ─── Guidance layer (v6) ───
+//
+// Rects are in each capture's own 1920×1080 pixel space, measured off extracted
+// frames with probe-rect.mjs — never estimated. Windows sit inside stretches
+// where the page underneath is verified still (probe-diff.mjs), and start at
+// least ~30% into the scene, by which point the eased Ken Burns has settled to
+// under half a pixel per frame: one thing moves at a time.
+//
+// Two spotlights were deliberately dropped rather than faked:
+//   · client detail — the capture never leaves the Profile tab inside this
+//     scene's window, so there is no products-of-interest entry or timeline row
+//     on screen to point at. The tab rail, which names both, gets the mask.
+//   · catalog — every MSRP cell in that capture reads "—". A mask over an empty
+//     column would sell the opposite of the line it illustrates.
+const FOCUS: Record<string, Focus[]> = {
+  // Held from f0 to the end; page fits the viewport, so nothing scrolls.
+  dashboard: [
+    { x: 281, y: 241, w: 1069, h: 396, tIn: 96, tOut: 150 }, // Overdue follow-ups
+    { x: 281, y: 650, w: 1070, h: 185, tIn: 152, tOut: 198 }, // Hot leads
+  ],
+  // f130–f190 is the "Lisa" filtered dwell; f212–f272 the restored full list.
+  clients: [
+    { x: 280, y: 80, w: 449, h: 37, tIn: 130, tOut: 190 }, // search box
+    { x: 1016, y: 186, w: 84, h: 24, tIn: 212, tOut: 272 }, // "Hot 85" heat badge
+  ],
+  detail: [
+    { x: 931, y: 234, w: 958, h: 35, tIn: 168, tOut: 244 }, // Profile…Timeline…Notes rail
+  ],
+  // The page nudges down 13px at ~f145; each window stays on one side of it.
+  promos: [
+    { x: 946, y: 462, w: 400, h: 542, tIn: 66, tOut: 140 }, // MSRP / Disc. / Sale Price
+    { x: 1371, y: 186, w: 522, h: 110, tIn: 150, tOut: 208 }, // Total Client Savings
+  ],
+  // Sorted by MSRP at ~f174, which reorders every row — stay clear of it.
+  promoMatches: [
+    { x: 1755, y: 228, w: 93, h: 614, tIn: 52, tOut: 104 }, // Match column
+  ],
+  // Overview tab only: the capture switches to Heat Distribution at ~f81.
+  analytics: [
+    { x: 304, y: 792, w: 1572, h: 46, tIn: 32, tOut: 78 }, // Conversion Rate 33%
+  ],
+};
+
+// Three matched rows, pill → client name. The one mechanic a still frame can't
+// explain: the Match column is a claim *about* the name at the far left.
+const MATCH_LINKS = [
+  { y: 281, x1: 1752, x2: 424 }, // James Chen — collection
+  { y: 437, x1: 1752, x2: 424 }, // Susan Davis — collection
+  { y: 593, x1: 1752, x2: 424 }, // Joseph Jones — model
+];
 
 const T = 18; // 0.6s cross-fade — VO-paced rhythm
 const LEAK = 30; // light-leak overlay length
@@ -144,6 +197,7 @@ export const Demo: React.FC = () => {
             zoomTo="50% 0%"
             zoomScale={1.06}
             vo="03-dashboard.mp3"
+            focus={FOCUS.dashboard}
           />
         </TransitionSeries.Sequence>
         {xfade()}
@@ -158,6 +212,7 @@ export const Demo: React.FC = () => {
             vo="04-clients.mp3"
             vo2="04b-clients-search.mp3"
             vo2From={95}
+            focus={FOCUS.clients}
           />
         </TransitionSeries.Sequence>
         {xfade()}
@@ -170,6 +225,7 @@ export const Demo: React.FC = () => {
             zoomTo="center center"
             zoomScale={1.07}
             vo="05-detail.mp3"
+            focus={FOCUS.detail}
           />
         </TransitionSeries.Sequence>
         {xfade()}
@@ -196,7 +252,25 @@ export const Demo: React.FC = () => {
             zoomTo="50% 0%"
             zoomScale={1.05}
             vo="07-promos.mp3"
-          />
+            focus={FOCUS.promos}
+          >
+            {/*
+              The one lift in the tour. It magnifies a figure the page is
+              showing at that exact frame — the green $3,520 the second mask is
+              sitting on — and lands in the scrim just below it.
+            */}
+            <ValueLift
+              from={154}
+              duration={56}
+              start={0}
+              to={3520}
+              format={(n) => `$${Math.round(n).toLocaleString("en-US")}`}
+              x={1893}
+              y={336}
+              size={124}
+              color="#00c657"
+            />
+          </AppScene>
         </TransitionSeries.Sequence>
         {xfade()}
 
@@ -208,7 +282,10 @@ export const Demo: React.FC = () => {
             zoomTo="50% 0%"
             zoomScale={1.05}
             vo="08-matches.mp3"
-          />
+            focus={FOCUS.promoMatches}
+          >
+            <Connector links={MATCH_LINKS} from={108} duration={62} stagger={9} />
+          </AppScene>
         </TransitionSeries.Sequence>
         {xfade()}
 
@@ -272,6 +349,7 @@ export const Demo: React.FC = () => {
             zoomTo="50% 0%"
             zoomScale={1.05}
             vo="13-analytics.mp3"
+            focus={FOCUS.analytics}
           />
         </TransitionSeries.Sequence>
         {xfade()}

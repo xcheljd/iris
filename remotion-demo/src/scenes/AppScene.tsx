@@ -9,6 +9,23 @@ import {
   Sequence,
 } from "remotion";
 import { Audio, Video } from "@remotion/media";
+import { Spotlight } from "../story/Spotlight";
+
+/**
+ * A dim-mask window onto one element of the capture, in the capture's own
+ * 1920×1080 pixel space — measured off extracted frames, never guessed.
+ * `tIn`/`tOut` are scene-relative frames; keep them inside a stretch where the
+ * page underneath is held still (see probe-stillness.mjs).
+ */
+export type Focus = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  tIn: number;
+  tOut: number;
+  pad?: number;
+};
 
 type Props = {
   src: string;
@@ -25,10 +42,19 @@ type Props = {
   vo2?: string;
   /** Frames after scene start to begin vo2. */
   vo2From?: number;
+  /** Spotlight windows over named elements of the capture. */
+  focus?: Focus[];
+  /**
+   * Extra overlays (Connector, ValueLift) drawn in the capture's coordinate
+   * space, i.e. they ride the Ken Burns push along with the pixels they mark.
+   */
+  children?: React.ReactNode;
 };
 
 const EASE = Easing.bezier(0.16, 1, 0.3, 1);
 const GOLD = "#dbb45c";
+/** The inset frame is 1680×945 of the 1920×1080 capture. */
+export const CLIP_SCALE = 1680 / 1920;
 
 export const AppScene: React.FC<Props> = ({
   src,
@@ -40,6 +66,8 @@ export const AppScene: React.FC<Props> = ({
   vo,
   vo2,
   vo2From,
+  focus,
+  children,
 }) => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
@@ -77,6 +105,7 @@ export const AppScene: React.FC<Props> = ({
       <AbsoluteFill style={{ alignItems: "center", justifyContent: "center" }}>
         <div
           style={{
+            position: "relative",
             width: 1680,
             height: 945,
             borderRadius: 24,
@@ -94,6 +123,36 @@ export const AppScene: React.FC<Props> = ({
             muted
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
+          {/*
+            Guidance layer, in the capture's own 1920×1080 space. 1680/1920 ===
+            945/1080 === CLIP_SCALE, so this maps capture pixels 1:1 and then
+            inherits the Ken Burns transform above — an overlay can never drift
+            off the element it points at, however far the camera has pushed.
+          */}
+          {focus?.length || children ? (
+            <div
+              style={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                width: 1920,
+                height: 1080,
+                transform: `scale(${CLIP_SCALE})`,
+                transformOrigin: "top left",
+              }}
+            >
+              {focus?.map((f) => (
+                <Spotlight
+                  key={`${f.tIn}-${f.x}-${f.y}`}
+                  rect={{ x: f.x, y: f.y, w: f.w, h: f.h }}
+                  from={f.tIn}
+                  duration={f.tOut - f.tIn}
+                  pad={f.pad}
+                />
+              ))}
+              {children}
+            </div>
+          ) : null}
         </div>
       </AbsoluteFill>
 
