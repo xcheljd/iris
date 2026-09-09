@@ -84,6 +84,8 @@ export const AppScene: React.FC<Props> = ({
   );
   const capOpacity = Math.min(capOpacityIn, capOpacityOut);
 
+
+
   // Gold accent bar wipes in under the caption — small "C" polish detail.
   const accentW = interpolate(frame, [10, 34], [0, 132], {
     easing: EASE,
@@ -97,6 +99,20 @@ export const AppScene: React.FC<Props> = ({
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
+
+  // Parse the Ken Burns origin ("50% 0%" | "center center") into fractions of
+  // the frame rect, so the zoom counter-translation can be computed.
+  const originParts = zoomTo.split(/\s+/);
+  const frac = (v: string, total: number) =>
+    v === "center" ? 0.5 : parseFloat(v) / 100 * total;
+  const Px = frac(originParts[0], 1680);
+  const Py = frac(originParts[1] ?? originParts[0], 945);
+  // Scale-about-point moves the frame center C to P + z*(C-P); counter-translate
+  // by (1-z)*(C-P) so the window stays centered while the push still heads
+  // toward the chosen focal origin.
+  const Cx = 840, Cy = 472.5;
+  const ctrX = (1 - zoom) * (Cx - Px);
+  const ctrY = (1 - zoom) * (Cy - Py);
 
   return (
     <AbsoluteFill
@@ -112,7 +128,7 @@ export const AppScene: React.FC<Props> = ({
             overflow: "hidden",
             boxShadow:
               "0 30px 100px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.06)",
-            transform: `scale(${zoom})`,
+            transform: `translate(${ctrX}px, ${ctrY}px) scale(${zoom})`,
             transformOrigin: zoomTo,
             background: "#000",
           }}
