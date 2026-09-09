@@ -53,6 +53,14 @@ type Props = {
 
 const EASE = Easing.bezier(0.16, 1, 0.3, 1);
 const GOLD = "#dbb45c";
+/** transform-origin keywords, as the fraction of the axis they stand for. */
+const KEYWORD: Record<string, number> = {
+  left: 0,
+  top: 0,
+  center: 0.5,
+  right: 1,
+  bottom: 1,
+};
 /** The inset frame is 1680×945 of the 1920×1080 capture. */
 export const CLIP_SCALE = 1680 / 1920;
 
@@ -100,13 +108,15 @@ export const AppScene: React.FC<Props> = ({
     extrapolateRight: "clamp",
   });
 
-  // Parse the Ken Burns origin ("50% 0%" | "center center") into fractions of
-  // the frame rect, so the zoom counter-translation can be computed.
+  // Resolve the Ken Burns origin ("50% 0%" | "center center") to a pixel offset
+  // in the frame rect, exactly as CSS transform-origin resolves it against the
+  // border box, so the zoom counter-translation below can undo it.
   const originParts = zoomTo.split(/\s+/);
   const frac = (v: string, total: number) =>
-    v === "center" ? 0.5 : parseFloat(v) / 100 * total;
+    (KEYWORD[v] ?? parseFloat(v) / 100) * total;
   const Px = frac(originParts[0], 1680);
-  const Py = frac(originParts[1] ?? originParts[0], 945);
+  // A one-value transform-origin resolves its second component to center.
+  const Py = frac(originParts[1] ?? "center", 945);
   // Scale-about-point moves the frame center C to P + z*(C-P); counter-translate
   // by (1-z)*(C-P) so the window stays centered while the push still heads
   // toward the chosen focal origin.
