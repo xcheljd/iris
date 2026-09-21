@@ -85,7 +85,7 @@ export function SettingsContent({ employees, tags, templates, deletedClients, cu
 
           {isManager && (
           <TabsContent value="employees">
-            <EmployeesTab employees={employees} />
+            <EmployeesTab employees={employees} currentUserId={currentUserId} />
           </TabsContent>
           )}
 

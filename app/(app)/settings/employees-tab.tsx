@@ -49,9 +49,11 @@ interface EmployeesTabProps {
     sortOrder: number;
     activeClientCount: number;
   }[];
+  /** Session user's employee id — their own row can't be deactivated or demoted. */
+  currentUserId: string;
 }
 
-export function EmployeesTab({ employees }: EmployeesTabProps) {
+export function EmployeesTab({ employees, currentUserId }: EmployeesTabProps) {
   const router = useRouter();
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [showInactive, setShowInactive] = useState(false);
@@ -378,7 +380,7 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
                             handleActivate(employee);
                           }
                         }}
-                        disabled={employee.username === "__self__"}
+                        disabled={employee.id === currentUserId}
                       />
                       <Badge variant={employee.active ? "default" : "outline"}>
                         {employee.active ? "Active" : "Inactive"}
@@ -404,14 +406,17 @@ export function EmployeesTab({ employees }: EmployeesTabProps) {
                           <KeyRound className="size-4 mr-2" />
                           Reset Password
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleToggleRole(employee)}>
+                        <DropdownMenuItem
+                          disabled={employee.id === currentUserId}
+                          onClick={() => handleToggleRole(employee)}
+                        >
                           <Shield className="size-4 mr-2" />
                           {employee.role === "manager" ? "Demote to Associate" : "Promote to Manager"}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className={employee.active ? "text-destructive" : undefined}
-                          disabled={employee.username === "__self__"}
+                          disabled={employee.id === currentUserId}
                           onClick={() => {
                             if (employee.active) {
                               setDeactivateTarget(employee);
