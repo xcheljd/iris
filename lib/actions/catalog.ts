@@ -8,7 +8,7 @@ import { requireManager, isSessionEmployeeStale } from "./_shared";
 
 const STALE_SESSION_ERROR =
   "Your session is out of sync with the employee record. Sign out and sign back in, then retry.";
-import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
+import { DEFAULT_PAGE_SIZE, PAGE_READ_LIMIT } from "@/lib/constants";
 import { normalizeModel } from "@/lib/normalize";
 import { buildPromoClientIndex, matchPromoToClients } from "@/lib/promo-match";
 import { getCatalogIndex, recordProductsOfInterest } from "./model-catalog";
@@ -416,8 +416,13 @@ export async function listCatalog({
 
   const rows = db.select().from(modelCatalog).where(filter).orderBy(order).limit(DEFAULT_PAGE_SIZE).offset(offset).all();
   const totalRow = db.select({ n: sql<number>`count(*)` }).from(modelCatalog).where(filter).get();
-  const needsReview = db.select().from(modelCatalog).where(eq(modelCatalog.needsReview, true)).orderBy(asc(modelCatalog.model)).all();
-  const flagged = db.select().from(modelCatalog).where(isNotNull(modelCatalog.flaggedCollection)).orderBy(asc(modelCatalog.model)).all();
+  // The two review panels render every row they get and have no paging of
+  // their own, so they take the house cap for page-backing reads rather than
+  // pulling an unbounded slice of the catalog into a server render. Both are
+  // narrow, already-filtered sets in practice — this is the ceiling, not the
+  // expected size.
+  const needsReview = db.select().from(modelCatalog).where(eq(modelCatalog.needsReview, true)).orderBy(asc(modelCatalog.model)).limit(PAGE_READ_LIMIT).all();
+  const flagged = db.select().from(modelCatalog).where(isNotNull(modelCatalog.flaggedCollection)).orderBy(asc(modelCatalog.model)).limit(PAGE_READ_LIMIT).all();
   // Global (unfiltered) max so the slider's upper bound stays stable as filters change.
   const ceilingRow = db.select({ m: sql<number>`max(${modelCatalog.msrp})` }).from(modelCatalog).get();
 

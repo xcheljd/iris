@@ -291,10 +291,24 @@ export async function purgeClient(clientId: string): Promise<{ error: string } |
   revalidatePath("/settings");
 }
 
+/** The client columns the merge dialog lets a manager choose a side for.
+ *  Anything outside this set is not a field `pick` can resolve, so the key
+ *  union — rather than `string` — is what the signature should say. */
+type MergeableField =
+  | "firstName"
+  | "lastName"
+  | "phone"
+  | "email"
+  | "birthday"
+  | "anniversary"
+  | "customerId"
+  | "source"
+  | "preferredContact";
+
 export async function mergeClients(
   clientAId: string,
   clientBId: string,
-  fieldChoices: Record<string, "a" | "b">,
+  fieldChoices: Partial<Record<MergeableField, "a" | "b">>,
   finalNotes: string | null,
 ): Promise<{ winnerId: string } | { error: string }> {
   const user = await requireManager();
@@ -308,7 +322,7 @@ export async function mergeClients(
   const winner = aIsOlder ? clientA : clientB;
   const loser = aIsOlder ? clientB : clientA;
 
-  const pick = (key: string): unknown =>
+  const pick = (key: MergeableField): unknown =>
     fieldChoices[key] === "b"
       ? (clientB as Record<string, unknown>)[key]
       : (clientA as Record<string, unknown>)[key];

@@ -211,6 +211,14 @@ describe("Bulk Client Operations", () => {
       const result = await bulkReassignOwner([], JORDAN_ID);
       expect(result.ok).toBe(0);
     });
+
+    // Regression: ok was clientIds.length, so an id matching no row inflated
+    // the count the toast reports.
+    it("does not count ids that match no client", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+      const result = await bulkReassignOwner([...testClientIds, randomUUID()], JORDAN_ID);
+      expect(result.ok).toBe(3);
+    });
   });
 
   // ---------------------------------------------------------------
@@ -358,6 +366,39 @@ describe("Bulk Client Operations", () => {
     it("throws when associate calls it", async () => {
       vi.mocked(getServerSession).mockResolvedValue(associateSession);
       await expect(bulkUnsubscribeClients(testClientIds)).rejects.toThrow("Manager access required");
+    });
+
+    // Regression: the UPDATE covered the whole id list, so a soft-deleted
+    // client in the selection came back as "unsubscribed" — resurrected into
+    // every active-client surface — and was still counted in ok.
+    it("leaves deleted and banned clients alone and does not count them", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+      const [deletedId, bannedId, activeId] = testClientIds;
+      const testEmails = ["bulktest0@test.com", "bulktest1@test.com", "bulktest2@test.com"];
+      // An earlier case in this describe leaves these on the suppression list.
+      cleanupUnsubscribe(testEmails);
+
+      db.update(clients).set({ status: "deleted", deletedAt: new Date(), deletedBy: MANAGER_ID })
+        .where(eq(clients.id, deletedId)).run();
+      db.update(clients).set({ status: "banned" }).where(eq(clients.id, bannedId)).run();
+
+      const result = await bulkUnsubscribeClients(testClientIds);
+      expect(result.ok).toBe(1);
+
+      expect(db.select().from(clients).where(eq(clients.id, deletedId)).get()?.status).toBe("deleted");
+      expect(db.select().from(clients).where(eq(clients.id, bannedId)).get()?.status).toBe("banned");
+      expect(db.select().from(clients).where(eq(clients.id, activeId)).get()?.status).toBe("unsubscribed");
+
+      // Only the eligible client gets an event and an unsubscribe_list row.
+      const events = db.select().from(activityEvents)
+        .where(inArray(activityEvents.clientId, testClientIds)).all()
+        .filter((e) => e.eventType === "status_changed");
+      expect(events).toHaveLength(1);
+
+      const deletedEmail = db.select().from(clients).where(eq(clients.id, deletedId)).get()?.email;
+      expect(db.select().from(unsubscribeList).where(eq(unsubscribeList.email, deletedEmail!)).get()).toBeUndefined();
+
+      cleanupUnsubscribe(testEmails);
     });
 
     // Regression test for plan 012 — clients.email has no UNIQUE constraint but

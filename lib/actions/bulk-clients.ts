@@ -186,8 +186,13 @@ export async function bulkReassignOwner(
     clientIds,
     errorMessage: "Failed to reassign owner",
     mutate: (tx) => {
-      tx.update(clients).set({ employeeId: newEmployeeId, updatedAt: new Date() }).where(inArray(clients.id, clientIds)).run();
-      insertActivityEvents(tx, clientIds.map((id) => ({
+      // Resolve the ids first: `clientIds.length` counted ids that match no
+      // row, and the activity event for one of those would fail its FK and
+      // roll the whole batch back.
+      const ids = tx.select({ id: clients.id }).from(clients).where(inArray(clients.id, clientIds)).all().map((r) => r.id);
+      if (ids.length === 0) return 0;
+      tx.update(clients).set({ employeeId: newEmployeeId, updatedAt: new Date() }).where(inArray(clients.id, ids)).run();
+      insertActivityEvents(tx, ids.map((id) => ({
         id: randomUUID(),
         clientId: id,
         eventType: "transferred" as const,
@@ -195,7 +200,7 @@ export async function bulkReassignOwner(
         employeeId: user.id,
         metadata: { newEmployeeId },
       })));
-      return clientIds.length;
+      return ids.length;
     },
   });
 }
@@ -336,9 +341,15 @@ export async function bulkUnsubscribeClients(clientIds: string[]): Promise<BulkR
     errorMessage: "Failed to unsubscribe clients",
     revalidate: ["/clients", "/unsubscribed"],
     mutate: (tx) => {
-      const rows = tx.select().from(clients).where(inArray(clients.id, clientIds)).all();
+      // Deleted and banned clients keep their status — the blanket UPDATE used
+      // to resurrect a soft-deleted client as "unsubscribed", the same guard
+      // bulkDeleteClients/bulkBanClients make before they write.
+      const rows = tx.select().from(clients).where(inArray(clients.id, clientIds)).all()
+        .filter((r) => r.status !== "deleted" && r.status !== "banned");
+      if (rows.length === 0) return 0;
+      const eligible = rows.map((r) => r.id);
       const now = new Date();
-      tx.update(clients).set({ status: "unsubscribed", onEmailList: false, updatedAt: now }).where(inArray(clients.id, clientIds)).run();
+      tx.update(clients).set({ status: "unsubscribed", onEmailList: false, updatedAt: now }).where(inArray(clients.id, eligible)).run();
 
       // One query for the whole batch instead of one per row. Seeded with the
       // emails already on the list, then extended as we insert — two clients can
@@ -366,7 +377,7 @@ export async function bulkUnsubscribeClients(clientIds: string[]): Promise<BulkR
         });
       }
       insertActivityEvents(tx, events);
-      return clientIds.length;
+      return eligible.length;
     },
   });
 }

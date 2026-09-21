@@ -37,6 +37,18 @@ export interface OnboardingState {
 
 const hintIdSchema = z.enum(VALID_HINT_IDS);
 
+// The stored shape, re-checked on read. The write path is already zod-tight,
+// so this is defence against a row written by an older schema (or by hand)
+// rather than against user input — a cast would hand every caller an
+// OnboardingState whose fields are actually undefined.
+const stateSchema = z.object({
+  tourCompleted: z.boolean(),
+  currentStep: z.number().int(),
+  completedSteps: z.array(z.string()),
+  hintsDismissed: z.array(z.string()),
+  tourSkipped: z.boolean(),
+});
+
 const updateSchema = z.object({
   tourCompleted: z.boolean().optional(),
   currentStep: z.number().int().min(1).optional(),
@@ -57,11 +69,14 @@ function getMaxStep(role: string): number {
 
 function parseState(raw: string | null): OnboardingState | null {
   if (!raw) return null;
+  let decoded: unknown;
   try {
-    return JSON.parse(raw) as OnboardingState;
+    decoded = JSON.parse(raw);
   } catch {
     return null;
   }
+  const parsed = stateSchema.safeParse(decoded);
+  return parsed.success ? parsed.data : null;
 }
 
 function defaultState(): OnboardingState {
