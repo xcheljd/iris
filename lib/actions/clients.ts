@@ -383,47 +383,42 @@ export async function mergeClients(
   return { winnerId: winner.id };
 }
 
+/**
+ * Resolve a new-client-form duplicate into the existing record. `patch` is
+ * untrusted — it comes straight from the merge dialog — so it runs through
+ * clientPatchSchema, the same field allowlist saveClientEdits uses.
+ */
 export async function patchClientFromFormMerge(
   existingId: string,
-  patch: {
-    firstName: string;
-    lastName?: string | null;
-    phone?: string | null;
-    email?: string | null;
-    birthday?: string | null;
-    anniversary?: string | null;
-    customerId?: string | null;
-    source?: string;
-    preferredContact?: "call" | "text" | "email" | null;
-    onEmailList?: boolean;
-    notes?: string | null;
-    productsOfInterest?: ProductOfInterest[];
-    tags?: string[];
-  },
+  patch: unknown,
 ): Promise<{ error: string } | undefined> {
   const user = await requireManager();
   const existing = db.select().from(clients).where(eq(clients.id, existingId)).get();
   if (!existing) return { error: "Client not found" };
 
+  const parsed = clientPatchSchema.safeParse(patch);
+  if (!parsed.success) return { error: "Invalid request" };
+  const data = parsed.data;
+
   db.transaction((tx) => {
     tx.update(clients).set({
-      firstName: patch.firstName,
-      lastName: patch.lastName ?? null,
-      phone: patch.phone ?? null,
-      email: patch.email ?? null,
-      birthday: patch.birthday ?? null,
-      anniversary: patch.anniversary ?? null,
-      customerId: patch.customerId ?? null,
-      source: (patch.source as typeof clients.$inferSelect.source) ?? existing.source,
-      preferredContact: patch.preferredContact ?? existing.preferredContact,
-      onEmailList: patch.onEmailList ?? existing.onEmailList,
-      notes: patch.notes ?? null,
-      productsOfInterest: patch.productsOfInterest ?? existing.productsOfInterest,
-      tags: patch.tags ?? existing.tags,
+      firstName: data.firstName ?? existing.firstName,
+      lastName: data.lastName ?? null,
+      phone: data.phone ?? null,
+      email: data.email ?? null,
+      birthday: data.birthday ?? null,
+      anniversary: data.anniversary ?? null,
+      customerId: data.customerId ?? null,
+      source: data.source ?? existing.source,
+      preferredContact: data.preferredContact ?? existing.preferredContact,
+      onEmailList: data.onEmailList ?? existing.onEmailList,
+      notes: data.notes ?? null,
+      productsOfInterest: data.productsOfInterest ?? existing.productsOfInterest,
+      tags: data.tags ?? existing.tags,
       updatedAt: new Date(),
     }).where(eq(clients.id, existingId)).run();
 
-    recordProductsOfInterest(tx, patch.productsOfInterest ?? existing.productsOfInterest);
+    recordProductsOfInterest(tx, data.productsOfInterest ?? existing.productsOfInterest);
 
     tx.insert(activityEvents).values({
       id: randomUUID(),

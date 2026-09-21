@@ -12,7 +12,7 @@ vi.mock("next/cache", () => ({
 
 import { getServerSession } from "next-auth";
 import type { Session } from "next-auth";
-import { transferClient, mergeClients } from "@/lib/actions";
+import { transferClient, mergeClients, patchClientFromFormMerge } from "@/lib/actions";
 import { db } from "@/lib/db";
 import { clients, activityEvents, outreachLogs } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -285,5 +285,71 @@ describe("mergeClients", () => {
     expect(a).toBeDefined();
     expect(b).toBeDefined();
     expect(a!.firstName).toBe("TxWinner"); // winner's profile was not permanently changed
+  });
+});
+
+describe("patchClientFromFormMerge", () => {
+  const createdClientIds: string[] = [];
+
+  afterEach(() => {
+    for (const id of createdClientIds) {
+      try {
+        db.delete(activityEvents).where(eq(activityEvents.clientId, id)).run();
+        db.delete(clients).where(eq(clients.id, id)).run();
+      } catch {}
+    }
+    createdClientIds.length = 0;
+  });
+
+  // Regression: the patch was written to the row verbatim (source went in via a
+  // cast), so a caller could store a source outside the enum or an
+  // arbitrarily long first name.
+  it("rejects a source outside the enum and leaves the row unmodified", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    const id = createTestClient({ firstName: "Original", lastName: "Record" });
+    createdClientIds.push(id);
+
+    const result = await patchClientFromFormMerge(id, { firstName: "Patched", source: "Skywriting" });
+    expect(result).toEqual({ error: "Invalid request" });
+
+    const row = db.select().from(clients).where(eq(clients.id, id)).get();
+    expect(row!.firstName).toBe("Original");
+    expect(row!.source).toBe("Walk-in");
+  });
+
+  it("rejects an over-length firstName and leaves the row unmodified", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    const id = createTestClient({ firstName: "Original", lastName: "Record" });
+    createdClientIds.push(id);
+
+    const result = await patchClientFromFormMerge(id, { firstName: "x".repeat(101) });
+    expect(result).toEqual({ error: "Invalid request" });
+
+    const row = db.select().from(clients).where(eq(clients.id, id)).get();
+    expect(row!.firstName).toBe("Original");
+  });
+
+  it("applies a valid patch", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    const id = createTestClient({ firstName: "Original", lastName: "Record" });
+    createdClientIds.push(id);
+
+    const result = await patchClientFromFormMerge(id, {
+      firstName: "Patched",
+      lastName: "Merged",
+      phone: "5551234567",
+      source: "Referral",
+      tags: ["vip"],
+      productsOfInterest: [{ model: "SKU-003", collection: null, brand: null, intent: "interested" }],
+    });
+    expect(result).toBeUndefined();
+
+    const row = db.select().from(clients).where(eq(clients.id, id)).get();
+    expect(row!.firstName).toBe("Patched");
+    expect(row!.lastName).toBe("Merged");
+    expect(row!.phone).toBe("5551234567");
+    expect(row!.source).toBe("Referral");
+    expect(row!.tags).toEqual(["vip"]);
+    expect(row!.productsOfInterest.map((p) => p.model)).toEqual(["SKU-003"]);
   });
 });
