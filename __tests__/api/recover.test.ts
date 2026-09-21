@@ -96,7 +96,11 @@ describe("POST /api/recover - verify step", () => {
     expect(data.error).toBe("Incorrect answer");
   });
 
-  it("should return 404 for non-existent username on verify", async () => {
+  // Regression: verify used to answer "No recovery options available for this
+  // account" while lookup answered with the generic line, so comparing the two
+  // replies told an unauthenticated caller whether a username existed. Both
+  // steps now return the same message — this assertion changed deliberately.
+  it("should return 404 for non-existent username on verify with the same message as lookup", async () => {
     const req = new NextRequest("http://localhost:3000/api/recover", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -110,7 +114,54 @@ describe("POST /api/recover - verify step", () => {
     const res = await POST(req);
     expect(res.status).toBe(404);
     const data = await res.json();
-    expect(data.error).toBe("No recovery options available for this account");
+    expect(data.error).toBe("If this account exists and has recovery options configured, you will see the security question.");
+  });
+
+  // Regression: bcrypt hashes only the first 72 bytes, so a longer password
+  // would have been stored truncated and authenticated on its prefix.
+  it("should return 400 when newPassword exceeds 72 characters", async () => {
+    const req = new NextRequest("http://localhost:3000/api/recover", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        step: "verify",
+        username: "Marcus",
+        answer: "some answer",
+        newPassword: "x".repeat(73),
+      }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toBe("New password must be at most 72 characters");
+  });
+});
+
+describe("POST /api/recover - malformed body", () => {
+  // Regression: req.json() was unguarded, so a non-JSON body threw out of the
+  // handler as a 500 instead of being reported as the client error it is.
+  it("should return 400 for a body that is not JSON", async () => {
+    const req = new NextRequest("http://localhost:3000/api/recover", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{not json",
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toBe("Invalid request");
+  });
+
+  it("should return 400 for a JSON body that is not an object", async () => {
+    const req = new NextRequest("http://localhost:3000/api/recover", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "null",
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toBe("Invalid request");
   });
 });
 
