@@ -89,6 +89,9 @@ export async function resetEmployeePassword(employeeId: string, newPassword: str
 export async function updateEmployeeRole(employeeId: string, newRole: "manager" | "associate") {
   const user = await getSessionUser();
   if (user?.role !== "manager") return { error: "Unauthorized" };
+  // A sole manager demoting themselves locks every manager surface for good —
+  // same self-targeting refusal the deactivate/delete paths make.
+  if (user.id === employeeId && newRole !== "manager") return { error: "Cannot remove your own manager access" };
   db.update(employees).set({ role: newRole }).where(eq(employees.id, employeeId)).run();
   revalidatePath("/settings");
   return { success: true as const };

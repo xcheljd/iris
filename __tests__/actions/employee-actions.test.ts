@@ -223,6 +223,29 @@ describe("Employee Actions", () => {
       const result = await updateEmployeeRole(ASSOCIATE_ID, "manager");
       expect(result).toEqual({ error: "Unauthorized" });
     });
+
+    // Regression: a manager demoting themselves used to succeed, which locks
+    // every manager surface when they are the only manager left.
+    it("should refuse to demote the calling manager and leave the row untouched", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+
+      const result = await updateEmployeeRole(MANAGER_ID, "associate");
+      expect(result).toEqual({ error: "Cannot remove your own manager access" });
+
+      const emp = db.select().from(employees).where(eq(employees.id, MANAGER_ID)).get();
+      expect(emp!.role).toBe("manager");
+    });
+
+    it("should still demote another manager", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+
+      await updateEmployeeRole(ASSOCIATE_ID, "manager");
+      const result = await updateEmployeeRole(ASSOCIATE_ID, "associate");
+      expect(result).toEqual({ success: true });
+
+      const emp = db.select().from(employees).where(eq(employees.id, ASSOCIATE_ID)).get();
+      expect(emp!.role).toBe("associate");
+    });
   });
 
   describe("toggleEmployeeActive", () => {
