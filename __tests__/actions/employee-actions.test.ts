@@ -168,6 +168,63 @@ describe("Employee Actions", () => {
 
       expect(result2).toEqual({ error: "Username already taken" });
     });
+
+    // Regression: the args are RPC input, so the declared TS types are gone by
+    // the time they land. An over-length username used to go straight into the
+    // column.
+    it("should reject an over-length username without inserting a row", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+
+      const username = "u".repeat(51);
+      const result = await createEmployee({
+        firstName: "Too",
+        lastName: "Long",
+        username,
+        password: "password123",
+        role: "associate",
+      });
+
+      expect(result).toEqual({ error: "First name, username, and password (min 6 chars) are required" });
+      expect(db.select().from(employees).where(eq(employees.username, username)).get()).toBeUndefined();
+    });
+
+    // Regression: a whitespace-only username passed the old `!data.username`
+    // check and was stored verbatim, so nobody could ever log in as that row.
+    it("should reject a whitespace-only username without inserting a row", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+
+      const result = await createEmployee({
+        firstName: "Blank",
+        lastName: "User",
+        username: "   ",
+        password: "password123",
+        role: "associate",
+      });
+
+      expect(result).toEqual({ error: "First name, username, and password (min 6 chars) are required" });
+      expect(db.select().from(employees).where(eq(employees.username, "   ")).get()).toBeUndefined();
+      expect(db.select().from(employees).where(eq(employees.username, "")).get()).toBeUndefined();
+    });
+
+    // createEmployee used to store the username untrimmed while updateEmployee
+    // trimmed it — the same account could then exist under two spellings.
+    it("should trim the stored username", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+
+      const username = "trimmed_" + Date.now();
+      const result = await createEmployee({
+        firstName: "Trim",
+        lastName: "Me",
+        username: `  ${username}  `,
+        password: "password123",
+        role: "associate",
+      });
+      expect(result).toEqual({ success: true });
+
+      const emp = db.select().from(employees).where(eq(employees.username, username)).get();
+      expect(emp).toBeDefined();
+      createdEmployeeIds.push(emp!.id);
+    });
   });
 
   describe("resetEmployeePassword", () => {
@@ -234,6 +291,19 @@ describe("Employee Actions", () => {
 
       const emp = db.select().from(employees).where(eq(employees.id, MANAGER_ID)).get();
       expect(emp!.role).toBe("manager");
+    });
+
+    // Regression: the role argument is untrusted. `requireManager` compares
+    // === "manager", so a bogus value used to persist and then read back as a
+    // silent associate everywhere.
+    it("should reject a role outside the enum and leave the row untouched", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+
+      const result = await updateEmployeeRole(ASSOCIATE_ID, "admin");
+      expect(result).toEqual({ error: "Role must be manager or associate" });
+
+      const emp = db.select().from(employees).where(eq(employees.id, ASSOCIATE_ID)).get();
+      expect(emp!.role).toBe("associate");
     });
 
     it("should still demote another manager", async () => {

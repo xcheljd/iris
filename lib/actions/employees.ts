@@ -6,68 +6,70 @@ import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { MIN_PASSWORD_LENGTH, BCRYPT_SALT_ROUNDS } from "@/lib/constants";
 import bcrypt from "bcryptjs";
+import {
+  employeeActiveSchema,
+  employeeCreateSchema,
+  employeePasswordSchema,
+  employeeRoleSchema,
+  employeeUpdateSchema,
+  newPasswordSchema,
+} from "@/lib/validation/employee";
 import { getSessionUser } from "./_shared";
 
-export async function createEmployee(data: {
-  firstName: string;
-  lastName: string;
-  username: string;
-  password: string;
-  role: "manager" | "associate";
-}) {
+export async function createEmployee(data: unknown) {
   const user = await getSessionUser();
   if (user?.role !== "manager") return { error: "Unauthorized" };
-  if (!data.firstName || !data.username || !data.password || data.password.length < MIN_PASSWORD_LENGTH) {
-    return { error: "First name, username, and password (min 6 chars) are required" };
+  // One message for every shape failure — the add dialog has always reported
+  // this single line, and the field-level detail isn't rendered anywhere.
+  const parsed = employeeCreateSchema.safeParse(data);
+  if (!parsed.success) {
+    return { error: `First name, username, and password (min ${MIN_PASSWORD_LENGTH} chars) are required` };
   }
-  const existing = db.select().from(employees).where(eq(employees.username, data.username)).get();
+  const { firstName, lastName, username, password, role } = parsed.data;
+  const existing = db.select().from(employees).where(eq(employees.username, username)).get();
   if (existing) return { error: "Username already taken" };
-  const passwordHash = await bcrypt.hash(data.password, BCRYPT_SALT_ROUNDS);
-  const firstName = data.firstName.trim();
-  const lastName = data.lastName?.trim() || null;
+  const passwordHash = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
   db.insert(employees).values({
     id: randomUUID(),
     name: lastName ? `${firstName} ${lastName}` : firstName,
     firstName,
     lastName,
-    username: data.username,
+    username,
     passwordHash,
-    role: data.role,
+    role,
     active: true,
   }).run();
   revalidatePath("/settings");
   return { success: true as const };
 }
 
-export async function updateEmployee(employeeId: string, data: { firstName: string; lastName: string; username: string; role?: "manager" | "associate" }) {
+export async function updateEmployee(employeeId: string, data: unknown) {
   const user = await getSessionUser();
   if (!user) return { error: "Not authenticated" };
   const isSelf = user.id === employeeId;
   const isManager = user.role === "manager";
   if (!isSelf && !isManager) return { error: "Unauthorized" };
 
-  if (!data.firstName?.trim() || !data.username?.trim()) {
-    return { error: "First name and username are required" };
-  }
+  const parsed = employeeUpdateSchema.safeParse(data);
+  if (!parsed.success) return { error: "First name and username are required" };
+  const { firstName, lastName, username, role } = parsed.data;
 
   const target = db.select().from(employees).where(eq(employees.id, employeeId)).get();
   if (!target) return { error: "Employee not found" };
 
-  if (data.username !== target.username) {
-    const existing = db.select().from(employees).where(eq(employees.username, data.username)).get();
+  if (username !== target.username) {
+    const existing = db.select().from(employees).where(eq(employees.username, username)).get();
     if (existing) return { error: "Username already taken" };
   }
 
-  const firstName = data.firstName.trim();
-  const lastName = data.lastName.trim() || null;
   const updates: Partial<typeof employees.$inferInsert> = {
     firstName,
     lastName,
-    username: data.username.trim(),
+    username,
     name: lastName ? `${firstName} ${lastName}` : firstName,
   };
   if (isManager && !isSelf) {
-    if (data.role) updates.role = data.role;
+    if (role) updates.role = role;
     // active status changes must go through deactivateEmployee/toggleEmployeeActive
     // to ensure client transfer handling
   }
@@ -77,31 +79,38 @@ export async function updateEmployee(employeeId: string, data: { firstName: stri
   return { success: true as const };
 }
 
-export async function resetEmployeePassword(employeeId: string, newPassword: string) {
+export async function resetEmployeePassword(employeeId: string, newPassword: unknown) {
   const user = await getSessionUser();
   if (user?.role !== "manager") return { error: "Unauthorized" };
-  if (!newPassword || newPassword.length < 6) return { error: "Password must be at least 6 characters" };
-  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
+  const parsed = employeePasswordSchema.safeParse(newPassword);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid password" };
+  const passwordHash = await bcrypt.hash(parsed.data, BCRYPT_SALT_ROUNDS);
   db.update(employees).set({ passwordHash }).where(eq(employees.id, employeeId)).run();
   return { success: true as const };
 }
 
-export async function updateEmployeeRole(employeeId: string, newRole: "manager" | "associate") {
+export async function updateEmployeeRole(employeeId: string, newRole: unknown) {
   const user = await getSessionUser();
   if (user?.role !== "manager") return { error: "Unauthorized" };
+  const parsed = employeeRoleSchema.safeParse(newRole);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid role" };
+  const role = parsed.data;
   // A sole manager demoting themselves locks every manager surface for good —
   // same self-targeting refusal the deactivate/delete paths make.
-  if (user.id === employeeId && newRole !== "manager") return { error: "Cannot remove your own manager access" };
-  db.update(employees).set({ role: newRole }).where(eq(employees.id, employeeId)).run();
+  if (user.id === employeeId && role !== "manager") return { error: "Cannot remove your own manager access" };
+  db.update(employees).set({ role }).where(eq(employees.id, employeeId)).run();
   revalidatePath("/settings");
   return { success: true as const };
 }
 
-export async function toggleEmployeeActive(employeeId: string, active: boolean) {
+export async function toggleEmployeeActive(employeeId: string, active: unknown) {
   const user = await getSessionUser();
   if (user?.role !== "manager") return { error: "Unauthorized" };
-  if (user.id === employeeId && !active) return { error: "Cannot deactivate your own account" };
-  db.update(employees).set({ active }).where(eq(employees.id, employeeId)).run();
+  const parsed = employeeActiveSchema.safeParse(active);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid request" };
+  const isActive = parsed.data;
+  if (user.id === employeeId && !isActive) return { error: "Cannot deactivate your own account" };
+  db.update(employees).set({ active: isActive }).where(eq(employees.id, employeeId)).run();
   revalidatePath("/settings");
   return { success: true as const };
 }
@@ -113,8 +122,9 @@ export async function changeOwnPassword(currentPassword: string, newPassword: st
   if (!userRecord) return { error: "User not found" };
   const valid = await bcrypt.compare(currentPassword, userRecord.passwordHash);
   if (!valid) return { error: "Current password is incorrect" };
-  if (!newPassword || newPassword.length < 6) return { error: "New password must be at least 6 characters" };
-  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
+  const parsed = newPasswordSchema.safeParse(newPassword);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid password" };
+  const passwordHash = await bcrypt.hash(parsed.data, BCRYPT_SALT_ROUNDS);
   db.update(employees).set({ passwordHash }).where(eq(employees.id, user.id)).run();
   return { success: true as const };
 }

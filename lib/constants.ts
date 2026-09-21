@@ -26,6 +26,14 @@ export const FOLLOW_UP_LOOKAHEAD_DAYS = 7;
 /** Minimum password length enforced at account creation and recovery. */
 export const MIN_PASSWORD_LENGTH = 6;
 
+/**
+ * Maximum password length accepted at account creation and recovery. bcrypt
+ * hashes only the first 72 bytes of its input and drops the rest, so a longer
+ * password would silently authenticate on its prefix — reject it at the
+ * boundary instead of storing a truncated secret.
+ */
+export const MAX_PASSWORD_LENGTH = 72;
+
 /** NextAuth JWT session lifetime in seconds (1 hour). Reconciliation in the
  * `jwt` callback (lib/auth.ts) enforces role/active on every read; this keeps
  * a minted token's blind lifetime short on a retail-floor device. */
