@@ -53,6 +53,18 @@ describe("MatchedClientsTab", () => {
     expect(screen.queryByText("Bob Lee")).not.toBeInTheDocument();
   });
 
+  // Regression: Facet was a component created during render, so every toggle
+  // remounted the facet and the clicked checkbox lost focus.
+  it("keeps the same focused checkbox after toggling a facet", async () => {
+    const user = userEvent.setup();
+    render(<MatchedClientsTab clients={rows} isManager currentUserId="mgr" />);
+    await user.click(screen.getByRole("button", { name: /Filters/ }));
+    const checkbox = screen.getByLabelText("model");
+    await user.click(checkbox);
+    expect(screen.getByLabelText("model")).toBe(checkbox);
+    expect(checkbox).toHaveFocus();
+  });
+
   it("sorts when a column header is clicked", async () => {
     const user = userEvent.setup();
     render(<MatchedClientsTab clients={rows} isManager currentUserId="mgr" />);

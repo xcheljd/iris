@@ -94,7 +94,7 @@ export function MatchedClientsTab({ clients, isManager, currentUserId }: Props) 
   const current = Math.min(page, totalPages);
   const paged = rows.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
 
-  const Facet = ({ label, values, set, setter }: { label: string; values: string[]; set: Set<string>; setter: (s: Set<string>) => void }) => (
+  const renderFacet = (label: string, values: string[], set: Set<string>, setter: (s: Set<string>) => void) => (
     <div>
       <div className="text-xs font-medium mb-1">{label}</div>
       <div className="flex flex-col max-h-32 overflow-y-auto gap-1">
@@ -132,9 +132,9 @@ export function MatchedClientsTab({ clients, isManager, currentUserId }: Props) 
               </Button>
             </PopoverTrigger>
             <PopoverContent className="flex flex-col w-64 gap-3" align="end">
-              <Facet label="Assigned associate" values={owners} set={ownerFilter} setter={setOwnerFilter} />
-              <Facet label="Match type" values={["model", "collection", "brand"]} set={typeFilter} setter={setTypeFilter} />
-              <Facet label="Brand" values={brands} set={brandFilter} setter={setBrandFilter} />
+              {renderFacet("Assigned associate", owners, ownerFilter, setOwnerFilter)}
+              {renderFacet("Match type", ["model", "collection", "brand"], typeFilter, setTypeFilter)}
+              {renderFacet("Brand", brands, brandFilter, setBrandFilter)}
               <Button
                 variant="ghost"
                 size="sm"
