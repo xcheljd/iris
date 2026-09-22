@@ -30,18 +30,17 @@ export function SearchInputWithHistory({
   historyKey,
   maxEntries = 5,
 }: SearchInputWithHistoryProps) {
-  const [history, setHistory] = useState<string[]>([]);
+  // Load history on mount and re-load whenever the dropdown opens (so updates
+  // from elsewhere on the page are reflected). The lazy init is hydration-safe:
+  // readSearchHistory returns [] on the server and the dropdown only renders
+  // once opened.
+  const [history, setHistory] = useState<string[]>(() => readSearchHistory(historyKey));
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Load history on mount and re-load whenever the dropdown opens (so updates
-  // from elsewhere on the page are reflected).
   const reload = useCallback(() => {
     setHistory(readSearchHistory(historyKey));
   }, [historyKey]);
-
-  useEffect(() => { reload(); }, [reload]);
-  useEffect(() => { if (open) reload(); }, [open, reload]);
 
   // Close on click outside
   useEffect(() => {
@@ -82,7 +81,7 @@ export function SearchInputWithHistory({
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        onFocus={() => setOpen(true)}
+        onFocus={() => { reload(); setOpen(true); }}
         onKeyDown={(e) => {
           if (e.key === "Escape") setOpen(false);
         }}
