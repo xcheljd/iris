@@ -122,7 +122,7 @@ describe("GNav", () => {
     it("ignores chords while a Radix Select (combobox) is open", () => {
       render(
         <>
-          <div role="combobox" data-state="open" />
+          <div role="combobox" aria-controls="select-content" aria-expanded="true" data-state="open" />
           <GNav />
         </>
       );
