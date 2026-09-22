@@ -363,6 +363,71 @@ describe("OnboardingProvider", () => {
     );
   });
 
+  // Regression: a persist queued behind an in-flight one ran with the stale
+  // closure's onboardingState, so its completedSteps (which the server
+  // replaces wholesale) dropped the step the first write had just completed.
+  it("keeps both completed steps when a second persist is queued behind the first", async () => {
+    renderWithProvider();
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 1200)); // auto-start (persists step 1)
+    });
+
+    let server: OnboardingState = { ...mockUpdateResult };
+    let releaseFirst!: () => void;
+    const firstGate = new Promise<void>((r) => { releaseFirst = r; });
+    // Mirrors the server action: a write replaces completedSteps wholesale.
+    const write = (u: OnboardingUpdate) => (server = { ...server, ...u } as OnboardingState);
+    mockUpdateFn.mockClear();
+    mockUpdateFn
+      .mockImplementationOnce(async (u: OnboardingUpdate) => { await firstGate; return write(u); })
+      .mockImplementationOnce(async (u: OnboardingUpdate) => write(u));
+
+    await act(async () => {
+      screen.getByTestId("btn-next").click(); // persist step 2 — held in flight
+    });
+    await act(async () => {
+      screen.getByTestId("btn-next").click(); // persist step 3 — queued
+    });
+    await act(async () => {
+      releaseFirst();
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    expect(mockUpdateFn).toHaveBeenCalledTimes(2);
+    expect(mockUpdateFn.mock.calls[1][0]).toMatchObject({ currentStep: 3 });
+    expect(server.completedSteps).toEqual(["dashboard", "sidebar"]);
+  });
+
+  it("still flushes a queued persist after the in-flight one throws", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    renderWithProvider();
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 1200)); // auto-start (persists step 1)
+    });
+
+    let failFirst!: () => void;
+    const firstGate = new Promise<void>((_, reject) => { failFirst = () => reject(new Error("boom")); });
+    mockUpdateFn.mockClear();
+    mockUpdateFn
+      .mockImplementationOnce(() => firstGate)
+      .mockImplementationOnce(async (u: OnboardingUpdate) => ({ ...mockUpdateResult, ...u }));
+
+    await act(async () => {
+      screen.getByTestId("btn-next").click(); // persist step 2 — will throw
+    });
+    await act(async () => {
+      screen.getByTestId("btn-next").click(); // persist step 3 — queued
+    });
+    await act(async () => {
+      failFirst();
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    expect(mockUpdateFn).toHaveBeenCalledTimes(2);
+    expect(mockUpdateFn.mock.calls[1][0]).toMatchObject({ currentStep: 3 });
+    consoleErrorSpy.mockRestore();
+  });
+
   it("uses router.replace for page navigation", async () => {
     mockPathname = "/";
     renderWithProvider();

@@ -282,28 +282,34 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       }
       persistingRef.current = true;
       try {
-        const stepId = rawSteps[stepIndex - 1]?.id;
-        const completedSteps = onboardingState?.completedSteps ?? [];
-        const newCompleted = stepId && !completedSteps.includes(stepId)
-          ? [...completedSteps, stepId]
-          : completedSteps;
+        // The server replaces completedSteps wholesale, and this closure's
+        // onboardingState predates any write made below — carry it forward so
+        // a queued persist doesn't drop the step the previous one completed.
+        let completedSteps = onboardingState?.completedSteps ?? [];
+        let args: { stepIndex: number; extra?: OnboardingUpdate } | null = { stepIndex, extra };
+        while (args) {
+          try {
+            const stepId = rawSteps[args.stepIndex - 1]?.id;
+            const newCompleted = stepId && !completedSteps.includes(stepId)
+              ? [...completedSteps, stepId]
+              : completedSteps;
 
-        const updated = await updateOnboardingState({
-          currentStep: stepIndex,
-          completedSteps: newCompleted,
-          ...extra,
-        });
-        setOnboardingState(updated);
-      } catch (err) {
-        console.error("[OnboardingProvider] Failed to persist step:", err);
+            const updated = await updateOnboardingState({
+              currentStep: args.stepIndex,
+              completedSteps: newCompleted,
+              ...args.extra,
+            });
+            completedSteps = updated.completedSteps;
+            setOnboardingState(updated);
+          } catch (err) {
+            // Log and keep going, so a failed persist still flushes the queue
+            console.error("[OnboardingProvider] Failed to persist step:", err);
+          }
+          args = pendingPersistRef.current;
+          pendingPersistRef.current = null;
+        }
       } finally {
         persistingRef.current = false;
-        const pending = pendingPersistRef.current;
-        if (pending) {
-          pendingPersistRef.current = null;
-          // Fire and forget — recursive call respects the same queue invariants
-          persistStep(pending.stepIndex, pending.extra);
-        }
       }
     },
     [rawSteps, onboardingState],
