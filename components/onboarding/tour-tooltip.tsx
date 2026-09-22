@@ -219,7 +219,6 @@ function SpotlightTooltip({
           // Timed out — advance to the next step (don't skip the entire tour)
           setWaitingForElement(false);
           cleanup();
-          // eslint-disable-next-line no-console
           console.warn(`[Tour] Target element "${step.targetSelector}" not found after 5s — advancing to next step`);
           onNext();
         }
@@ -236,7 +235,6 @@ function SpotlightTooltip({
         } else if (Date.now() - startTime >= timeout) {
           setWaitingForElement(false);
           cleanup();
-          // eslint-disable-next-line no-console
           console.warn(`[Tour] Target element "${step.targetSelector}" not found after 5s — advancing to next step`);
           onNext();
         } else {

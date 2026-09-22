@@ -31,7 +31,6 @@ try {
   setupClientsFts(sqlite);
 } catch (err) {
   if (process.env.NODE_ENV !== "test") {
-    // eslint-disable-next-line no-console
     console.warn("[db] FTS5 setup skipped:", err instanceof Error ? err.message : err);
   }
 }

@@ -24,6 +24,7 @@ const config = [
       "public/**",
       // Local scratch (also gitignored).
       "remotion-demo/**",
+      "tmp/**",
     ],
   },
 

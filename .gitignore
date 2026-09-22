@@ -47,6 +47,9 @@ remotion-demo/*
 # Planning notes (local only)
 plans/
 
+# Local scratch
+tmp/
+
 # Misc
 *.log
 *.png
