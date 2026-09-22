@@ -41,8 +41,10 @@ export function MergeClientDialog({ children }: { children: React.ReactNode }) {
   const [pending, start] = useTransition();
   const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    if (!open) {
+  // Reset when the dialog opens, not when it closes, so the closing dialog
+  // keeps its content through the exit animation.
+  const handleOpenChange = (next: boolean) => {
+    if (next) {
       setStep("search");
       setQuery("");
       setResults([]);
@@ -50,13 +52,15 @@ export function MergeClientDialog({ children }: { children: React.ReactNode }) {
       setChoices({});
       setFinalNotes("");
     }
-  }, [open]);
+    setOpen(next);
+  };
+
+  // Derived rather than cleared, so a response that lands after the query
+  // shrank below 2 characters is never shown.
+  const shownResults = query.length < 2 ? [] : results;
 
   useEffect(() => {
-    if (query.length < 2) {
-      setResults([]);
-      return;
-    }
+    if (query.length < 2) return;
     const t = setTimeout(() => {
       abortRef.current?.abort();
       const controller = new AbortController();
@@ -119,7 +123,7 @@ export function MergeClientDialog({ children }: { children: React.ReactNode }) {
   if (!client) return <>{children}</>;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
@@ -148,9 +152,9 @@ export function MergeClientDialog({ children }: { children: React.ReactNode }) {
                 autoFocus
               />
             </div>
-            {results.length > 0 && (
+            {shownResults.length > 0 && (
               <div className="border rounded-lg divide-y overflow-y-auto max-h-60">
-                {results.map((r) => (
+                {shownResults.map((r) => (
                   <button
                     key={r.id}
                     type="button"
@@ -170,7 +174,7 @@ export function MergeClientDialog({ children }: { children: React.ReactNode }) {
                 ))}
               </div>
             )}
-            {query.length >= 2 && results.length === 0 && (
+            {query.length >= 2 && shownResults.length === 0 && (
               <p className="text-sm text-muted-foreground text-center py-4">No clients found</p>
             )}
           </div>

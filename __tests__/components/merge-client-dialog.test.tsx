@@ -105,6 +105,53 @@ describe("MergeClientDialog search", () => {
     expect(screen.getByText("No clients found")).toBeInTheDocument();
   });
 
+  // Regression: a search response that lands after the query was shortened
+  // below 2 characters filled the list under the short query.
+  it("does not show a late response once the query is shorter than 2 characters", async () => {
+    let respond!: (r: Response) => void;
+    global.fetch = vi.fn(
+      () => new Promise<Response>((r) => { respond = r; }),
+    ) as unknown as typeof fetch;
+
+    await openAndType("Ali"); // debounce fired; the fetch is in flight
+    const input = screen.getByPlaceholderText("Search by name, phone, or email…");
+    await userEvent.type(input, "{backspace}{backspace}");
+    expect(input).toHaveValue("A");
+
+    await act(async () => {
+      respond({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            hits: [{ id: "c1", firstName: "Alice", lastName: "Anderson", phone: "555-0001" }],
+          }),
+      } as Response);
+    });
+
+    expect(screen.queryByText("Alice Anderson")).not.toBeInTheDocument();
+  });
+
+  it("starts from an empty search each time the dialog is opened", async () => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            hits: [{ id: "c1", firstName: "Alice", lastName: "Anderson", phone: "555-0001" }],
+          }),
+      } as Response),
+    ) as unknown as typeof fetch;
+
+    await openAndType("Ali");
+    expect(await screen.findByText("Alice Anderson")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await userEvent.click(screen.getByText("Merge"));
+
+    expect(await screen.findByPlaceholderText("Search by name, phone, or email…")).toHaveValue("");
+    expect(screen.queryByText("Alice Anderson")).not.toBeInTheDocument();
+  });
+
   it("toasts and stays on the search step when the candidate fetch 404s", async () => {
     global.fetch = vi.fn((url: string) => {
       if (String(url).startsWith("/api/search")) {
