@@ -67,8 +67,8 @@ they do. If either grows a query it pages against, it moves to the shape above.
 - **Branching:** trunk-based, single `main` branch. Remote is `origin` → https://github.com/xcheljd/iris (private). No PR template — direct commits.
 - **Naming:** components PascalCase, lib/util modules kebab-case. Tests mirror source path under `__tests__/`.
 - **Lint:** ESLint 9 **flat config** (`eslint.config.mjs`) composing
-  `eslint-config-next/core-web-vitals` + `eslint-config-next/typescript`, run as `eslint .`
-  over the **whole** repo — 344 files, including `__tests__/`, `hooks/`, `scripts/` and every
+  `eslint-config-next/core-web-vitals` + `eslint-config-next/typescript`, run as
+  `eslint . --max-warnings 0` over the **whole** repo — 344 files, including `__tests__/`, `hooks/`, `scripts/` and every
   root config. (`next lint` only covered `app/`, `components/`, `lib/`, `pages/` and `src/`,
   and is removed in Next.js 16.) Exclusions are the `ignores` block, not `.eslintignore`
   (unsupported since ESLint 9). Unused vars **must** be prefixed `_` (enforced).
@@ -80,9 +80,33 @@ they do. If either grows a query it pages against, it moves to the shape above.
     `context.getFilename()` API that ESLint 10 removed — every lint run crashes with
     `contextOrFilename.getFilename is not a function`. Revisit when eslint-plugin-react ships
     an ESLint 10 build.
-  - `pnpm lint` is expected to report **0 errors and ~45 warnings**. The warnings are almost
-    all React Compiler rules newly enabled by `eslint-plugin-react-hooks@7`, deliberately
-    demoted from error in `eslint.config.mjs`; fix them and promote them back.
+  - **`pnpm lint` must report 0 errors and 0 warnings.** `--max-warnings 0` fails the run on
+    any warning, which enforces every rule that is only `warn` upstream (`exhaustive-deps`,
+    `@next/next/no-location-assign-relative-destination`, jsx-a11y, …) without a per-rule
+    policy. The React Compiler rules `react-hooks/set-state-in-effect`,
+    `preserve-manual-memoization`, `static-components`, `immutability`, `refs` and `purity`
+    are set to `error` explicitly, and `linterOptions.reportUnusedDisableDirectives` is
+    `"error"`, so a directive that suppresses nothing fails the run. Fix a finding rather than
+    suppress it. A suppression must be `eslint-disable-next-line <rule> -- <reason>` on the
+    exact line.
+  - **Live suppressions** (keep this list current):
+    - `react-hooks/set-state-in-effect` ×4. `clients-content.tsx`, `prospects-content.tsx` and
+      `promos-content.tsx` adopt a URL query from back/forward or a deep link: the render-phase
+      alternative writes the committed ref during render (`react-hooks/refs`), and ref-based
+      guards caused the pagination bounce documented there. `products-of-interest-input.tsx`
+      autofills brand from two independent triggers (model change, late catalog load);
+      deriving it would overwrite a manager's manual brand.
+    - `react-hooks/exhaustive-deps` ×6, all deliberate dep lists over stable primitives rather
+      than per-render objects: `clients-content.tsx` (the `emailRecipientFilters` memo, keyed
+      on the individual filter fields so the dialog doesn't refetch on every render),
+      `promos-content.tsx` (URL adoption keyed on `filters.q/msrpMax/discMin`),
+      `collections-csv-export-dialog.tsx` (`scope` destructured into primitives) and
+      `matched-clients-csv-export-dialog.tsx` (array props joined into string keys) (both
+      fetch effects), `merge-from-form-dialog.tsx` (the form snapshot is stable for an open
+      session; refetch only on id change) and `onboarding-provider.tsx` (load onboarding state
+      once per `sessionStatus` change).
+  - The render-time state adjustments in `hooks/use-optimistic.ts` must stay conditional:
+    `react-hooks/set-state-in-render` is an error, and an unconditional set loops.
 - **Styling:** Tailwind 4 is **CSS-first** — there is no `tailwind.config.ts`. Design tokens live
   in the `@theme inline` block of `app/globals.css` (`inline` so utilities emit
   `hsl(var(--token))` at the use site, which is what makes the `.dark` overrides and

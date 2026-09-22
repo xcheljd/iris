@@ -42,21 +42,27 @@ const config = [
     },
   },
 
-  // eslint-config-next 16 pulls in eslint-plugin-react-hooks 7, which turns the
-  // React Compiler rules on as *errors*. They flag 37 pre-existing findings —
-  // real ones worth addressing, but each is a behavioural change to a hook or
-  // component and none belong in a dependency bump. Demoted to warnings so they
-  // stay visible without failing `pnpm lint`; promote them back to `error` as
-  // they get fixed. `rules-of-hooks` and `exhaustive-deps` keep the severity
-  // they had under eslint-config-next 15.
+  // The React Compiler rules from eslint-plugin-react-hooks 7 were demoted to
+  // warnings through the eslint-config-next 16 bump while their findings were
+  // fixed. They are all fixed (or carry a justified inline suppression), so
+  // they are errors again. `exhaustive-deps` stays at eslint-config-next's
+  // `warn`, which `--max-warnings 0` in `pnpm lint` enforces anyway.
   {
     rules: {
-      "react-hooks/set-state-in-effect": "warn",
-      "react-hooks/preserve-manual-memoization": "warn",
-      "react-hooks/static-components": "warn",
-      "react-hooks/immutability": "warn",
-      "react-hooks/refs": "warn",
-      "react-hooks/purity": "warn",
+      "react-hooks/set-state-in-effect": "error",
+      "react-hooks/preserve-manual-memoization": "error",
+      "react-hooks/static-components": "error",
+      "react-hooks/immutability": "error",
+      "react-hooks/refs": "error",
+      "react-hooks/purity": "error",
+    },
+  },
+
+  // A disable directive that suppresses nothing is dead weight that hides the
+  // next real finding on that line — fail on it (ESLint 9 defaults to "warn").
+  {
+    linterOptions: {
+      reportUnusedDisableDirectives: "error",
     },
   },
 ];
