@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -85,5 +85,33 @@ describe("AppSidebar account menu", () => {
 
     await user.click(screen.getByRole("menuitem", { name: /sign out/i }));
     expect(mockSignOut).toHaveBeenCalledWith({ callbackUrl: "/login" });
+  });
+});
+
+describe("AppSidebar manager badges", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  // Regression: the layout passes no initial counts, yet the mount fetch was
+  // skipped on the premise that SSR provided them, so a manager who loaded a
+  // page directly never saw either badge.
+  it("fetches and shows the approvals and catalog-flag counts on mount", async () => {
+    const fetchMock = vi.fn((url: string) =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ count: url === "/api/approvals/count" ? 3 : 7 }),
+      } as Response),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    mockPathname = "/";
+    renderSidebar();
+
+    const approvals = screen.getAllByText("Approvals").find((node) => node.closest("a"))!.closest("a")!;
+    const catalog = screen.getAllByText("Model Catalog").find((node) => node.closest("a"))!.closest("a")!;
+    await waitFor(() => expect(approvals).toHaveTextContent("3"));
+    await waitFor(() => expect(catalog).toHaveTextContent("7"));
+    expect(fetchMock).toHaveBeenCalledWith("/api/approvals/count");
+    expect(fetchMock).toHaveBeenCalledWith("/api/catalog/flags/count");
   });
 });

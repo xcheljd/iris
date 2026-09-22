@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Users, Phone, ListFilter, Tag, BarChart3, Ban, MailX, Settings, LogOut, Watch, KeyRound, ShieldCheck, UserSearch, Library, ChevronsUpDown } from "lucide-react";
@@ -72,18 +72,10 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
   const [pendingCount, setPendingCount] = useState(initialPendingCount);
   const [catalogFlagCount, setCatalogFlagCount] = useState(initialCatalogFlagCount);
 
-  useEffect(() => { setPendingCount(initialPendingCount); }, [initialPendingCount]);
-  useEffect(() => { setCatalogFlagCount(initialCatalogFlagCount); }, [initialCatalogFlagCount]);
-
-  // SSR provides the initial counts, so skip the mount fetch; refetch only on
-  // subsequent client-side navigations to keep the badges fresh.
-  const skipNextFetch = useRef(true);
+  // Fetch the badge counts on mount and refresh them on every client-side
+  // navigation.
   useEffect(() => {
     if (!isManager) return;
-    if (skipNextFetch.current) {
-      skipNextFetch.current = false;
-      return;
-    }
     fetch("/api/approvals/count").then(r => r.ok ? r.json() : { count: 0 }).then(d => setPendingCount(d.count)).catch(() => {});
     fetch("/api/catalog/flags/count").then(r => r.ok ? r.json() : { count: 0 }).then(d => setCatalogFlagCount(d.count)).catch(() => {});
   }, [isManager, pathname]);
