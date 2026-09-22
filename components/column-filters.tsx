@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Check, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -247,11 +247,13 @@ export function RangeFilterMenu({
   ceiling: number;
   onChange(next: { min: number; max: number }): void;
 }) {
-  const [range, setRange] = useState<[number, number]>([min, max]);
-
-  useEffect(() => {
-    setRange([min, max]);
-  }, [min, max]);
+  // A local draft while dragging/editing, tied to the bounds it was taken
+  // against — new props discard it without remounting (a key would steal
+  // focus from the BoundField being typed in).
+  const bounds = `${min}-${max}`;
+  const [draft, setDraft] = useState<{ bounds: string; range: [number, number] } | null>(null);
+  const range: [number, number] = draft?.bounds === bounds ? draft.range : [min, max];
+  const setRange = (next: [number, number]) => setDraft({ bounds, range: next });
 
   const [lo, hi] = range;
   const step = Math.max(1, Math.round(ceiling / 200));

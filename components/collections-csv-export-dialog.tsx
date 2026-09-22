@@ -32,14 +32,12 @@ export function CollectionsCsvExportDialog({ open, onOpenChange, selectedCollect
   }, [selectedCollection, trimmedQuery]);
 
   const [mode, setMode] = useState<Mode>("all");
-  // Reset to a still-valid mode whenever the dialog opens / options change.
-  useEffect(() => {
-    if (!options.some((o) => o.mode === mode)) setMode("all");
-  }, [options, mode]);
+  // Fall back to "all" whenever the chosen mode is no longer offered.
+  const effectiveMode: Mode = options.some((o) => o.mode === mode) ? mode : "all";
 
   const scope: CollectionsCsvScope =
-    mode === "selected" && selectedCollection ? { mode: "selected", collection: selectedCollection }
-    : mode === "filter" && trimmedQuery ? { mode: "filter", query: trimmedQuery }
+    effectiveMode === "selected" && selectedCollection ? { mode: "selected", collection: selectedCollection }
+    : effectiveMode === "filter" && trimmedQuery ? { mode: "filter", query: trimmedQuery }
     : { mode: "all" };
 
   const [loading, setLoading] = useState(false);
@@ -110,7 +108,7 @@ export function CollectionsCsvExportDialog({ open, onOpenChange, selectedCollect
         </DialogHeader>
 
         {options.length > 1 && (
-          <RadioGroup value={mode} onValueChange={(v) => setMode(v as Mode)} className="flex flex-wrap gap-3">
+          <RadioGroup value={effectiveMode} onValueChange={(v) => setMode(v as Mode)} className="flex flex-wrap gap-3">
             {options.map((o) => (
               <div key={o.mode} className="flex items-center gap-1.5">
                 <RadioGroupItem value={o.mode} id={`coll-export-${o.mode}`} />

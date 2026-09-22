@@ -40,12 +40,11 @@ export function MatchedClientsCsvExportDialog({ open, onOpenChange, owners, matc
   }, [hasFilter, filterSummary]);
 
   const [mode, setMode] = useState<Mode>("all");
-  useEffect(() => {
-    if (!options.some((o) => o.mode === mode)) setMode("all");
-  }, [options, mode]);
+  // Fall back to "all" whenever the chosen mode is no longer offered.
+  const effectiveMode: Mode = options.some((o) => o.mode === mode) ? mode : "all";
 
   const scope: MatchedClientsCsvScope =
-    mode === "filter" && hasFilter ? { mode: "filter", owners, matchTypes, brands } : { mode: "all" };
+    effectiveMode === "filter" && hasFilter ? { mode: "filter", owners, matchTypes, brands } : { mode: "all" };
 
   // Stable string keys so new array identities per render don't loop the fetch.
   const ownersKey = owners.join("|");
@@ -69,7 +68,7 @@ export function MatchedClientsCsvExportDialog({ open, onOpenChange, owners, matc
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, mode, ownersKey, typesKey, brandsKey]);
+  }, [open, effectiveMode, ownersKey, typesKey, brandsKey]);
 
   const csv = data?.csv ?? "";
   const rowCount = data?.rowCount ?? 0;
@@ -114,7 +113,7 @@ export function MatchedClientsCsvExportDialog({ open, onOpenChange, owners, matc
         </DialogHeader>
 
         {options.length > 1 && (
-          <RadioGroup value={mode} onValueChange={(v) => setMode(v as Mode)} className="flex flex-wrap gap-3">
+          <RadioGroup value={effectiveMode} onValueChange={(v) => setMode(v as Mode)} className="flex flex-wrap gap-3">
             {options.map((o) => (
               <div key={o.mode} className="flex items-center gap-1.5">
                 <RadioGroupItem value={o.mode} id={`matched-export-${o.mode}`} />

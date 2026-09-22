@@ -37,7 +37,9 @@ export function useCatalog() {
   }, []);
 
   useEffect(() => {
-    refetch();
+    void (async () => {
+      await refetch();
+    })();
   }, [refetch]);
 
   const indexMap = useMemo(() => new Map(Object.entries(index ?? {})), [index]);
