@@ -171,6 +171,33 @@ describe("useOptimisticToggle", () => {
     expect(result.current.isPending).toBe(false);
     expect(result.current.value).toBe(true);
   });
+
+  // Regression (A→B→A): an override that is merely inert once the server
+  // agrees — rather than cleared — resurfaces when the server value later
+  // flips back from elsewhere.
+  it("8. after the server catches up, a later server flip back is shown (no stale override)", async () => {
+    const action = vi.fn(async (): Promise<ActionResult> => undefined);
+    const { result, rerender } = renderHook(
+      ({ serverValue }: { serverValue: boolean }) =>
+        useOptimisticToggle(serverValue, action),
+      { initialProps: { serverValue: false } }
+    );
+
+    let p: Promise<ActionResult> | undefined;
+    act(() => {
+      p = result.current.toggle();
+    });
+    await act(async () => {
+      await p;
+    });
+    expect(result.current.value).toBe(true);
+
+    rerender({ serverValue: true }); // server catches up
+    expect(result.current.value).toBe(true);
+
+    rerender({ serverValue: false }); // flipped back elsewhere
+    expect(result.current.value).toBe(false);
+  });
 });
 
 // ─── useRemovedKeys ──────────────────────────────────────────────────────────

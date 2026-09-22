@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 type OptimisticActionResult = { error: string } | undefined;
 
@@ -28,9 +28,8 @@ export function useOptimisticToggle(
   const value = override ?? serverValue;
 
   // Drop override once the server prop agrees with it (revalidated props landed).
-  useEffect(() => {
-    if (override !== null && serverValue === override) setOverride(null);
-  }, [serverValue, override]);
+  // Adjusted during render; the guard must stay conditional or it loops.
+  if (override !== null && serverValue === override) setOverride(null);
 
   const toggle = useCallback(async (): Promise<OptimisticActionResult> => {
     if (inFlight.current) return { error: "Pending" };
@@ -44,7 +43,7 @@ export function useOptimisticToggle(
         setOverride(null); // rollback
         return res;
       }
-      return res; // override held until server prop catches up (effect above)
+      return res; // override held until server prop catches up (see above)
     } catch (err) {
       setOverride(null); // rollback
       return { error: err instanceof Error ? err.message : "Request failed" };
@@ -62,22 +61,20 @@ export function useOptimisticToggle(
  * Works on React 18 and 19 — see note atop useOptimisticToggle for why native
  * `useOptimistic` is not used. Keys are marked removed instantly; a failed
  * action rolls the key back. On success the override entry is held until
- * revalidated props drop the key from `items`, at which point the reconcile
- * effect clears it.
+ * revalidated props drop the key from `items`, at which point the render-time
+ * reconcile clears it.
  */
 export function useRemovedKeys<T>(items: T[], getKey: (item: T) => string) {
   const [removed, setRemoved] = useState<ReadonlySet<string>>(() => new Set());
 
   // Reconcile: keep overrides only while the item still exists in base props.
-  useEffect(() => {
-    setRemoved((prev) => {
-      const keys = new Set(items.map(getKey));
-      const kept = new Set([...prev].filter((k) => keys.has(k)));
-      return kept.size === prev.size ? prev : kept;
-    });
-    // items is the trigger for reconciliation; getKey is stable per call site.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items]);
+  // Adjusted during render and idempotent, so it is safe with a fresh `items`
+  // array every render; the size guard must stay or it loops.
+  if (removed.size > 0) {
+    const keys = new Set(items.map(getKey));
+    const kept = new Set([...removed].filter((k) => keys.has(k)));
+    if (kept.size !== removed.size) setRemoved(kept);
+  }
 
   const remove = useCallback(
     async (
@@ -95,7 +92,7 @@ export function useRemovedKeys<T>(items: T[], getKey: (item: T) => string) {
           });
           return res;
         }
-        return res; // held until reconcile effect sees the key gone from props
+        return res; // held until the reconcile sees the key gone from props
       } catch (err) {
         setRemoved((prev) => {
           const nextSet = new Set(prev);
