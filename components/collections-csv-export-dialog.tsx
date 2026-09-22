@@ -40,16 +40,18 @@ export function CollectionsCsvExportDialog({ open, onOpenChange, selectedCollect
     : effectiveMode === "filter" && trimmedQuery ? { mode: "filter", query: trimmedQuery }
     : { mode: "all" };
 
-  const [loading, setLoading] = useState(false);
   const [data, setData] = useState<CollectionsCsvExportResult | null>(null);
 
   const scopeMode = scope.mode;
   const scopeCollection = (scope as { collection?: string }).collection;
   const scopeQuery = (scope as { query?: string }).query;
+  // The scope the last fetch settled for; loading until it matches.
+  const requestKey = JSON.stringify([scopeMode, scopeCollection, scopeQuery]);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const loading = open && loadedKey !== requestKey;
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setLoading(true);
     exportCollectionsCsv(scope)
       .then((res) => { if (!cancelled) setData(res); })
       .catch((err) => {
@@ -57,7 +59,7 @@ export function CollectionsCsvExportDialog({ open, onOpenChange, selectedCollect
         console.error("[CollectionsCsvExport] Failed:", err);
         toast.error("Failed to build CSV export");
       })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .finally(() => { if (!cancelled) setLoadedKey(requestKey); });
     return () => { cancelled = true; };
     // scope is destructured into stable primitives above so the effect
     // doesn't refire on every render. `scope` itself is intentionally

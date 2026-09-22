@@ -31,14 +31,15 @@ export function ClientsCsvExportDialog({
   onOpenChange,
   filters,
 }: ClientsCsvExportDialogProps) {
-  const [loading, setLoading] = useState(false);
   const [data, setData] = useState<ClientsCsvExportResult | null>(null);
+  // The filters the last fetch settled for; loading until it matches.
+  const [loadedFor, setLoadedFor] = useState<ClientFilterParams | null>(null);
+  const loading = open && loadedFor !== filters;
 
   // Fetch on open / filter change
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setLoading(true);
     exportClientsCsv(filters)
       .then((result) => {
         if (!cancelled) setData(result);
@@ -49,7 +50,7 @@ export function ClientsCsvExportDialog({
         toast.error("Failed to build CSV export");
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setLoadedFor(filters);
       });
     return () => { cancelled = true; };
   }, [open, filters]);

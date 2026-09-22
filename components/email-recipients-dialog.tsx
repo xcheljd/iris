@@ -28,8 +28,10 @@ interface EmailRecipientsDialogProps {
 }
 
 export function EmailRecipientsDialog({ open, onOpenChange, filters }: EmailRecipientsDialogProps) {
-  const [loading, setLoading] = useState(false);
   const [data, setData] = useState<EmailRecipientsResult | null>(null);
+  // The filters the last fetch settled for; loading until it matches.
+  const [loadedFor, setLoadedFor] = useState<ClientEmailFilters | null>(null);
+  const loading = open && loadedFor !== filters;
   const [includeClients, setIncludeClients] = useState(true);
   const [includeProspects, setIncludeProspects] = useState(true);
 
@@ -37,7 +39,6 @@ export function EmailRecipientsDialog({ open, onOpenChange, filters }: EmailReci
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setLoading(true);
     getEmailRecipients(filters)
       .then((result) => {
         if (cancelled) return;
@@ -49,7 +50,7 @@ export function EmailRecipientsDialog({ open, onOpenChange, filters }: EmailReci
         toast.error("Failed to load email recipients");
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setLoadedFor(filters);
       });
     return () => { cancelled = true; };
   }, [open, filters]);

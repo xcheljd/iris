@@ -51,13 +51,15 @@ export function MatchedClientsCsvExportDialog({ open, onOpenChange, owners, matc
   const typesKey = matchTypes.join("|");
   const brandsKey = brands.join("|");
 
-  const [loading, setLoading] = useState(false);
   const [data, setData] = useState<MatchedClientsCsvExportResult | null>(null);
+  // The request the last fetch settled for; loading until it matches.
+  const requestKey = JSON.stringify([effectiveMode, ownersKey, typesKey, brandsKey]);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const loading = open && loadedKey !== requestKey;
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setLoading(true);
     exportMatchedClientsCsv(scope)
       .then((res) => { if (!cancelled) setData(res); })
       .catch((err) => {
@@ -65,7 +67,7 @@ export function MatchedClientsCsvExportDialog({ open, onOpenChange, owners, matc
         console.error("[MatchedClientsCsvExport] Failed:", err);
         toast.error("Failed to build CSV export");
       })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .finally(() => { if (!cancelled) setLoadedKey(requestKey); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, effectiveMode, ownersKey, typesKey, brandsKey]);
