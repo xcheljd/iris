@@ -1,17 +1,18 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef, useSyncExternalStore } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DatabaseBackup, CheckCircle2, UploadCloud } from "lucide-react";
-import { downloadBackup, getLastBackupDate } from "@/lib/backup-client";
+import { downloadBackup, getLastBackupIso, subscribeLastBackup } from "@/lib/backup-client";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
 export function BackupTab() {
   const [loading, setLoading] = useState(false);
-  const [lastBackup, setLastBackup] = useState<Date | null>(null);
+  const lastBackupIso = useSyncExternalStore(subscribeLastBackup, getLastBackupIso, () => null);
+  const lastBackup = lastBackupIso ? new Date(lastBackupIso) : null;
 
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restoreOpen, setRestoreOpen] = useState(false);
@@ -19,15 +20,10 @@ export function BackupTab() {
   const [restored, setRestored] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    setLastBackup(getLastBackupDate());
-  }, []);
-
   async function handleBackup() {
     setLoading(true);
     try {
       await downloadBackup();
-      setLastBackup(getLastBackupDate());
       toast.success("Backup saved successfully");
     } catch {
       // User cancelled the file picker — no toast needed

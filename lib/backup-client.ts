@@ -1,6 +1,7 @@
 "use client";
 
 const STORAGE_KEY = "iris_last_backup_at";
+const CHANGE_EVENT = "iris:last-backup-change";
 
 export function getLastBackupDate(): Date | null {
   if (typeof window === "undefined") return null;
@@ -8,8 +9,23 @@ export function getLastBackupDate(): Date | null {
   return stored ? new Date(stored) : null;
 }
 
+/**
+ * The stored ISO string — a stable `useSyncExternalStore` snapshot, unlike
+ * `getLastBackupDate()`, whose fresh `Date` per call would never settle.
+ */
+export function getLastBackupIso(): string | null {
+  return localStorage.getItem(STORAGE_KEY);
+}
+
+/** Notifies when `setLastBackupDate()` records a backup in this tab. */
+export function subscribeLastBackup(onChange: () => void): () => void {
+  window.addEventListener(CHANGE_EVENT, onChange);
+  return () => window.removeEventListener(CHANGE_EVENT, onChange);
+}
+
 export function setLastBackupDate(): void {
   localStorage.setItem(STORAGE_KEY, new Date().toISOString());
+  window.dispatchEvent(new Event(CHANGE_EVENT));
 }
 
 export function shouldShowBackupReminder(): boolean {

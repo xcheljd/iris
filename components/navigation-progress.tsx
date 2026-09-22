@@ -1,20 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback, useSyncExternalStore } from "react";
 import ReactDOM from "react-dom";
 import { useNavigationTransition } from "./navigation-transition";
 
 const DURATION = 800;
 const MIN_SHOW = 400;
 
+const subscribeNoop = () => () => {};
+
 export function NavigationProgress() {
   const { state } = useNavigationTransition();
   const barRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const startRef = useRef(0);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => { setMounted(true); }, []);
+  // False on the server and during hydration, true after — the portal needs document.body.
+  const mounted = useSyncExternalStore(subscribeNoop, () => true, () => false);
 
   const animate = useCallback((phase: "start" | "finish") => {
     const bar = barRef.current;

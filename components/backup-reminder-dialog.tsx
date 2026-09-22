@@ -1,33 +1,31 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { DatabaseBackup, Clock } from "lucide-react";
-import { shouldShowBackupReminder, downloadBackup, setLastBackupDate } from "@/lib/backup-client";
+import { shouldShowBackupReminder, downloadBackup, setLastBackupDate, subscribeLastBackup } from "@/lib/backup-client";
 import { useSession } from "next-auth/react";
 
 export function BackupReminderDialog() {
   const { data: session } = useSession();
   const isManager = session?.user?.role === "manager";
-  const [open, setOpen] = useState(false);
+  const dueForBackup = useSyncExternalStore(subscribeLastBackup, shouldShowBackupReminder, () => false);
+  const [dismissed, setDismissed] = useState(false);
+  const open = isManager && dueForBackup && !dismissed;
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (isManager && shouldShowBackupReminder()) setOpen(true);
-  }, [isManager]);
 
   function snooze() {
     // Snooze by setting the last backup date to today — next Monday it'll check again
     setLastBackupDate();
-    setOpen(false);
+    setDismissed(true);
   }
 
   async function handleBackup() {
     setLoading(true);
     try {
       await downloadBackup();
-      setOpen(false);
+      setDismissed(true);
     } catch {
       // If user cancels the file picker, just close gracefully
     } finally {
@@ -36,7 +34,7 @@ export function BackupReminderDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) setDismissed(true); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-2">

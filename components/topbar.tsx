@@ -6,14 +6,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Kbd } from "@/components/ui/kbd";
 import { Search, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
 import { useCommandPalette } from "@/components/command-palette";
 import { useNavigationTransition } from "@/components/navigation-transition";
 
 export function Topbar({ title, children }: { title?: string; children?: React.ReactNode }) {
   const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
   const { setOpen: setPaletteOpen } = useCommandPalette();
   const { state, targetTitle } = useNavigationTransition();
   const toggleTheme = () => {
@@ -40,16 +37,16 @@ export function Topbar({ title, children }: { title?: string; children?: React.R
         <span className="hidden sm:inline">Search</span>
         <Kbd>⌘K</Kbd>
       </Button>
-      {mounted && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8" onClick={toggleTheme} aria-label="Toggle theme">
-              {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Toggle theme</TooltipContent>
-        </Tooltip>
-      )}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="ghost" size="icon" className="size-8" onClick={toggleTheme} aria-label="Toggle theme">
+            {/* Swapped by the class-based `dark` variant, so it server-renders without a mount gate. */}
+            <Sun className="size-4 hidden dark:block" />
+            <Moon className="size-4 dark:hidden" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Toggle theme</TooltipContent>
+      </Tooltip>
     </header>
   );
 }
