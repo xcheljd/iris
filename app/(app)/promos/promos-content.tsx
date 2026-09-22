@@ -180,6 +180,7 @@ export function PromosContent({ promos, total, summary, collections: distinctCol
   useEffect(() => {
     const fromUrl = draftOf(filters);
     committed.current = fromUrl;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- adopts a URL q from back/forward or a deep link; the render-phase version must write committedQ.current during render (react-hooks/refs), and ref-based guards caused the pagination bounce documented below
     setDraft(fromUrl);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.q, filters.msrpMax, filters.discMin]);

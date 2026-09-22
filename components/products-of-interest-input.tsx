@@ -104,6 +104,7 @@ export function ProductsOfInterestInput({
     if (!m || catalogIndex === null) return;
     const entry = catalogIndex[m];
     if (entry !== undefined) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- brand autofill has two independent triggers (model change, late catalog load); deriving it would overwrite a manager's manual brand
       setBrand((entry.brand ?? "") as Brand | "");
     }
   }, [m, catalogIndex]);

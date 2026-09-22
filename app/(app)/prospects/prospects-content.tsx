@@ -120,6 +120,7 @@ export function ProspectsContent({ rows, total, counts, filters, isManager }: Pr
   // deep link — so the input and the URL stay in step.
   useEffect(() => {
     committedQ.current = filters.q;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- adopts a URL q from back/forward or a deep link; the render-phase version must write committedQ.current during render (react-hooks/refs), and ref-based guards caused the pagination bounce documented below
     setQLocal(filters.q);
   }, [filters.q]);
 
