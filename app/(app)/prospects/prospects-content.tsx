@@ -112,7 +112,9 @@ export function ProspectsContent({ rows, total, counts, filters, isManager }: Pr
 
   // Keep a ref current so the debounce never closes over a stale navigate.
   const navigateRef = useRef(navigate);
-  navigateRef.current = navigate;
+  useEffect(() => {
+    navigateRef.current = navigate;
+  });
 
   // Adopt a query that arrived from outside — a back/forward navigation, or a
   // deep link — so the input and the URL stay in step.

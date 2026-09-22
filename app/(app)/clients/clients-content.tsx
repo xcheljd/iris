@@ -212,7 +212,9 @@ export function ClientListContent({
 
   // Keep ref current so the debounce effect never closes over a stale navigate.
   const navigateRef = useRef(navigate);
-  navigateRef.current = navigate;
+  useEffect(() => {
+    navigateRef.current = navigate;
+  });
 
   // Adopt a query that arrived from outside this component — a back/forward
   // navigation, or a deep link — so the input and the URL stay in step.

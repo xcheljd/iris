@@ -39,9 +39,6 @@ export default function AddClientPage() {
   const [newTag, setNewTag] = useState("");
   const [productsOfInterest, setProductsOfInterest] = useState<ProductOfInterest[]>([]);
 
-  const formDataRef = useRef(formData);
-  formDataRef.current = formData;
-
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -79,7 +76,7 @@ export default function AddClientPage() {
   };
 
   const handleFieldChange = (field: string, value: string | boolean | Date | null | undefined | string[]) => {
-    const updated = { ...formDataRef.current, [field]: value };
+    const updated = { ...formData, [field]: value };
     setFormData(updated);
     if (field === "firstName" || field === "phone" || field === "email") {
       if (debounceRef.current) clearTimeout(debounceRef.current);

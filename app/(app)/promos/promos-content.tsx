@@ -171,7 +171,9 @@ export function PromosContent({ promos, total, summary, collections: distinctCol
 
   // Keep a ref current so the debounce never closes over a stale navigate.
   const navigateRef = useRef(navigate);
-  navigateRef.current = navigate;
+  useEffect(() => {
+    navigateRef.current = navigate;
+  });
 
   // Adopt values that arrived from outside — a back/forward navigation, or a
   // deep link — so the inputs and the URL stay in step.
