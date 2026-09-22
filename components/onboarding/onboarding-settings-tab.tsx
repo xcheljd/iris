@@ -45,6 +45,7 @@ export function OnboardingSettingsTab({ initialState }: OnboardingSettingsTabPro
   const tourCompleted = effectiveState?.tourCompleted ?? false;
   const tourSkipped = effectiveState?.tourSkipped ?? false;
   const completedSteps: string[] = effectiveState?.completedSteps ?? [];
+  const hintsDismissed = effectiveState?.hintsDismissed;
 
   // Button text adapts to state:
   // "Start Tour" if never completed or skipped, "Replay Tour" if completed
@@ -57,7 +58,7 @@ export function OnboardingSettingsTab({ initialState }: OnboardingSettingsTabPro
   const handleConfirm = useCallback(async () => {
     setResetting(true);
     try {
-      const hints = effectiveState?.hintsDismissed ?? [];
+      const hints = hintsDismissed ?? [];
       const updated = await updateOnboardingState({
         tourCompleted: false,
         completedSteps: [],
@@ -78,7 +79,7 @@ export function OnboardingSettingsTab({ initialState }: OnboardingSettingsTabPro
     } finally {
       setResetting(false);
     }
-  }, [effectiveState?.hintsDismissed, startTour, refreshOnboardingState]);
+  }, [hintsDismissed, startTour, refreshOnboardingState]);
 
   /* ---- render ---- */
 

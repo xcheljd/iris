@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useOnboarding } from "./onboarding-provider";
 import type { TourStep } from "./tour-steps";
+import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 
 /* -------------------------------------------------------------------------- */
 /* Pulse keyframes ref-count injection (shared single <style> tag)             */
@@ -187,7 +188,7 @@ export function TourOverlay() {
   } = useOnboarding();
 
   const [targetRect, setTargetRect] = useState<Rect | null>(null);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const reducedMotion = usePrefersReducedMotion();
   const rafRef = useRef<number>(0);
   /** Last applied rect — used to skip identical setState calls in the rAF loop. */
   const lastRectRef = useRef<Rect | null>(null);
@@ -196,15 +197,6 @@ export function TourOverlay() {
 
   // Activate focus trap during spotlight steps
   useFocusTrap(tourStatus === "active", isSpotlightStep);
-
-  /* ---- reduced motion detection ---- */
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReducedMotion(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
 
   /* ---- scroll target into view once per step ---- */
   // Kept separate from the position-tracking loop so the page doesn't
@@ -218,15 +210,16 @@ export function TourOverlay() {
   }, [tourStatus, isMobile, currentStepIndex, currentStep?.targetSelector, reducedMotion]);
 
   /* ---- track target element position ---- */
+  const targetSelector = currentStep?.targetSelector;
   const updateRect = useCallback(() => {
-    if (!currentStep?.targetSelector) {
+    if (!targetSelector) {
       if (lastRectRef.current !== null) {
         lastRectRef.current = null;
         setTargetRect(null);
       }
       return false;
     }
-    const rect = getElementRect(currentStep.targetSelector);
+    const rect = getElementRect(targetSelector);
     const prev = lastRectRef.current;
     const unchanged =
       rect && prev &&
@@ -239,7 +232,7 @@ export function TourOverlay() {
       setTargetRect(rect);
     }
     return rect !== null;
-  }, [currentStep?.targetSelector]);
+  }, [targetSelector]);
 
   useEffect(() => {
     if (tourStatus !== "active" || isMobile) return;

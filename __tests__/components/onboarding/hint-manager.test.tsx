@@ -112,6 +112,11 @@ async function waitForHints() {
   await act(async () => {
     await new Promise((r) => setTimeout(r, 300));
   });
+  // HintOverlay measures its target in a requestAnimationFrame scheduled by a
+  // mount effect, which the act() above only flushes on exit — run that frame.
+  await act(async () => {
+    await new Promise((r) => requestAnimationFrame(r));
+  });
 }
 
 describe("HintManager", () => {

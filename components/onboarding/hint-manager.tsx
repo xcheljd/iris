@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useOnboarding } from "./onboarding-provider";
 import { getShortcutText, getHintsForPath, type HintDefinition, type HintId } from "./hint-definitions";
 import { updateOnboardingState } from "@/lib/actions/onboarding";
+import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                       */
@@ -105,17 +106,8 @@ function HintOverlay({ hint }: { hint: HintDefinition }) {
   const [targetRect, setTargetRect] = useState<Rect | null>(null);
   const [side, setSide] = useState<"top" | "bottom">("bottom");
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const reducedMotion = usePrefersReducedMotion();
   const dismissedRef = useRef(false);
-
-  /* ---- reduced motion detection ---- */
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReducedMotion(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
 
   /* ---- track target element via single MutationObserver ---- */
   const measureTarget = useCallback(() => {
@@ -136,7 +128,7 @@ function HintOverlay({ hint }: { hint: HintDefinition }) {
   useEffect(() => {
     if (dismissed) return;
 
-    measureTarget();
+    const raf = requestAnimationFrame(() => measureTarget());
 
     const observer = new MutationObserver(() => measureTarget());
     observer.observe(document.body, { childList: true, subtree: true });
@@ -145,12 +137,14 @@ function HintOverlay({ hint }: { hint: HintDefinition }) {
     window.addEventListener("resize", handleResize);
 
     return () => {
+      cancelAnimationFrame(raf);
       observer.disconnect();
       window.removeEventListener("resize", handleResize);
     };
   }, [dismissed, measureTarget]);
 
   /* ---- dismiss handler ---- */
+  const hintsDismissed = onboardingState?.hintsDismissed;
   const dismissHint = useCallback(async () => {
     if (dismissedRef.current) return;
     dismissedRef.current = true;
@@ -158,7 +152,7 @@ function HintOverlay({ hint }: { hint: HintDefinition }) {
 
     // Optimistic update — persist to server
     try {
-      const existing = onboardingState?.hintsDismissed ?? [];
+      const existing = hintsDismissed ?? [];
       if (!existing.includes(hint.id)) {
         const updated = await updateOnboardingState({
           hintsDismissed: [...existing, hint.id] as HintId[],
@@ -171,7 +165,7 @@ function HintOverlay({ hint }: { hint: HintDefinition }) {
       console.error("[HintManager] Failed to persist hint dismissal:", err);
       toast.error("Hint dismissed, but we couldn't save it. It may reappear later.");
     }
-  }, [hint.id, onboardingState?.hintsDismissed, refreshOnboardingState]);
+  }, [hint.id, hintsDismissed, refreshOnboardingState]);
 
   /* ---- Escape key handler ---- */
   useEffect(() => {
