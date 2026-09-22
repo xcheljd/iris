@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -19,6 +20,7 @@ interface EditClientDialogProps {
 }
 
 export function EditClientDialog({ client, children }: EditClientDialogProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const { catalogIndex, isManager } = useCatalog();
   const [isPending, start] = useTransition();
@@ -145,7 +147,7 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
             showDuplicateWarning={showDuplicateWarning}
             duplicateClient={duplicateClient}
             onDismissDuplicateAction={() => setShowDuplicateWarning(false)}
-            onEditExistingAction={() => { setOpen(false); window.location.href = `/clients/${duplicateClient!.id}`; }}
+            onEditExistingAction={() => { setOpen(false); router.push(`/clients/${duplicateClient!.id}`); }}
             isLoading={isPending}
             submitLabel="Save Changes"
             onSubmitAction={handleSubmit}

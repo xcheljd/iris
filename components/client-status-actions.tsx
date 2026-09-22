@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogTrigger,
@@ -288,6 +289,7 @@ export function DeleteCustomerDialog({
   clientName: string;
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   return (
     <ApprovalActionDialog
       clientName={clientName}
@@ -301,7 +303,7 @@ export function DeleteCustomerDialog({
       onManagerAction={async () => {
         const r = await deleteClient(clientId);
         if (r?.error) throw new Error(r.error);
-        window.location.href = "/clients";
+        router.push("/clients");
       }}
       managerSuccessMessage="Client deleted"
       managerErrorMessage="Failed to delete client"
