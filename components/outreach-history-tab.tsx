@@ -12,7 +12,7 @@ import { DatePicker } from "@/components/date-picker";
 import type { FullClient } from "@/components/client-provider";
 import type { OutreachLog } from "@/lib/db/schema";
 import { getMethodIcon, isFollowUpOverdue, isFollowUpUpcoming } from "@/lib/outreach-helpers";
-import { markFollowUpComplete, rescheduleFollowUp } from "@/lib/actions";
+import { markFollowUpComplete, reopenFollowUp, rescheduleFollowUp } from "@/lib/actions";
 import { OutreachLogger } from "@/components/outreach-logger";
 import { useOptimisticToggle } from "@/hooks/use-optimistic";
 
@@ -44,7 +44,15 @@ function OutreachLogRow({
     if (res?.error) {
       toast.error("Failed to mark complete");
     } else {
-      toast.success("Follow-up marked complete");
+      toast.success("Follow-up marked complete", {
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            const r = await reopenFollowUp(log.id);
+            if (r?.error) toast.error(r.error);
+          },
+        },
+      });
     }
   };
 

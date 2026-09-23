@@ -3,8 +3,9 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const mockPush = vi.fn();
+const mockRefresh = vi.fn();
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, refresh: mockRefresh }),
 }));
 
 vi.mock("next-auth/react", () => ({
@@ -20,10 +21,11 @@ vi.mock("@/lib/actions", () => ({
   unsubscribeClient: vi.fn(),
   createApprovalRequest: vi.fn(),
   deleteClient: vi.fn(),
+  restoreClient: vi.fn(),
 }));
 
 import { toast } from "sonner";
-import { deleteClient } from "@/lib/actions";
+import { deleteClient, restoreClient } from "@/lib/actions";
 import { DeleteCustomerDialog } from "@/components/client-status-actions";
 
 describe("DeleteCustomerDialog (manager)", () => {
@@ -47,6 +49,27 @@ describe("DeleteCustomerDialog (manager)", () => {
 
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/clients"));
     expect(deleteClient).toHaveBeenCalledWith("c1");
-    expect(toast.success).toHaveBeenCalledWith("Client deleted");
+    expect(toast.success).toHaveBeenCalledWith("Client deleted", expect.objectContaining({ action: expect.objectContaining({ label: "Undo" }) }));
+  });
+
+  it("Undo on the success toast restores the client", async () => {
+    vi.mocked(deleteClient).mockResolvedValue(undefined);
+    vi.mocked(restoreClient).mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    render(
+      <DeleteCustomerDialog clientId="c1" clientName="Jane Doe">
+        <button>Open delete</button>
+      </DeleteCustomerDialog>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Open delete" }));
+    await user.click(await screen.findByRole("button", { name: "Delete" }));
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+
+    const opts = vi.mocked(toast.success).mock.calls[0][1] as unknown as { action: { onClick: () => Promise<void> } };
+    await opts.action.onClick();
+    expect(restoreClient).toHaveBeenCalledWith("c1");
+    expect(mockRefresh).toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
   });
 });

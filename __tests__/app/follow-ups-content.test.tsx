@@ -9,6 +9,7 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/lib/actions", () => ({
   markFollowUpComplete: vi.fn(),
+  reopenFollowUp: vi.fn(),
   rescheduleFollowUp: vi.fn(),
 }));
 
@@ -17,7 +18,7 @@ vi.mock("@/components/topbar", () => ({
 }));
 
 import { toast } from "sonner";
-import { markFollowUpComplete } from "@/lib/actions";
+import { markFollowUpComplete, reopenFollowUp } from "@/lib/actions";
 
 function deferred<T>() {
   let resolve!: (v: T) => void;
@@ -83,7 +84,7 @@ describe("FollowUpsContent optimistic complete", () => {
 
     d.resolve(undefined);
     await d.promise.catch(() => {});
-    expect(toast.success).toHaveBeenCalledWith("Follow-up marked complete");
+    expect(toast.success).toHaveBeenCalledWith("Follow-up marked complete", expect.objectContaining({ action: expect.objectContaining({ label: "Undo" }) }));
     // Still gone after settle (override held until revalidated props land).
     expect(screen.queryByText("Jane Doe")).not.toBeInTheDocument();
   });
@@ -106,5 +107,28 @@ describe("FollowUpsContent optimistic complete", () => {
     // Rolled back: card visible again.
     expect(screen.getByText("Jane Doe")).toBeInTheDocument();
     expect(toast.error).toHaveBeenCalled();
+  });
+});
+
+describe("FollowUpsContent undo complete", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("Undo on the success toast reopens the follow-up and brings the card back", async () => {
+    const user = userEvent.setup();
+    vi.mocked(markFollowUpComplete).mockResolvedValue(undefined);
+    vi.mocked(reopenFollowUp).mockResolvedValue(undefined);
+    render(<FollowUpsContent overdue={[overdueRow]} upcoming={[]} />);
+
+    await clickConfirm(user);
+    await vi.waitFor(() => expect(toast.success).toHaveBeenCalled());
+    expect(screen.queryByText("Jane Doe")).not.toBeInTheDocument();
+
+    const opts = vi.mocked(toast.success).mock.calls[0][1] as unknown as { action: { label: string; onClick: () => Promise<void> } };
+    expect(opts.action.label).toBe("Undo");
+    await act(() => opts.action.onClick());
+    expect(reopenFollowUp).toHaveBeenCalledWith("log-1");
+    expect(screen.getByText("Jane Doe")).toBeInTheDocument();
   });
 });

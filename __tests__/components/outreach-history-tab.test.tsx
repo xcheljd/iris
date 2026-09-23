@@ -10,6 +10,7 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/lib/actions", () => ({
   markFollowUpComplete: vi.fn(),
+  reopenFollowUp: vi.fn(),
   rescheduleFollowUp: vi.fn(),
 }));
 
@@ -22,7 +23,7 @@ vi.mock("@/components/date-picker", () => ({
 }));
 
 import { toast } from "sonner";
-import { markFollowUpComplete } from "@/lib/actions";
+import { markFollowUpComplete, reopenFollowUp } from "@/lib/actions";
 
 function deferred<T>() {
   let resolve!: (v: T) => void;
@@ -97,7 +98,7 @@ describe("OutreachHistoryTab optimistic follow-up completion", () => {
 
     d.resolve(undefined);
     await d.promise.catch(() => {});
-    expect(toast.success).toHaveBeenCalledWith("Follow-up marked complete");
+    expect(toast.success).toHaveBeenCalledWith("Follow-up marked complete", expect.objectContaining({ action: expect.objectContaining({ label: "Undo" }) }));
     // Still completed after settle (override held until revalidated props land).
     expect(screen.getByText("Completed")).toBeInTheDocument();
   });
@@ -121,5 +122,26 @@ describe("OutreachHistoryTab optimistic follow-up completion", () => {
     expect(screen.getByText("Overdue")).toBeInTheDocument();
     expect(screen.queryByText("Completed")).not.toBeInTheDocument();
     expect(toast.error).toHaveBeenCalled();
+  });
+});
+
+describe("OutreachHistoryTab undo completion", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("offers Undo on the success toast, which reopens the follow-up", async () => {
+    const user = userEvent.setup();
+    vi.mocked(markFollowUpComplete).mockResolvedValue(undefined);
+    vi.mocked(reopenFollowUp).mockResolvedValue(undefined);
+    render(<OutreachHistoryTab client={makeClient({ outreach: [openFollowUp] })} />);
+
+    await user.click(screen.getByRole("button", { name: /complete/i }));
+    await vi.waitFor(() => expect(toast.success).toHaveBeenCalled());
+
+    const opts = vi.mocked(toast.success).mock.calls[0][1] as unknown as { action: { onClick: () => Promise<void> } };
+    await act(() => opts.action.onClick());
+    expect(reopenFollowUp).toHaveBeenCalledWith("log-1");
+    expect(toast.error).not.toHaveBeenCalled();
   });
 });

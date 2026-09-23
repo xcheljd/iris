@@ -37,7 +37,7 @@ import { ActiveFilterChips } from "@/components/active-filter-chips";
 import { BulkActionsToolbar } from "@/components/clients-bulk-actions";
 import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { deleteClient } from "@/lib/actions";
+import { deleteClient, restoreClient } from "@/lib/actions";
 import { toast } from "sonner";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
@@ -279,11 +279,21 @@ export function ClientListContent({
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    const result = await deleteClient(deleteTarget.client.id);
+    const id = deleteTarget.client.id;
+    const result = await deleteClient(id);
     if (result?.error) {
       toast.error(result.error);
     } else {
-      toast.success("Client deleted");
+      toast.success("Client deleted", {
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            const r = await restoreClient(id);
+            if (r?.error) toast.error(r.error);
+            else router.refresh();
+          },
+        },
+      });
       setDeleteTarget(null);
       router.refresh();
     }

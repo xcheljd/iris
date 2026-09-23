@@ -13,7 +13,11 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
-vi.mock("@/lib/actions", () => ({ deleteClient: vi.fn() }));
+vi.mock("next-auth/react", () => ({
+  useSession: () => ({ data: { user: { id: "mgr", role: "manager" } } }),
+}));
+
+vi.mock("@/lib/actions", () => ({ deleteClient: vi.fn(), restoreClient: vi.fn() }));
 
 vi.mock("@/components/topbar", () => ({
   Topbar: ({ children }: { children?: React.ReactNode }) => <div data-testid="topbar">{children}</div>,
@@ -223,5 +227,29 @@ describe("ClientListContent table", () => {
     sp = new URLSearchParams(lastNavigationUrl()!.split("?")[1]);
     expect(sp.get("sort")).toBeNull(); // "heat" is the default, so it is omitted
     expect(sp.get("sortDir")).toBe("asc");
+  });
+});
+
+describe("ClientListContent delete undo", () => {
+  it("toasts Client deleted with an Undo action that restores the client", async () => {
+    const { toast } = await import("sonner");
+    const { deleteClient, restoreClient } = await import("@/lib/actions");
+    vi.mocked(toast.success).mockClear();
+    vi.mocked(deleteClient).mockResolvedValue(undefined);
+    vi.mocked(restoreClient).mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    renderList({ rows: makeRows(1), total: 1, currentUserRole: "manager" });
+
+    await user.click(screen.getByRole("button", { name: "Actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: /Delete Client/ }));
+    await user.click(await screen.findByRole("button", { name: "Delete" }));
+
+    await vi.waitFor(() => expect(deleteClient).toHaveBeenCalledWith("client-0"));
+    await vi.waitFor(() => expect(toast.success).toHaveBeenCalled());
+    const [message, opts] = vi.mocked(toast.success).mock.calls[0] as unknown as [string, { action: { label: string; onClick: () => Promise<void> } }];
+    expect(message).toBe("Client deleted");
+    expect(opts.action.label).toBe("Undo");
+    await opts.action.onClick();
+    expect(restoreClient).toHaveBeenCalledWith("client-0");
   });
 });

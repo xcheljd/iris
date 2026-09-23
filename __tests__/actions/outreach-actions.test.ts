@@ -11,7 +11,7 @@ vi.mock("next/cache", () => ({
 import { getServerSession } from "next-auth";
 import type { Session } from "next-auth";
 import { revalidatePath } from "next/cache";
-import { logOutreach, markFollowUpComplete, rescheduleFollowUp } from "@/lib/actions";
+import { logOutreach, markFollowUpComplete, reopenFollowUp, rescheduleFollowUp } from "@/lib/actions";
 import { getOverdueFollowUps, getUpcomingFollowUps } from "@/lib/queries";
 import { formatDate } from "@/lib/utils";
 import { db } from "@/lib/db";
@@ -267,6 +267,50 @@ describe("Outreach Actions", () => {
       expect(updated!.completed).toBe(true);
 
       expect(revalidatePath).toHaveBeenCalledWith("/follow-ups");
+    });
+  });
+
+  // Backs the Undo action on the "Follow-up marked complete" toast.
+  describe("reopenFollowUp", () => {
+    it("flips a completed follow-up back to open", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+      await logOutreach({
+        clientId: FIRST_CLIENT_ID,
+        method: "call",
+        outcome: "wants_to_come_in",
+        followUpDate: "2026-06-01",
+        notes: "Reopen test",
+      });
+      const log = db.select().from(outreachLogs)
+        .where(eq(outreachLogs.clientId, FIRST_CLIENT_ID))
+        .all()
+        .find((l) => l.notes === "Reopen test");
+      createdLogIds.push(log!.id);
+
+      await markFollowUpComplete(log!.id);
+      expect(await reopenFollowUp(log!.id)).toBeUndefined();
+      expect(db.select().from(outreachLogs).where(eq(outreachLogs.id, log!.id)).get()!.completed).toBe(false);
+    });
+
+    it("refuses an associate reopening a log they do not own", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+      await logOutreach({
+        clientId: FIRST_CLIENT_ID,
+        method: "call",
+        outcome: "wants_to_come_in",
+        followUpDate: "2026-06-01",
+        notes: "Reopen ownership test",
+      });
+      const log = db.select().from(outreachLogs)
+        .where(eq(outreachLogs.clientId, FIRST_CLIENT_ID))
+        .all()
+        .find((l) => l.notes === "Reopen ownership test");
+      createdLogIds.push(log!.id);
+      await markFollowUpComplete(log!.id);
+
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
+      expect(await reopenFollowUp(log!.id)).toEqual({ error: "Not authorized to reopen this follow-up" });
+      expect(db.select().from(outreachLogs).where(eq(outreachLogs.id, log!.id)).get()!.completed).toBe(true);
     });
   });
 

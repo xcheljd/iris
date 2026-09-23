@@ -118,6 +118,27 @@ export async function markFollowUpComplete(logId: string): Promise<{ error: stri
   revalidatePath("/follow-ups");
 }
 
+/** Undo for markFollowUpComplete: same auth, flips `completed` back. */
+export async function reopenFollowUp(logId: string): Promise<{ error: string } | undefined> {
+  const user = await requireAuth();
+  const log = db.select({ clientId: outreachLogs.clientId, employeeId: outreachLogs.employeeId }).from(outreachLogs).where(eq(outreachLogs.id, logId)).get();
+  if (!log) return { error: "Follow-up not found" };
+  if (user.role !== "manager" && log.employeeId !== user.id) return { error: "Not authorized to reopen this follow-up" };
+  try {
+    db.transaction((tx) => {
+      tx.update(outreachLogs).set({ completed: false }).where(eq(outreachLogs.id, logId)).run();
+      tx.insert(activityEvents).values({
+        id: randomUUID(), clientId: log.clientId, eventType: "outreach_logged", description: `Follow-up reopened by ${user.name}`, employeeId: user.id,
+      }).run();
+    });
+  } catch (err) {
+    console.error("reopenFollowUp failed:", err);
+    return { error: "Failed to reopen follow-up" };
+  }
+  revalidatePath(`/clients/${log.clientId}`);
+  revalidatePath("/follow-ups");
+}
+
 export async function rescheduleFollowUp(logId: string, newDate: string): Promise<{ error: string } | undefined> {
   const user = await requireAuth();
   // `new Date("whatever")` yields an Invalid Date, which Drizzle happily writes as NaN.

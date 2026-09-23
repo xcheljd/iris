@@ -26,7 +26,7 @@ import {
   Flame,
 } from "lucide-react";
 import Link from "next/link";
-import { markFollowUpComplete, rescheduleFollowUp } from "@/lib/actions";
+import { markFollowUpComplete, reopenFollowUp, rescheduleFollowUp } from "@/lib/actions";
 import { toast } from "sonner";
 import { format, differenceInDays } from "date-fns";
 import { Topbar } from "@/components/topbar";
@@ -336,14 +336,23 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
   const uniqueBase = baseAll.filter(
     (row, i, arr) => arr.findIndex((r) => r.log.id === row.log.id) === i
   );
-  const { isRemoved, remove } = useRemovedKeys(uniqueBase, (row) => row.log.id);
+  const { isRemoved, remove, unmark } = useRemovedKeys(uniqueBase, (row) => row.log.id);
 
   const handleComplete = async (row: FollowUpRow) => {
     const res = await remove(row.log.id, () => markFollowUpComplete(row.log.id));
     if (res?.error) {
       toast.error(res.error);
     } else {
-      toast.success("Follow-up marked complete");
+      toast.success("Follow-up marked complete", {
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            const r = await reopenFollowUp(row.log.id);
+            if (r?.error) toast.error(r.error);
+            else unmark(row.log.id);
+          },
+        },
+      });
     }
   };
 

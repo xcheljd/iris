@@ -22,8 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { banClient, unsubscribeClient, createApprovalRequest, deleteClient } from "@/lib/actions";
-import { toast } from "sonner";
+import { banClient, unsubscribeClient, createApprovalRequest, deleteClient, restoreClient } from "@/lib/actions";
+import { toast, type ExternalToast } from "sonner";
 import { Ban, Bell, MailX, Trash2 } from "lucide-react";
 
 interface ApprovalActionDialogProps {
@@ -37,6 +37,8 @@ interface ApprovalActionDialogProps {
   managerPendingLabel: string;
   onManagerAction: () => Promise<void>;
   managerSuccessMessage: string;
+  /** Extra sonner options for the success toast (e.g. an Undo action). */
+  managerSuccessToast?: ExternalToast;
   managerErrorMessage?: string;
   associateTitle: string;
   associateDescription: string;
@@ -58,6 +60,7 @@ function ApprovalActionDialog({
   managerPendingLabel,
   onManagerAction,
   managerSuccessMessage,
+  managerSuccessToast,
   managerErrorMessage = "Action failed",
   associateTitle,
   associateDescription,
@@ -77,7 +80,7 @@ function ApprovalActionDialog({
     start(async () => {
       try {
         await onManagerAction();
-        toast.success(managerSuccessMessage);
+        toast.success(managerSuccessMessage, managerSuccessToast);
         setOpen(false);
       } catch {
         toast.error(managerErrorMessage);
@@ -306,6 +309,16 @@ export function DeleteCustomerDialog({
         router.push("/clients");
       }}
       managerSuccessMessage="Client deleted"
+      managerSuccessToast={{
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            const r = await restoreClient(clientId);
+            if (r?.error) toast.error(r.error);
+            else router.refresh();
+          },
+        },
+      }}
       managerErrorMessage="Failed to delete client"
       associateTitle="Request Delete Approval"
       associateDescription="Only managers can delete clients. Describe the reason and your manager will review this request."
