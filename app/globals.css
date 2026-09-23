@@ -172,7 +172,9 @@
     --accent: 26.1 12% 13.9%;
     --accent-foreground: 37 11.1% 90.5%;
     --destructive: 358.5 99.4% 69.3%;
-    --destructive-foreground: 37 22.7% 97.2%;
+    /* Dark text on the bright red (6.9:1): near-white was 2.75:1. The red stays
+       bright because it doubles as text-destructive error text on the card. */
+    --destructive-foreground: 23.5 32.4% 2.8%;
     --border: 26.1 10.2% 13%;
     --input: 26.1 10.2% 13%;
     --ring: 26 4.1% 50%;

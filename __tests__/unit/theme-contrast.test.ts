@@ -54,6 +54,14 @@ describe.each(["light", "dark"] as const)("theme tokens (%s)", (mode) => {
     expect(ratio(token(mode, "foreground"), over(token(mode, name), card, 0.3))).toBeGreaterThanOrEqual(4.5);
   });
 
+  // Regression: dark destructive buttons/badges were near-white on a bright red
+  // (2.75:1). The red also serves as text-destructive error text on the card.
+  it("destructive fill and destructive text both read", () => {
+    const destructive = token(mode, "destructive");
+    expect(ratio(token(mode, "destructive-foreground"), destructive)).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(destructive, card)).toBeGreaterThanOrEqual(4.5);
+  });
+
   // Regression: light --chart-4 was 2.87:1, under the 3:1 floor for graphics.
   it.each(["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"])("--%s meets 3:1 against the card", (name) => {
     expect(ratio(token(mode, name), card)).toBeGreaterThanOrEqual(3);
