@@ -17,6 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { DateRangeFilter, type DateRange } from "@/components/date-range-filter";
 import { cn } from "@/lib/utils";
+import { endOfDay } from "date-fns";
 
 /* -------------------------------------------------------------------------- */
 /* Text filter menu — used inside a ColumnFilterPopover                        */
@@ -425,6 +426,9 @@ export function DatesFilterButton({
   };
 
   const toTs = (d?: Date) => (d ? Math.floor(d.getTime() / 1000) : undefined);
+  // The picker yields local midnight, and the query bound is inclusive (`lte`), so a
+  // midnight "to" would drop the whole last day. The columns hold whole seconds.
+  const toEndTs = (d?: Date) => (d ? toTs(endOfDay(d)) : undefined);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -443,7 +447,7 @@ export function DatesFilterButton({
           value={lastContactRange}
           onChange={(r) => onChange({
             lastContactFrom: toTs(r.from),
-            lastContactTo: toTs(r.to),
+            lastContactTo: toEndTs(r.to),
             createdFrom,
             createdTo,
           })}
@@ -456,7 +460,7 @@ export function DatesFilterButton({
             lastContactFrom,
             lastContactTo,
             createdFrom: toTs(r.from),
-            createdTo: toTs(r.to),
+            createdTo: toEndTs(r.to),
           })}
         />
         {activeCount > 0 && (

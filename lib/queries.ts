@@ -117,7 +117,7 @@ export async function getClientsWithEmployeePaginated(
     tagMode?: "any" | "all";
     /** Last-outreach lower bound, unix seconds. */
     lastContactFrom?: number;
-    /** Last-outreach upper bound, unix seconds (exclusive end-of-day handled by caller). */
+    /** Last-outreach upper bound, unix seconds, inclusive — the date filter sends the end of the picked day. */
     lastContactTo?: number;
     /** Created-at lower bound, unix seconds. */
     createdFrom?: number;
