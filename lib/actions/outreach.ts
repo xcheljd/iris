@@ -1,27 +1,13 @@
 "use server";
 import { db } from "@/lib/db";
 import { clients, outreachLogs, activityEvents, promoWatches, promoMatches } from "@/lib/db/schema";
-import { eq, gte, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
-import { calcHeatScore } from "@/lib/heat-score";
-import { MS_PER_DAY, HEAT_LOOKBACK_DAYS } from "@/lib/constants";
 import { outreachInputSchema, followUpDateSchema, type OutreachInput } from "@/lib/validation/outreach";
 import { format, parseISO } from "date-fns";
 import { requireAuth } from "./_shared";
-
-export async function recalcHeat(clientId: string) {
-  try {
-    const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
-    if (!c) return;
-    const ninetyDaysAgo = new Date(Date.now() - HEAT_LOOKBACK_DAYS * MS_PER_DAY);
-    const last90 = db.select({ outcome: outreachLogs.outcome, date: outreachLogs.date }).from(outreachLogs).where(and(eq(outreachLogs.clientId, clientId), gte(outreachLogs.date, ninetyDaysAgo))).all();
-    const { score, level } = calcHeatScore(c, last90);
-    db.update(clients).set({ heatScore: score, heatLevel: level, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
-  } catch (err) {
-    console.error(`recalcHeat failed for client ${clientId}:`, err);
-  }
-}
+import { recalcHeat } from "@/lib/heat-recalc";
 
 // Matches by exact model only (intentionally narrower than matchPromoToClients in promos.ts,
 // which also matches by collection). At purchase time the model is known precisely.

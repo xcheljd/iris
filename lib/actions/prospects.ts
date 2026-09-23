@@ -13,7 +13,7 @@ import {
 } from "@/lib/validation/rvx";
 import { requireAuth } from "./_shared";
 import { recordProductsOfInterest } from "./model-catalog";
-import { recalcHeat } from "./outreach";
+import { recalcHeat } from "@/lib/heat-recalc";
 
 export async function graduateProspect(input: GraduateProspectInput): Promise<
   | { type: "created"; clientId: string }

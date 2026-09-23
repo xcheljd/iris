@@ -5,10 +5,29 @@ import { clients, outreachLogs, type OutreachLog } from "@/lib/db/schema";
 import { getMeta, setMeta } from "@/lib/db/meta";
 import { calcHeatScore } from "@/lib/heat-score";
 import { MS_PER_DAY, HEAT_LOOKBACK_DAYS } from "@/lib/constants";
-import { eq, gte, ne } from "drizzle-orm";
+import { and, eq, gte, ne } from "drizzle-orm";
 import { format } from "date-fns";
 
 export const LAST_HEAT_RECALC_KEY = "last_heat_recalc";
+
+/**
+ * Recompute one client's stored heat. Every write that changes a scored field
+ * calls this. It lives here, not in lib/actions/, because every export of a
+ * "use server" module is a callable endpoint — and this one takes any client id
+ * and has no auth check of its own.
+ */
+export async function recalcHeat(clientId: string) {
+  try {
+    const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
+    if (!c) return;
+    const ninetyDaysAgo = new Date(Date.now() - HEAT_LOOKBACK_DAYS * MS_PER_DAY);
+    const last90 = db.select({ outcome: outreachLogs.outcome, date: outreachLogs.date }).from(outreachLogs).where(and(eq(outreachLogs.clientId, clientId), gte(outreachLogs.date, ninetyDaysAgo))).all();
+    const { score, level } = calcHeatScore(c, last90);
+    db.update(clients).set({ heatScore: score, heatLevel: level, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+  } catch (err) {
+    console.error(`recalcHeat failed for client ${clientId}:`, err);
+  }
+}
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 

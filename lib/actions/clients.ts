@@ -5,7 +5,7 @@ import { eq, and, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireAuth, requireManager } from "./_shared";
-import { recalcHeat } from "./outreach";
+import { recalcHeat } from "@/lib/heat-recalc";
 import { fullName } from "@/lib/utils";
 import { recordProductsOfInterest } from "./model-catalog";
 import { applyClientPatchUnchecked } from "./_client-patch-core";

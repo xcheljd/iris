@@ -5,7 +5,7 @@ import { and, eq, desc, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireAuth, requireManager } from "./_shared";
-import { recalcHeat } from "./outreach";
+import { recalcHeat } from "@/lib/heat-recalc";
 import {
   ClientStatusError,
   applyBanUnchecked,

@@ -3,7 +3,9 @@ import { db } from "@/lib/db";
 import { clients, meta } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
-import { recalcAllHeat, recalcAllHeatDaily, LAST_HEAT_RECALC_KEY } from "@/lib/heat-recalc";
+import { recalcHeat, recalcAllHeat, recalcAllHeatDaily, LAST_HEAT_RECALC_KEY } from "@/lib/heat-recalc";
+import * as actions from "@/lib/actions";
+import * as outreachActions from "@/lib/actions/outreach";
 import { getMeta } from "@/lib/db/meta";
 import { MS_PER_DAY } from "@/lib/constants";
 
@@ -41,6 +43,21 @@ afterEach(() => {
   vi.useRealTimers();
   db.delete(clients).where(eq(clients.id, clientId)).run();
   db.delete(meta).where(eq(meta.key, LAST_HEAT_RECALC_KEY)).run();
+});
+
+describe("recalcHeat", () => {
+  it("rescores one client", async () => {
+    await recalcHeat(clientId);
+    expect(stored()).toEqual({ heatScore: 65, heatLevel: "warm" });
+  });
+
+  // Regression: it was exported from the "use server" lib/actions/outreach.ts
+  // (and so the lib/actions barrel), making it a server action any caller could
+  // invoke with any client id and no auth check.
+  it("is not exposed as a server action", () => {
+    expect("recalcHeat" in actions).toBe(false);
+    expect("recalcHeat" in outreachActions).toBe(false);
+  });
 });
 
 describe("recalcAllHeat", () => {
