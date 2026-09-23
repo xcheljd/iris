@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getClientsWithEmployeePaginated, getClientOwnerNames, getTags, getEmployees, type ClientSortKey } from "@/lib/queries";
+import { getClientsWithEmployeePaginated, getClientOwnerNames, getTags, getEmployees, BUILTIN_FILTER_IDS, type BuiltInFilter, type ClientSortKey } from "@/lib/queries";
 import { ClientListContent } from "./clients-content";
 import { ClientListSkeleton } from "@/components/skeletons";
 import { requirePageSession } from "@/lib/auth";
@@ -38,6 +38,8 @@ async function ClientListFetcher({ searchParams }: { searchParams: SearchParams 
   const createdTo = parseTs(sp.createdTo);
   const rawSort = typeof sp.sort === "string" ? sp.sort : undefined;
   const sort = VALID_SORT_KEYS.includes(rawSort as ClientSortKey) ? (rawSort as ClientSortKey) : undefined;
+  // Quick filter (the dashboard stat cards link here) — whitelisted like sort.
+  const filter = BUILTIN_FILTER_IDS.includes(sp.filter as BuiltInFilter) ? (sp.filter as BuiltInFilter) : undefined;
   const sortDir = sp.sortDir === "asc" ? "asc" : sp.sortDir === "desc" ? "desc" : undefined;
   const page = Math.max(1, parseInt(typeof sp.page === "string" ? sp.page : "1") || 1);
 
@@ -46,7 +48,7 @@ async function ClientListFetcher({ searchParams }: { searchParams: SearchParams 
   const employeeId = isManager ? undefined : session.user.id;
 
   const [{ rows, total }, ownerNames, allTags, allEmployees] = await Promise.all([
-    getClientsWithEmployeePaginated(employeeId, { q, nameQ, contactQ, heat, owner, tags, tagMode, lastContactFrom, lastContactTo, createdFrom, createdTo, sort, sortDir, page }),
+    getClientsWithEmployeePaginated(employeeId, { q, nameQ, contactQ, heat, owner, filter, tags, tagMode, lastContactFrom, lastContactTo, createdFrom, createdTo, sort, sortDir, page }),
     getClientOwnerNames(employeeId),
     getTags(),
     getEmployees(),
@@ -76,6 +78,7 @@ async function ClientListFetcher({ searchParams }: { searchParams: SearchParams 
         lastContactTo,
         createdFrom,
         createdTo,
+        filter,
         sort: sort ?? "heat",
         sortDir: sortDir ?? "desc",
         page,

@@ -253,3 +253,24 @@ describe("ClientListContent delete undo", () => {
     expect(restoreClient).toHaveBeenCalledWith("client-0");
   });
 });
+
+describe("ClientListContent quick filter", () => {
+  beforeEach(() => {
+    push.mockReset();
+    replace.mockReset();
+  });
+
+  it("keeps ?filter= across pagination and shows it as a removable chip", async () => {
+    const user = userEvent.setup();
+    renderList({ currentFilters: { ...BASE_FILTERS, filter: "hot", page: 1 } });
+
+    await user.click(screen.getByRole("button", { name: "Go to next page" }));
+    let sp = new URLSearchParams(lastNavigationUrl()!.split("?")[1]);
+    expect(sp.get("filter")).toBe("hot");
+    expect(sp.get("page")).toBe("2");
+
+    await user.click(screen.getByRole("button", { name: "Remove filter: Hot clients" }));
+    sp = new URLSearchParams(lastNavigationUrl()!.split("?")[1] ?? "");
+    expect(sp.get("filter")).toBeNull();
+  });
+});

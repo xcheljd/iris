@@ -12,10 +12,11 @@ import { getStats, getOverdueFollowUps, getUpcomingFollowUps, getRecentActivity,
 import { requirePageSession } from "@/lib/auth";
 import { recalcAllHeatDaily } from "@/lib/heat-recalc";
 import Link from "next/link";
-import { Flame, Phone, ShoppingBag, Users, AlertCircle, Calendar, ArrowRight, TrendingUp, Target, Clock, CheckCircle2 } from "lucide-react";
+import { Flame, Users, AlertCircle, Calendar, ArrowRight, TrendingUp, Target, Clock, CheckCircle2 } from "lucide-react";
 import { formatDate, formatDaysAgo, formatOccasionDate } from "@/lib/utils";
 import { DateTimeCell, TextCell } from "@/components/data-table/cells";
 import { DashboardSkeleton } from "@/components/skeletons";
+import { DashboardStatCards } from "@/components/dashboard-stat-cards";
 
 export default function DashboardPage() {
   return (
@@ -49,13 +50,7 @@ async function DashboardContent() {
     <>
       <Topbar title="Dashboard" />
       <div className="flex flex-col flex-1 p-4 md:p-6 gap-6">
-        {/* Stat Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-tour="dashboard-stats">
-          <StatCard icon={Users} label="Total Clients" value={stats.total} sublabel={`${stats.active} active`} />
-          <StatCard icon={Flame} label="Hot Leads" value={stats.hot} accent />
-          <StatCard icon={Phone} label="Outreach (7d)" value={stats.outreachWeek} />
-          <StatCard icon={ShoppingBag} label="Purchases (7d)" value={stats.purchasesWeek} color="text-emerald-500" />
-        </div>
+        <DashboardStatCards stats={stats} />
 
         <Tabs defaultValue="overview" className="space-y-4">
           <TabsList>
@@ -407,27 +402,4 @@ function EventBadge({ type }: { type: string }) {
   };
   const c = config[type] || { label: type, variant: "outline" as const };
   return <Badge variant={c.variant} className="text-xs whitespace-nowrap">{c.label}</Badge>;
-}
-
-function StatCard({ icon: Icon, label, value, sublabel, accent, color }: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: number;
-  sublabel?: string;
-  accent?: boolean;
-  color?: string;
-}) {
-  return (
-    <Card className="border-border/50 hover:border-border hover:shadow-md transition-all">
-      <CardContent className="p-3 md:p-4 flex items-center gap-3">
-        <div className={`size-9 md:h-10 md:w-10 rounded-md flex items-center justify-center shrink-0 ${accent ? "bg-meridian-gold/15 text-meridian-gold-deep dark:text-meridian-gold" : "bg-muted text-muted-foreground"}`}>
-          <Icon className="size-4 md:h-5 md:w-5" />
-        </div>
-        <div className="min-w-0">
-          <p className={`text-xl md:text-2xl font-semibold font-mono leading-tight ${color || ""}`}>{value}</p>
-          <p className="text-[11px] md:text-xs text-muted-foreground truncate">{sublabel || label}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
 }

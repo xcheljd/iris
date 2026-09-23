@@ -40,8 +40,19 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { deleteClient, restoreClient } from "@/lib/actions";
 import { toast } from "sonner";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
+import type { BuiltInFilter } from "@/lib/queries";
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
+
+const QUICK_FILTER_LABELS: Record<BuiltInFilter, string> = {
+  hot: "Hot clients",
+  stale: "Stale (90+ days)",
+  recent_purchases: "Recent purchases",
+  no_outreach_60: "No outreach (60d)",
+  birthdays_month: "Birthdays this month",
+  anniversaries_month: "Anniversaries this month",
+  email_subscribers: "Email subscribers",
+};
 const SEARCH_HISTORY_KEY = "iris:recent-searches:clients";
 
 type SortKey = "name" | "heat" | "lastContact" | "owner";
@@ -60,6 +71,8 @@ interface ClientFilters {
   lastContactTo?: number;
   createdFrom?: number;
   createdTo?: number;
+  /** Built-in quick filter from `?filter=` (e.g. the dashboard's Hot Leads card). */
+  filter?: BuiltInFilter;
   sort: SortKey;
   sortDir: SortDir;
   page: number;
@@ -169,6 +182,7 @@ export function ClientListContent({
       lastContactTo: undefined,
       createdFrom: undefined,
       createdTo: undefined,
+      filter: undefined,
       page: 1,
     });
   }
@@ -196,6 +210,7 @@ export function ClientListContent({
     if (next.lastContactTo) sp.set("lastContactTo", String(next.lastContactTo));
     if (next.createdFrom) sp.set("createdFrom", String(next.createdFrom));
     if (next.createdTo) sp.set("createdTo", String(next.createdTo));
+    if (next.filter) sp.set("filter", next.filter);
     if (next.sort !== "heat") sp.set("sort", next.sort);
     if (next.sortDir !== "desc") sp.set("sortDir", next.sortDir);
     if (next.page > 1) sp.set("page", String(next.page));
@@ -566,8 +581,11 @@ export function ClientListContent({
 
         {/* Active filters strip — only renders when filters are active */}
         <ActiveFilterChips
-          chips={getActiveFilterChips(emailRecipientFilters)}
-          onRemove={clearFilterChip}
+          chips={[
+            ...(currentFilters.filter ? [{ key: "quickFilter" as const, label: QUICK_FILTER_LABELS[currentFilters.filter] }] : []),
+            ...getActiveFilterChips(emailRecipientFilters),
+          ]}
+          onRemove={(key) => (key === "quickFilter" ? navigate({ filter: undefined, page: 1 }) : clearFilterChip(key))}
           onClearAll={clearAllFilters}
         />
 
