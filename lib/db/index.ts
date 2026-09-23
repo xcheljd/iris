@@ -5,7 +5,7 @@ import path from "path";
 import fs from "fs";
 import { DATABASE_PATH } from "@/lib/constants";
 import { setupClientsFts } from "./fts-setup";
-import { ensureModelCatalog, ensureClientColumns, ensurePromoColumns } from "./ensure-schema";
+import { ensureModelCatalog, ensureClientColumns, ensurePromoColumns, ensureMetaTable } from "./ensure-schema";
 
 const dbPath = path.join(process.cwd(), DATABASE_PATH);
 const dataDir = path.dirname(dbPath);
@@ -26,6 +26,7 @@ export const db = drizzle(sqlite, { schema });
 ensureModelCatalog(sqlite);
 ensureClientColumns(sqlite);
 ensurePromoColumns(sqlite);
+ensureMetaTable(sqlite);
 
 try {
   setupClientsFts(sqlite);

@@ -147,6 +147,32 @@ describe("POST /api/clients", () => {
     expect(client.preferredContact).toBe("call"); // regression: was dropped on insert
   });
 
+  // Regression (B3): create never scored the new client, so a birthday +
+  // interests + email signup (10 + 10 + 10) was stored as the default 0/cold.
+  it("stores an accurate heat score for a newly created client", async () => {
+    const uniqueSuffix = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const req = new Request("http://localhost:3000/api/clients", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        firstName: "Heat",
+        lastName: "OnCreate",
+        preferredContact: "email",
+        email: `heat-create-${uniqueSuffix}@example.com`,
+        birthday: "1985-04-12",
+        onEmailList: true,
+        productsOfInterest: [{ model: "IX1002-01X", collection: "CAMBRIDGE", brand: "Meridian", intent: "interested" }],
+      }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const { id } = await res.json();
+    createdIds.push(id);
+
+    const row = db.select({ heatScore: clients.heatScore, heatLevel: clients.heatLevel }).from(clients).where(eq(clients.id, id)).get();
+    expect(row).toEqual({ heatScore: 30, heatLevel: "cold" });
+  });
+
   it("should create a client with minimal fields", async () => {
     const req = new Request("http://localhost:3000/api/clients", {
       method: "POST",

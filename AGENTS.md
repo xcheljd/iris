@@ -130,7 +130,11 @@ they do. If either grows a query it pages against, it moves to the shape above.
   returns null) into the unscoped manager view. `__tests__/app/page-auth-gate.test.tsx` runs
   every scoped loader with no session; add a new scoped page to its list.
 - **Heat scoring:** computed in exactly one place — `lib/heat-score.ts` (`calcHeatScore`).
-  Seeds, migrations and tests call it; nothing reimplements the rules inline. The seed is
+  Seeds, migrations and tests call it; nothing reimplements the rules inline. Any write that
+  changes a scored field (create, edit, status, email list, graduation) calls `recalcHeat(id)`;
+  the time-based parts are re-applied by `recalcAllHeatDaily()` (`lib/heat-recalc.ts`), run
+  from the dashboard loader and gated by the `last_heat_recalc` row in the `meta` table
+  (`lib/db/meta.ts`; created at boot by `ensureMetaTable`, so no `db:push` needed). The seed is
   deterministic (mulberry32 PRNG, override with `SEED=<n>`) — do not reintroduce
   `Math.random()` jitter.
 

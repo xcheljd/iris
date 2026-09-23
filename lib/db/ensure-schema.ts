@@ -105,3 +105,16 @@ export function ensurePromoColumns(sqlite: Database.Database) {
   if (!cols.has("size_two_qty"))
     sqlite.exec("ALTER TABLE promo_watches ADD COLUMN size_two_qty INTEGER NOT NULL DEFAULT 0");
 }
+
+/**
+ * Idempotent boot-time create for the `meta` key/value table, so an existing
+ * DB picks it up without a `pnpm db:push`. Must match `meta` in schema.ts.
+ */
+export function ensureMetaTable(sqlite: Database.Database) {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS meta (
+      key TEXT PRIMARY KEY NOT NULL,
+      value TEXT NOT NULL
+    );
+  `);
+}

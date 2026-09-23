@@ -13,6 +13,7 @@ import {
 } from "@/lib/validation/rvx";
 import { requireAuth } from "./_shared";
 import { recordProductsOfInterest } from "./model-catalog";
+import { recalcHeat } from "./outreach";
 
 export async function graduateProspect(input: GraduateProspectInput): Promise<
   | { type: "created"; clientId: string }
@@ -74,6 +75,7 @@ export async function graduateProspect(input: GraduateProspectInput): Promise<
     }).run();
   });
 
+  await recalcHeat(newClientId);
   revalidatePath("/prospects");
   revalidatePath("/clients");
   return { type: "created", clientId: newClientId };
@@ -130,6 +132,7 @@ export async function graduateProspectIntoExistingClient(
     }).run();
   });
 
+  await recalcHeat(existingClientId);
   revalidatePath("/prospects");
   revalidatePath(`/clients/${existingClientId}`);
 }

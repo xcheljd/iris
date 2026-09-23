@@ -40,12 +40,14 @@ export async function saveClientEdits(clientId: string, data: unknown): Promise<
   if (!parsed.success) return { error: "Invalid request" };
 
   applyClientPatchUnchecked(clientId, parsed.data as Record<string, unknown>, user.id);
+  await recalcHeat(clientId);
 }
 
 export async function banClient(clientId: string, category: "Reselling" | "Gift Card Fraud" | "Other", reason: string): Promise<{ error: string } | undefined> {
   const user = await requireManager();
   const result = runStatusChange((tx) => applyBanUnchecked(tx, clientId, category, reason, user.id));
   if (result?.error) return result;
+  await recalcHeat(clientId);
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/banned");
 }
@@ -80,6 +82,7 @@ export async function unsubscribeClient(clientId: string): Promise<{ error: stri
   const user = await requireManager();
   const result = runStatusChange((tx) => applyUnsubscribeUnchecked(tx, clientId, user.id));
   if (result?.error) return result;
+  await recalcHeat(clientId);
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/unsubscribed");
 }
@@ -104,6 +107,7 @@ export async function unbanClient(clientId: string): Promise<{ error: string } |
       id: randomUUID(), clientId, eventType: "status_changed", description: "Unbanned", metadata: { newStatus: "active" }, employeeId: user.id,
     }).run();
   });
+  await recalcHeat(clientId);
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/banned");
 }
@@ -137,6 +141,7 @@ export async function addUnsubscribeEmail(rawEmail: string): Promise<{ error: st
       }).run();
     }
   });
+  if (matchingClient) await recalcHeat(matchingClient.id);
   if (matchingClient) revalidatePath(`/clients/${matchingClient.id}`);
   revalidatePath("/unsubscribed");
 }
@@ -179,6 +184,7 @@ export async function resubscribeClient(clientId: string) {
       id: randomUUID(), clientId, eventType: "status_changed", description: "Resubscribed", metadata: { newStatus: "active" }, employeeId: user.id,
     }).run();
   });
+  await recalcHeat(clientId);
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/unsubscribed");
 }
@@ -197,6 +203,7 @@ export async function toggleEmailList(clientId: string): Promise<{ error: string
       id: randomUUID(), clientId, eventType: "edited", description: newValue ? "Added to email list" : "Removed from email list", metadata: { onEmailList: newValue }, employeeId: user.id,
     }).run();
   });
+  await recalcHeat(clientId);
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/clients");
 }
@@ -268,6 +275,7 @@ export async function restoreClient(clientId: string): Promise<{ error: string }
       employeeId: user.id,
     }).run();
   });
+  await recalcHeat(clientId);
 
   revalidatePath("/clients");
   revalidatePath("/settings");

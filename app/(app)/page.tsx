@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { HeatBadge } from "@/components/heat-badge";
 import { getStats, getOverdueFollowUps, getUpcomingFollowUps, getRecentActivity, getTopHotClients, getClientOccasionsCurrentMonth } from "@/lib/queries";
 import { requirePageSession } from "@/lib/auth";
+import { recalcAllHeatDaily } from "@/lib/heat-recalc";
 import Link from "next/link";
 import { Flame, Phone, ShoppingBag, Users, AlertCircle, Calendar, ArrowRight, TrendingUp, Target, Clock, CheckCircle2 } from "lucide-react";
 import { formatDate, formatDaysAgo, formatOccasionDate } from "@/lib/utils";
@@ -28,6 +29,9 @@ async function DashboardContent() {
   const session = await requirePageSession();
   const isManager = session.user.role === "manager";
   const employeeId = isManager ? undefined : session.user.id;
+  // Time-based heat bonuses/penalties decay with no write to the client;
+  // re-apply them before reading hot counts. Gated to once a day.
+  recalcAllHeatDaily();
   const [stats, overdue, upcoming, activity, hot, occasionRows] = await Promise.all([
     getStats(employeeId),
     getOverdueFollowUps(employeeId),

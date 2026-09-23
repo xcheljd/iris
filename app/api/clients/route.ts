@@ -6,6 +6,7 @@ import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { clientCreateSchema, clientPatchSchema } from "@/lib/validation/client";
 import { saveClientEdits } from "@/lib/actions/clients";
+import { recalcHeat } from "@/lib/actions/outreach";
 import { findDuplicateClient } from "@/lib/duplicate-client";
 import { recordProductsOfInterest } from "@/lib/actions/model-catalog";
 
@@ -89,6 +90,7 @@ export const POST = withAuth(async (session, request: Request) => {
       employeeId: session.user.id,
     }).run();
 
+    await recalcHeat(id);
     revalidatePath("/clients");
     return Response.json({ id });
   } catch (_error) {

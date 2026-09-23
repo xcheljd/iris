@@ -300,6 +300,13 @@ export const prospects = sqliteTable("prospects", {
   prospectsPhoneIdx: index("prospects_phone_idx").on(t.phone),
 }));
 
+// App-level key/value state (e.g. `last_heat_recalc`). Also created at boot by
+// ensureMetaTable in ensure-schema.ts — keep the DDL there in lockstep.
+export const meta = sqliteTable("meta", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+});
+
 export type Client = typeof clients.$inferSelect;
 export type NewClient = typeof clients.$inferInsert;
 export type Employee = typeof employees.$inferSelect;

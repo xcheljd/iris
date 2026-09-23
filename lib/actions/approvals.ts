@@ -5,6 +5,7 @@ import { and, eq, desc, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireAuth, requireManager } from "./_shared";
+import { recalcHeat } from "./outreach";
 import {
   ClientStatusError,
   applyBanUnchecked,
@@ -117,6 +118,7 @@ export async function reviewApprovalRequest(
     throw err;
   }
 
+  if (approved && request.type === "unsubscribe") await recalcHeat(request.clientId);
   revalidatePath(`/clients/${request.clientId}`);
   if (request.type === "ban") revalidatePath("/banned");
   else if (request.type === "unsubscribe") revalidatePath("/unsubscribed");
