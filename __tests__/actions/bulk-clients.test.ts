@@ -16,6 +16,7 @@ import {
   bulkUnsubscribeClients,
 } from "@/lib/actions/bulk-clients";
 import { db } from "@/lib/db";
+import { calcHeatScore } from "@/lib/heat-score";
 import { clients, activityEvents, bannedCustomers, unsubscribeList, clientTags, employees } from "@/lib/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
@@ -240,6 +241,19 @@ describe("Bulk Client Operations", () => {
         .filter((e) => e.eventType === "edited");
       expect(events.length).toBe(3);
     });
+
+    it("recomputes heat for the clients it changed", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
+      db.update(clients).set({ heatScore: 99, heatLevel: "hot" }).where(inArray(clients.id, testClientIds)).run();
+
+      await bulkSetEmailList(testClientIds, false);
+
+      for (const id of testClientIds) {
+        const row = db.select().from(clients).where(eq(clients.id, id)).get()!;
+        expect(row.heatScore).toBe(calcHeatScore(row, []).score);
+        expect(row.heatScore).not.toBe(99);
+      }
+    });
   });
 
   // ---------------------------------------------------------------
@@ -366,6 +380,25 @@ describe("Bulk Client Operations", () => {
     it("throws when associate calls it", async () => {
       vi.mocked(getServerSession).mockResolvedValue(associateSession);
       await expect(bulkUnsubscribeClients(testClientIds)).rejects.toThrow("Manager access required");
+    });
+
+    // Regression: bulk status/email-list writes skipped recalcHeat, so the
+    // stored heat stayed stale until the next daily catch-up.
+    it("recomputes the affected clients' heat", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+      const testEmails = ["bulktest0@test.com", "bulktest1@test.com", "bulktest2@test.com"];
+      cleanupUnsubscribe(testEmails);
+      const [id] = testClientIds;
+      db.update(clients).set({ heatScore: 99, heatLevel: "hot" }).where(eq(clients.id, id)).run();
+
+      await bulkUnsubscribeClients([id]);
+
+      const row = db.select().from(clients).where(eq(clients.id, id)).get()!;
+      const expected = calcHeatScore(row, []);
+      expect(row.heatScore).toBe(expected.score);
+      expect(row.heatLevel).toBe(expected.level);
+      expect(row.heatScore).not.toBe(99);
+      cleanupUnsubscribe(testEmails);
     });
 
     // Regression: the UPDATE covered the whole id list, so a soft-deleted

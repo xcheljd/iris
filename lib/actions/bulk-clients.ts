@@ -6,6 +6,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireAuth, requireManager } from "./_shared";
+import { recalcHeat } from "@/lib/heat-recalc";
 
 interface BulkResult {
   ok: number;
@@ -21,7 +22,8 @@ interface BulkResult {
 /*   2. open a transaction                                                    */
 /*   3. mutate                                                                */
 /*   4. catch + return error                                                  */
-/*   5. revalidatePath after success                                          */
+/*   5. recompute heat for rows whose scored fields changed, after commit     */
+/*   6. revalidatePath after success                                          */
 /*                                                                            */
 /* runBulk centralizes that boilerplate so each action only writes the        */
 /* per-row business logic. The mutate fn receives the transaction handle      */
@@ -53,12 +55,15 @@ function scopeToOwned(user: { id: string; role?: string | null }, clientIds: str
     .map((r) => r.id);
 }
 
-function runBulk(opts: {
+async function runBulk(opts: {
   clientIds: string[];
   errorMessage: string;
   revalidate?: string[];
+  /** Filled by mutate with the ids whose status or email-list flag it wrote;
+   *  each gets a recalcHeat once the transaction has committed. */
+  heatIds?: string[];
   mutate(tx: TxHandle): number;
-}): BulkResult {
+}): Promise<BulkResult> {
   if (opts.clientIds.length === 0) return { ok: 0 };
   let ok = 0;
   try {
@@ -68,6 +73,7 @@ function runBulk(opts: {
   } catch {
     return { ok: 0, error: opts.errorMessage };
   }
+  for (const id of opts.heatIds ?? []) await recalcHeat(id);
   for (const p of opts.revalidate ?? ["/clients"]) revalidatePath(p);
   return { ok };
 }
@@ -215,9 +221,11 @@ export async function bulkSetEmailList(
 ): Promise<BulkResult> {
   const user = await requireAuth();
   const scoped = scopeToOwned(user, clientIds);
+  const heatIds: string[] = [];
   return runBulk({
     clientIds: scoped,
     errorMessage: "Failed to update email-list opt-in",
+    heatIds,
     mutate: (tx) => {
       // Unsubscribed clients are off-limits, mirroring toggleEmailList's guard —
       // a bulk selection must not be a back door around the suppression list.
@@ -227,6 +235,7 @@ export async function bulkSetEmailList(
         .map((r) => r.id);
       if (eligible.length === 0) return 0;
       tx.update(clients).set({ onEmailList, updatedAt: new Date() }).where(inArray(clients.id, eligible)).run();
+      heatIds.push(...eligible);
       insertActivityEvents(tx, eligible.map((id) => ({
         id: randomUUID(),
         clientId: id,
@@ -290,9 +299,11 @@ export async function bulkBanClients(
   reason: string,
 ): Promise<BulkResult> {
   const user = await requireManager();
+  const heatIds: string[] = [];
   return runBulk({
     clientIds,
     errorMessage: "Failed to ban clients",
+    heatIds,
     revalidate: ["/clients", "/banned"],
     mutate: (tx) => {
       const rows = tx.select().from(clients).where(inArray(clients.id, clientIds)).all();
@@ -304,6 +315,7 @@ export async function bulkBanClients(
         // an already-banned client would silently add a second row.
         if (row.status === "banned") continue;
         tx.update(clients).set({ status: "banned", updatedAt: now }).where(eq(clients.id, row.id)).run();
+        heatIds.push(row.id);
         tx.insert(bannedCustomers).values({
           id: randomUUID(),
           customerId: row.id,
@@ -336,9 +348,11 @@ export async function bulkBanClients(
 
 export async function bulkUnsubscribeClients(clientIds: string[]): Promise<BulkResult> {
   const user = await requireManager();
+  const heatIds: string[] = [];
   return runBulk({
     clientIds,
     errorMessage: "Failed to unsubscribe clients",
+    heatIds,
     revalidate: ["/clients", "/unsubscribed"],
     mutate: (tx) => {
       // Deleted and banned clients keep their status — the blanket UPDATE used
@@ -350,6 +364,7 @@ export async function bulkUnsubscribeClients(clientIds: string[]): Promise<BulkR
       const eligible = rows.map((r) => r.id);
       const now = new Date();
       tx.update(clients).set({ status: "unsubscribed", onEmailList: false, updatedAt: now }).where(inArray(clients.id, eligible)).run();
+      heatIds.push(...eligible);
 
       // One query for the whole batch instead of one per row. Seeded with the
       // emails already on the list, then extended as we insert — two clients can
