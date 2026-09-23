@@ -313,27 +313,27 @@ async function DashboardContent() {
                 {stats.active > 0 ? (
                   <>
                     <div className="flex rounded-lg overflow-hidden h-10" role="img" aria-label={`Heat distribution: ${stats.hot} hot, ${stats.warm} warm, ${stats.cold} cold`}>
-                      <div role="presentation" className="bg-orange-500 flex items-center justify-center text-white text-xs font-medium overflow-hidden" style={{ width: `${(stats.hot / stats.active) * 100}%` }} aria-hidden="true">
+                      <div role="presentation" className="bg-heat-hot/30 flex items-center justify-center text-foreground text-xs font-medium overflow-hidden" style={{ width: `${(stats.hot / stats.active) * 100}%` }} aria-hidden="true">
                         {stats.hot > 0 ? `${stats.hot} Hot` : ""}
                       </div>
-                      <div role="presentation" className="bg-yellow-500 flex items-center justify-center text-white text-xs font-medium overflow-hidden" style={{ width: `${(stats.warm / stats.active) * 100}%` }} aria-hidden="true">
+                      <div role="presentation" className="bg-heat-warm/30 flex items-center justify-center text-foreground text-xs font-medium overflow-hidden" style={{ width: `${(stats.warm / stats.active) * 100}%` }} aria-hidden="true">
                         {stats.warm > 0 ? `${stats.warm} Warm` : ""}
                       </div>
-                      <div role="presentation" className="bg-blue-500 flex items-center justify-center text-white text-xs font-medium overflow-hidden" style={{ width: `${(stats.cold / stats.active) * 100}%` }} aria-hidden="true">
+                      <div role="presentation" className="bg-heat-cold/30 flex items-center justify-center text-foreground text-xs font-medium overflow-hidden" style={{ width: `${(stats.cold / stats.active) * 100}%` }} aria-hidden="true">
                         {stats.cold > 0 ? `${stats.cold} Cold` : ""}
                       </div>
                     </div>
                     <div className="grid grid-cols-3 gap-4 text-center text-sm">
                       <div>
-                        <p className="font-medium text-orange-500">{stats.hot}</p>
+                        <p className="font-medium text-heat-hot">{stats.hot}</p>
                         <p className="text-muted-foreground">Hot</p>
                       </div>
                       <div>
-                        <p className="font-medium text-yellow-500">{stats.warm}</p>
+                        <p className="font-medium text-heat-warm">{stats.warm}</p>
                         <p className="text-muted-foreground">Warm</p>
                       </div>
                       <div>
-                        <p className="font-medium text-blue-500">{stats.cold}</p>
+                        <p className="font-medium text-heat-cold">{stats.cold}</p>
                         <p className="text-muted-foreground">Cold</p>
                       </div>
                     </div>

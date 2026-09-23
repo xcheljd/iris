@@ -48,19 +48,19 @@ describe("HeatScoreBar", () => {
   it("applies hot color class for high scores", () => {
     render(<HeatScoreBar score={80} />);
     const levelText = screen.getByText("Hot");
-    expect(levelText.className).toContain("text-orange-500");
+    expect(levelText.className).toContain("text-heat-hot");
   });
 
   it("applies warm color class for medium scores", () => {
     render(<HeatScoreBar score={50} />);
     const levelText = screen.getByText("Warm");
-    expect(levelText.className).toContain("text-yellow-500");
+    expect(levelText.className).toContain("text-heat-warm");
   });
 
   it("applies cold color class for low scores", () => {
     render(<HeatScoreBar score={20} />);
     const levelText = screen.getByText("Cold");
-    expect(levelText.className).toContain("text-blue-500");
+    expect(levelText.className).toContain("text-heat-cold");
   });
 
   it("renders a progress bar element", () => {

@@ -11,11 +11,13 @@ const badgeVariants = cva(
         secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
         destructive: "border-transparent bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/80",
         outline: "text-foreground",
-        // Tinted variants pair a -700/-800 text step (light) with -300/-400 (dark):
-        // the -400 text alone is ~1.4-2:1 on the light card.
-        hot: "border-transparent bg-orange-500/15 text-orange-800 dark:text-orange-400",
-        warm: "border-transparent bg-amber-500/15 text-amber-800 dark:text-amber-400",
-        cold: "border-transparent bg-blue-500/15 text-blue-700 dark:text-blue-300",
+        // Heat variants use the --heat-* tokens, which carry their own light and
+        // dark steps (>= 4.5:1 on their /15 tint in both modes).
+        hot: "border-transparent bg-heat-hot/15 text-heat-hot",
+        warm: "border-transparent bg-heat-warm/15 text-heat-warm",
+        cold: "border-transparent bg-heat-cold/15 text-heat-cold",
+        // The other tinted variants pair a -700/-800 text step (light) with
+        // -300/-400 (dark): the -400 text alone is ~1.4-2:1 on the light card.
         gold: "border-transparent bg-meridian-gold/20 text-meridian-gold",
         emerald: "border-transparent bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
         rose: "border-transparent bg-rose-500/15 text-rose-700 dark:text-rose-400",

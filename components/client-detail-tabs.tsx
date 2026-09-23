@@ -80,7 +80,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
           </p>
           <div className="flex items-center gap-2 mt-1">
             <HeatScoreBar score={client.heatScore} />
-            <Badge variant={client.heatLevel === "hot" ? "destructive" : client.heatLevel === "warm" ? "default" : "secondary"}>
+            <Badge variant={client.heatLevel}>
               {client.heatLevel}
             </Badge>
           </div>

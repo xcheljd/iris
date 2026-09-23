@@ -54,7 +54,7 @@ interface SmartListsContentProps {
 }
 
 const BUILTIN_FILTERS: { id: string; label: string; icon: React.ReactNode }[] = [
-  { id: "hot", label: "Hot Clients", icon: <Flame className="size-4 text-orange-500" /> },
+  { id: "hot", label: "Hot Clients", icon: <Flame className="size-4 text-heat-hot" /> },
   { id: "stale", label: "Stale (90+ days)", icon: <Clock className="size-4 text-yellow-500" /> },
   { id: "recent_purchases", label: "Recent Purchases", icon: <Star className="size-4 text-emerald-500" /> },
   { id: "no_outreach_60", label: "No Outreach (60d)", icon: <Clock className="size-4 text-red-500" /> },

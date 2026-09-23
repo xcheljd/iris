@@ -44,7 +44,7 @@ export function ClientSidebar() {
           <CardTitle className="text-lg">
             {client.firstName} {client.lastName}
           </CardTitle>
-          <Badge variant={client.heatLevel === "hot" ? "destructive" : client.heatLevel === "warm" ? "default" : "secondary"}>
+          <Badge variant={client.heatLevel}>
             {client.heatLevel.toUpperCase()}
           </Badge>
         </CardHeader>

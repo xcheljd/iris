@@ -5,7 +5,7 @@ import { badgeVariants } from "@/components/ui/badge";
 // text-*-400 on a /20 tint, 1.4-2:1 on the light card (hot 1.78, warm/cold
 // 1.38, emerald 1.54). Each must pair a dark light-mode text step with a
 // `dark:` override.
-const TINTED = ["hot", "warm", "cold", "emerald", "rose", "purple", "cyan", "blue", "pink", "amber"] as const;
+const TINTED = ["emerald", "rose", "purple", "cyan", "blue", "pink", "amber"] as const;
 
 describe("badge variants", () => {
   it.each(TINTED)("%s pairs a -700/-800 light text with a dark: -300/-400 text", (variant) => {
@@ -17,5 +17,14 @@ describe("badge variants", () => {
     expect(lightText[0]).toMatch(/-(700|800)$/);
     expect(darkText).toHaveLength(1);
     expect(darkText[0]).toMatch(/-(300|400)$/);
+  });
+
+  // Heat variants draw on the --heat-* tokens so badge, bar, chart and
+  // dashboard all show the same three colours; the tokens carry their own
+  // light/dark steps (contrast pinned in unit/theme-contrast.test.ts).
+  it.each(["hot", "warm", "cold"] as const)("%s uses the heat token for tint and text", (level) => {
+    const classes = badgeVariants({ variant: level }).split(/\s+/);
+    expect(classes).toContain(`bg-heat-${level}/15`);
+    expect(classes).toContain(`text-heat-${level}`);
   });
 });

@@ -10,10 +10,10 @@ interface HeatScoreBarProps {
 
 export function HeatScoreBar({ score, className }: HeatScoreBarProps) {
   const heatConfig = score >= 70
-    ? { level: "Hot", indicatorColor: "[&>div]:bg-orange-500", textColor: "text-orange-500" }
+    ? { level: "Hot", indicatorColor: "[&>div]:bg-heat-hot", textColor: "text-heat-hot" }
     : score >= 40
-      ? { level: "Warm", indicatorColor: "[&>div]:bg-yellow-500", textColor: "text-yellow-500" }
-      : { level: "Cold", indicatorColor: "[&>div]:bg-blue-500", textColor: "text-blue-500" };
+      ? { level: "Warm", indicatorColor: "[&>div]:bg-heat-warm", textColor: "text-heat-warm" }
+      : { level: "Cold", indicatorColor: "[&>div]:bg-heat-cold", textColor: "text-heat-cold" };
 
   return (
     <div className={cn("flex items-center gap-3", className)}>
