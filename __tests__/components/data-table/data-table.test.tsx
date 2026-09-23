@@ -74,6 +74,15 @@ describe("DataTable rendering", () => {
     expect(screen.getAllByRole("cell")[0]).toHaveAttribute("colspan", "2");
   });
 
+  // Regression: the engine wrapped <Table> (itself overflow-auto) in a second
+  // overflow-x-auto div — two nested scroll containers around every list.
+  it("has exactly one scroll container around the table", () => {
+    const { container } = render(<DataTable columns={COLUMNS} data={ROWS} chrome={false} />);
+    const scrollers = [...container.querySelectorAll("div")].filter((d) => /\boverflow-(x-)?auto\b/.test(d.className));
+    expect(scrollers).toHaveLength(1);
+    expect(scrollers[0].querySelector(":scope > table")).not.toBeNull();
+  });
+
   it("drops the Card shell for chrome={false}", () => {
     const { container, rerender } = render(<DataTable columns={COLUMNS} data={ROWS} chrome={false} />);
     expect(container.querySelector(".rounded-xl")).toBeNull();

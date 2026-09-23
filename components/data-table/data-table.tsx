@@ -198,43 +198,42 @@ export function DataTable<TData extends RowData>({
 
   const rows = table.getRowModel().rows;
 
+  // <Table> brings its own overflow-x-auto wrapper; don't nest a second one.
   const body = (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          {table.getHeaderGroups().map((group) => (
-            <TableRow key={group.id}>
-              {group.headers.map((header) => (
-                <TableHead key={header.id} className={header.column.columnDef.meta?.headClassName}>
-                  <table.FlexRender header={header} />
-                </TableHead>
+    <Table>
+      <TableHeader>
+        {table.getHeaderGroups().map((group) => (
+          <TableRow key={group.id}>
+            {group.headers.map((header) => (
+              <TableHead key={header.id} className={header.column.columnDef.meta?.headClassName}>
+                <table.FlexRender header={header} />
+              </TableHead>
+            ))}
+          </TableRow>
+        ))}
+      </TableHeader>
+      <TableBody>
+        {rows.length === 0 && empty ? (
+          <TableRow>
+            <TableCell colSpan={table.getAllLeafColumns().length} className="p-0">
+              {empty}
+            </TableCell>
+          </TableRow>
+        ) : (
+          rows.map((row) => (
+            <TableRow key={row.id} className={rowClassName?.(row)}>
+              {row.getAllCells().map((cell) => (
+                // The cell renderer emits the <TableCell> itself; a Fragment
+                // carries the key without adding a DOM node between them.
+                <Fragment key={cell.id}>
+                  <table.FlexRender cell={cell} />
+                </Fragment>
               ))}
             </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {rows.length === 0 && empty ? (
-            <TableRow>
-              <TableCell colSpan={table.getAllLeafColumns().length} className="p-0">
-                {empty}
-              </TableCell>
-            </TableRow>
-          ) : (
-            rows.map((row) => (
-              <TableRow key={row.id} className={rowClassName?.(row)}>
-                {row.getAllCells().map((cell) => (
-                  // The cell renderer emits the <TableCell> itself; a Fragment
-                  // carries the key without adding a DOM node between them.
-                  <Fragment key={cell.id}>
-                    <table.FlexRender cell={cell} />
-                  </Fragment>
-                ))}
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </div>
+          ))
+        )}
+      </TableBody>
+    </Table>
   );
 
   return (
