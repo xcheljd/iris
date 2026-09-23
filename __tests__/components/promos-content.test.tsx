@@ -135,7 +135,7 @@ describe("PromosContent on the DataTable engine", () => {
     expect(cells[3]).toHaveClass("text-right", "tabular-nums");
     expect(cells[3].textContent).toBe("$1,200.00");
     expect(cells[4].textContent).toBe("25%");
-    expect(cells[5]).toHaveClass("text-green-500");
+    expect(cells[5]).toHaveClass("text-green-700");
     expect(cells[5].textContent).toBe("$900.00");
     expect(cells[6].textContent).toBe("2");
     expect(cells[7].textContent).toBe("0");

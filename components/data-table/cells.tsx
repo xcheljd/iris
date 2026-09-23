@@ -55,7 +55,7 @@ export function MoneyCell({
   className?: string;
 }) {
   return (
-    <TableCell className={cn("text-right tabular-nums", emphasis === "sale" && "font-medium text-green-500", className)}>
+    <TableCell className={cn("text-right tabular-nums", emphasis === "sale" && "font-medium text-green-700 dark:text-green-400", className)}>
       {value == null ? <Dash /> : formatMoney(value)}
       {note}
     </TableCell>
