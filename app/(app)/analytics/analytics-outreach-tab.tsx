@@ -6,6 +6,8 @@ import { Progress } from "@/components/ui/progress";
 import { PaginationFooter } from "@/components/pagination-footer";
 import {
   ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
@@ -18,8 +20,6 @@ import {
   CartesianGrid,
   PieChart,
   Pie,
-  Cell,
-  Legend,
 } from "recharts";
 import Link from "next/link";
 import { getMethodIcon, getOutcomeColor } from "@/lib/outreach-helpers";
@@ -27,13 +27,11 @@ import { format } from "date-fns";
 import { fullName } from "@/lib/utils";
 import { EmptyState } from "@/components/empty-state";
 
-const METHOD_COLORS = ["#3b82f6", "#22c55e", "#a855f7", "#f97316"];
-
 const methodChartConfig = {
-  call: { label: "Call", color: "#3b82f6" },
-  text: { label: "Text", color: "#22c55e" },
-  email: { label: "Email", color: "#a855f7" },
-  "in-person": { label: "In-Person", color: "#f97316" },
+  call: { label: "Call", color: "hsl(var(--chart-1))" },
+  text: { label: "Text", color: "hsl(var(--chart-2))" },
+  email: { label: "Email", color: "hsl(var(--chart-3))" },
+  "in-person": { label: "In-Person", color: "hsl(var(--chart-4))" },
 } satisfies ChartConfig;
 
 interface OutreachRow {
@@ -89,6 +87,9 @@ export function AnalyticsOutreachTab({
   outcomeDistribution,
   hasDateFilter,
 }: AnalyticsOutreachTabProps) {
+  // ChartContainer defines --color-<method> from methodChartConfig per theme.
+  const methodData = methodDistribution.map((m) => ({ ...m, fill: `var(--color-${m.method})` }));
+
   return (
     <div className="flex flex-col gap-6">
       {/* Method Distribution Bar Chart */}
@@ -104,21 +105,14 @@ export function AnalyticsOutreachTab({
           {totalOutreach > 0 ? (
             <ChartContainer config={methodChartConfig} className="h-[250px] w-full">
               <BarChart
-                data={methodDistribution}
+                data={methodData}
                 margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
               >
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} />
                 <YAxis tickLine={false} axisLine={false} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                  {methodDistribution.map((entry, index) => (
-                    <Cell
-                      key={entry.method}
-                      fill={METHOD_COLORS[index]}
-                    />
-                  ))}
-                </Bar>
+                <Bar dataKey="count" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ChartContainer>
           ) : (
@@ -173,7 +167,7 @@ export function AnalyticsOutreachTab({
                 <PieChart>
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Pie
-                    data={methodDistribution}
+                    data={methodData}
                     dataKey="count"
                     nameKey="label"
                     cx="50%"
@@ -181,12 +175,8 @@ export function AnalyticsOutreachTab({
                     innerRadius={40}
                     outerRadius={80}
                     paddingAngle={2}
-                  >
-                    {methodDistribution.map((_, index) => (
-                      <Cell key={index} fill={METHOD_COLORS[index]} />
-                    ))}
-                  </Pie>
-                  <Legend />
+                  />
+                  <ChartLegend content={<ChartLegendContent nameKey="method" />} />
                 </PieChart>
               </ChartContainer>
             ) : (

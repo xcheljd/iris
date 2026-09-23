@@ -53,4 +53,9 @@ describe.each(["light", "dark"] as const)("theme tokens (%s)", (mode) => {
   it.each(["heat-hot", "heat-warm", "heat-cold"])("text-foreground reads on a /30 --%s bar segment", (name) => {
     expect(ratio(token(mode, "foreground"), over(token(mode, name), card, 0.3))).toBeGreaterThanOrEqual(4.5);
   });
+
+  // Regression: light --chart-4 was 2.87:1, under the 3:1 floor for graphics.
+  it.each(["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"])("--%s meets 3:1 against the card", (name) => {
+    expect(ratio(token(mode, name), card)).toBeGreaterThanOrEqual(3);
+  });
 });
