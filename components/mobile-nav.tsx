@@ -12,7 +12,7 @@ const items = [
   { href: "/analytics", label: "Stats", icon: BarChart3 },
 ];
 
-const itemClass = "relative flex flex-col items-center justify-center gap-0.5 py-2 text-[10px]";
+const itemClass = "relative flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium";
 
 export function MobileNav() {
   const pathname = usePathname();
@@ -29,7 +29,7 @@ export function MobileNav() {
             className={cn(
               itemClass,
               active
-                ? "text-foreground font-medium before:absolute before:top-0 before:inset-x-4 before:h-0.5 before:rounded-full before:bg-meridian-gold-deep dark:before:bg-meridian-gold"
+                ? "text-foreground before:absolute before:top-0 before:inset-x-4 before:h-0.5 before:rounded-full before:bg-meridian-gold-deep dark:before:bg-meridian-gold"
                 : "text-muted-foreground",
             )}
           >

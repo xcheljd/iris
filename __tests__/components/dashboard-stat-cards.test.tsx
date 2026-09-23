@@ -17,4 +17,13 @@ describe("DashboardStatCards", () => {
     expect(screen.getByText("Outreach (7d)").closest("a")).toBeNull();
     expect(screen.getByText("Purchases (7d)").closest("a")).toBeNull();
   });
+
+  // Regression: the Purchases value was text-emerald-500, 2.5:1 on the light card.
+  it("colours the Purchases value with a light-safe emerald step", () => {
+    render(<DashboardStatCards stats={stats} />);
+    const value = screen.getByText("2");
+    expect(value.className).toContain("text-emerald-700");
+    expect(value.className).toContain("dark:text-emerald-400");
+    expect(value.className).not.toMatch(/(^|\s)text-emerald-500/);
+  });
 });

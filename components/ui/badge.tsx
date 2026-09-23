@@ -18,7 +18,7 @@ const badgeVariants = cva(
         cold: "border-transparent bg-heat-cold/15 text-heat-cold",
         // The other tinted variants pair a -700/-800 text step (light) with
         // -300/-400 (dark): the -400 text alone is ~1.4-2:1 on the light card.
-        gold: "border-transparent bg-meridian-gold/20 text-meridian-gold",
+        gold: "border-transparent bg-meridian-gold/20 text-meridian-gold-deep dark:text-meridian-gold",
         emerald: "border-transparent bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
         rose: "border-transparent bg-rose-500/15 text-rose-700 dark:text-rose-400",
         purple: "border-transparent bg-purple-500/15 text-purple-700 dark:text-purple-400",

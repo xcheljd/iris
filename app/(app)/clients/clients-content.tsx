@@ -344,7 +344,7 @@ export function ClientListContent({
           <Link href={`/clients/${r.client.id}`} className="font-medium hover:underline">
             {r.client.firstName} {r.client.lastName ?? ""}
           </Link>
-          {r.client.status !== "active" && <Badge variant="outline" className="ml-2 text-[10px] capitalize">{r.client.status}</Badge>}
+          {r.client.status !== "active" && <Badge variant="outline" className="ml-2 text-xs tracking-wide capitalize">{r.client.status}</Badge>}
         </TableCell>
       ),
     },
@@ -433,7 +433,7 @@ export function ClientListContent({
       cell: ({ row: { original: r } }) => (
         <TableCell className="hidden md:table-cell">
           <div className="flex gap-1 flex-wrap max-w-[180px]">
-            {(r.client.tags || []).slice(0, 3).map((t) => <Badge key={t} variant="secondary" className="text-[10px]">{t}</Badge>)}
+            {(r.client.tags || []).slice(0, 3).map((t) => <Badge key={t} variant="secondary" className="text-xs tracking-wide">{t}</Badge>)}
           </div>
         </TableCell>
       ),

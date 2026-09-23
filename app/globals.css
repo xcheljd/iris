@@ -58,8 +58,9 @@
   --color-meridian-navy: #1e3a5f;
   --color-meridian-gold: #c9a84c;
   /* The gold is 2.2:1 on the light surfaces, under the 3:1 floor for icons and
-     indicators; use this deeper step in light mode and the gold itself in dark. */
-  --color-meridian-gold-deep: #8a6d1f;
+     indicators and the 4.5:1 floor for text; use this deeper step in light mode
+     (6.0:1 on the card, 5.1:1 on a gold/20 tint) and the gold itself in dark. */
+  --color-meridian-gold-deep: #7a6019;
 
   --color-heat-hot: hsl(var(--heat-hot));
   --color-heat-warm: hsl(var(--heat-warm));

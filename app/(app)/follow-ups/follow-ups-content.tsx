@@ -131,7 +131,7 @@ function FollowUpCard({
                 {row.client.firstName} {row.client.lastName || ""}
               </Link>
               {isOverdue && (
-                <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                <Badge variant="destructive" className="text-xs tracking-wide px-1.5 py-0">
                   OVERDUE
                 </Badge>
               )}
@@ -391,7 +391,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
             <AlertTriangle className="size-4 text-destructive" />
             Overdue
             {overdueRows.length > 0 && (
-              <Badge variant="destructive" className="ml-1 text-[10px] px-1.5 py-0">
+              <Badge variant="destructive" className="ml-1 text-xs tracking-wide px-1.5 py-0">
                 {overdueRows.length}
               </Badge>
             )}
@@ -400,14 +400,14 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
             <Clock className="size-4" />
             Upcoming (7 days)
             {upcomingRows.length > 0 && (
-              <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">
+              <Badge variant="secondary" className="ml-1 text-xs tracking-wide px-1.5 py-0">
                 {upcomingRows.length}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="all" className="gap-1">
             All
-            <Badge variant="outline" className="ml-1 text-[10px] px-1.5 py-0">
+            <Badge variant="outline" className="ml-1 text-xs tracking-wide px-1.5 py-0">
               {uniqueAll.length}
             </Badge>
           </TabsTrigger>

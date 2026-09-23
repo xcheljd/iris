@@ -374,7 +374,7 @@ export function TagsFilterMenu({
                   </div>
                   <span className="flex-1 truncate">{tag.name}</span>
                   {tag.usageCount > 0 && (
-                    <Badge variant="secondary" className="text-[10px]">{tag.usageCount}</Badge>
+                    <Badge variant="secondary" className="text-xs tracking-wide">{tag.usageCount}</Badge>
                   )}
                 </CommandItem>
               );
@@ -437,7 +437,7 @@ export function DatesFilterButton({
           <CalendarDays className="size-4" />
           <span>Dates</span>
           {activeCount > 0 && (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{activeCount}</Badge>
+            <Badge variant="secondary" className="text-xs tracking-wide px-1.5 py-0">{activeCount}</Badge>
           )}
         </Button>
       </PopoverTrigger>

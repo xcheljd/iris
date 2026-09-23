@@ -194,7 +194,7 @@ export function RvxImportDialog({ open, onOpenChangeAction }: RvxImportDialogPro
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <CheckCircle2 className="size-5 text-green-500" />
+                <CheckCircle2 className="size-5 text-green-600 dark:text-green-500" />
                 Import Complete
               </DialogTitle>
             </DialogHeader>

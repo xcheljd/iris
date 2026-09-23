@@ -406,7 +406,7 @@ export function PromosContent({ promos, total, summary, collections: distinctCol
           <Button variant="outline" disabled>
             <ClipboardPaste className="size-4 mr-2" />
             Import
-            <Badge variant="secondary" className="ml-2 text-[10px]">Coming Soon</Badge>
+            <Badge variant="secondary" className="ml-2 text-xs tracking-wide">Coming Soon</Badge>
           </Button>
           <Dialog>
             <DialogTrigger asChild>

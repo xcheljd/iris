@@ -19,6 +19,14 @@ describe("badge variants", () => {
     expect(darkText[0]).toMatch(/-(300|400)$/);
   });
 
+  // Regression: gold badge text was the bare gold, 2.0:1 on its light tint.
+  it("gold uses the deep gold in light mode and the gold itself in dark", () => {
+    const classes = badgeVariants({ variant: "gold" }).split(/\s+/);
+    expect(classes).toContain("text-meridian-gold-deep");
+    expect(classes).toContain("dark:text-meridian-gold");
+    expect(classes).not.toContain("text-meridian-gold");
+  });
+
   // Heat variants draw on the --heat-* tokens so badge, bar, chart and
   // dashboard all show the same three colours; the tokens carry their own
   // light/dark steps (contrast pinned in unit/theme-contrast.test.ts).

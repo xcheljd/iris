@@ -88,7 +88,7 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
           {!collapsed && (
             <div className="flex flex-col leading-tight">
               <span className="text-sm font-serif tracking-wide">Iris</span>
-              <span className="text-[10px] text-sidebar-foreground/60">Meridian CRM</span>
+              <span className="text-xs tracking-wide text-sidebar-foreground/60">Meridian CRM</span>
             </div>
           )}
         </Link>
@@ -126,10 +126,10 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
                               <item.icon className="size-4" />
                               <span>{item.label}</span>
                               {isApprovals && pendingCount > 0 && (
-                                <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1.5 text-[10px]">{pendingCount}</Badge>
+                                <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1.5 text-xs tracking-wide">{pendingCount}</Badge>
                               )}
                               {isCatalog && catalogFlagCount > 0 && (
-                                <Badge variant="secondary" className="ml-auto h-5 min-w-5 px-1.5 text-[10px]">{catalogFlagCount}</Badge>
+                                <Badge variant="secondary" className="ml-auto h-5 min-w-5 px-1.5 text-xs tracking-wide">{catalogFlagCount}</Badge>
                               )}
                             </Link>
                           </SidebarMenuButton>
@@ -156,7 +156,7 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
                   </Avatar>
                   <div className="grid flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
                     <span className="truncate text-xs font-medium">{session?.user?.name}</span>
-                    <span className="truncate text-[10px] text-sidebar-foreground/60 capitalize">{session?.user?.role}</span>
+                    <span className="truncate text-xs tracking-wide text-sidebar-foreground/60 capitalize">{session?.user?.role}</span>
                   </div>
                   <ChevronsUpDown className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
                 </SidebarMenuButton>
@@ -169,7 +169,7 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
                     </Avatar>
                     <div className="grid flex-1 leading-tight">
                       <span className="truncate text-xs font-medium">{session?.user?.name}</span>
-                      <span className="truncate text-[10px] text-muted-foreground capitalize">{session?.user?.role}</span>
+                      <span className="truncate text-xs tracking-wide text-muted-foreground capitalize">{session?.user?.role}</span>
                     </div>
                   </div>
                 </DropdownMenuLabel>

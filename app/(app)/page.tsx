@@ -88,7 +88,7 @@ async function DashboardContent() {
                             {row.log.notes && <span className="block text-xs text-muted-foreground truncate">{row.log.notes}</span>}
                             {!row.log.notes && <span className="block text-xs text-muted-foreground capitalize">{row.log.method} — {row.log.outcome.replace(/_/g, " ")}</span>}
                           </Link>
-                          <Badge variant="destructive" className="text-[10px] shrink-0">
+                          <Badge variant="destructive" className="text-xs tracking-wide shrink-0">
                             <AlertCircle className="size-3 mr-1" />
                             {formatDaysAgo(row.log.followUpDate)}
                           </Badge>
@@ -168,7 +168,7 @@ async function DashboardContent() {
                         <li key={`${c.id}-${c.occasion}`} className="text-sm flex justify-between items-center gap-2">
                           <Link href={`/clients/${c.id}`} className="hover:underline truncate min-w-0">{c.firstName} {c.lastName ?? ""}</Link>
                           <span className="flex items-center gap-2 shrink-0 whitespace-nowrap">
-                            <Badge variant="outline" className="text-[10px]">
+                            <Badge variant="outline" className="text-xs tracking-wide">
                               {c.occasion === "birthday" ? "Birthday" : "Anniversary"}
                             </Badge>
                             <span className="text-xs text-muted-foreground">{formatOccasionDate(c.occasionDate)}</span>

@@ -244,7 +244,7 @@ export function ProspectsContent({ rows, total, counts, filters, isManager }: Pr
           <Button size="sm" disabled>
             <Upload className="size-4 mr-2" />
             Import RVX
-            <Badge variant="secondary" className="ml-2 text-[10px]">Coming Soon</Badge>
+            <Badge variant="secondary" className="ml-2 text-xs tracking-wide">Coming Soon</Badge>
           </Button>
         )}
       </Topbar>
@@ -268,25 +268,25 @@ export function ProspectsContent({ rows, total, counts, filters, isManager }: Pr
             <TabsTrigger value="active">
               Active
               {counts.active > 0 && (
-                <Badge variant="secondary" className="ml-2 text-[10px]">{counts.active}</Badge>
+                <Badge variant="secondary" className="ml-2 text-xs tracking-wide">{counts.active}</Badge>
               )}
             </TabsTrigger>
             <TabsTrigger value="graduated">
               Graduated
               {counts.graduated > 0 && (
-                <Badge variant="secondary" className="ml-2 text-[10px]">{counts.graduated}</Badge>
+                <Badge variant="secondary" className="ml-2 text-xs tracking-wide">{counts.graduated}</Badge>
               )}
             </TabsTrigger>
             <TabsTrigger value="unsubscribed">
               Unsubscribed
               {counts.unsubscribed > 0 && (
-                <Badge variant="secondary" className="ml-2 text-[10px]">{counts.unsubscribed}</Badge>
+                <Badge variant="secondary" className="ml-2 text-xs tracking-wide">{counts.unsubscribed}</Badge>
               )}
             </TabsTrigger>
             <TabsTrigger value="rejected">
               Rejected
               {counts.rejected > 0 && (
-                <Badge variant="secondary" className="ml-2 text-[10px]">{counts.rejected}</Badge>
+                <Badge variant="secondary" className="ml-2 text-xs tracking-wide">{counts.rejected}</Badge>
               )}
             </TabsTrigger>
           </TabsList>

@@ -231,7 +231,7 @@ export function AnalyticsOutreachTab({
                       {row.log.date ? format(new Date(row.log.date), "MMM d") : ""}
                     </p>
                     {row.employee && (
-                      <Badge variant="secondary" className="text-[10px]">
+                      <Badge variant="secondary" className="text-xs tracking-wide">
                         {row.employee ? fullName(row.employee) : ""}
                       </Badge>
                     )}

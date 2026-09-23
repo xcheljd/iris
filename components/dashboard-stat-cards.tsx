@@ -12,7 +12,7 @@ export function DashboardStatCards({ stats }: {
       <StatCard icon={Flame} label="Hot Leads" value={stats.hot} accent href="/clients?filter=hot" />
       {/* No client-list filter shows the same 7-day sets, so these two stay static. */}
       <StatCard icon={Phone} label="Outreach (7d)" value={stats.outreachWeek} />
-      <StatCard icon={ShoppingBag} label="Purchases (7d)" value={stats.purchasesWeek} color="text-emerald-500" />
+      <StatCard icon={ShoppingBag} label="Purchases (7d)" value={stats.purchasesWeek} color="text-emerald-700 dark:text-emerald-400" />
     </div>
   );
 }

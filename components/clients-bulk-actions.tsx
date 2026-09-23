@@ -355,11 +355,11 @@ function TagPickerDialog({
                         isSel ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/30",
                       )}
                     >
-                      {isSel && <span className="text-[10px]">✓</span>}
+                      {isSel && <span className="text-xs tracking-wide">✓</span>}
                     </div>
                     <span className="flex-1 truncate">{tag.name}</span>
                     {tag.usageCount > 0 && (
-                      <Badge variant="secondary" className="text-[10px]">{tag.usageCount}</Badge>
+                      <Badge variant="secondary" className="text-xs tracking-wide">{tag.usageCount}</Badge>
                     )}
                   </CommandItem>
                 );

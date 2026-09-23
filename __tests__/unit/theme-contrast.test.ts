@@ -41,6 +41,22 @@ const token = (mode: Mode, name: string) => {
   return hsl(v);
 };
 
+const hex = (name: string): RGB => {
+  const m = css.match(new RegExp(`--color-${name}:\\s*#([0-9a-f]{6});`, "i"));
+  if (!m) throw new Error(`--color-${name} missing`);
+  return [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16) / 255) as RGB;
+};
+
+// Regression: the gold badge used the bare gold as light-mode text (2.0:1 on its
+// /20 tint); the deep step (from Wave 1, at 4.2:1 there) was darkened to pass.
+it("meridian-gold-deep reads as light-mode text on the card and a gold/20 tint", () => {
+  const card = token("light", "card");
+  const deep = hex("meridian-gold-deep");
+  expect(ratio(deep, card)).toBeGreaterThanOrEqual(4.5);
+  expect(ratio(deep, over(hex("meridian-gold"), card, 0.2))).toBeGreaterThanOrEqual(4.5);
+  expect(ratio(hex("meridian-gold"), over(hex("meridian-gold"), token("dark", "card"), 0.2))).toBeGreaterThanOrEqual(4.5);
+});
+
 describe.each(["light", "dark"] as const)("theme tokens (%s)", (mode) => {
   const card = token(mode, "card");
 

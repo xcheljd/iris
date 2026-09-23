@@ -514,7 +514,7 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                 </Button>
                 <Button variant="outline" size="sm" disabled>
                   <Upload className="size-4 mr-1" />Import Catalog
-                  <Badge variant="secondary" className="ml-2 text-[10px]">Coming Soon</Badge>
+                  <Badge variant="secondary" className="ml-2 text-xs tracking-wide">Coming Soon</Badge>
                 </Button>
               </div>
             </div>

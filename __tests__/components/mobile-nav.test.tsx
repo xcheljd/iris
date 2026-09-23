@@ -54,6 +54,17 @@ describe("MobileNav active state", () => {
     expect(link("Home").className).toContain("text-muted-foreground");
     expect(link("Home").className).not.toContain("before:");
   });
+
+  // The one sanctioned size below text-xs: 11px medium labels under the icons.
+  it("sets tab labels at 11px medium, not 10px", () => {
+    mockPathname = "/";
+    render(<MobileNav />);
+    for (const label of ["Home", "Clients"]) {
+      expect(link(label).className).toContain("text-[11px]");
+      expect(link(label).className).toContain("font-medium");
+      expect(link(label).className).not.toContain("text-[10px]");
+    }
+  });
 });
 
 describe("MobileNav More", () => {
