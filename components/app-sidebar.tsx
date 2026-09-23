@@ -44,6 +44,13 @@ const baseNav = [
 
 const ALL_NAV_HREFS = baseNav.flatMap((group) => group.items.map((item) => item.href));
 
+// Same treatment as the mobile tab bar's active tab, turned on its side: the
+// foreground colour plus a gold bar on the leading edge. The colour carries the
+// data-[active=true] variant so it replaces SidebarMenuButton's own active
+// colour (a bare text-* loses to it on specificity).
+const ACTIVE_ITEM =
+  "relative data-[active=true]:text-foreground before:absolute before:left-0 before:inset-y-2 before:w-0.5 before:rounded-full before:bg-meridian-gold-deep dark:before:bg-meridian-gold";
+
 // Prefix match so detail routes (e.g. /clients/<id>) highlight their parent
 // nav item; when multiple hrefs match (e.g. /analytics vs
 // /analytics/collections) the longest (deepest) href wins.
@@ -114,7 +121,7 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
                         {collapsed ? (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <SidebarMenuButton asChild isActive={active} className={cn(active && "text-accent")}>
+                              <SidebarMenuButton asChild isActive={active} className={cn(active && ACTIVE_ITEM)}>
                                 <Link href={item.href} onClick={closeMobile}>
                                   <item.icon className="size-4" />
                                 </Link>
@@ -123,7 +130,7 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
                             <TooltipContent side="right">{item.label}</TooltipContent>
                           </Tooltip>
                         ) : (
-                          <SidebarMenuButton asChild isActive={active} className={cn(active && "text-accent")}>
+                          <SidebarMenuButton asChild isActive={active} className={cn(active && ACTIVE_ITEM)}>
                             <Link href={item.href} onClick={closeMobile}>
                               <item.icon className="size-4" />
                               <span>{item.label}</span>

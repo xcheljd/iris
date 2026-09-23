@@ -57,6 +57,23 @@ describe("AppSidebar active state", () => {
     expect(activeLabel("Client List")).toBe("true");
   });
 
+  // Regression: the active item used `text-accent` (a 1.09:1 surface tint) —
+  // same bug Wave 1 fixed on the mobile tab bar. Match its treatment.
+  it("renders the active item in the foreground colour with a gold indicator", () => {
+    mockPathname = "/clients";
+    renderSidebar();
+    const item = (label: string) =>
+      screen.getAllByText(label).find((node) => node.closest("a"))!.closest("[data-active]")!;
+    const active = item("Client List");
+    const classes = active.className.split(/\s+/);
+    expect(classes).not.toContain("text-accent");
+    expect(classes).not.toContain("data-[active=true]:text-sidebar-accent-foreground");
+    expect(classes).toContain("data-[active=true]:text-foreground");
+    expect(classes).toContain("before:bg-meridian-gold-deep");
+    expect(classes).toContain("dark:before:bg-meridian-gold");
+    expect(item("Dashboard").className).not.toContain("before:bg-meridian-gold");
+  });
+
   it("lets the deepest match win between /analytics and /analytics/collections", () => {
     mockPathname = "/analytics/collections";
     renderSidebar();
