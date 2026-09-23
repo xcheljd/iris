@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { buttonVariants } from "@/components/ui/button";
 
 // Contrast math straight from the tokens in app/globals.css — jsdom has no
 // layout or paint, so this is how colour regressions get pinned. Alpha tints
@@ -55,6 +56,18 @@ it("meridian-gold-deep reads as light-mode text on the card and a gold/20 tint",
   expect(ratio(deep, card)).toBeGreaterThanOrEqual(4.5);
   expect(ratio(deep, over(hex("meridian-gold"), card, 0.2))).toBeGreaterThanOrEqual(4.5);
   expect(ratio(hex("meridian-gold"), over(hex("meridian-gold"), token("dark", "card"), 0.2))).toBeGreaterThanOrEqual(4.5);
+});
+
+// Regression: the gold button (login, Add client, Log outreach) was white on
+// the gold, 2.2:1. Read the fill and text straight off the variant.
+it("gold button text reads on its fill and on its /90 hover", () => {
+  const classes = buttonVariants({ variant: "gold" }).split(/\s+/);
+  const fill = hex(classes.find((c) => c.startsWith("bg-"))!.slice(3));
+  const text = hex(classes.find((c) => c.startsWith("text-meridian-"))!.slice(5));
+  expect(ratio(text, fill)).toBeGreaterThanOrEqual(4.5);
+  for (const mode of ["light", "dark"] as const) {
+    expect(ratio(text, over(fill, token(mode, "background"), 0.9))).toBeGreaterThanOrEqual(4.5);
+  }
 });
 
 describe.each(["light", "dark"] as const)("theme tokens (%s)", (mode) => {

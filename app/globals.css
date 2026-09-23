@@ -61,6 +61,9 @@
      indicators and the 4.5:1 floor for text; use this deeper step in light mode
      (6.0:1 on the card, 5.1:1 on a gold/20 tint) and the gold itself in dark. */
   --color-meridian-gold-deep: #7a6019;
+  /* Text on a solid gold fill (the gold button) in both modes — white on the
+     gold was 2.2:1; this warm near-black is 7.7:1. */
+  --color-meridian-gold-foreground: #1c1917;
 
   --color-heat-hot: hsl(var(--heat-hot));
   --color-heat-warm: hsl(var(--heat-warm));
