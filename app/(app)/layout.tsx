@@ -14,7 +14,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <CommandPaletteProvider>
         <OnboardingProvider>
           <AppSidebar />
-          <SidebarInset className="relative">
+          {/* Bottom padding clears the fixed MobileNav (and the home-indicator inset) below md. */}
+          <SidebarInset className="relative pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0">
             <RouteFade>{children}</RouteFade>
             <PageTransitionOverlay />
           </SidebarInset>

@@ -1,10 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { MobileNav } from "@/components/mobile-nav";
 
 let mockPathname = "/";
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
+}));
+
+const setOpenMobile = vi.fn();
+vi.mock("@/components/ui/sidebar", () => ({
+  useSidebar: () => ({ setOpenMobile }),
 }));
 
 function link(label: string) {
@@ -48,5 +53,24 @@ describe("MobileNav active state", () => {
     expect(active).toContain("dark:before:bg-meridian-gold");
     expect(link("Home").className).toContain("text-muted-foreground");
     expect(link("Home").className).not.toContain("before:");
+  });
+});
+
+describe("MobileNav More", () => {
+  // Regression: "More" linked to /settings, so Prospects, Promos and Smart
+  // Lists (which live only in the sidebar) were unreachable on a phone.
+  it("opens the mobile sidebar sheet instead of navigating", () => {
+    setOpenMobile.mockClear();
+    mockPathname = "/";
+    render(<MobileNav />);
+    const more = screen.getByRole("button", { name: "More" });
+    expect(more.closest("a")).toBeNull();
+    fireEvent.click(more);
+    expect(setOpenMobile).toHaveBeenCalledWith(true);
+  });
+
+  it("pads the bar by the bottom safe-area inset", () => {
+    render(<MobileNav />);
+    expect(screen.getByRole("navigation").className).toContain("pb-[env(safe-area-inset-bottom)]");
   });
 });
