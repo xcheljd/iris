@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, afterEach } from "vitest";
+import { vi, describe, it, expect, afterEach, beforeEach } from "vitest";
 
 vi.mock("next-auth", () => ({
   getServerSession: vi.fn(),
@@ -12,6 +12,8 @@ import { getServerSession } from "next-auth";
 import type { Session } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { logOutreach, markFollowUpComplete, rescheduleFollowUp } from "@/lib/actions";
+import { getOverdueFollowUps, getUpcomingFollowUps } from "@/lib/queries";
+import { formatDate } from "@/lib/utils";
 import { db } from "@/lib/db";
 import { outreachLogs, activityEvents, clients } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -369,7 +371,84 @@ describe("Outreach Actions", () => {
 
       expect(result).toBeUndefined();
       const after = db.select().from(outreachLogs).where(eq(outreachLogs.id, log.id)).get();
-      expect(after!.followUpDate).toEqual(new Date("2027-01-05"));
+      expect(after!.followUpDate).toEqual(new Date(2027, 0, 5));
+    });
+  });
+
+  // Regression: follow-up dates were parsed with `new Date("YYYY-MM-DD")`, i.e. UTC
+  // midnight. West of Greenwich that is the previous evening, so a follow-up for
+  // Sep 25 rendered as "Sep 24" and turned overdue at 5pm on the 24th.
+  describe("follow-up dates in a negative-offset timezone", () => {
+    // 2026-09-24 20:00 PDT — the UTC day has already rolled over to the 25th.
+    const EVENING_BEFORE = new Date("2026-09-25T03:00:00.000Z");
+    let savedTz: string | undefined;
+
+    beforeEach(() => {
+      savedTz = process.env.TZ;
+      process.env.TZ = "America/Los_Angeles";
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(EVENING_BEFORE);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+      process.env.TZ = savedTz;
+    });
+
+    function findLog(marker: string) {
+      const log = db.select().from(outreachLogs)
+        .where(eq(outreachLogs.clientId, FIRST_CLIENT_ID))
+        .all()
+        .find((l) => l.notes === marker);
+      expect(log).toBeDefined();
+      createdLogIds.push(log!.id);
+      return log!;
+    }
+
+    it("is not overdue the evening before and displays as the picked day", async () => {
+      // Guard the fixture: without TZ and the frozen clock this passes for the wrong reason.
+      expect(new Date().getHours()).toBe(20);
+      expect(new Date().getDate()).toBe(24);
+
+      await logOutreach({
+        clientId: FIRST_CLIENT_ID,
+        method: "call",
+        outcome: "wants_to_come_in",
+        followUpDate: "2026-09-25",
+        notes: "tz-follow-up-log",
+      });
+      const log = findLog("tz-follow-up-log");
+
+      expect(log.followUpDate).toEqual(new Date(2026, 8, 25));
+      expect(formatDate(log.followUpDate)).toBe("Sep 25, 2026");
+      const overdue = await getOverdueFollowUps(MANAGER_ID);
+      expect(overdue.map((r) => r.log.id)).not.toContain(log.id);
+      const upcoming = await getUpcomingFollowUps(MANAGER_ID);
+      expect(upcoming.map((r) => r.log.id)).toContain(log.id);
+    });
+
+    it("reschedules to local midnight and logs the picked day", async () => {
+      await logOutreach({
+        clientId: FIRST_CLIENT_ID,
+        method: "call",
+        outcome: "wants_to_come_in",
+        followUpDate: "2026-09-24",
+        notes: "tz-follow-up-reschedule",
+      });
+      const log = findLog("tz-follow-up-reschedule");
+
+      expect(await rescheduleFollowUp(log.id, "2026-09-25")).toBeUndefined();
+
+      const after = db.select().from(outreachLogs).where(eq(outreachLogs.id, log.id)).get();
+      expect(after!.followUpDate).toEqual(new Date(2026, 8, 25));
+      const overdue = await getOverdueFollowUps(MANAGER_ID);
+      expect(overdue.map((r) => r.log.id)).not.toContain(log.id);
+      const event = db.select().from(activityEvents)
+        .where(eq(activityEvents.clientId, FIRST_CLIENT_ID))
+        .all()
+        .find((e) => e.description === "Follow-up rescheduled to Sep 25, 2026 by Marcus");
+      expect(event).toBeDefined();
     });
   });
 });

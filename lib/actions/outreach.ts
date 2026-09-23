@@ -7,7 +7,7 @@ import { randomUUID } from "crypto";
 import { calcHeatScore } from "@/lib/heat-score";
 import { MS_PER_DAY, HEAT_LOOKBACK_DAYS } from "@/lib/constants";
 import { outreachInputSchema, followUpDateSchema, type OutreachInput } from "@/lib/validation/outreach";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { requireAuth } from "./_shared";
 
 export async function recalcHeat(clientId: string) {
@@ -67,7 +67,7 @@ export async function logOutreach(data: OutreachInput): Promise<{ error: string 
         purchasedModel: parsed.outcome === "purchased" ? parsed.purchasedModel || null : null,
         notes: parsed.notes || null,
         employeeId: user.id,
-        followUpDate: parsed.followUpDate ? new Date(parsed.followUpDate) : null,
+        followUpDate: parsed.followUpDate ? parseISO(parsed.followUpDate) : null,
         templateId: parsed.templateId || null,
         completed: false,
       }).run();
@@ -122,14 +122,17 @@ export async function rescheduleFollowUp(logId: string, newDate: string): Promis
   const user = await requireAuth();
   // `new Date("whatever")` yields an Invalid Date, which Drizzle happily writes as NaN.
   if (!followUpDateSchema.safeParse(newDate).success) return { error: "Invalid date" };
+  // parseISO reads a date-only string as local midnight; `new Date("2026-09-25")` is UTC
+  // midnight, which is the evening of the 24th west of Greenwich.
+  const followUpDate = parseISO(newDate);
   const log = db.select({ clientId: outreachLogs.clientId, employeeId: outreachLogs.employeeId }).from(outreachLogs).where(eq(outreachLogs.id, logId)).get();
   if (!log) return { error: "Follow-up not found" };
   if (user.role !== "manager" && log.employeeId !== user.id) return { error: "Not authorized to reschedule this follow-up" };
   try {
     db.transaction((tx) => {
-      tx.update(outreachLogs).set({ followUpDate: new Date(newDate) }).where(eq(outreachLogs.id, logId)).run();
+      tx.update(outreachLogs).set({ followUpDate }).where(eq(outreachLogs.id, logId)).run();
       tx.insert(activityEvents).values({
-        id: randomUUID(), clientId: log.clientId, eventType: "outreach_logged", description: `Follow-up rescheduled to ${format(new Date(newDate), "MMM d, yyyy")} by ${user.name}`, employeeId: user.id,
+        id: randomUUID(), clientId: log.clientId, eventType: "outreach_logged", description: `Follow-up rescheduled to ${format(followUpDate, "MMM d, yyyy")} by ${user.name}`, employeeId: user.id,
       }).run();
     });
   } catch (err) {
