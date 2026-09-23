@@ -10,6 +10,18 @@
  */
 
 import type { ClientFilterParams } from "@/lib/client-filter-conds";
+import type { BuiltInFilter } from "@/lib/queries";
+
+/** Labels for the `?filter=` quick filters (dashboard stat cards, filter menu). */
+export const QUICK_FILTER_LABELS: Record<BuiltInFilter, string> = {
+  hot: "Hot clients",
+  stale: "Stale (90+ days)",
+  recent_purchases: "Recent purchases",
+  no_outreach_60: "No outreach (60d)",
+  birthdays_month: "Birthdays this month",
+  anniversaries_month: "Anniversaries this month",
+  email_subscribers: "Email subscribers",
+};
 
 /** Smart-list filter shape — same keys as ClientFilterParams plus a few legacy/extra ones. */
 export interface SmartListFilters extends ClientFilterParams {
@@ -61,12 +73,14 @@ export function smartListToClientFilters(raw: Record<string, unknown>): ClientFi
   if (typeof f.lastContactTo === "number") out.lastContactTo = f.lastContactTo;
   if (typeof f.createdFrom === "number") out.createdFrom = f.createdFrom;
   if (typeof f.createdTo === "number") out.createdTo = f.createdTo;
+  if (typeof f.filter === "string" && Object.hasOwn(QUICK_FILTER_LABELS, f.filter)) out.filter = f.filter;
 
   return out;
 }
 
 /** Stable identifiers for each removable filter chip. */
 export type ClientFilterChipKey =
+  | "quickFilter"
   | "q"
   | "nameQ"
   | "contactQ"
@@ -90,6 +104,9 @@ export interface ClientFilterChip {
  */
 export function getActiveFilterChips(f: ClientFilterParams): ClientFilterChip[] {
   const chips: ClientFilterChip[] = [];
+  if (f.filter && Object.hasOwn(QUICK_FILTER_LABELS, f.filter)) {
+    chips.push({ key: "quickFilter", label: QUICK_FILTER_LABELS[f.filter as BuiltInFilter] });
+  }
   if (f.q && f.q.trim()) chips.push({ key: "q", label: `Search: "${f.q.trim()}"` });
   if (f.nameQ && f.nameQ.trim()) chips.push({ key: "nameQ", label: `Name: "${f.nameQ.trim()}"` });
   if (f.contactQ && f.contactQ.trim()) chips.push({ key: "contactQ", label: `Contact: "${f.contactQ.trim()}"` });
@@ -125,6 +142,7 @@ export function describeClientFilters(f: ClientFilterParams): string[] {
 /** Returns true if any user-driven filter is active. */
 export function hasActiveClientFilters(f: ClientFilterParams): boolean {
   return Boolean(
+    f.filter ||
     f.q ||
     f.nameQ ||
     f.contactQ ||
@@ -169,5 +187,6 @@ export function clientFiltersToSearchParams(f: ClientFilterParams): URLSearchPar
   if (f.lastContactTo) sp.set("lastContactTo", String(f.lastContactTo));
   if (f.createdFrom) sp.set("createdFrom", String(f.createdFrom));
   if (f.createdTo) sp.set("createdTo", String(f.createdTo));
+  if (f.filter) sp.set("filter", f.filter);
   return sp;
 }

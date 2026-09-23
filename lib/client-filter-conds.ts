@@ -5,7 +5,9 @@
  * server action (lib/actions/email-recipients.ts) accept the same set of
  * user-driven filters from the Clients page. This module is the single source
  * of truth for translating those filters into Drizzle SQL conditions, so the
- * two paths stay in lockstep when new filters are added.
+ * two paths stay in lockstep when new filters are added. The CSV export and
+ * custom smart lists build from here too, and so does the `?filter=` quick
+ * filter, so every "what's on screen" scope matches the listing.
  *
  * Note: callers layer in their own *base* conds (status restrictions,
  * onEmailList=true for email export, employeeId scoping, etc.). This helper
@@ -13,10 +15,11 @@
  * Owner filter needs an `employees` join.
  */
 
-import { eq, isNull, or, sql as rawSql, gte, lte, type SQL } from "drizzle-orm";
+import { and, eq, isNull, or, sql as rawSql, gte, lte, type SQL } from "drizzle-orm";
 import { clients, employees } from "@/lib/db/schema";
 import { toFtsQuery } from "@/lib/fts";
 import { containsLikeLower, containsPhone } from "@/lib/like";
+import { SEC_PER_DAY } from "@/lib/constants";
 
 export interface ClientFilterParams {
   /** Global free-text search (matches name OR email OR phone). */
@@ -35,6 +38,8 @@ export interface ClientFilterParams {
   /** Unix seconds bounds for clients.createdAt. */
   createdFrom?: number;
   createdTo?: number;
+  /** Built-in quick filter from `?filter=` (a BuiltInFilter id; unknown ids are ignored). */
+  filter?: string;
 }
 
 export interface BuiltClientFilterConds {
@@ -46,7 +51,7 @@ export interface BuiltClientFilterConds {
 export function buildClientFilterConds(filters: ClientFilterParams): BuiltClientFilterConds {
   const {
     q, nameQ, contactQ, heat, owner, tags, tagMode = "any",
-    lastContactFrom, lastContactTo, createdFrom, createdTo,
+    lastContactFrom, lastContactTo, createdFrom, createdTo, filter,
   } = filters;
 
   const conds: SQL<unknown>[] = [];
@@ -105,5 +110,39 @@ export function buildClientFilterConds(filters: ClientFilterParams): BuiltClient
   if (createdFrom !== undefined) conds.push(gte(clients.createdAt, new Date(createdFrom * 1000)));
   if (createdTo !== undefined) conds.push(lte(clients.createdAt, new Date(createdTo * 1000)));
 
+  if (filter) conds.push(...quickFilterConds(filter));
+
   return { conds, needsEmployeeJoin };
+}
+
+function quickFilterConds(filter: string): SQL<unknown>[] {
+  const nowSec = Math.floor(Date.now() / 1000);
+  const month = String(new Date().getMonth() + 1).padStart(2, "0");
+  switch (filter) {
+    case "hot":
+      return [eq(clients.heatLevel, "hot"), eq(clients.status, "active")];
+    case "stale":
+      return [
+        eq(clients.status, "active"),
+        or(
+          and(isNull(clients.lastOutreachAt), isNull(clients.lastPurchaseAt)),
+          rawSql`MAX(COALESCE(${clients.lastOutreachAt}, 0), COALESCE(${clients.lastPurchaseAt}, 0)) < ${nowSec - 90 * SEC_PER_DAY}`,
+        )!,
+      ];
+    case "recent_purchases":
+      return [rawSql`${clients.lastPurchaseAt} > ${nowSec - 30 * SEC_PER_DAY}`];
+    case "no_outreach_60":
+      return [
+        eq(clients.status, "active"),
+        or(isNull(clients.lastOutreachAt), rawSql`${clients.lastOutreachAt} < ${nowSec - 60 * SEC_PER_DAY}`)!,
+      ];
+    case "birthdays_month":
+      return [rawSql`substr(${clients.birthday}, 6, 2) = ${month}`];
+    case "anniversaries_month":
+      return [rawSql`substr(${clients.anniversary}, 6, 2) = ${month}`];
+    case "email_subscribers":
+      return [eq(clients.onEmailList, true), rawSql`${clients.status} != 'unsubscribed'`];
+    default:
+      return [];
+  }
 }

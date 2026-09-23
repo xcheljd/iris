@@ -130,56 +130,18 @@ export async function getClientsWithEmployeePaginated(
   },
 ) {
   const { q, nameQ, contactQ, heat, owner, filter, tags, tagMode = "any", lastContactFrom, lastContactTo, createdFrom, createdTo, sort = "heat", sortDir = "desc", page = 1, pageSize = DEFAULT_PAGE_SIZE } = opts;
-  const nowSec = Math.floor(Date.now() / 1000);
-
+  // The ?filter= quick filter goes through the shared builder too, so the
+  // email-recipients, CSV-export and smart-list queries match this listing.
   const { conds: filterConds } = buildClientFilterConds({
     q, nameQ, contactQ, heat, owner, tags, tagMode,
     lastContactFrom, lastContactTo, createdFrom, createdTo,
+    filter: filter === "all" ? undefined : filter,
   });
   const conds: (SQL<unknown> | undefined)[] = [
     notInArray(clients.status, ["banned", "deleted"]),
     employeeId ? eq(clients.employeeId, employeeId) : undefined,
     ...filterConds,
   ];
-
-  if (filter && filter !== "all") {
-    switch (filter) {
-      case "hot":
-        conds.push(eq(clients.heatLevel, "hot"), eq(clients.status, "active"));
-        break;
-      case "stale":
-        conds.push(
-          eq(clients.status, "active"),
-          or(
-            and(isNull(clients.lastOutreachAt), isNull(clients.lastPurchaseAt)),
-            rawSql`MAX(COALESCE(${clients.lastOutreachAt}, 0), COALESCE(${clients.lastPurchaseAt}, 0)) < ${nowSec - 90 * SEC_PER_DAY}`,
-          ),
-        );
-        break;
-      case "recent_purchases":
-        conds.push(rawSql`${clients.lastPurchaseAt} > ${nowSec - 30 * SEC_PER_DAY}`);
-        break;
-      case "no_outreach_60":
-        conds.push(
-          eq(clients.status, "active"),
-          or(isNull(clients.lastOutreachAt), rawSql`${clients.lastOutreachAt} < ${nowSec - 60 * SEC_PER_DAY}`),
-        );
-        break;
-      case "birthdays_month": {
-        const bmonth = String(new Date().getMonth() + 1).padStart(2, "0");
-        conds.push(rawSql`substr(${clients.birthday}, 6, 2) = ${bmonth}`);
-        break;
-      }
-      case "anniversaries_month": {
-        const amonth = String(new Date().getMonth() + 1).padStart(2, "0");
-        conds.push(rawSql`substr(${clients.anniversary}, 6, 2) = ${amonth}`);
-        break;
-      }
-      case "email_subscribers":
-        conds.push(eq(clients.onEmailList, true), rawSql`${clients.status} != 'unsubscribed'`);
-        break;
-    }
-  }
 
   const whereClause = and(...conds);
   const dirFn = sortDir === "asc" ? asc : desc;

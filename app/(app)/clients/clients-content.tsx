@@ -44,15 +44,6 @@ import type { BuiltInFilter } from "@/lib/queries";
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
-const QUICK_FILTER_LABELS: Record<BuiltInFilter, string> = {
-  hot: "Hot clients",
-  stale: "Stale (90+ days)",
-  recent_purchases: "Recent purchases",
-  no_outreach_60: "No outreach (60d)",
-  birthdays_month: "Birthdays this month",
-  anniversaries_month: "Anniversaries this month",
-  email_subscribers: "Email subscribers",
-};
 const SEARCH_HISTORY_KEY = "iris:recent-searches:clients";
 
 type SortKey = "name" | "heat" | "lastContact" | "owner";
@@ -126,7 +117,8 @@ export function ClientListContent({
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Stable filter object for the EmailRecipientsDialog — prevents refetch
-  // on every parent re-render. Joining tags keeps the dep primitive.
+  // on every parent re-render. Joining tags keeps the dep primitive. Carries
+  // the ?filter= quick filter so the dialogs scope to exactly what's listed.
   const tagsKey = currentFilters.tags.join(",");
   const emailRecipientFilters = useMemo(
     () => ({
@@ -141,18 +133,20 @@ export function ClientListContent({
       lastContactTo: currentFilters.lastContactTo,
       createdFrom: currentFilters.createdFrom,
       createdTo: currentFilters.createdTo,
+      filter: currentFilters.filter,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       currentFilters.q, currentFilters.nameQ, currentFilters.contactQ,
       currentFilters.heat, currentFilters.owner, tagsKey, currentFilters.tagMode,
       currentFilters.lastContactFrom, currentFilters.lastContactTo,
-      currentFilters.createdFrom, currentFilters.createdTo,
+      currentFilters.createdFrom, currentFilters.createdTo, currentFilters.filter,
     ],
   );
 
   function clearFilterChip(key: ClientFilterChipKey) {
     switch (key) {
+      case "quickFilter": navigate({ filter: undefined, page: 1 }); break;
       case "q": setQLocal(""); navigate({ q: "", page: 1 }); break;
       case "nameQ": navigate({ nameQ: "", page: 1 }); break;
       case "contactQ": navigate({ contactQ: "", page: 1 }); break;
@@ -581,11 +575,8 @@ export function ClientListContent({
 
         {/* Active filters strip — only renders when filters are active */}
         <ActiveFilterChips
-          chips={[
-            ...(currentFilters.filter ? [{ key: "quickFilter" as const, label: QUICK_FILTER_LABELS[currentFilters.filter] }] : []),
-            ...getActiveFilterChips(emailRecipientFilters),
-          ]}
-          onRemove={(key) => (key === "quickFilter" ? navigate({ filter: undefined, page: 1 }) : clearFilterChip(key))}
+          chips={getActiveFilterChips(emailRecipientFilters)}
+          onRemove={clearFilterChip}
           onClearAll={clearAllFilters}
         />
 
