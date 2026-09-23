@@ -58,40 +58,65 @@ interface AnalyticsContentProps {
   employees?: EmployeeRow[];
   selectedEmployeeId?: string;
   prospectFunnel: ProspectFunnelStats;
+  /** Outreach date range from `?from=` / `?to=`, unix seconds. */
+  dateFrom?: number;
+  dateTo?: number;
 }
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
-export function AnalyticsContent({ stats, recentOutreach, employees, selectedEmployeeId, prospectFunnel }: AnalyticsContentProps) {
+function countMethods(rows: OutreachRow[]) {
+  const counts: Record<string, number> = { call: 0, text: 0, email: 0, "in-person": 0 };
+  rows.forEach((r) => {
+    if (counts[r.log.method] !== undefined) counts[r.log.method]++;
+  });
+  return Object.entries(counts).map(([method, count]) => ({
+    method,
+    count,
+    label: method === "in-person" ? "In-Person" : method.charAt(0).toUpperCase() + method.slice(1),
+  }));
+}
+
+export function AnalyticsContent({ stats, recentOutreach, employees, selectedEmployeeId, prospectFunnel, dateFrom: fromTs, dateTo: toTs }: AnalyticsContentProps) {
   const router = useRouter();
-  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
-  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const dateFrom = fromTs ? new Date(fromTs * 1000) : undefined;
+  const dateTo = toTs ? new Date(toTs * 1000) : undefined;
+  const [tab, setTab] = useState("overview");
   const [outreachPage, setOutreachPage] = useState(1);
 
+  // The single URL writer: employee (managers only) and the date range.
+  function navigate(next: { employee?: string; from?: Date; to?: Date }, history: "push" | "replace" = "replace") {
+    const sp = new URLSearchParams();
+    if (next.employee) sp.set("employee", next.employee);
+    if (next.from) sp.set("from", String(Math.floor(next.from.getTime() / 1000)));
+    if (next.to) sp.set("to", String(Math.floor(next.to.getTime() / 1000)));
+    const qs = sp.toString();
+    const url = qs ? `/analytics?${qs}` : "/analytics";
+    if (history === "push") router.push(url, { scroll: false });
+    else router.replace(url, { scroll: false });
+  }
+  const current = { employee: employees ? selectedEmployeeId : undefined, from: dateFrom, to: dateTo };
+
   const filteredOutreach = useMemo(() => {
-    if (!dateFrom && !dateTo) return recentOutreach;
+    if (!fromTs && !toTs) return recentOutreach;
+    const from = fromTs ? startOfDay(new Date(fromTs * 1000)) : undefined;
+    const to = toTs ? endOfDay(new Date(toTs * 1000)) : undefined;
     return recentOutreach.filter((r) => {
       const d = new Date(r.log.date);
-      if (dateFrom && isBefore(d, startOfDay(dateFrom))) return false;
-      if (dateTo && isAfter(d, endOfDay(dateTo))) return false;
+      if (from && isBefore(d, from)) return false;
+      if (to && isAfter(d, to)) return false;
       return true;
     });
-  }, [recentOutreach, dateFrom, dateTo]);
+  }, [recentOutreach, fromTs, toTs]);
 
   const outreachTotalPages = Math.ceil(filteredOutreach.length / PAGE_SIZE);
-  const pagedOutreach = filteredOutreach.slice((outreachPage - 1) * PAGE_SIZE, outreachPage * PAGE_SIZE);
+  // Back/forward can narrow the range under a later page; clamp rather than show an empty one.
+  const page = Math.min(outreachPage, Math.max(1, outreachTotalPages));
+  const pagedOutreach = filteredOutreach.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const methodDistribution = useMemo(() => {
-    const counts: Record<string, number> = { call: 0, text: 0, email: 0, "in-person": 0 };
-    filteredOutreach.forEach((r) => {
-      if (counts[r.log.method] !== undefined) counts[r.log.method]++;
-    });
-    return Object.entries(counts).map(([method, count]) => ({
-      method,
-      count,
-      label: method === "in-person" ? "In-Person" : method.charAt(0).toUpperCase() + method.slice(1),
-    }));
-  }, [filteredOutreach]);
+  const methodDistribution = useMemo(() => countMethods(filteredOutreach), [filteredOutreach]);
+  // The Overview ignores the date range, so it gets the unfiltered counts.
+  const recentMethodDistribution = useMemo(() => countMethods(recentOutreach), [recentOutreach]);
 
   const outcomeDistribution = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -112,14 +137,12 @@ export function AnalyticsContent({ stats, recentOutreach, employees, selectedEmp
     : 0;
 
   const clearDates = () => {
-    setDateFrom(undefined);
-    setDateTo(undefined);
     setOutreachPage(1);
+    navigate({ ...current, from: undefined, to: undefined });
   };
 
   const handleEmployeeChange = (value: string) => {
-    const params = value === "all" ? "" : `?employee=${value}`;
-    router.push(`/analytics${params}`);
+    navigate({ ...current, employee: value === "all" ? undefined : value }, "push");
   };
 
   return (
@@ -149,26 +172,32 @@ export function AnalyticsContent({ stats, recentOutreach, employees, selectedEmp
                 </SelectContent>
               </Select>
             )}
-            <DatePicker
-              date={dateFrom}
-              onSelectAction={(d) => { setDateFrom(d); setOutreachPage(1); }}
-              placeholder="From"
-            />
-            <span className="text-muted-foreground text-sm">to</span>
-            <DatePicker
-              date={dateTo}
-              onSelectAction={(d) => { setDateTo(d); setOutreachPage(1); }}
-              placeholder="To"
-            />
-            {(dateFrom || dateTo) && (
-              <Button variant="ghost" size="sm" onClick={clearDates}>
-                Clear
-              </Button>
+            {/* The range filters the Outreach tab only; the other tabs are
+                fixed-window or point-in-time, so the pickers would do nothing there. */}
+            {tab === "outreach" && (
+              <>
+                <DatePicker
+                  date={dateFrom}
+                  onSelectAction={(d) => { setOutreachPage(1); navigate({ ...current, from: d }); }}
+                  placeholder="From"
+                />
+                <span className="text-muted-foreground text-sm">to</span>
+                <DatePicker
+                  date={dateTo}
+                  onSelectAction={(d) => { setOutreachPage(1); navigate({ ...current, to: d }); }}
+                  placeholder="To"
+                />
+                {(dateFrom || dateTo) && (
+                  <Button variant="ghost" size="sm" onClick={clearDates}>
+                    Clear
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </div>
 
-        <Tabs defaultValue="overview" className="space-y-6">
+        <Tabs value={tab} onValueChange={setTab} className="space-y-6">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="outreach">Outreach</TabsTrigger>
@@ -180,7 +209,7 @@ export function AnalyticsContent({ stats, recentOutreach, employees, selectedEmp
             <AnalyticsOverviewTab
               stats={stats}
               conversionRate={conversionRate}
-              methodDistribution={methodDistribution}
+              methodDistribution={recentMethodDistribution}
             />
           </TabsContent>
 
@@ -188,7 +217,7 @@ export function AnalyticsContent({ stats, recentOutreach, employees, selectedEmp
             <AnalyticsOutreachTab
               pagedOutreach={pagedOutreach}
               totalOutreach={totalOutreach}
-              page={outreachPage}
+              page={page}
               setPage={setOutreachPage}
               totalPages={outreachTotalPages}
               totalFiltered={filteredOutreach.length}

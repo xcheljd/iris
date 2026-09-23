@@ -107,7 +107,7 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
           </HoverCardTrigger>
           <HoverCardContent className="w-64">
             <div className="flex flex-col gap-1">
-              <p className="text-sm font-medium">Outreach Methods (7d)</p>
+              <p className="text-sm font-medium">Outreach Methods (last 50 logs)</p>
               <Separator />
               {methodDistribution.map((m) => (
                 <div key={m.method} className="flex justify-between text-sm">
@@ -160,7 +160,7 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Conversion</p>
+                    <p className="text-sm text-muted-foreground">Conversion (last 7 days)</p>
                     <p className="text-2xl font-bold">{conversionRate}%</p>
                   </div>
                   <Target className="size-8 text-orange-500" />

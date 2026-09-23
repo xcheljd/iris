@@ -30,6 +30,13 @@ async function AnalyticsFetcher({ searchParams }: { searchParams: SearchParams }
     employeeId = session.user.id;
   }
 
+  // Outreach date range, unix seconds (same shape as the clients list's date filters).
+  const parseTs = (v: string | string[] | undefined) => {
+    if (typeof v !== "string") return undefined;
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  };
+
   const [stats, recentOutreach, prospectFunnel] = await Promise.all([
     getStats(employeeId),
     getRecentOutreach(50, employeeId),
@@ -42,6 +49,8 @@ async function AnalyticsFetcher({ searchParams }: { searchParams: SearchParams }
       employees={employees}
       selectedEmployeeId={employeeId}
       prospectFunnel={prospectFunnel}
+      dateFrom={parseTs(sp.from)}
+      dateTo={parseTs(sp.to)}
     />
   );
 }
