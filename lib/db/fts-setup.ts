@@ -19,6 +19,11 @@
  */
 
 import type Database from "better-sqlite3";
+import { phoneDigitsSql } from "@/lib/like";
+
+// The phone column carries the stored (formatted) number plus a digits-only
+// copy, so "2088535042" finds "(208) 853-5042".
+const PHONE_PROJECTION = `COALESCE(c.phone, '') || ' ' || ${phoneDigitsSql("COALESCE(c.phone, '')")}`;
 
 export function setupClientsFts(sqlite: Database.Database) {
   // Self-healing column adds: ensure columns the app expects exist even when
@@ -45,9 +50,10 @@ export function setupClientsFts(sqlite: Database.Database) {
   }
 
   // Schema migration: if clients_fts exists but lacks the `promos` column
-  // (added for collection-name search via promo_matches), drop the whole FTS
-  // table and its triggers so we can recreate them cleanly. Backfill below
-  // will repopulate. This runs at most once per installation.
+  // (added for collection-name search via promo_matches), or its triggers
+  // predate the digits-only phone projection, drop the whole FTS table and
+  // its triggers so we can recreate them cleanly. Backfill below will
+  // repopulate. Each migration runs at most once per installation.
   const ftsExists = sqlite
     .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='clients_fts'")
     .get();
@@ -55,7 +61,11 @@ export function setupClientsFts(sqlite: Database.Database) {
     const hasPromosCol = sqlite
       .prepare("SELECT 1 FROM pragma_table_info('clients_fts') WHERE name='promos'")
       .get();
-    if (!hasPromosCol) {
+    const insertTrigger = sqlite
+      .prepare("SELECT sql FROM sqlite_master WHERE type='trigger' AND name='clients_fts_after_insert'")
+      .get() as { sql: string } | undefined;
+    const hasPhoneDigits = insertTrigger?.sql.includes(PHONE_PROJECTION) ?? false;
+    if (!hasPromosCol || !hasPhoneDigits) {
       sqlite.exec("DROP TRIGGER IF EXISTS clients_fts_after_insert");
       sqlite.exec("DROP TRIGGER IF EXISTS clients_fts_after_update");
       sqlite.exec("DROP TRIGGER IF EXISTS clients_fts_after_delete");
@@ -95,7 +105,7 @@ export function setupClientsFts(sqlite: Database.Database) {
       c.id,
       TRIM(c.first_name || ' ' || COALESCE(c.last_name, '')),
       COALESCE(c.email, ''),
-      COALESCE(c.phone, ''),
+      ${PHONE_PROJECTION},
       COALESCE(c.notes, ''),
       COALESCE((SELECT group_concat(value, ' ') FROM json_each(c.products_of_interest)), ''),
       COALESCE((SELECT group_concat(pw.model_number || ' ' || pw.collection, ' ')

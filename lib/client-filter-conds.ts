@@ -16,7 +16,7 @@
 import { eq, isNull, or, sql as rawSql, gte, lte, type SQL } from "drizzle-orm";
 import { clients, employees } from "@/lib/db/schema";
 import { toFtsQuery } from "@/lib/fts";
-import { containsLike, containsLikeLower } from "@/lib/like";
+import { containsLikeLower, containsPhone } from "@/lib/like";
 
 export interface ClientFilterParams {
   /** Global free-text search (matches name OR email OR phone). */
@@ -70,7 +70,7 @@ export function buildClientFilterConds(filters: ClientFilterParams): BuiltClient
     const cq = contactQ.toLowerCase();
     const orCond = or(
       containsLikeLower(rawSql`COALESCE(${clients.email}, '')`, cq),
-      containsLike(rawSql`COALESCE(${clients.phone}, '')`, cq),
+      containsPhone(rawSql`COALESCE(${clients.phone}, '')`, cq),
     );
     if (orCond) conds.push(orCond);
   }

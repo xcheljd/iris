@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bannedCustomers, unsubscribeList, employees, clientTags, outreachTemplates, smartLists, rvxImportBatches, prospects } from "@/lib/db/schema";
 import { eq, desc, asc, and, or, isNull, isNotNull, lte, gte, gt, inArray, notInArray, sql as rawSql } from "drizzle-orm";
-import { containsLike, containsLikeLower } from "@/lib/like";
+import { containsLike, containsLikeLower, containsPhone } from "@/lib/like";
 import { sameEmail } from "@/lib/email-identity";
 import type { SQL } from "drizzle-orm";
 import { BRAND_VALUES, type Brand } from "@/lib/db/schema";
@@ -810,7 +810,7 @@ export async function searchProspects(query: string): Promise<SearchProspectHit[
         containsLikeLower(prospects.firstName, term),
         containsLikeLower(prospects.lastName, term),
         containsLikeLower(prospects.email, term),
-        containsLike(prospects.phone, term),
+        containsPhone(prospects.phone, term),
       ),
     ))
     .limit(5)
@@ -1055,7 +1055,7 @@ export async function listProspects(opts: ProspectListOptions = {}) {
     conds.push(or(
       containsLike(prospects.firstName, term),
       containsLike(prospects.lastName, term),
-      containsLike(prospects.phone, term),
+      containsPhone(prospects.phone, term),
       containsLike(prospects.email, term),
     ));
   }

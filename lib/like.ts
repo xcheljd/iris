@@ -51,3 +51,27 @@ export function containsLike(column: Column | SQL, term: string): SQL {
 export function containsLikeLower(column: Column | SQL, term: string): SQL {
   return rawSql`lower(${column}) LIKE ${likePattern(term)} ESCAPE '\\'`;
 }
+
+// Phone formatting characters stripped before a digits-only comparison.
+// Phones are stored formatted — "(208) 853-5042" — so a caller typing the
+// bare digits "2088535042" matches nothing against the raw column.
+const PHONE_FORMATTING = ["(", ")", "-", " ", "."];
+
+/**
+ * SQL text for `expr` with phone formatting removed. Raw-string form for the
+ * FTS projection in `lib/db/fts-setup.ts`; `expr` must be trusted SQL.
+ */
+export function phoneDigitsSql(expr: string): string {
+  return PHONE_FORMATTING.reduce((acc, ch) => `REPLACE(${acc}, '${ch}', '')`, expr);
+}
+
+/**
+ * Substring match on a phone column. A digits-only term (3+ digits) is
+ * compared against the column with formatting stripped, so "2088535042" finds
+ * "(208) 853-5042"; any other term matches the raw column as before.
+ */
+export function containsPhone(column: Column | SQL, term: string): SQL {
+  if (!/^\d{3,}$/.test(term)) return containsLike(column, term);
+  const digits = PHONE_FORMATTING.reduce<SQL>((acc, ch) => rawSql`REPLACE(${acc}, ${ch}, '')`, rawSql`${column}`);
+  return containsLike(digits, term);
+}
