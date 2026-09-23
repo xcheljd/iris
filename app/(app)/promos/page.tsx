@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { listPromos, getPromoMatchCounts, getMatchedClients, PROMO_SORT_KEYS, type PromoSortKey } from "@/lib/queries";
-import { getSession } from "@/lib/auth";
+import { requirePageSession } from "@/lib/auth";
 import { PromosContent } from "./promos-content";
 import { PromosSkeleton } from "@/components/skeletons";
 
@@ -37,12 +37,12 @@ async function PromosFetcher({ searchParams }: { searchParams: SearchParams }) {
   const dir = str(sp.dir) === "desc" ? "desc" : "asc";
   const page = Math.max(1, parseInt(str(sp.page) || "1") || 1);
 
-  const session = await getSession();
-  const isManager = session?.user?.role === "manager";
+  const session = await requirePageSession();
+  const isManager = session.user.role === "manager";
 
   const [promoList, matchedClients] = await Promise.all([
     listPromos({ q, brands, collections, msrpMax, discMin, size1Pos, size2Pos, sort, sortDir: dir, page }),
-    getMatchedClients(isManager ? undefined : session?.user?.id),
+    getMatchedClients(isManager ? undefined : session.user.id),
   ]);
   // Only the promos actually on this page need a Clients badge.
   const matchCounts = await getPromoMatchCounts(promoList.rows.map((p) => p.id));
@@ -68,7 +68,7 @@ async function PromosFetcher({ searchParams }: { searchParams: SearchParams }) {
       }}
       isManager={isManager}
       matchCounts={matchCounts}
-      currentUserId={session?.user?.id ?? ""}
+      currentUserId={session.user.id}
       matchedClients={matchedClients}
     />
   );

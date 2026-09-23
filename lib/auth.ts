@@ -1,5 +1,6 @@
-import type { NextAuthOptions } from "next-auth";
+import type { NextAuthOptions, Session } from "next-auth";
 import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { cache } from "react";
 import bcrypt from "bcryptjs";
@@ -91,3 +92,16 @@ export const authOptions: NextAuthOptions = {
 // when `cache` isn't available (e.g., the jsdom test environment).
 const memoize = typeof cache === "function" ? cache : <T>(fn: T) => fn;
 export const getSession = memoize(() => getServerSession(authOptions));
+
+/**
+ * The session for a page loader, or a redirect to /login. The middleware only
+ * checks the JWT signature, so a deactivated employee's cookie still reaches
+ * the page — where the `jwt` callback throws and getSession() returns null.
+ * Loaders derive their employee scope from this session, and a null session
+ * must never fall through to an unscoped (manager-wide) query.
+ */
+export async function requirePageSession(): Promise<Session> {
+  const session = await getSession();
+  if (!session?.user?.id) redirect("/login");
+  return session;
+}

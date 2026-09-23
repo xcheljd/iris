@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { HeatBadge } from "@/components/heat-badge";
 import { getStats, getOverdueFollowUps, getUpcomingFollowUps, getRecentActivity, getTopHotClients, getClientOccasionsCurrentMonth } from "@/lib/queries";
-import { getSession } from "@/lib/auth";
+import { requirePageSession } from "@/lib/auth";
 import Link from "next/link";
 import { Flame, Phone, ShoppingBag, Users, AlertCircle, Calendar, ArrowRight, TrendingUp, Target, Clock, CheckCircle2 } from "lucide-react";
 import { formatDate, formatDaysAgo, formatOccasionDate } from "@/lib/utils";
@@ -25,9 +25,9 @@ export default function DashboardPage() {
 }
 
 async function DashboardContent() {
-  const session = await getSession();
-  const isManager = session?.user?.role === "manager";
-  const employeeId = !isManager ? (session?.user?.id ?? undefined) : undefined;
+  const session = await requirePageSession();
+  const isManager = session.user.role === "manager";
+  const employeeId = isManager ? undefined : session.user.id;
   const [stats, overdue, upcoming, activity, hot, occasionRows] = await Promise.all([
     getStats(employeeId),
     getOverdueFollowUps(employeeId),

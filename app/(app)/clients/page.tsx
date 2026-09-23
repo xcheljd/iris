@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { getClientsWithEmployeePaginated, getClientOwnerNames, getTags, getEmployees, type ClientSortKey } from "@/lib/queries";
 import { ClientListContent } from "./clients-content";
 import { ClientListSkeleton } from "@/components/skeletons";
-import { getSession } from "@/lib/auth";
+import { requirePageSession } from "@/lib/auth";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -41,9 +41,9 @@ async function ClientListFetcher({ searchParams }: { searchParams: SearchParams 
   const sortDir = sp.sortDir === "asc" ? "asc" : sp.sortDir === "desc" ? "desc" : undefined;
   const page = Math.max(1, parseInt(typeof sp.page === "string" ? sp.page : "1") || 1);
 
-  const session = await getSession();
-  const isManager = session?.user?.role === "manager";
-  const employeeId = !isManager ? (session?.user?.id ?? undefined) : undefined;
+  const session = await requirePageSession();
+  const isManager = session.user.role === "manager";
+  const employeeId = isManager ? undefined : session.user.id;
 
   const [{ rows, total }, ownerNames, allTags, allEmployees] = await Promise.all([
     getClientsWithEmployeePaginated(employeeId, { q, nameQ, contactQ, heat, owner, tags, tagMode, lastContactFrom, lastContactTo, createdFrom, createdTo, sort, sortDir, page }),
@@ -80,7 +80,7 @@ async function ClientListFetcher({ searchParams }: { searchParams: SearchParams 
         sortDir: sortDir ?? "desc",
         page,
       }}
-      currentUserRole={session?.user?.role ?? "associate"}
+      currentUserRole={session.user.role}
     />
   );
 }

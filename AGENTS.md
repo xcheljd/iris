@@ -123,6 +123,12 @@ they do. If either grows a query it pages against, it moves to the shape above.
     That is a response contract; `.flatten()` is deprecated in zod 4, so
     `__tests__/unit/validation-error-shape.test.ts` pins the shape — keep it passing or migrate
     the routes to `z.flattenError()` and update it deliberately.
+- **Page auth:** a page loader that scopes data by employee starts with
+  `const session = await requirePageSession()` (`lib/auth.ts`) and derives scope as
+  `isManager ? undefined : session.user.id` — never `session?.user?.id ?? undefined`, which
+  turns a dead session (deactivated employee: middleware passes the signed JWT, `getSession()`
+  returns null) into the unscoped manager view. `__tests__/app/page-auth-gate.test.tsx` runs
+  every scoped loader with no session; add a new scoped page to its list.
 - **Heat scoring:** computed in exactly one place — `lib/heat-score.ts` (`calcHeatScore`).
   Seeds, migrations and tests call it; nothing reimplements the rules inline. The seed is
   deterministic (mulberry32 PRNG, override with `SEED=<n>`) — do not reintroduce
@@ -168,7 +174,8 @@ they do. If either grows a query it pages against, it moves to the shape above.
   AND mask and had to be repaired). If a build dies with `unable to decode image data`, the
   asset is genuinely corrupt — fix the asset, don't reach for `--webpack`.
 - **`middleware.ts` is deprecated in favour of `proxy.ts`** (Next 16 prints a warning on every
-  build). It still works and is untested, so the rename is deliberately not done yet; do it with
-  `npx @next/codemod@canary middleware-to-proxy .` and add a test for the auth gate first.
+  build). The middleware itself is still untested (the page loaders' own gate is covered by
+  `__tests__/app/page-auth-gate.test.tsx`), so the rename is deliberately not done yet; do it
+  with `npx @next/codemod@canary middleware-to-proxy .` and add a middleware test first.
 - **WAL grows.** `data/iris.db-wal` can balloon during heavy test/dev runs; checkpoint or delete WAL/SHM while the server is stopped.
 - **NextAuth requires env vars** in `.env.local` (`NEXTAUTH_SECRET`, `NEXTAUTH_URL`) or auth fails at runtime.
