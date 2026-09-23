@@ -19,7 +19,17 @@ export function MobileNav() {
       {items.map((it) => {
         const active = pathname === it.href || (it.href !== "/" && pathname.startsWith(it.href + "/"));
         return (
-          <Link key={it.href} href={it.href} className={cn("flex flex-col items-center justify-center gap-0.5 py-2 text-[10px]", active ? "text-accent" : "text-muted-foreground")}>
+          <Link
+            key={it.href}
+            href={it.href}
+            aria-current={active ? "page" : undefined}
+            className={cn(
+              "relative flex flex-col items-center justify-center gap-0.5 py-2 text-[10px]",
+              active
+                ? "text-foreground font-medium before:absolute before:top-0 before:inset-x-4 before:h-0.5 before:rounded-full before:bg-meridian-gold-deep dark:before:bg-meridian-gold"
+                : "text-muted-foreground",
+            )}
+          >
             <it.icon className="size-5" />
             <span>{it.label}</span>
           </Link>

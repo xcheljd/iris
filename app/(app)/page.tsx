@@ -102,7 +102,7 @@ async function DashboardContent() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2"><Calendar className="size-4 text-accent" /> Upcoming (7d)</CardTitle>
+                  <CardTitle className="text-base flex items-center gap-2"><Calendar className="size-4 text-meridian-gold-deep dark:text-meridian-gold" /> Upcoming (7d)</CardTitle>
                   <CardDescription>{upcoming.length} scheduled</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -416,7 +416,7 @@ function StatCard({ icon: Icon, label, value, sublabel, accent, color }: {
   return (
     <Card className="border-border/50 hover:border-border hover:shadow-md transition-all">
       <CardContent className="p-3 md:p-4 flex items-center gap-3">
-        <div className={`size-9 md:h-10 md:w-10 rounded-md flex items-center justify-center shrink-0 ${accent ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground"}`}>
+        <div className={`size-9 md:h-10 md:w-10 rounded-md flex items-center justify-center shrink-0 ${accent ? "bg-meridian-gold/15 text-meridian-gold-deep dark:text-meridian-gold" : "bg-muted text-muted-foreground"}`}>
           <Icon className="size-4 md:h-5 md:w-5" />
         </div>
         <div className="min-w-0">
