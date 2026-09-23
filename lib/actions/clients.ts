@@ -1,6 +1,6 @@
 "use server";
 import { db } from "@/lib/db";
-import { clients, outreachLogs, activityEvents, promoMatches, bannedCustomers, unsubscribeList, approvalRequests, employees, type ProductOfInterest } from "@/lib/db/schema";
+import { clients, outreachLogs, activityEvents, promoMatches, bannedCustomers, unsubscribeList, approvalRequests, employees, prospects, type ProductOfInterest } from "@/lib/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
@@ -284,6 +284,8 @@ export async function purgeClient(clientId: string): Promise<{ error: string } |
     tx.delete(outreachLogs).where(eq(outreachLogs.clientId, clientId)).run();
     tx.delete(promoMatches).where(eq(promoMatches.clientId, clientId)).run();
     tx.delete(approvalRequests).where(eq(approvalRequests.clientId, clientId)).run();
+    // prospects.graduated_to_client_id has no ON DELETE action, so a live link fails the delete.
+    tx.update(prospects).set({ graduatedToClientId: null }).where(eq(prospects.graduatedToClientId, clientId)).run();
     tx.delete(clients).where(eq(clients.id, clientId)).run();
   });
 
@@ -364,6 +366,7 @@ export async function mergeClients(
     tx.update(outreachLogs).set({ clientId: winner.id }).where(eq(outreachLogs.clientId, loser.id)).run();
     tx.update(activityEvents).set({ clientId: winner.id }).where(eq(activityEvents.clientId, loser.id)).run();
     tx.update(approvalRequests).set({ clientId: winner.id }).where(eq(approvalRequests.clientId, loser.id)).run();
+    tx.update(prospects).set({ graduatedToClientId: winner.id }).where(eq(prospects.graduatedToClientId, loser.id)).run();
 
     // promoMatches: delete loser's entries that conflict with winner's, then migrate the rest
     const winnerPromoIds = tx.select({ promoId: promoMatches.promoId })
