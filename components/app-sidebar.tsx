@@ -63,7 +63,9 @@ interface AppSidebarProps {
 
 export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 0 }: AppSidebarProps = {}) {
   const pathname = usePathname();
-  const { state, isMobile } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
+  // On mobile the nav lives in a Sheet; close it once a destination is picked.
+  const closeMobile = () => setOpenMobile(false);
   const { data: session } = useSession();
   const collapsed = state === "collapsed";
   const isManager = session?.user?.role === "manager";
@@ -113,7 +115,7 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <SidebarMenuButton asChild isActive={active} className={cn(active && "text-accent")}>
-                                <Link href={item.href}>
+                                <Link href={item.href} onClick={closeMobile}>
                                   <item.icon className="size-4" />
                                 </Link>
                               </SidebarMenuButton>
@@ -122,7 +124,7 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
                           </Tooltip>
                         ) : (
                           <SidebarMenuButton asChild isActive={active} className={cn(active && "text-accent")}>
-                            <Link href={item.href}>
+                            <Link href={item.href} onClick={closeMobile}>
                               <item.icon className="size-4" />
                               <span>{item.label}</span>
                               {isApprovals && pendingCount > 0 && (

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppSidebar } from "@/components/app-sidebar";
 
@@ -85,6 +85,40 @@ describe("AppSidebar account menu", () => {
 
     await user.click(screen.getByRole("menuitem", { name: /sign out/i }));
     expect(mockSignOut).toHaveBeenCalledWith({ callbackUrl: "/login" });
+  });
+});
+
+describe("AppSidebar mobile sheet", () => {
+  function OpenState() {
+    const { openMobile, setOpenMobile } = useSidebar();
+    return (
+      <>
+        <button type="button" onClick={() => setOpenMobile(true)}>open sheet</button>
+        <output data-testid="open-mobile">{String(openMobile)}</output>
+      </>
+    );
+  }
+
+  // Regression: tapping a nav link inside the mobile Sheet navigated but left
+  // the Sheet open over the new page.
+  it("closes the mobile sheet when a nav link is tapped", async () => {
+    mockPathname = "/";
+    render(
+      <TooltipProvider>
+        <SidebarProvider>
+          <OpenState />
+          <AppSidebar />
+        </SidebarProvider>
+      </TooltipProvider>
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "open sheet" }));
+    expect(screen.getByTestId("open-mobile")).toHaveTextContent("true");
+
+    const link = screen.getAllByText("Client List").find((node) => node.closest("a"))!.closest("a")!;
+    link.addEventListener("click", (e) => e.preventDefault());
+    await user.click(link);
+    expect(screen.getByTestId("open-mobile")).toHaveTextContent("false");
   });
 });
 
