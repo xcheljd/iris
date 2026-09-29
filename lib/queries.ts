@@ -529,7 +529,16 @@ export async function getUnsubscribeList() {
     // client write path never lowercases), so a raw column-to-column join left
     // suppression rows reading "No client match" against a client that is
     // plainly there.
-    .leftJoin(clients, sameEmail(unsubscribeList.email, clients.email))
+    // One client per suppression row, never a soft-deleted one: two clients
+    // sharing an email used to duplicate the row (and its row id). Prefer the
+    // unsubscribed client — the one Resubscribe can act on — then lowest id.
+    .leftJoin(clients, eq(clients.id, rawSql`(
+      SELECT c2.id FROM clients c2
+      WHERE ${sameEmail(rawSql`c2.email`, unsubscribeList.email)}
+        AND c2.deleted_at IS NULL AND c2.status <> 'deleted'
+      ORDER BY c2.status = 'unsubscribed' DESC, c2.id
+      LIMIT 1
+    )`))
     .orderBy(desc(unsubscribeList.unsubscribedAt)).limit(LIST_QUERY_LIMIT).all();
   return rows;
 }

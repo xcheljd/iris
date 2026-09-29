@@ -164,16 +164,20 @@ export async function removeUnsubscribeEntry(unsubId: string): Promise<{ error: 
   revalidatePath("/unsubscribed");
 }
 
-export async function resubscribeClient(clientId: string) {
+export async function resubscribeClient(clientId: string): Promise<{ error: string } | undefined> {
   const user = await requireManager();
   const c = db.select({ email: clients.email }).from(clients).where(eq(clients.id, clientId)).get();
-  if (!c) return;
-  db.transaction((tx) => {
+  if (!c) return { error: "Client not found" };
+  const resubscribed = db.transaction((tx) => {
     // Restore status to active without forcing onEmailList: true — the
     // client may have been unsubscribed from emails independently of
     // being on the suppression list. Removing from the suppression list
     // means they CAN be re-added, not that they ARE on it.
-    tx.update(clients).set({ status: "active", updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+    // Only an unsubscribed client flips: activating a banned client would
+    // lift the ban, and a soft-deleted one would keep a contradictory deletedAt.
+    const { changes } = tx.update(clients).set({ status: "active", updatedAt: new Date() })
+      .where(and(eq(clients.id, clientId), eq(clients.status, "unsubscribed"))).run();
+    if (changes === 0) return false;
     // Case-insensitive: the suppression row may have been written in a
     // different case than the client's own email, and a case-sensitive delete
     // would leave it behind as an unremovable orphan.
@@ -183,7 +187,9 @@ export async function resubscribeClient(clientId: string) {
     tx.insert(activityEvents).values({
       id: randomUUID(), clientId, eventType: "status_changed", description: "Resubscribed", metadata: { newStatus: "active" }, employeeId: user.id,
     }).run();
+    return true;
   });
+  if (!resubscribed) return { error: "Client is not unsubscribed" };
   await recalcHeat(clientId);
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/unsubscribed");

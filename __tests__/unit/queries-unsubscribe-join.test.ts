@@ -13,7 +13,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { clients, unsubscribeList } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { getUnsubscribeList } from "@/lib/queries";
 
 const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23";
@@ -61,5 +61,37 @@ describe("getUnsubscribeList", () => {
 
     expect(row).toBeDefined();
     expect(row!.clientId).toBeNull();
+  });
+
+  // Regression (B8): the join had no status filter, so two clients sharing an
+  // email duplicated the suppression row (and its row id), and a soft-deleted
+  // client got a Resubscribe button that reactivated it.
+  it("returns one row per suppression entry when clients share an email, and skips soft-deleted clients", async () => {
+    const tag = randomUUID().slice(0, 8);
+    const shared = `shared.${tag}@example.com`;
+    const deletedOnly = `deleted.${tag}@example.com`;
+    const [lowId, highId] = [randomUUID(), randomUUID()].sort();
+    const deletedId = randomUUID();
+    const sharedUnsub = randomUUID();
+    const deletedUnsub = randomUUID();
+    db.insert(clients).values([
+      { id: highId, firstName: "High", email: shared, status: "unsubscribed", employeeId: ASSOCIATE_ID },
+      { id: lowId, firstName: "Low", email: shared.toUpperCase(), status: "unsubscribed", employeeId: ASSOCIATE_ID },
+      { id: deletedId, firstName: "Gone", email: deletedOnly, status: "deleted", deletedAt: new Date(), employeeId: ASSOCIATE_ID },
+    ]).run();
+    db.insert(unsubscribeList).values([{ id: sharedUnsub, email: shared }, { id: deletedUnsub, email: deletedOnly }]).run();
+    try {
+      const rows = await getUnsubscribeList();
+      const sharedRows = rows.filter((r) => r.unsub.id === sharedUnsub);
+      expect(sharedRows).toHaveLength(1);
+      expect(sharedRows[0].clientId).toBe(lowId);
+
+      const deletedRow = rows.find((r) => r.unsub.id === deletedUnsub);
+      expect(deletedRow).toBeDefined();
+      expect(deletedRow!.clientId).toBeNull();
+    } finally {
+      db.delete(unsubscribeList).where(inArray(unsubscribeList.id, [sharedUnsub, deletedUnsub])).run();
+      db.delete(clients).where(inArray(clients.id, [lowId, highId, deletedId])).run();
+    }
   });
 });

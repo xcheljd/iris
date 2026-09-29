@@ -203,7 +203,7 @@ describe("ClientDetailTabs optimistic toggles", () => {
   describe("resubscribe", () => {
     it('flips unsubscribed menu items to active instantly pre-await, toasts "Customer resubscribed"', async () => {
       const user = userEvent.setup({ pointerEventsCheck: 0 });
-      const d = deferred<void>();
+      const d = deferred<{ error: string } | undefined>();
       vi.mocked(resubscribeClient).mockReturnValue(d.promise);
 
       renderTabs(makeClient({ status: "unsubscribed", onEmailList: false }));
@@ -224,9 +224,25 @@ describe("ClientDetailTabs optimistic toggles", () => {
       expect(toast.success).toHaveBeenCalledWith("Customer resubscribed");
     });
 
+    // B8: resubscribeClient now reports { error } for a client that isn't
+    // unsubscribed; the result used to be dropped, holding the optimistic flip.
+    it("rolls back and toasts an error when the action returns { error }", async () => {
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+      vi.mocked(resubscribeClient).mockResolvedValue({ error: "Client is not unsubscribed" });
+
+      renderTabs(makeClient({ status: "unsubscribed", onEmailList: false }));
+      await openActions(user);
+      await user.click(screen.getByRole("menuitem", { name: /^resubscribe$/i }));
+      await user.click(await screen.findByRole("button", { name: "Resubscribe" }));
+
+      expect(await screen.findByRole("menuitem", { name: /^resubscribe$/i })).toBeInTheDocument();
+      expect(toast.error).toHaveBeenCalledWith("Failed to resubscribe");
+      expect(toast.success).not.toHaveBeenCalled();
+    });
+
     it("rolls back when the action throws", async () => {
       const user = userEvent.setup({ pointerEventsCheck: 0 });
-      const d = deferred<void>();
+      const d = deferred<{ error: string } | undefined>();
       vi.mocked(resubscribeClient).mockReturnValue(d.promise);
 
       renderTabs(makeClient({ status: "unsubscribed", onEmailList: false }));

@@ -48,8 +48,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
     client?.status === "unsubscribed",
     async () => {
       if (!client) return undefined;
-      await resubscribeClient(client.id);
-      return undefined;
+      return await resubscribeClient(client.id);
     }
   );
   // While an optimistic status flip is in play, treat the client as active.

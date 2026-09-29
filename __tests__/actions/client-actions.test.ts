@@ -248,9 +248,35 @@ describe("Client Actions", () => {
       expect(unsubEntry).toBeUndefined();
     });
 
-    it("should do nothing if client does not exist", async () => {
-      await resubscribeClient("nonexistent-id");
-      // Should not throw
+    it("reports { error } if client does not exist", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+      await expect(resubscribeClient("nonexistent-id")).resolves.toEqual({ error: "Client not found" });
+    });
+
+    // Regression (B8): resubscribe set status "active" unconditionally, so a
+    // banned client whose email was on the list got un-banned, and a
+    // soft-deleted one came back active with its deletedAt still set.
+    it.each([
+      { status: "banned" as const, deletedAt: null },
+      { status: "deleted" as const, deletedAt: new Date() },
+    ])("refuses a $status client and leaves it and its suppression row alone", async ({ status, deletedAt }) => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+      const id = randomUUID();
+      const email = `resub-${status}-${id.slice(0, 8)}@example.com`;
+      const unsubId = randomUUID();
+      db.insert(clients).values({ id, firstName: "Resub", email, status, deletedAt, employeeId: ASSOCIATE_ID }).run();
+      createdClientIds.push(id);
+      db.insert(unsubscribeList).values({ id: unsubId, email }).run();
+      try {
+        await expect(resubscribeClient(id)).resolves.toEqual({ error: "Client is not unsubscribed" });
+
+        const client = db.select().from(clients).where(eq(clients.id, id)).get();
+        expect(client!.status).toBe(status);
+        expect(db.select().from(unsubscribeList).where(eq(unsubscribeList.id, unsubId)).get()).toBeDefined();
+        expect(db.select().from(activityEvents).where(eq(activityEvents.clientId, id)).all()).toHaveLength(0);
+      } finally {
+        db.delete(unsubscribeList).where(eq(unsubscribeList.id, unsubId)).run();
+      }
     });
   });
 
