@@ -7,7 +7,7 @@ vi.mock("next-auth", () => ({
 
 vi.mock("@/lib/queries", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/queries")>()),
-  getClientsWithEmployeePaginated: vi.fn(async () => ({ rows: [], total: 0 })),
+  getClientsWithEmployeePaginated: vi.fn(async () => ({ rows: [], total: 0, page: 1 })),
 }));
 
 import { getServerSession } from "next-auth";

@@ -146,20 +146,22 @@ export async function getClientsWithEmployeePaginated(
   const whereClause = and(...conds);
   const dirFn = sortDir === "asc" ? asc : desc;
 
+  // clients.id breaks ties (heat scores tie a lot), so a value shared across a
+  // page boundary can't repeat or vanish between pages.
   let orderClauses: SQL<unknown>[];
   switch (sort) {
     case "name":
-      orderClauses = [dirFn(clients.firstName) as SQL<unknown>, dirFn(rawSql`COALESCE(${clients.lastName}, '')`) as SQL<unknown>];
+      orderClauses = [dirFn(clients.firstName) as SQL<unknown>, dirFn(rawSql`COALESCE(${clients.lastName}, '')`) as SQL<unknown>, asc(clients.id)];
       break;
     case "lastContact":
-      orderClauses = [dirFn(rawSql`COALESCE(${clients.lastOutreachAt}, 0)`) as SQL<unknown>];
+      orderClauses = [dirFn(rawSql`COALESCE(${clients.lastOutreachAt}, 0)`) as SQL<unknown>, asc(clients.id)];
       break;
     case "owner":
-      orderClauses = [dirFn(rawSql`TRIM(COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, ''))`) as SQL<unknown>];
+      orderClauses = [dirFn(rawSql`TRIM(COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, ''))`) as SQL<unknown>, asc(clients.id)];
       break;
     case "heat":
     default:
-      orderClauses = [dirFn(clients.heatScore) as SQL<unknown>];
+      orderClauses = [dirFn(clients.heatScore) as SQL<unknown>, asc(clients.id)];
   }
 
   const baseSelect = db
@@ -178,9 +180,15 @@ export async function getClientsWithEmployeePaginated(
     .where(whereClause)
     .all();
 
-  const rows = baseSelect.orderBy(...orderClauses).limit(pageSize).offset((page - 1) * pageSize).all();
+  const total = countRow?.total ?? 0;
+  // A list that shrank under a stale `?page=` shows its last real page rather
+  // than an empty table; the caller renders the page number that came back.
+  const lastPage = Math.max(1, Math.ceil(total / pageSize));
+  const effectivePage = Math.min(Math.max(1, page), lastPage);
 
-  return { rows, total: countRow?.total ?? 0 };
+  const rows = baseSelect.orderBy(...orderClauses).limit(pageSize).offset((effectivePage - 1) * pageSize).all();
+
+  return { rows, total, page: effectivePage };
 }
 
 export async function getClient(id: string) {

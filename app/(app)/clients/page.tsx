@@ -47,7 +47,7 @@ async function ClientListFetcher({ searchParams }: { searchParams: SearchParams 
   const isManager = session.user.role === "manager";
   const employeeId = isManager ? undefined : session.user.id;
 
-  const [{ rows, total }, ownerNames, allTags, allEmployees] = await Promise.all([
+  const [{ rows, total, page: servedPage }, ownerNames, allTags, allEmployees] = await Promise.all([
     getClientsWithEmployeePaginated(employeeId, { q, nameQ, contactQ, heat, owner, filter, tags, tagMode, lastContactFrom, lastContactTo, createdFrom, createdTo, sort, sortDir, page }),
     getClientOwnerNames(employeeId),
     getTags(),
@@ -81,7 +81,8 @@ async function ClientListFetcher({ searchParams }: { searchParams: SearchParams 
         filter,
         sort: sort ?? "heat",
         sortDir: sortDir ?? "desc",
-        page,
+        // The query clamps a page past the end; render the page it served.
+        page: servedPage,
       }}
       currentUserRole={session.user.role}
     />

@@ -80,14 +80,44 @@ describe("getClientsWithEmployeePaginated", () => {
     expect(manager.total).toBeGreaterThanOrEqual(expected.length);
   });
 
-  it("returns page-1 rows within pageSize and empty pages past the end", async () => {
+  it("returns page-1 rows within pageSize and clamps a page past the end to the last page", async () => {
     const page1 = await getClientsWithEmployeePaginated(ASSOCIATE_ID, { page: 1, pageSize: 2 });
     expect(page1.rows).toHaveLength(2);
+    expect(page1.page).toBe(1);
     expect(page1.total).toBeGreaterThanOrEqual(5); // our five fixtures are all in scope
 
+    const lastPage = Math.ceil(page1.total / 2);
     const pastEnd = await getClientsWithEmployeePaginated(ASSOCIATE_ID, { page: 10_000, pageSize: 2 });
-    expect(pastEnd.rows).toHaveLength(0);
+    const last = await getClientsWithEmployeePaginated(ASSOCIATE_ID, { page: lastPage, pageSize: 2 });
+    expect(pastEnd.page).toBe(lastPage);
+    expect(pastEnd.rows.length).toBeGreaterThan(0);
+    expect(idsOf(pastEnd)).toEqual(idsOf(last));
     expect(pastEnd.total).toBe(page1.total);
+  });
+
+  // Regression (B11): with no tie-breaker, SQLite's top-N sorter could order
+  // tied heat scores differently per LIMIT/OFFSET, repeating or skipping rows.
+  it("keeps tied heat scores in a stable id order across page boundaries", async () => {
+    const TIED_HEAT = 7;
+    const tiedIds: string[] = Array.from({ length: 7 }, () => randomUUID());
+    for (const [i, id] of tiedIds.entries()) {
+      db.insert(clients)
+        .values({ id, firstName: `Tied${i}`, lastName: "Tie", employeeId: ASSOCIATE_ID, status: "active", heatScore: TIED_HEAT, dateAdded: new Date(), createdAt: new Date() })
+        .run();
+    }
+    try {
+      const pageSize = 3;
+      for (const sortDir of ["desc", "asc"] as const) {
+        const opts = { nameQ: "Tie", sort: "heat" as const, sortDir, pageSize };
+        const first = await getClientsWithEmployeePaginated(ASSOCIATE_ID, { ...opts, page: 1 });
+        const pageNums = Array.from({ length: Math.ceil(first.total / pageSize) }, (_, i) => i + 1);
+        const pages = await Promise.all(pageNums.map((page) => getClientsWithEmployeePaginated(ASSOCIATE_ID, { ...opts, page })));
+        const paged = pages.flatMap((p) => idsOf(p)).filter((id) => tiedIds.includes(id));
+        expect(paged).toEqual([...tiedIds].sort());
+      }
+    } finally {
+      db.delete(clients).where(inArray(clients.id, tiedIds)).run();
+    }
   });
 
   it("sorts by heat (default desc), name asc, and lastContact desc", async () => {
