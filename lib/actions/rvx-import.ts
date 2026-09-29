@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { clients, bannedCustomers, unsubscribeList, rvxImportBatches, prospects } from "@/lib/db/schema";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
-import { parseRvxCsv, findWithinImportDuplicates, selectBestRecord, serializeDuplicatesToCsv, type RvxRawRow } from "@/lib/rvx-parser";
+import { parseRvxCsv, findWithinImportDuplicates, selectBestRecord, serializeDuplicatesToCsv, dedupeKey, type RvxRawRow } from "@/lib/rvx-parser";
 import { requireManager } from "./_shared";
 
 export interface RvxAnalysisResult {
@@ -55,7 +55,18 @@ async function categorizeRvxRows(rows: RvxRawRow[]): Promise<{
     }
   }
 
-  const allProspects = db.select({ email: prospects.email, phone: prospects.phone }).from(prospects).all();
+  const allProspects = db
+    .select({
+      email: prospects.email,
+      phone: prospects.phone,
+      storeId: prospects.rvxStoreId,
+      customerId: prospects.rvxCustomerId,
+    })
+    .from(prospects)
+    .all();
+  // RVX customer ids are per store; a row already imported from any earlier
+  // report matches here even when it has no email or phone to match on.
+  const prospectRvxIds = new Set(allProspects.map((r) => `${r.storeId}|${r.customerId}`));
   const prospectEmails = new Set(allProspects.map((r) => r.email?.toLowerCase()).filter(Boolean) as string[]);
   const prospectPhones = new Set(allProspects.map((r) => r.phone?.replace(/\D/g, "")).filter(Boolean) as string[]);
 
@@ -70,7 +81,9 @@ async function categorizeRvxRows(rows: RvxRawRow[]): Promise<{
     const email = row.email?.toLowerCase() ?? null;
     const phone = row.phone ?? null;
 
-    if (email && bannedEmails.has(email) || phone && bannedPhones.has(phone)) {
+    if (prospectRvxIds.has(`${row.storeId}|${row.customerId}`)) {
+      alreadyProspectCount++;
+    } else if (email && bannedEmails.has(email) || phone && bannedPhones.has(phone)) {
       bannedCount++;
     } else if (email && unsubEmails.has(email)) {
       unsubscribedCount++;
@@ -106,13 +119,7 @@ function deduplicateRvxRows(
   const deduped: RvxRawRow[] = [];
 
   for (const row of rows) {
-    const key = [
-      row.firstName.toLowerCase(),
-      row.lastName?.toLowerCase() ?? "",
-      row.phone ?? "",
-      row.email?.toLowerCase() ?? "",
-    ].join("|");
-    const group = dupeGroups.get(key);
+    const group = dupeGroups.get(dedupeKey(row));
     if (group) {
       for (const r of group) dupeRowSet.add(r);
       const best = selectBestRecord(group);

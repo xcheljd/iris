@@ -239,11 +239,28 @@ describe("findWithinImportDuplicates", () => {
 
   it("treats null fields as empty string in key", () => {
     const rows = [
-      makeRow({ customerId: "C001", phone: null, email: null }),
-      makeRow({ customerId: "C002", phone: null, email: null }),
+      makeRow({ customerId: "C001", phone: null }),
+      makeRow({ customerId: "C002", phone: null }),
     ];
     const result = findWithinImportDuplicates(rows);
     expect(result.size).toBe(1);
+  });
+
+  // Regression (B13): name alone merged two different contactless customers.
+  it("keeps contactless rows with different customer ids apart", () => {
+    const rows = [
+      makeRow({ customerId: "C001", phone: null, email: null }),
+      makeRow({ customerId: "C002", phone: null, email: null }),
+    ];
+    expect(findWithinImportDuplicates(rows).size).toBe(0);
+  });
+
+  it("still groups a contactless customer repeated under the same id", () => {
+    const rows = [
+      makeRow({ customerId: "C001", phone: null, email: null }),
+      makeRow({ customerId: "C001", phone: null, email: null }),
+    ];
+    expect(findWithinImportDuplicates(rows).size).toBe(1);
   });
 });
 

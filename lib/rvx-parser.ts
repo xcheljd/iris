@@ -106,13 +106,17 @@ export function parseRvxCsv(csvText: string): RvxParseResult {
   };
 }
 
-function dedupeKey(row: RvxRawRow): string {
-  return [
+export function dedupeKey(row: RvxRawRow): string {
+  const key = [
     row.firstName.toLowerCase(),
     row.lastName?.toLowerCase() ?? "",
     row.phone ?? "",
     row.email?.toLowerCase() ?? "",
-  ].join("|");
+  ];
+  // With no contact info the name alone would merge two different customers
+  // (two contactless "John Smith"s); the RVX customer id keeps them apart.
+  if (!row.phone && !row.email) key.push(row.storeId, row.customerId);
+  return key.join("|");
 }
 
 export function findWithinImportDuplicates(rows: RvxRawRow[]): Map<string, RvxRawRow[]> {

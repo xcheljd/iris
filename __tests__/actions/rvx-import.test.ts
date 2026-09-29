@@ -151,6 +151,55 @@ describe("importProspectsFromRvx", () => {
   });
 });
 
+// Regression (B13): contactless rows matched nothing on re-import and were
+// inserted again; same-name contactless customers were merged into one.
+describe("importProspectsFromRvx customer-id matching", () => {
+  const CONTACTLESS_IDS = ["RVXT-8801", "RVXT-8802"];
+  const countByCustomerIds = (ids: string[]) =>
+    db.select().from(prospects).where(inArray(prospects.rvxCustomerId, ids)).all().length;
+
+  afterAll(() => {
+    db.delete(prospects).where(inArray(prospects.rvxCustomerId, [...CONTACTLESS_IDS, "RVXT-8803"])).run();
+  });
+
+  it("keeps two contactless same-name customers with different ids as two prospects", async () => {
+    const csv = buildCsv([
+      ["100", CONTACTLESS_IDS[0], "Orin", "Vale", "|"],
+      ["100", CONTACTLESS_IDS[1], "Orin", "Vale", "|"],
+    ]);
+    const res = await importProspectsFromRvx(csv);
+    if ("error" in res) throw new Error(res.error);
+    expect(res.importedCount).toBe(2);
+    expect(countByCustomerIds(CONTACTLESS_IDS)).toBe(2);
+  });
+
+  it("re-importing the same contactless report twice adds no prospects", async () => {
+    const csv = buildCsv([
+      ["100", CONTACTLESS_IDS[0], "Orin", "Vale", "|"],
+      ["100", CONTACTLESS_IDS[1], "Orin", "Vale", "|"],
+    ]);
+    const analysis = await analyzeRvxImport(csv);
+    if ("error" in analysis) throw new Error(analysis.error);
+    expect(analysis.newCount).toBe(0);
+    expect(analysis.alreadyProspectCount).toBe(2);
+
+    for (let i = 0; i < 2; i++) {
+      const res = await importProspectsFromRvx(csv);
+      if ("error" in res) throw new Error(res.error);
+      expect(res.importedCount).toBe(0);
+    }
+    expect(countByCustomerIds(CONTACTLESS_IDS)).toBe(2);
+  });
+
+  it("still matches an existing prospect by email under a new customer id", async () => {
+    const csv = buildCsv([["100", "RVXT-8803", "Nova", "Bright", `|${EMAILS.nova}`]]);
+    const res = await importProspectsFromRvx(csv);
+    if ("error" in res) throw new Error(res.error);
+    expect(res.importedCount).toBe(0);
+    expect(db.select().from(prospects).where(eq(prospects.email, EMAILS.nova)).all()).toHaveLength(1);
+  });
+});
+
 describe("importProspectsFromRvx authorization + failure modes", () => {
   it("rejects associates (requireManager) without creating anything", async () => {
     vi.mocked(getServerSession).mockResolvedValue(associateSession);
