@@ -20,6 +20,7 @@ vi.mock("@/lib/actions", () => ({
 }));
 
 import { toast } from "sonner";
+import { addUnsubscribeEmail } from "@/lib/actions";
 
 vi.mock("@/components/topbar", () => ({
   Topbar: ({ children }: { children?: React.ReactNode }) => <div data-testid="topbar">{children}</div>,
@@ -200,6 +201,26 @@ describe("UnsubscribedContent on the DataTable engine", () => {
     renderUnsubscribed({ list: [] });
     expect(screen.getByText("No unsubscribed emails")).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  // B9: the list lives in useState seeded from the prop, and Quick Add only
+  // called router.refresh(), so the new email appeared after a full reload.
+  it("shows a Quick-Added email immediately, without a reload", async () => {
+    const user = userEvent.setup();
+    vi.mocked(addUnsubscribeEmail).mockResolvedValue({
+      row: {
+        unsub: { id: "u-new", email: "new@example.com", unsubscribedAt: at("2026-09-01") },
+        clientId: null, firstName: null, lastName: null, customerId: null,
+      },
+    });
+    renderUnsubscribed();
+
+    await user.type(screen.getByPlaceholderText("email@example.com"), "new@example.com{Enter}");
+
+    expect(addUnsubscribeEmail).toHaveBeenCalledWith("new@example.com");
+    await waitFor(() => expect(screen.getByText("new@example.com")).toBeInTheDocument());
+    expect(tableRows()).toHaveLength(LIST.length + 2);
+    expect(toast.success).toHaveBeenCalledWith("Email added to unsubscribe list");
   });
 
   it("resubscribes a client from the row actions menu", async () => {

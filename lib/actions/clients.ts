@@ -123,7 +123,13 @@ export async function unbanClient(clientId: string): Promise<{ error: string } |
  * the UNIQUE constraint (SQLite TEXT collates BINARY), never marked the client
  * unsubscribed, and left a row reading "No client match" forever.
  */
-export async function addUnsubscribeEmail(rawEmail: string): Promise<{ error: string } | undefined> {
+export async function addUnsubscribeEmail(rawEmail: string): Promise<
+  | { error: string }
+  // The new list row, shaped like a `getUnsubscribeList` row, so the page can
+  // show it without a reload (its list lives in useState, which ignores the
+  // refreshed prop).
+  | { error?: undefined; row: { unsub: typeof unsubscribeList.$inferSelect; clientId: string | null; firstName: string | null; lastName: string | null; customerId: string | null } }
+> {
   const user = await requireManager();
   const parsed = unsubscribeEmailSchema.safeParse(rawEmail);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid email" };
@@ -131,19 +137,30 @@ export async function addUnsubscribeEmail(rawEmail: string): Promise<{ error: st
 
   const existing = db.select().from(unsubscribeList).where(sameEmail(unsubscribeList.email, email)).get();
   if (existing) return { error: "Email already exists" };
-  const matchingClient = db.select({ id: clients.id }).from(clients).where(sameEmail(clients.email, email)).get();
-  db.transaction((tx) => {
-    tx.insert(unsubscribeList).values({ id: randomUUID(), email }).run();
+  const matchingClient = db.select({ id: clients.id, firstName: clients.firstName, lastName: clients.lastName, customerId: clients.customerId })
+    .from(clients).where(sameEmail(clients.email, email)).get();
+  const unsub = db.transaction((tx) => {
+    const inserted = tx.insert(unsubscribeList).values({ id: randomUUID(), email }).returning().get();
     if (matchingClient) {
       tx.update(clients).set({ status: "unsubscribed", onEmailList: false, updatedAt: new Date() }).where(eq(clients.id, matchingClient.id)).run();
       tx.insert(activityEvents).values({
         id: randomUUID(), clientId: matchingClient.id, eventType: "status_changed", description: "Manually added to unsubscribe list", metadata: { newStatus: "unsubscribed" }, employeeId: user.id,
       }).run();
     }
+    return inserted;
   });
   if (matchingClient) await recalcHeat(matchingClient.id);
   if (matchingClient) revalidatePath(`/clients/${matchingClient.id}`);
   revalidatePath("/unsubscribed");
+  return {
+    row: {
+      unsub,
+      clientId: matchingClient?.id ?? null,
+      firstName: matchingClient?.firstName ?? null,
+      lastName: matchingClient?.lastName ?? null,
+      customerId: matchingClient?.customerId ?? null,
+    },
+  };
 }
 
 /**

@@ -180,7 +180,9 @@ describe("Misc Actions", () => {
         .run();
 
       const res = await addUnsubscribeEmail(stored.toUpperCase());
-      expect(res).toBeUndefined();
+      expect(res.error).toBeUndefined();
+      // B9: the new row comes back, joined to its client, for the page to show.
+      expect(res).toMatchObject({ row: { unsub: { email: stored }, clientId: FIRST_CLIENT_ID } });
 
       const entry = db.select().from(unsubscribeList).where(eq(unsubscribeList.email, stored)).get();
       expect(entry).toBeDefined();

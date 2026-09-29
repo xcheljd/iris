@@ -226,10 +226,13 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
     }
     setAddEmailError("");
     const result = await addUnsubscribeEmail(addEmail.trim());
-    if (result?.error) {
+    if (result.error !== undefined) {
       toast.error(result.error);
       return;
     }
+    // `list` is local state seeded once from the prop, so router.refresh()
+    // alone never shows the new row; add it here. Newest first, as served.
+    setList((prev) => [result.row, ...prev]);
     toast.success("Email added to unsubscribe list");
     router.refresh();
   };
