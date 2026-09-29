@@ -54,6 +54,14 @@ list, and never TanStack's client-side row models. Sort keys are whitelisted
 server-side (index a `Record` of columns; never interpolate a URL value into
 SQL). A new list surface follows the same shape.
 
+The analytics **Outreach** tab follows the same contract without the table
+engine: its log is a plain list over `listOutreachLogs` (page/sort in
+`searchParams`, sort keys whitelisted, page clamped), and its method/outcome
+breakdowns are `GROUP BY` counts (`outreachMethodBreakdown`,
+`outreachOutcomeBreakdown`) over the same employee scope and `?from`/`?to`
+range (unix seconds; the "to" picker sends end of day, bound inclusive). Never
+count a distribution in the browser from a limited slice of rows.
+
 The two exceptions are **unsubscribed** and **approvals**, which run the engine
 in client-side mode (`manual*` off, state in `useState`): both read a whole
 bounded set into the browser and then *mutate their own copy* — a resubscribe or

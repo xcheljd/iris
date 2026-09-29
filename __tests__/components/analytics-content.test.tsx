@@ -38,12 +38,13 @@ const funnel: ProspectFunnelStats = {
   avgSpendActive: null, avgSpendGraduated: null, avgSpendRejected: null,
   batches: [],
 };
-const log = (id: string, date: string, method = "call") => ({
-  log: { id, method, date: new Date(date), outcome: "no_answer", notes: null },
+const log = (id: string, date: string, method: "call" | "email" = "call") => ({
+  log: { id, method, date: new Date(date), outcome: "no_answer" as const, notes: null },
   client: { id: `c-${id}`, firstName: `Client${id}`, lastName: null },
   employee: null,
 });
-const recentOutreach = [log("1", "2026-03-10T12:00:00"), log("2", "2026-05-10T12:00:00", "email")];
+// The server has already filtered and paged these; the component renders them as given.
+const outreachLog = [log("2", "2026-05-10T12:00:00", "email")];
 const ts = (d: string) => Math.floor(new Date(d).getTime() / 1000);
 const methods = (call: number, email: number) => [
   { method: "call" as const, label: "Call", count: call },
@@ -56,7 +57,9 @@ function renderContent(props: Partial<Parameters<typeof AnalyticsContent>[0]> = 
   return render(
     <AnalyticsContent
       stats={stats}
-      recentOutreach={recentOutreach}
+      outreachLog={outreachLog}
+      outreachTotal={1}
+      outreachPage={1}
       prospectFunnel={funnel}
       methodDistribution={methods(1, 1)}
       outcomeDistribution={[{ outcome: "no_answer", count: 2 }]}
@@ -76,11 +79,10 @@ describe("AnalyticsContent date range", () => {
     expect(screen.queryByText("From")).not.toBeInTheDocument();
   });
 
-  it("reads the range from props (the URL) and applies it on the Outreach tab", async () => {
-    renderContent({ dateFrom: ts("2026-05-01T00:00:00"), dateTo: ts("2026-05-31T00:00:00") });
+  it("reads the range from props (the URL) and shows the server's rows for it on the Outreach tab", async () => {
+    renderContent({ dateFrom: ts("2026-05-01T00:00:00"), dateTo: ts("2026-05-31T23:59:59") });
     await userEvent.setup().click(screen.getByRole("tab", { name: "Outreach" }));
     expect(screen.getByText("Client2")).toBeInTheDocument();
-    expect(screen.queryByText("Client1")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Clear" })).toBeInTheDocument();
   });
 
@@ -134,5 +136,36 @@ describe("AnalyticsContent outreach breakdowns", () => {
     expect(replace).toHaveBeenCalledWith(`/analytics?to=${ts("2026-05-31T23:59:59")}`, { scroll: false });
     await user.click(screen.getByRole("button", { name: "From" }));
     expect(replace).toHaveBeenLastCalledWith(`/analytics?from=${ts("2026-05-31T00:00:00")}`, { scroll: false });
+  });
+});
+
+// Regression (audit B5): the log was a 50-row slice paged in useState; it is
+// now a server page whose number lives in the URL like every other list.
+describe("AnalyticsContent outreach log paging", () => {
+  it("pages through the URL, keeping the range, employee and sort", async () => {
+    renderContent({
+      outreachTotal: 45,
+      dateFrom: ts("2026-05-01T00:00:00"),
+      employees: [{ id: "e1", firstName: "Test", lastName: "Associate" }],
+      selectedEmployeeId: "e1",
+      outreachSort: "method",
+      outreachSortDir: "asc",
+    });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: "Outreach" }));
+    expect(screen.getByText("45 entries")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Go to next page" }));
+    expect(push).toHaveBeenCalledWith(
+      `/analytics?employee=e1&from=${ts("2026-05-01T00:00:00")}&sort=method&sortDir=asc&page=2`,
+      { scroll: false },
+    );
+  });
+
+  it("changing the range drops the page back to 1", async () => {
+    renderContent({ outreachTotal: 45, outreachPage: 3 });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: "Outreach" }));
+    await user.click(screen.getByRole("button", { name: "From" }));
+    expect(replace).toHaveBeenCalledWith(`/analytics?from=${ts("2026-05-31T00:00:00")}`, { scroll: false });
   });
 });

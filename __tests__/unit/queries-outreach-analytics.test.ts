@@ -1,6 +1,6 @@
 /**
  * The analytics Outreach tab's reads: method/outcome breakdowns counted in SQL
- * over every log in the selected range.
+ * over every log in the selected range, and the log list paged in SQL.
  *
  * Regression (audit B5): the tab built its distributions client-side from
  * `getRecentOutreach(50)`, so any range older than the latest 50 logs showed
@@ -14,7 +14,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { clients, outreachLogs } from "@/lib/db/schema";
 import { eq, inArray } from "drizzle-orm";
-import { outreachMethodBreakdown, outreachOutcomeBreakdown } from "@/lib/queries";
+import { listOutreachLogs, outreachMethodBreakdown, outreachOutcomeBreakdown, OUTREACH_LOG_SORT_KEYS } from "@/lib/queries";
 
 // From __tests__/setup.ts — never invented (outreach_logs.employee_id is a FK).
 const TEST_MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
@@ -102,5 +102,57 @@ describe("outreachMethodBreakdown / outreachOutcomeBreakdown", () => {
     expect(await outreachOutcomeBreakdown(empty)).toEqual([]);
     // from > to matches nothing, as on the clients list — no swap.
     expect(await outreachOutcomeBreakdown({ from: JAN_END, to: BASE })).toEqual([]);
+  });
+});
+
+describe("listOutreachLogs", () => {
+  const jan = { from: BASE, to: JAN_END };
+
+  it("pages the whole range in SQL, newest first, with a correct total", async () => {
+    const p1 = await listOutreachLogs({ ...jan, pageSize: 20 });
+    const p4 = await listOutreachLogs({ ...jan, pageSize: 20, page: 4 });
+    expect(p1.total).toBe(65);
+    expect(p1.page).toBe(1);
+    expect(p1.rows).toHaveLength(20);
+    expect(p4.rows).toHaveLength(5);
+
+    const ids = new Set<string>();
+    for (let page = 1; page <= 4; page++) {
+      for (const r of (await listOutreachLogs({ ...jan, pageSize: 20, page })).rows) ids.add(r.log.id);
+    }
+    // Every row exactly once across the pages — no 50-row ceiling, no repeats.
+    expect(ids.size).toBe(65);
+
+    const p2 = await listOutreachLogs({ ...jan, pageSize: 20, page: 2 });
+    expect(p2.rows.map((r) => r.log.id)).not.toEqual(p1.rows.map((r) => r.log.id));
+    const dates = p1.rows.map((r) => r.log.date.getTime());
+    expect(dates).toEqual([...dates].sort((a, b) => b - a));
+    expect(p1.rows[0].log.method).toBe("email");
+    expect(p1.rows[0].client?.firstName).toBe("ZZOutreach");
+  });
+
+  it("clamps a page past the end to the last real page", async () => {
+    const res = await listOutreachLogs({ ...jan, pageSize: 20, page: 99 });
+    expect(res.page).toBe(4);
+    expect(res.rows).toHaveLength(5);
+  });
+
+  it("applies the same scope and range as the breakdowns", async () => {
+    const mine = await listOutreachLogs({ ...jan, employeeId: TEST_ASSOCIATE_ID, pageSize: 100 });
+    expect(mine.total).toBe(25);
+    expect(mine.rows.every((r) => r.log.method === "email")).toBe(true);
+    const empty = await listOutreachLogs({ from: JAN_END, to: BASE });
+    expect(empty).toEqual({ rows: [], total: 0, page: 1 });
+  });
+
+  it("sorts on every whitelisted key", async () => {
+    expect(OUTREACH_LOG_SORT_KEYS).toEqual(["date", "method", "outcome"]);
+    const byMethod = await listOutreachLogs({ ...jan, sort: "method", sortDir: "asc", pageSize: 100 });
+    expect(byMethod.rows[0].log.method).toBe("call");
+    expect(byMethod.rows.at(-1)?.log.method).toBe("email");
+    const byOutcome = await listOutreachLogs({ ...jan, sort: "outcome", sortDir: "desc", pageSize: 100 });
+    expect(byOutcome.rows[0].log.outcome).toBe("responded");
+    const oldest = await listOutreachLogs({ ...jan, sort: "date", sortDir: "asc", pageSize: 1 });
+    expect(oldest.rows[0].log.date.getTime()).toBe(BASE * 1000);
   });
 });

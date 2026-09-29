@@ -30,6 +30,7 @@ describe("AnalyticsOutreachTab chart colours", () => {
         setPage={() => {}}
         totalPages={1}
         totalFiltered={0}
+        pageSize={20}
         methodDistribution={methodDistribution}
         outcomeDistribution={[]}
         hasDateFilter={false}

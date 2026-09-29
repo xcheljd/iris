@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,8 +11,8 @@ import { AnalyticsOverviewTab } from "./analytics-overview-tab";
 import { AnalyticsOutreachTab } from "./analytics-outreach-tab";
 import { AnalyticsHeatTab } from "./analytics-heat-tab";
 import { AnalyticsProspectsTab } from "./analytics-prospects-tab";
-import { isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
-import type { ProspectFunnelStats, OutreachMethodBreakdown, OutreachOutcomeBreakdown } from "@/lib/queries";
+import { endOfDay } from "date-fns";
+import type { ProspectFunnelStats, OutreachMethodBreakdown, OutreachOutcomeBreakdown, OutreachLogRow, OutreachLogSortKey } from "@/lib/queries";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
 interface Stats {
@@ -27,25 +27,6 @@ interface Stats {
   purchasesWeek: number;
 }
 
-interface OutreachRow {
-  log: {
-    id: string;
-    method: string;
-    date: Date;
-    outcome: string;
-    notes: string | null;
-  };
-  client: {
-    id: string;
-    firstName: string;
-    lastName: string | null;
-  } | null;
-  employee: {
-    firstName: string;
-    lastName: string | null;
-  } | null;
-}
-
 interface EmployeeRow {
   id: string;
   firstName: string;
@@ -54,7 +35,13 @@ interface EmployeeRow {
 
 interface AnalyticsContentProps {
   stats: Stats;
-  recentOutreach: OutreachRow[];
+  /** One page of the outreach log, already filtered, sorted and sliced by the server. */
+  outreachLog: OutreachLogRow[];
+  outreachTotal: number;
+  outreachPage: number;
+  /** Whitelisted by the page; carried through so navigation keeps them. */
+  outreachSort?: OutreachLogSortKey;
+  outreachSortDir?: "asc" | "desc";
   employees?: EmployeeRow[];
   selectedEmployeeId?: string;
   prospectFunnel: ProspectFunnelStats;
@@ -70,42 +57,38 @@ interface AnalyticsContentProps {
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
-export function AnalyticsContent({ stats, recentOutreach, employees, selectedEmployeeId, prospectFunnel, methodDistribution, outcomeDistribution, allTimeMethodDistribution, dateFrom: fromTs, dateTo: toTs }: AnalyticsContentProps) {
+export function AnalyticsContent({ stats, outreachLog, outreachTotal, outreachPage, outreachSort, outreachSortDir, employees, selectedEmployeeId, prospectFunnel, methodDistribution, outcomeDistribution, allTimeMethodDistribution, dateFrom: fromTs, dateTo: toTs }: AnalyticsContentProps) {
   const router = useRouter();
   const dateFrom = fromTs ? new Date(fromTs * 1000) : undefined;
   const dateTo = toTs ? new Date(toTs * 1000) : undefined;
   const [tab, setTab] = useState("overview");
-  const [outreachPage, setOutreachPage] = useState(1);
 
-  // The single URL writer: employee (managers only) and the date range.
-  function navigate(next: { employee?: string; from?: Date; to?: Date }, history: "push" | "replace" = "replace") {
+  // The single URL writer: employee (managers only), the date range and the
+  // outreach log page/sort. Omitting `page` resets to page 1.
+  function navigate(
+    next: { employee?: string; from?: Date; to?: Date; page?: number; sort?: OutreachLogSortKey; sortDir?: "asc" | "desc" },
+    history: "push" | "replace" = "replace",
+  ) {
     const sp = new URLSearchParams();
     if (next.employee) sp.set("employee", next.employee);
     if (next.from) sp.set("from", String(Math.floor(next.from.getTime() / 1000)));
     if (next.to) sp.set("to", String(Math.floor(next.to.getTime() / 1000)));
+    if (next.sort) sp.set("sort", next.sort);
+    if (next.sortDir) sp.set("sortDir", next.sortDir);
+    if (next.page && next.page > 1) sp.set("page", String(next.page));
     const qs = sp.toString();
     const url = qs ? `/analytics?${qs}` : "/analytics";
     if (history === "push") router.push(url, { scroll: false });
     else router.replace(url, { scroll: false });
   }
-  const current = { employee: employees ? selectedEmployeeId : undefined, from: dateFrom, to: dateTo };
+  const current = {
+    employee: employees ? selectedEmployeeId : undefined,
+    from: dateFrom,
+    to: dateTo,
+    sort: outreachSort,
+    sortDir: outreachSortDir,
+  };
 
-  const filteredOutreach = useMemo(() => {
-    if (!fromTs && !toTs) return recentOutreach;
-    const from = fromTs ? startOfDay(new Date(fromTs * 1000)) : undefined;
-    const to = toTs ? endOfDay(new Date(toTs * 1000)) : undefined;
-    return recentOutreach.filter((r) => {
-      const d = new Date(r.log.date);
-      if (from && isBefore(d, from)) return false;
-      if (to && isAfter(d, to)) return false;
-      return true;
-    });
-  }, [recentOutreach, fromTs, toTs]);
-
-  const outreachTotalPages = Math.ceil(filteredOutreach.length / PAGE_SIZE);
-  // Back/forward can narrow the range under a later page; clamp rather than show an empty one.
-  const page = Math.min(outreachPage, Math.max(1, outreachTotalPages));
-  const pagedOutreach = filteredOutreach.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const totalOutreach = methodDistribution.reduce((sum, m) => sum + m.count, 0);
   const conversionRate = stats.outreachWeek > 0
@@ -113,7 +96,6 @@ export function AnalyticsContent({ stats, recentOutreach, employees, selectedEmp
     : 0;
 
   const clearDates = () => {
-    setOutreachPage(1);
     navigate({ ...current, from: undefined, to: undefined });
   };
 
@@ -154,7 +136,7 @@ export function AnalyticsContent({ stats, recentOutreach, employees, selectedEmp
               <>
                 <DatePicker
                   date={dateFrom}
-                  onSelectAction={(d) => { setOutreachPage(1); navigate({ ...current, from: d }); }}
+                  onSelectAction={(d) => navigate({ ...current, from: d })}
                   placeholder="From"
                 />
                 <span className="text-muted-foreground text-sm">to</span>
@@ -162,7 +144,7 @@ export function AnalyticsContent({ stats, recentOutreach, employees, selectedEmp
                   date={dateTo}
                   // The picker yields local midnight and the server bound is inclusive
                   // (`lte`), so send the end of the day or it drops the whole last day.
-                  onSelectAction={(d) => { setOutreachPage(1); navigate({ ...current, to: d && endOfDay(d) }); }}
+                  onSelectAction={(d) => navigate({ ...current, to: d && endOfDay(d) })}
                   placeholder="To"
                 />
                 {(dateFrom || dateTo) && (
@@ -193,12 +175,13 @@ export function AnalyticsContent({ stats, recentOutreach, employees, selectedEmp
 
           <TabsContent value="outreach">
             <AnalyticsOutreachTab
-              pagedOutreach={pagedOutreach}
+              pagedOutreach={outreachLog}
               totalOutreach={totalOutreach}
-              page={page}
-              setPage={setOutreachPage}
-              totalPages={outreachTotalPages}
-              totalFiltered={filteredOutreach.length}
+              page={outreachPage}
+              setPage={(p) => navigate({ ...current, page: p }, "push")}
+              totalPages={Math.ceil(outreachTotal / PAGE_SIZE)}
+              totalFiltered={outreachTotal}
+              pageSize={PAGE_SIZE}
               methodDistribution={methodDistribution}
               outcomeDistribution={outcomeDistribution}
               hasDateFilter={!!(dateFrom || dateTo)}

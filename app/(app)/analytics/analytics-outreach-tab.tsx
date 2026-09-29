@@ -71,6 +71,7 @@ interface AnalyticsOutreachTabProps {
   setPage: (page: number) => void;
   totalPages: number;
   totalFiltered: number;
+  pageSize: number;
   methodDistribution: MethodDistribution[];
   outcomeDistribution: OutcomeDistribution[];
   hasDateFilter: boolean;
@@ -83,6 +84,7 @@ export function AnalyticsOutreachTab({
   setPage,
   totalPages,
   totalFiltered,
+  pageSize,
   methodDistribution,
   outcomeDistribution,
   hasDateFilter,
@@ -245,7 +247,7 @@ export function AnalyticsOutreachTab({
             totalPages={totalPages}
             onPageChangeAction={setPage}
             totalItems={totalFiltered}
-            pageSize={20}
+            pageSize={pageSize}
             itemLabel="records"
           />
         </CardContent>

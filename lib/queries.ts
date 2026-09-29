@@ -745,16 +745,6 @@ export async function getAllSmartListCounts(
   return { builtIn, custom };
 }
 
-export async function getRecentOutreach(limit = 20, employeeId?: string) {
-  const employeeFilter = employeeId ? eq(outreachLogs.employeeId, employeeId) : undefined;
-  const rows = db.select({ log: outreachLogs, client: clients, employee: employees }).from(outreachLogs)
-    .leftJoin(clients, eq(outreachLogs.clientId, clients.id))
-    .leftJoin(employees, eq(outreachLogs.employeeId, employees.id))
-    .where(employeeFilter)
-    .orderBy(desc(outreachLogs.date)).limit(limit).all();
-  return rows;
-}
-
 /** Owner scope and date range shared by the analytics outreach reads. */
 export interface OutreachRangeOptions {
   /** One employee's logged outreach; omit for the store-wide (manager) view. */
@@ -814,7 +804,79 @@ export async function outreachOutcomeBreakdown(opts: OutreachRangeOptions = {}) 
   return rows.map((r) => ({ outcome: r.outcome, count: Number(r.n) }));
 }
 
-export type OutreachMethodBreakdown = Awaited<ReturnType<typeof outreachMethodBreakdown>>;
+/**
+ * Sortable outreach-log columns, keyed by the `sort` value the URL carries.
+ * The map is the whitelist, as `prospectSortColumns` is.
+ */
+const outreachLogSortColumns = {
+  date: outreachLogs.date,
+  method: outreachLogs.method,
+  outcome: outreachLogs.outcome,
+} as const;
+
+export type OutreachLogSortKey = keyof typeof outreachLogSortColumns;
+
+/** The sort keys a caller may accept off a URL. */
+export const OUTREACH_LOG_SORT_KEYS = Object.keys(outreachLogSortColumns) as OutreachLogSortKey[];
+
+export interface OutreachLogListOptions extends OutreachRangeOptions {
+  /** Omit for the log's native order: newest first. */
+  sort?: OutreachLogSortKey;
+  sortDir?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}
+
+/**
+ * One page of the analytics outreach log, filtered/sorted/paged in SQL with
+ * the same scope and range as the breakdowns. Replaces the 50-row
+ * `getRecentOutreach` slice the tab used to filter and page in the browser.
+ */
+export async function listOutreachLogs(opts: OutreachLogListOptions = {}) {
+  const { sort, sortDir = "desc", page = 1, pageSize = DEFAULT_PAGE_SIZE } = opts;
+  const whereClause = outreachRangeWhere(opts);
+
+  const totalRow = db.select({ n: rawSql<number>`count(*)` }).from(outreachLogs).where(whereClause).get();
+  const total = Number(totalRow?.n ?? 0);
+
+  // A stale `?page=` past the end serves the last real page, as listProspects does.
+  const lastPage = Math.max(1, Math.ceil(total / pageSize));
+  const effectivePage = Math.min(Math.max(1, page), lastPage);
+
+  // id breaks ties (dates repeat to the second) so a row can't repeat or
+  // vanish across a page boundary; `rowid` would be ambiguous in the join.
+  const dirFn = sortDir === "asc" ? asc : desc;
+  const orderClauses = sort
+    ? [dirFn(outreachLogSortColumns[sort]), desc(outreachLogs.date), asc(outreachLogs.id)]
+    : [desc(outreachLogs.date), asc(outreachLogs.id)];
+
+  const rows = db
+    .select({
+      log: {
+        id: outreachLogs.id,
+        method: outreachLogs.method,
+        date: outreachLogs.date,
+        outcome: outreachLogs.outcome,
+        notes: outreachLogs.notes,
+      },
+      client: { id: clients.id, firstName: clients.firstName, lastName: clients.lastName },
+      employee: { firstName: employees.firstName, lastName: employees.lastName },
+    })
+    .from(outreachLogs)
+    .leftJoin(clients, eq(outreachLogs.clientId, clients.id))
+    .leftJoin(employees, eq(outreachLogs.employeeId, employees.id))
+    .where(whereClause)
+    .orderBy(...orderClauses)
+    .limit(pageSize)
+    .offset((effectivePage - 1) * pageSize)
+    .all();
+
+  return { rows, total, page: effectivePage };
+}
+
+export type OutreachLogRow = Awaited<ReturnType<typeof listOutreachLogs>>["rows"][number];
+
+export type OutreachMethodBreakdown =Awaited<ReturnType<typeof outreachMethodBreakdown>>;
 export type OutreachOutcomeBreakdown = Awaited<ReturnType<typeof outreachOutcomeBreakdown>>;
 
 export interface SearchProspectHit {
