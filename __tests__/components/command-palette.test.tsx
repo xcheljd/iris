@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, act } from "@testing-library/react";
+import { render, screen, act, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useSession } from "next-auth/react";
 import { CommandPalette } from "@/components/command-palette";
 
 const mockPush = vi.fn();
@@ -111,6 +112,47 @@ describe("CommandPalette", () => {
     const navItems = ["Dashboard", "Clients", "Follow-Ups", "Smart Lists", "Promos", "Analytics", "Banned", "Unsubscribed", "Settings"];
     for (const item of navItems) {
       expect(screen.getByText(item)).toBeInTheDocument();
+    }
+  });
+
+  // Regression (B22): the palette had no Prospects, Model Catalog or
+  // Collections, which the sidebar and g-shortcuts both offer.
+  const SIDEBAR_HREFS = ["/", "/clients", "/prospects", "/follow-ups", "/smart-lists", "/promos", "/catalog", "/analytics", "/analytics/collections", "/banned", "/unsubscribed", "/approvals", "/settings"];
+  const MANAGER_ONLY = ["/catalog", "/approvals"];
+
+  /** Selects each Navigate item in turn (selecting closes the palette, so reopen each time). */
+  async function navHrefs() {
+    const navItems = () =>
+      within(screen.getAllByTestId("group-heading").find((h) => h.textContent === "Navigate")!.parentElement!)
+        .getAllByTestId("command-item");
+    const hrefs: string[] = [];
+    for (let i = 0; ; i++) {
+      await act(async () => {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }));
+      });
+      const items = navItems();
+      if (i >= items.length) return hrefs;
+      mockPush.mockClear();
+      await userEvent.click(items[i]);
+      hrefs.push(mockPush.mock.calls[0][0]);
+    }
+  }
+
+  it("lists every sidebar destination for a manager, in sidebar order", async () => {
+    render(<CommandPalette />);
+    expect(await navHrefs()).toEqual(SIDEBAR_HREFS);
+  });
+
+  it("hides the manager-only destinations from an associate", async () => {
+    vi.mocked(useSession).mockReturnValue({
+      data: { user: { id: "assoc", name: "Test Associate", role: "associate" } },
+    } as unknown as ReturnType<typeof useSession>);
+    try {
+      render(<CommandPalette />);
+      expect(await navHrefs()).toEqual(SIDEBAR_HREFS.filter((h) => !MANAGER_ONLY.includes(h)));
+    } finally {
+      // Back to the manager session the module mock was created with.
+      vi.mocked(useSession).mockReset();
     }
   });
 

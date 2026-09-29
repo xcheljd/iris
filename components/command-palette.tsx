@@ -2,7 +2,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
-import { Home, Users, Phone, ListFilter, Tag, BarChart3, Ban, MailX, Settings, Plus, Search as SearchIcon, ShieldCheck, Clock, UserSearch, Filter as FilterIcon, Globe, Lock } from "lucide-react";
+import { Home, Users, Phone, ListFilter, Tag, BarChart3, Ban, MailX, Settings, Plus, Search as SearchIcon, ShieldCheck, Clock, UserSearch, Filter as FilterIcon, Globe, Lock, Library, Watch } from "lucide-react";
 import { useSession } from "next-auth/react";
 
 type ClientHit = {
@@ -117,13 +117,17 @@ export function CommandPalette() {
   const go = (href: string) => { setOpen(false); setQ(""); router.push(href); };
   const prefetch = (href: string) => router.prefetch(href);
 
+  // Same destinations, order and role gating as the sidebar and g-shortcuts.
   const navItems = [
     { icon: <Home className="size-4" />, label: "Dashboard", href: "/" },
     { icon: <Users className="size-4" />, label: "Clients", href: "/clients" },
+    { icon: <UserSearch className="size-4" />, label: "Prospects", href: "/prospects" },
     { icon: <Phone className="size-4" />, label: "Follow-Ups", href: "/follow-ups" },
     { icon: <ListFilter className="size-4" />, label: "Smart Lists", href: "/smart-lists" },
     { icon: <Tag className="size-4" />, label: "Promos", href: "/promos" },
+    ...(isManager ? [{ icon: <Library className="size-4" />, label: "Model Catalog", href: "/catalog" }] : []),
     { icon: <BarChart3 className="size-4" />, label: "Analytics", href: "/analytics" },
+    { icon: <Watch className="size-4" />, label: "Collections", href: "/analytics/collections" },
     { icon: <Ban className="size-4" />, label: "Banned", href: "/banned" },
     { icon: <MailX className="size-4" />, label: "Unsubscribed", href: "/unsubscribed" },
     ...(isManager ? [{ icon: <ShieldCheck className="size-4" />, label: "Approvals", href: "/approvals" }] : []),
