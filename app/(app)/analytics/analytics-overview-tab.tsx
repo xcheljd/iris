@@ -107,7 +107,7 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
           </HoverCardTrigger>
           <HoverCardContent className="w-64">
             <div className="flex flex-col gap-1">
-              <p className="text-sm font-medium">Outreach Methods (last 50 logs)</p>
+              <p className="text-sm font-medium">Outreach Methods (all time)</p>
               <Separator />
               {methodDistribution.map((m) => (
                 <div key={m.method} className="flex justify-between text-sm">

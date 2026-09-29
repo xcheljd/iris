@@ -125,7 +125,7 @@ describe("AnalyticsContent outreach breakdowns", () => {
   it("shows the truthful empty state when the range has no logs", async () => {
     renderContent({ methodDistribution: methods(0, 0), outcomeDistribution: [], dateFrom: ts("2020-01-01T00:00:00") });
     await userEvent.setup().click(screen.getByRole("tab", { name: "Outreach" }));
-    expect(screen.getAllByText("No outreach data for the selected period")).toHaveLength(2);
+    expect(screen.getAllByText("No outreach data for the selected period")).toHaveLength(3);
   });
 
   it("writes a picked \"to\" day as its last second, since the SQL bound is inclusive", async () => {
@@ -167,5 +167,32 @@ describe("AnalyticsContent outreach log paging", () => {
     await user.click(screen.getByRole("tab", { name: "Outreach" }));
     await user.click(screen.getByRole("button", { name: "From" }));
     expect(replace).toHaveBeenCalledWith(`/analytics?from=${ts("2026-05-31T00:00:00")}`, { scroll: false });
+  });
+});
+
+// Regression (audit B5): labels claimed "(all time)" / "recent outreach" /
+// "(last 50 logs)" over a 50-row slice; they now describe the SQL counts.
+describe("AnalyticsContent truthful labels", () => {
+  it("says all time only when no range is set, and range otherwise", async () => {
+    const { unmount } = renderContent({ methodDistribution: methods(70, 50) });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: "Outreach" }));
+    expect(screen.getByText(/Breakdown of 120 outreach attempts \(all time\)/)).toBeInTheDocument();
+    expect(screen.getByText("Results across all outreach")).toBeInTheDocument();
+    expect(screen.getByText("Outreach Log")).toBeInTheDocument();
+    unmount();
+
+    renderContent({ methodDistribution: methods(70, 50), dateFrom: ts("2026-05-01T00:00:00") });
+    await user.click(screen.getByRole("tab", { name: "Outreach" }));
+    expect(screen.getByText(/Breakdown of 120 outreach attempts in the selected range/)).toBeInTheDocument();
+    expect(screen.getByText("Results in the selected range")).toBeInTheDocument();
+  });
+
+  it("labels the Overview methods hover as all time, fed by the unranged counts", async () => {
+    renderContent({ allTimeMethodDistribution: methods(70, 50), dateFrom: ts("2026-05-01T00:00:00") });
+    await userEvent.setup().hover(screen.getByText("Outreach (7d)"));
+    expect(await screen.findByText("Outreach Methods (all time)")).toBeInTheDocument();
+    expect(screen.getByText("70")).toBeInTheDocument();
+    expect(screen.queryByText(/last 50 logs/)).not.toBeInTheDocument();
   });
 });

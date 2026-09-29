@@ -100,7 +100,7 @@ export function AnalyticsOutreachTab({
           <CardTitle>Method Distribution</CardTitle>
           <CardDescription>
             Breakdown of {totalOutreach} outreach attempts
-            {hasDateFilter ? " (filtered)" : " (all time)"}
+            {hasDateFilter ? " in the selected range" : " (all time)"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -128,7 +128,9 @@ export function AnalyticsOutreachTab({
         <Card>
           <CardHeader>
             <CardTitle>Outcome Breakdown</CardTitle>
-            <CardDescription>Results from recent outreach</CardDescription>
+            <CardDescription>
+              {hasDateFilter ? "Results in the selected range" : "Results across all outreach"}
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {outcomeDistribution.length > 0 ? (
@@ -152,7 +154,7 @@ export function AnalyticsOutreachTab({
                 </div>
               ))
             ) : (
-              <EmptyState description="No outreach data yet" compact />
+              <EmptyState description="No outreach data for the selected period" compact />
             )}
           </CardContent>
         </Card>
@@ -188,12 +190,12 @@ export function AnalyticsOutreachTab({
         </Card>
       </div>
 
-      {/* Recent Outreach Log */}
+      {/* Outreach Log */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Recent Outreach</CardTitle>
+              <CardTitle>Outreach Log</CardTitle>
               <CardDescription>
                 {totalFiltered} entr{totalFiltered !== 1 ? "ies" : "y"}
               </CardDescription>
