@@ -180,8 +180,9 @@ they do. If either grows a query it pages against, it moves to the shape above.
   AND mask and had to be repaired). If a build dies with `unable to decode image data`, the
   asset is genuinely corrupt — fix the asset, don't reach for `--webpack`.
 - **`middleware.ts` is deprecated in favour of `proxy.ts`** (Next 16 prints a warning on every
-  build). The middleware itself is still untested (the page loaders' own gate is covered by
-  `__tests__/app/page-auth-gate.test.tsx`), so the rename is deliberately not done yet; do it
-  with `npx @next/codemod@canary middleware-to-proxy .` and add a middleware test first.
+  build). Only its `config.matcher` is tested (`__tests__/unit/middleware-matcher.test.ts`, via
+  Next's `unstable_doesMiddlewareMatch`); the handler itself is not (the page loaders' own gate
+  is covered by `__tests__/app/page-auth-gate.test.tsx`), so the rename is deliberately not done
+  yet; do it with `npx @next/codemod@canary middleware-to-proxy .` and add a handler test first.
 - **WAL grows.** `data/iris.db-wal` can balloon during heavy test/dev runs; checkpoint or delete WAL/SHM while the server is stopped.
 - **NextAuth requires env vars** in `.env.local` (`NEXTAUTH_SECRET`, `NEXTAUTH_URL`) or auth fails at runtime.

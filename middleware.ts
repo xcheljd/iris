@@ -16,5 +16,7 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!login|api/auth|api/recover|_next/static|_next/image|favicon.ico).*)"],
+  // The app icons (app/icon.*, app/favicon.*) must load for signed-out
+  // visitors too — the login page's own tab icon — so they skip the gate.
+  matcher: ["/((?!login|api/auth|api/recover|_next/static|_next/image|favicon\\.(?:ico|svg)$|icon\\.(?:svg|png)$).*)"],
 };
