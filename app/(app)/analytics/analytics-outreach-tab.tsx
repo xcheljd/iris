@@ -133,14 +133,14 @@ export function AnalyticsOutreachTab({
               outcomeDistribution.map(({ outcome, count }) => (
                 <div key={outcome} className="flex flex-col gap-1">
                   <div className="flex items-center justify-between">
-                    <span className={`text-sm capitalize ${getOutcomeColor(outcome.replace(/ /g, "_"))}`}>
-                      {outcome}
+                    <span className={`text-sm capitalize ${getOutcomeColor(outcome)}`}>
+                      {outcome.replace(/_/g, " ")}
                     </span>
                     <div className="flex items-center gap-2">
                       <Progress
                         value={totalOutreach > 0 ? (count / totalOutreach) * 100 : 0}
                         className="h-2 w-20"
-                        aria-label={`${outcome} outcome`}
+                        aria-label={`${outcome.replace(/_/g, " ")} outcome`}
                       />
                       <Badge variant="secondary" className="w-8 justify-center">
                         {count}

@@ -11,6 +11,12 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/analytics",
 }));
 vi.mock("@/components/topbar", () => ({ Topbar: () => null }));
+// Each picker is a button named by its placeholder that picks local midnight, May 31.
+vi.mock("@/components/date-picker", () => ({
+  DatePicker: ({ onSelectAction, placeholder }: { onSelectAction: (d?: Date) => void; placeholder: string }) => (
+    <button type="button" onClick={() => onSelectAction(new Date(2026, 4, 31))}>{placeholder}</button>
+  ),
+}));
 
 beforeAll(() => {
   // Recharts' ResponsiveContainer observes its size; jsdom has no ResizeObserver.
@@ -39,9 +45,25 @@ const log = (id: string, date: string, method = "call") => ({
 });
 const recentOutreach = [log("1", "2026-03-10T12:00:00"), log("2", "2026-05-10T12:00:00", "email")];
 const ts = (d: string) => Math.floor(new Date(d).getTime() / 1000);
+const methods = (call: number, email: number) => [
+  { method: "call" as const, label: "Call", count: call },
+  { method: "text" as const, label: "Text", count: 0 },
+  { method: "email" as const, label: "Email", count: email },
+  { method: "in-person" as const, label: "In-Person", count: 0 },
+];
 
 function renderContent(props: Partial<Parameters<typeof AnalyticsContent>[0]> = {}) {
-  return render(<AnalyticsContent stats={stats} recentOutreach={recentOutreach} prospectFunnel={funnel} {...props} />);
+  return render(
+    <AnalyticsContent
+      stats={stats}
+      recentOutreach={recentOutreach}
+      prospectFunnel={funnel}
+      methodDistribution={methods(1, 1)}
+      outcomeDistribution={[{ outcome: "no_answer", count: 2 }]}
+      allTimeMethodDistribution={methods(1, 1)}
+      {...props}
+    />,
+  );
 }
 
 // Regression: the date range lived in useState (lost on refresh), the pickers
@@ -81,5 +103,36 @@ describe("AnalyticsContent date range", () => {
     expect(screen.queryByText("From")).not.toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "Prospects" }));
     expect(screen.queryByText("From")).not.toBeInTheDocument();
+  });
+});
+
+// Regression (audit B5): the breakdowns were counted in the browser from the
+// latest 50 logs; they now arrive precomputed from SQL and render as given.
+describe("AnalyticsContent outreach breakdowns", () => {
+  it("renders the server-counted breakdowns, beyond the old 50-row ceiling", async () => {
+    renderContent({
+      methodDistribution: methods(70, 50),
+      outcomeDistribution: [{ outcome: "no_answer", count: 90 }, { outcome: "wants_to_come_in", count: 30 }],
+    });
+    await userEvent.setup().click(screen.getByRole("tab", { name: "Outreach" }));
+    expect(screen.getByText(/Breakdown of 120 outreach attempts/)).toBeInTheDocument();
+    expect(screen.getByText("wants to come in")).toBeInTheDocument();
+    expect(screen.getByText("90")).toBeInTheDocument();
+  });
+
+  it("shows the truthful empty state when the range has no logs", async () => {
+    renderContent({ methodDistribution: methods(0, 0), outcomeDistribution: [], dateFrom: ts("2020-01-01T00:00:00") });
+    await userEvent.setup().click(screen.getByRole("tab", { name: "Outreach" }));
+    expect(screen.getAllByText("No outreach data for the selected period")).toHaveLength(2);
+  });
+
+  it("writes a picked \"to\" day as its last second, since the SQL bound is inclusive", async () => {
+    renderContent();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: "Outreach" }));
+    await user.click(screen.getByRole("button", { name: "To" }));
+    expect(replace).toHaveBeenCalledWith(`/analytics?to=${ts("2026-05-31T23:59:59")}`, { scroll: false });
+    await user.click(screen.getByRole("button", { name: "From" }));
+    expect(replace).toHaveBeenLastCalledWith(`/analytics?from=${ts("2026-05-31T00:00:00")}`, { scroll: false });
   });
 });

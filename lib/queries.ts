@@ -4,7 +4,7 @@ import { eq, desc, asc, and, or, isNull, isNotNull, lte, gte, gt, inArray, notIn
 import { containsLike, containsLikeLower, containsPhone } from "@/lib/like";
 import { sameEmail } from "@/lib/email-identity";
 import type { SQL } from "drizzle-orm";
-import { BRAND_VALUES, type Brand } from "@/lib/db/schema";
+import { BRAND_VALUES, OUTREACH_METHOD_VALUES, type Brand, type OutreachMethod } from "@/lib/db/schema";
 import { applyClientFilter } from "@/lib/utils";
 import { buildClientFilterConds } from "@/lib/client-filter-conds";
 import { smartListToClientFilters } from "@/lib/smart-list-filters";
@@ -754,6 +754,68 @@ export async function getRecentOutreach(limit = 20, employeeId?: string) {
     .orderBy(desc(outreachLogs.date)).limit(limit).all();
   return rows;
 }
+
+/** Owner scope and date range shared by the analytics outreach reads. */
+export interface OutreachRangeOptions {
+  /** One employee's logged outreach; omit for the store-wide (manager) view. */
+  employeeId?: string;
+  /**
+   * Inclusive bounds on `outreach_logs.date`, unix seconds. The caller sends
+   * `to` as the end of the picked day, as the clients list's date filters do.
+   */
+  from?: number;
+  to?: number;
+}
+
+function outreachRangeWhere({ employeeId, from, to }: OutreachRangeOptions) {
+  return and(
+    employeeId ? eq(outreachLogs.employeeId, employeeId) : undefined,
+    from !== undefined ? gte(outreachLogs.date, new Date(from * 1000)) : undefined,
+    to !== undefined ? lte(outreachLogs.date, new Date(to * 1000)) : undefined,
+  );
+}
+
+const OUTREACH_METHOD_LABELS: Record<OutreachMethod, string> = {
+  call: "Call",
+  text: "Text",
+  email: "Email",
+  "in-person": "In-Person",
+};
+
+/**
+ * Outreach attempts per method, counted in SQL over every matching log. Every
+ * method is listed (zero when absent) so the charts keep a stable set of bars.
+ */
+export async function outreachMethodBreakdown(opts: OutreachRangeOptions = {}) {
+  const rows = db
+    .select({ method: outreachLogs.method, n: rawSql<number>`count(*)` })
+    .from(outreachLogs)
+    .where(outreachRangeWhere(opts))
+    .groupBy(outreachLogs.method)
+    .all();
+  const counts = new Map(rows.map((r) => [r.method, Number(r.n)]));
+  return OUTREACH_METHOD_VALUES.map((method) => ({
+    method,
+    label: OUTREACH_METHOD_LABELS[method],
+    count: counts.get(method) ?? 0,
+  }));
+}
+
+/** Outreach attempts per outcome over every matching log, most frequent first. */
+export async function outreachOutcomeBreakdown(opts: OutreachRangeOptions = {}) {
+  const n = rawSql<number>`count(*)`;
+  const rows = db
+    .select({ outcome: outreachLogs.outcome, n })
+    .from(outreachLogs)
+    .where(outreachRangeWhere(opts))
+    .groupBy(outreachLogs.outcome)
+    .orderBy(desc(n), asc(outreachLogs.outcome))
+    .all();
+  return rows.map((r) => ({ outcome: r.outcome, count: Number(r.n) }));
+}
+
+export type OutreachMethodBreakdown = Awaited<ReturnType<typeof outreachMethodBreakdown>>;
+export type OutreachOutcomeBreakdown = Awaited<ReturnType<typeof outreachOutcomeBreakdown>>;
 
 export interface SearchProspectHit {
   id: string;

@@ -12,7 +12,7 @@ import { AnalyticsOutreachTab } from "./analytics-outreach-tab";
 import { AnalyticsHeatTab } from "./analytics-heat-tab";
 import { AnalyticsProspectsTab } from "./analytics-prospects-tab";
 import { isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
-import type { ProspectFunnelStats } from "@/lib/queries";
+import type { ProspectFunnelStats, OutreachMethodBreakdown, OutreachOutcomeBreakdown } from "@/lib/queries";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
 interface Stats {
@@ -58,6 +58,11 @@ interface AnalyticsContentProps {
   employees?: EmployeeRow[];
   selectedEmployeeId?: string;
   prospectFunnel: ProspectFunnelStats;
+  /** Counted in SQL over every log in the selected range (`outreachMethodBreakdown`). */
+  methodDistribution: OutreachMethodBreakdown;
+  outcomeDistribution: OutreachOutcomeBreakdown;
+  /** The Overview ignores the date range, so it gets the unranged counts. */
+  allTimeMethodDistribution: OutreachMethodBreakdown;
   /** Outreach date range from `?from=` / `?to=`, unix seconds. */
   dateFrom?: number;
   dateTo?: number;
@@ -65,19 +70,7 @@ interface AnalyticsContentProps {
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
-function countMethods(rows: OutreachRow[]) {
-  const counts: Record<string, number> = { call: 0, text: 0, email: 0, "in-person": 0 };
-  rows.forEach((r) => {
-    if (counts[r.log.method] !== undefined) counts[r.log.method]++;
-  });
-  return Object.entries(counts).map(([method, count]) => ({
-    method,
-    count,
-    label: method === "in-person" ? "In-Person" : method.charAt(0).toUpperCase() + method.slice(1),
-  }));
-}
-
-export function AnalyticsContent({ stats, recentOutreach, employees, selectedEmployeeId, prospectFunnel, dateFrom: fromTs, dateTo: toTs }: AnalyticsContentProps) {
+export function AnalyticsContent({ stats, recentOutreach, employees, selectedEmployeeId, prospectFunnel, methodDistribution, outcomeDistribution, allTimeMethodDistribution, dateFrom: fromTs, dateTo: toTs }: AnalyticsContentProps) {
   const router = useRouter();
   const dateFrom = fromTs ? new Date(fromTs * 1000) : undefined;
   const dateTo = toTs ? new Date(toTs * 1000) : undefined;
@@ -113,23 +106,6 @@ export function AnalyticsContent({ stats, recentOutreach, employees, selectedEmp
   // Back/forward can narrow the range under a later page; clamp rather than show an empty one.
   const page = Math.min(outreachPage, Math.max(1, outreachTotalPages));
   const pagedOutreach = filteredOutreach.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  const methodDistribution = useMemo(() => countMethods(filteredOutreach), [filteredOutreach]);
-  // The Overview ignores the date range, so it gets the unfiltered counts.
-  const recentMethodDistribution = useMemo(() => countMethods(recentOutreach), [recentOutreach]);
-
-  const outcomeDistribution = useMemo(() => {
-    const counts: Record<string, number> = {};
-    filteredOutreach.forEach((r) => {
-      counts[r.log.outcome] = (counts[r.log.outcome] || 0) + 1;
-    });
-    return Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .map(([outcome, count]) => ({
-        outcome: outcome.replace(/_/g, " "),
-        count,
-      }));
-  }, [filteredOutreach]);
 
   const totalOutreach = methodDistribution.reduce((sum, m) => sum + m.count, 0);
   const conversionRate = stats.outreachWeek > 0
@@ -184,7 +160,9 @@ export function AnalyticsContent({ stats, recentOutreach, employees, selectedEmp
                 <span className="text-muted-foreground text-sm">to</span>
                 <DatePicker
                   date={dateTo}
-                  onSelectAction={(d) => { setOutreachPage(1); navigate({ ...current, to: d }); }}
+                  // The picker yields local midnight and the server bound is inclusive
+                  // (`lte`), so send the end of the day or it drops the whole last day.
+                  onSelectAction={(d) => { setOutreachPage(1); navigate({ ...current, to: d && endOfDay(d) }); }}
                   placeholder="To"
                 />
                 {(dateFrom || dateTo) && (
@@ -209,7 +187,7 @@ export function AnalyticsContent({ stats, recentOutreach, employees, selectedEmp
             <AnalyticsOverviewTab
               stats={stats}
               conversionRate={conversionRate}
-              methodDistribution={recentMethodDistribution}
+              methodDistribution={allTimeMethodDistribution}
             />
           </TabsContent>
 

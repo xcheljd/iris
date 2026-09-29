@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getStats, getRecentOutreach, getEmployees, getProspectFunnelStats } from "@/lib/queries";
+import { getStats, getRecentOutreach, getEmployees, getProspectFunnelStats, outreachMethodBreakdown, outreachOutcomeBreakdown } from "@/lib/queries";
 import { AnalyticsContent } from "./analytics-content";
 import { AnalyticsSkeleton } from "@/components/skeletons";
 import { requirePageSession } from "@/lib/auth";
@@ -37,10 +37,20 @@ async function AnalyticsFetcher({ searchParams }: { searchParams: SearchParams }
     return Number.isFinite(n) && n > 0 ? n : undefined;
   };
 
-  const [stats, recentOutreach, prospectFunnel] = await Promise.all([
+  const dateFrom = parseTs(sp.from);
+  const dateTo = parseTs(sp.to);
+  // Same owner scope as every other outreach read here; an inverted range
+  // matches nothing, as it does on the clients list.
+  const range = { employeeId, from: dateFrom, to: dateTo };
+
+  const [stats, recentOutreach, prospectFunnel, methodDistribution, outcomeDistribution, allTimeMethodDistribution] = await Promise.all([
     getStats(employeeId),
     getRecentOutreach(50, employeeId),
     getProspectFunnelStats(),
+    outreachMethodBreakdown(range),
+    outreachOutcomeBreakdown(range),
+    // The Overview ignores the date range.
+    outreachMethodBreakdown({ employeeId }),
   ]);
   return (
     <AnalyticsContent
@@ -49,8 +59,11 @@ async function AnalyticsFetcher({ searchParams }: { searchParams: SearchParams }
       employees={employees}
       selectedEmployeeId={employeeId}
       prospectFunnel={prospectFunnel}
-      dateFrom={parseTs(sp.from)}
-      dateTo={parseTs(sp.to)}
+      methodDistribution={methodDistribution}
+      outcomeDistribution={outcomeDistribution}
+      allTimeMethodDistribution={allTimeMethodDistribution}
+      dateFrom={dateFrom}
+      dateTo={dateTo}
     />
   );
 }
