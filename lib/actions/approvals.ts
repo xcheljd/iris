@@ -1,6 +1,7 @@
 "use server";
 import { db } from "@/lib/db";
-import { clients, activityEvents, approvalRequests, employees } from "@/lib/db/schema";
+import { clients, activityEvents, approvalRequests, employees, type ApprovalRequestType } from "@/lib/db/schema";
+import { approvalRequestInputSchema } from "@/lib/validation/approval";
 import { and, eq, desc, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
@@ -15,39 +16,62 @@ import {
 } from "./_client-status-core";
 
 export async function createApprovalRequest(
-  type: "ban" | "unsubscribe" | "delete",
+  type: ApprovalRequestType,
   clientId: string,
   reason: string,
   metadata?: Record<string, unknown>,
 ): Promise<{ id: string } | { error: string }> {
   const user = await requireAuth();
-  if (!reason.trim()) return { error: "Reason is required" };
-  const id = randomUUID();
-  db.insert(approvalRequests).values({
-    id,
-    type,
-    clientId,
-    requestorId: user.id,
-    reason: reason.trim(),
-    status: "pending",
-    metadata: metadata || null,
-  }).run();
+  const result = approvalRequestInputSchema.safeParse({ type, clientId, reason, metadata });
+  if (!result.success) return { error: result.error.issues[0].message };
+  const parsed = result.data;
 
-  let requestEventType: string;
-  if (type === "ban") requestEventType = "ban_requested";
-  else if (type === "unsubscribe") requestEventType = "unsub_requested";
+  const client = db.select({ employeeId: clients.employeeId }).from(clients).where(eq(clients.id, parsed.clientId)).get();
+  if (!client) return { error: "Client not found" };
+  if (user.role !== "manager" && client.employeeId !== user.id) {
+    return { error: "You can only request approval for your own clients" };
+  }
+
+  let requestEventType: "ban_requested" | "unsub_requested" | "delete_requested";
+  if (parsed.type === "ban") requestEventType = "ban_requested";
+  else if (parsed.type === "unsubscribe") requestEventType = "unsub_requested";
   else requestEventType = "delete_requested";
 
-  db.insert(activityEvents).values({
-    id: randomUUID(),
-    clientId,
-    eventType: requestEventType as "ban_requested" | "unsub_requested" | "delete_requested",
-    description: `${type} requested by ${user.name}: ${reason.trim()}`,
-    metadata: { requestId: id },
-    employeeId: user.id,
-  }).run();
+  const id = randomUUID();
+  // Duplicate check + both inserts in one transaction: a second identical
+  // request can't slip in between, and the request never exists without
+  // its activity event.
+  const created = db.transaction((tx) => {
+    const pending = tx.select({ id: approvalRequests.id }).from(approvalRequests).where(and(
+      eq(approvalRequests.clientId, parsed.clientId),
+      eq(approvalRequests.type, parsed.type),
+      eq(approvalRequests.status, "pending"),
+    )).get();
+    if (pending) return false;
 
-  revalidatePath("/");
+    tx.insert(approvalRequests).values({
+      id,
+      type: parsed.type,
+      clientId: parsed.clientId,
+      requestorId: user.id,
+      reason: parsed.reason,
+      status: "pending",
+      metadata: parsed.metadata || null,
+    }).run();
+    tx.insert(activityEvents).values({
+      id: randomUUID(),
+      clientId: parsed.clientId,
+      eventType: requestEventType,
+      description: `${parsed.type} requested by ${user.name}: ${parsed.reason}`,
+      metadata: { requestId: id },
+      employeeId: user.id,
+    }).run();
+    return true;
+  });
+  if (!created) return { error: `This client already has a pending ${parsed.type} request` };
+
+  // Invalidates the (app) layout so the sidebar badge re-reads `getPendingApprovalCount`.
+  revalidatePath("/", "layout");
   return { id };
 }
 

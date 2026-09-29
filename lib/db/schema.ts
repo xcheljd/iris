@@ -25,6 +25,10 @@ export const OUTREACH_OUTCOME_VALUES = [
 ] as const;
 export type OutreachOutcome = typeof OUTREACH_OUTCOME_VALUES[number];
 
+// What an associate can ask a manager to do to a client (approvals queue).
+export const APPROVAL_REQUEST_TYPE_VALUES = ["ban", "unsubscribe", "delete"] as const;
+export type ApprovalRequestType = typeof APPROVAL_REQUEST_TYPE_VALUES[number];
+
 export const ACTIVITY_EVENT_TYPE_VALUES = [
   "created", "edited", "outreach_logged", "purchase", "tag_added", "tag_removed",
   "transferred", "promoted", "note_added", "status_changed", "merged",
@@ -252,7 +256,7 @@ export const activityEvents = sqliteTable("activity_events", {
 
 export const approvalRequests = sqliteTable("approval_requests", {
   id: text("id").primaryKey(),
-  type: text("type", { enum: ["ban", "unsubscribe", "delete"] }).notNull(),
+  type: text("type", { enum: APPROVAL_REQUEST_TYPE_VALUES }).notNull(),
   clientId: text("client_id").notNull().references(() => clients.id),
   requestorId: text("requestor_id").notNull().references(() => employees.id),
   reason: text("reason").notNull(),

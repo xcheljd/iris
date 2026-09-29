@@ -1,4 +1,6 @@
-import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
+import { vi, describe, it, expect, beforeAll, beforeEach, afterAll, afterEach } from "vitest";
+import { randomUUID } from "node:crypto";
+import { revalidatePath } from "next/cache";
 
 vi.mock("next-auth", () => ({
   getServerSession: vi.fn(),
@@ -140,6 +142,94 @@ describe("createApprovalRequest", () => {
   it("throws when not authenticated", async () => {
     vi.mocked(getServerSession).mockResolvedValue(null);
     await expect(createApprovalRequest("ban", FIRST_CLIENT_ID, "reason")).rejects.toThrow();
+  });
+});
+
+// Regression (B15): no existence/ownership/type checks, no pending dedupe,
+// and the two inserts weren't one transaction.
+describe("createApprovalRequest hardening", () => {
+  const OTHER_CLIENT_ID = randomUUID();
+
+  beforeAll(() => {
+    // Owned by the manager, so the associate does not own it.
+    db.insert(clients).values({
+      id: OTHER_CLIENT_ID, firstName: "Kestrel", lastName: "Voss", employeeId: MANAGER_ID, productsOfInterest: [],
+    }).run();
+  });
+
+  afterEach(() => {
+    for (const clientId of [FIRST_CLIENT_ID, OTHER_CLIENT_ID]) {
+      db.delete(activityEvents).where(eq(activityEvents.clientId, clientId)).run();
+      db.delete(approvalRequests).where(eq(approvalRequests.clientId, clientId)).run();
+    }
+  });
+
+  afterAll(() => {
+    db.delete(clients).where(eq(clients.id, OTHER_CLIENT_ID)).run();
+  });
+
+  const requestsFor = (clientId: string) =>
+    db.select().from(approvalRequests).where(eq(approvalRequests.clientId, clientId)).all();
+
+  it("returns an error (not a throw) for an unknown client", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    const result = await createApprovalRequest("ban", randomUUID(), "Reason");
+    expect(result).toEqual({ error: "Client not found" });
+  });
+
+  it("rejects an associate requesting approval for a client they do not own", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
+    const result = await createApprovalRequest("ban", OTHER_CLIENT_ID, "Reason");
+    expect(result).toEqual({ error: "You can only request approval for your own clients" });
+    expect(requestsFor(OTHER_CLIENT_ID)).toHaveLength(0);
+  });
+
+  it("lets a manager request approval for any client", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    const result = await createApprovalRequest("ban", OTHER_CLIENT_ID, "Reason");
+    expect("id" in result).toBe(true);
+  });
+
+  it("rejects an invalid type", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    const result = await createApprovalRequest("purge" as "ban", FIRST_CLIENT_ID, "Reason");
+    expect(result).toEqual({ error: "Invalid request type" });
+    expect(requestsFor(FIRST_CLIENT_ID)).toHaveLength(0);
+  });
+
+  it("rejects a duplicate while pending, allows it once the first is reviewed", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
+    const first = await createApprovalRequest("unsubscribe", FIRST_CLIENT_ID, "First");
+    if ("error" in first) throw new Error(first.error);
+
+    const dup = await createApprovalRequest("unsubscribe", FIRST_CLIENT_ID, "Second");
+    expect(dup).toEqual({ error: "This client already has a pending unsubscribe request" });
+    expect(requestsFor(FIRST_CLIENT_ID)).toHaveLength(1);
+
+    // A different type for the same client is not a duplicate.
+    const other = await createApprovalRequest("delete", FIRST_CLIENT_ID, "Other type");
+    expect("id" in other).toBe(true);
+
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    await reviewApprovalRequest(first.id, false);
+
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
+    const again = await createApprovalRequest("unsubscribe", FIRST_CLIENT_ID, "Third");
+    expect("id" in again).toBe(true);
+  });
+
+  it("writes the request and its activity event together, and refreshes the layout", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
+    vi.mocked(revalidatePath).mockClear();
+    const result = await createApprovalRequest("ban", FIRST_CLIENT_ID, "  Trimmed reason  ");
+    if ("error" in result) throw new Error(result.error);
+
+    const row = db.select().from(approvalRequests).where(eq(approvalRequests.id, result.id)).get();
+    expect(row?.reason).toBe("Trimmed reason");
+    const events = db.select().from(activityEvents).where(eq(activityEvents.clientId, FIRST_CLIENT_ID)).all()
+      .filter((e) => e.eventType === "ban_requested" && (e.metadata as { requestId?: string })?.requestId === result.id);
+    expect(events).toHaveLength(1);
+    expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
   });
 });
 
