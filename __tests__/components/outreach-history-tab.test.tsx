@@ -19,11 +19,13 @@ vi.mock("@/components/outreach-logger", () => ({
 }));
 
 vi.mock("@/components/date-picker", () => ({
-  DatePicker: () => <div data-testid="date-picker" />,
+  DatePicker: ({ onSelectAction }: { onSelectAction?: (d: Date) => void }) => (
+    <button type="button" onClick={() => onSelectAction?.(new Date(2026, 9, 1))}>Pick date</button>
+  ),
 }));
 
 import { toast } from "sonner";
-import { markFollowUpComplete, reopenFollowUp } from "@/lib/actions";
+import { markFollowUpComplete, reopenFollowUp, rescheduleFollowUp } from "@/lib/actions";
 
 function deferred<T>() {
   let resolve!: (v: T) => void;
@@ -143,5 +145,25 @@ describe("OutreachHistoryTab undo completion", () => {
     await act(() => opts.action.onClick());
     expect(reopenFollowUp).toHaveBeenCalledWith("log-1");
     expect(toast.error).not.toHaveBeenCalled();
+  });
+});
+
+// B17: rescheduleFollowUp reports a rejection as { error } rather than
+// throwing; the try/catch-only handler toasted success for it.
+describe("OutreachHistoryTab reschedule errors", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("toasts the error, not success, when a reschedule is rejected", async () => {
+    const user = userEvent.setup();
+    vi.mocked(rescheduleFollowUp).mockResolvedValue({ error: "Not authorized to reschedule this follow-up" });
+    render(<OutreachHistoryTab client={makeClient({ outreach: [openFollowUp] })} />);
+
+    await user.click(screen.getByRole("button", { name: "Pick date" }));
+
+    expect(rescheduleFollowUp).toHaveBeenCalledWith("log-1", "2026-10-01");
+    await vi.waitFor(() => expect(toast.error).toHaveBeenCalledWith("Not authorized to reschedule this follow-up"));
+    expect(toast.success).not.toHaveBeenCalled();
   });
 });

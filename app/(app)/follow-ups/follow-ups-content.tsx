@@ -92,7 +92,12 @@ function FollowUpCard({
   const handleReschedule = async () => {
     if (!newDate) return;
     try {
-      await rescheduleFollowUp(row.log.id, format(newDate, "yyyy-MM-dd"));
+      // The action reports a rejection as { error } rather than throwing.
+      const res = await rescheduleFollowUp(row.log.id, format(newDate, "yyyy-MM-dd"));
+      if (res?.error) {
+        toast.error(res.error);
+        return;
+      }
       toast.success("Follow-up rescheduled");
       setRescheduleOpen(false);
     } catch {
@@ -109,7 +114,11 @@ function FollowUpCard({
     // local-correct via date-fns `format`.
     const dateStr = toDateOnly(tomorrow)!;
     try {
-      await rescheduleFollowUp(row.log.id, dateStr);
+      const res = await rescheduleFollowUp(row.log.id, dateStr);
+      if (res?.error) {
+        toast.error(res.error);
+        return;
+      }
       toast.success("Follow-up snoozed until tomorrow");
     } catch {
       toast.error("Failed to snooze");

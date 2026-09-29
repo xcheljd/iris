@@ -131,14 +131,13 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
   // `removeUnsubscribeEntry` deletes the row by its own id.
   const handleRemove = async (row: UnsubscribedRow) => {
     try {
-      if (row.clientId) {
-        await resubscribeClient(row.clientId);
-      } else {
-        const res = await removeUnsubscribeEntry(row.unsub.id);
-        if (res?.error) {
-          toast.error(res.error);
-          return;
-        }
+      // Both actions report a rejection as { error } rather than throwing.
+      const res = row.clientId
+        ? await resubscribeClient(row.clientId)
+        : await removeUnsubscribeEntry(row.unsub.id);
+      if (res?.error) {
+        toast.error(res.error);
+        return;
       }
       setList(list.filter((l) => l.unsub.id !== row.unsub.id));
       setRowSelection((prev) => {
@@ -168,12 +167,10 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
     // rows that did succeed.
     const results = await Promise.allSettled(
       rows.map(async (row) => {
-        if (row.clientId) {
-          await resubscribeClient(row.clientId);
-        } else {
-          const res = await removeUnsubscribeEntry(row.unsub.id);
-          if (res?.error) throw new Error(res.error);
-        }
+        const res = row.clientId
+          ? await resubscribeClient(row.clientId)
+          : await removeUnsubscribeEntry(row.unsub.id);
+        if (res?.error) throw new Error(res.error);
         return row.unsub.id;
       }),
     );
@@ -202,7 +199,11 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
   const handleResubscribe = async (record: UnsubscribedRow) => {
     if (!record.clientId) return;
     try {
-      await resubscribeClient(record.clientId);
+      const res = await resubscribeClient(record.clientId);
+      if (res?.error) {
+        toast.error(res.error);
+        return;
+      }
       setList(list.filter((l) => l.unsub.id !== record.unsub.id));
       toast.success(`${record.firstName || ""} ${record.lastName || ""} resubscribed successfully`);
     } catch {

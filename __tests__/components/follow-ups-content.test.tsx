@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { FollowUpsContent } from "@/app/(app)/follow-ups/follow-ups-content";
 
@@ -17,9 +17,12 @@ vi.mock("@/components/topbar", () => ({
 }));
 
 vi.mock("@/components/date-picker", () => ({
-  DatePicker: () => <div data-testid="date-picker" />,
+  DatePicker: ({ onSelectAction }: { onSelectAction?: (d: Date) => void }) => (
+    <button type="button" onClick={() => onSelectAction?.(new Date(2026, 9, 1))}>Pick date</button>
+  ),
 }));
 
+import { toast } from "sonner";
 import { markFollowUpComplete, rescheduleFollowUp } from "@/lib/actions";
 
 type Row = Parameters<typeof FollowUpsContent>[0]["overdue"][number];
@@ -113,5 +116,41 @@ describe("FollowUpsContent snooze day boundary", () => {
 
     // Local tomorrow is the 30th. The old toISOString() path gave "2026-08-31".
     expect(rescheduleFollowUp).toHaveBeenCalledWith("log-0", "2026-08-30");
+  });
+});
+
+// B17: rescheduleFollowUp reports a rejection as { error } rather than
+// throwing, but both handlers only had try/catch — so a refused reschedule or
+// snooze toasted success.
+describe("FollowUpsContent reschedule/snooze errors", () => {
+  beforeEach(() => {
+    vi.mocked(toast.success).mockReset();
+    vi.mocked(toast.error).mockReset();
+    vi.mocked(rescheduleFollowUp).mockReset();
+    vi.mocked(rescheduleFollowUp).mockResolvedValue({ error: "Not authorized to reschedule this follow-up" });
+  });
+
+  it("toasts the error, not success, when a snooze is rejected", async () => {
+    const user = userEvent.setup();
+    render(<FollowUpsContent overdue={makeRows(1)} upcoming={[]} />);
+
+    await user.click(screen.getByRole("button", { name: /Snooze/ }));
+
+    await vi.waitFor(() => expect(toast.error).toHaveBeenCalledWith("Not authorized to reschedule this follow-up"));
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it("toasts the error, not success, when a reschedule is rejected", async () => {
+    const user = userEvent.setup();
+    render(<FollowUpsContent overdue={makeRows(1)} upcoming={[]} />);
+
+    await user.click(screen.getByRole("button", { name: /Reschedule/ }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Pick date" }));
+    await user.click(within(dialog).getByRole("button", { name: "Reschedule" }));
+
+    expect(rescheduleFollowUp).toHaveBeenCalledWith("log-0", "2026-10-01");
+    await vi.waitFor(() => expect(toast.error).toHaveBeenCalledWith("Not authorized to reschedule this follow-up"));
+    expect(toast.success).not.toHaveBeenCalled();
   });
 });

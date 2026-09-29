@@ -232,6 +232,53 @@ describe("UnsubscribedContent on the DataTable engine", () => {
     expect(resubscribeClient).toHaveBeenCalledWith("client-u1");
   });
 
+  // B17: resubscribeClient reports a refusal as { error } rather than
+  // throwing; the handlers only had try/catch, so it toasted success and
+  // dropped the row.
+  it("toasts a resubscribe { error } and keeps the row", async () => {
+    const user = userEvent.setup();
+    resubscribeClient.mockResolvedValue({ error: "Client is not unsubscribed" });
+    renderUnsubscribed();
+
+    await user.click(within(tableRows()[1]).getByRole("button", { name: "Actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: /Resubscribe/ }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Client is not unsubscribed"));
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(nameColumn()).toContain("Zoe Chan");
+  });
+
+  it("toasts a { error } from Remove on a matched row and keeps the row", async () => {
+    const user = userEvent.setup();
+    resubscribeClient.mockResolvedValue({ error: "Client is not unsubscribed" });
+    renderUnsubscribed();
+
+    await user.click(within(tableRows()[1]).getByRole("button", { name: "Actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: /Remove/ }));
+    await user.click(await screen.findByRole("button", { name: "Remove" }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Client is not unsubscribed"));
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(nameColumn()).toContain("Zoe Chan");
+  });
+
+  it("counts a batch resubscribe { error } as a failure", async () => {
+    const user = userEvent.setup();
+    resubscribeClient.mockImplementation(async (id: unknown) =>
+      id === "client-u1" ? { error: "Client is not unsubscribed" } : undefined,
+    );
+    removeUnsubscribeEntry.mockResolvedValue(undefined);
+    renderUnsubscribed();
+
+    await user.click(screen.getByRole("checkbox", { name: "Select all records" }));
+    await user.click(screen.getByRole("button", { name: "Remove (3)" }));
+    await user.click(await screen.findByRole("button", { name: "Remove All" }));
+
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Removed 2 records"));
+    expect(toast.error).toHaveBeenCalledWith("Failed to remove 1 record");
+    await waitFor(() => expect(nameColumn()).toEqual(["Zoe Chan"]));
+  });
+
   it("opens the remove confirmation from the row actions menu", async () => {
     const user = userEvent.setup();
     renderUnsubscribed();

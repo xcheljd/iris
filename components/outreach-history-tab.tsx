@@ -183,7 +183,12 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
   const handleReschedule = (logId: string, date: Date) => {
     startTransition(async () => {
       try {
-        await rescheduleFollowUp(logId, format(date, "yyyy-MM-dd"));
+        // The action reports a rejection as { error } rather than throwing.
+        const res = await rescheduleFollowUp(logId, format(date, "yyyy-MM-dd"));
+        if (res?.error) {
+          toast.error(res.error);
+          return;
+        }
         toast.success(`Follow-up rescheduled to ${format(date, "MMM d, yyyy")}`);
       } catch {
         toast.error("Failed to reschedule follow-up");
