@@ -31,6 +31,16 @@ beforeEach(() => {
 // Track created test client IDs for cleanup
 const createdIds: string[] = [];
 
+// POST's duplicate gate compares phones by digits only, so a base36 suffix in
+// `555-${suffix}` left just a handful of digits and two creates could 409 on
+// each other. All digits, from a module counter over a per-run base: unique
+// within the run, and 16 phone digits can't match a seeded or fixture phone.
+const SUFFIX_BASE = Date.now();
+let suffixSeq = 0;
+function uniqueSuffix(): string {
+  return String(SUFFIX_BASE + ++suffixSeq);
+}
+
 afterAll(() => {
   for (const id of createdIds) {
     try {
@@ -116,7 +126,7 @@ describe("GET /api/clients/[id]", () => {
 
 describe("POST /api/clients", () => {
   it("should create a new client", async () => {
-    const uniqueSuffix = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const suffix = uniqueSuffix();
     const req = new Request("http://localhost:3000/api/clients", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -124,8 +134,8 @@ describe("POST /api/clients", () => {
         firstName: "Test",
         preferredContact: "call",
         lastName: "Client",
-        phone: `555-${uniqueSuffix}`,
-        email: `test-create-${uniqueSuffix}@example.com`,
+        phone: `555-${suffix}`,
+        email: `test-create-${suffix}@example.com`,
         source: "Walk-in",
       }),
     });
@@ -143,14 +153,14 @@ describe("POST /api/clients", () => {
     const client = await getRes.json();
     expect(client.firstName).toBe("Test");
     expect(client.lastName).toBe("Client");
-    expect(client.email).toBe(`test-create-${uniqueSuffix}@example.com`);
+    expect(client.email).toBe(`test-create-${suffix}@example.com`);
     expect(client.preferredContact).toBe("call"); // regression: was dropped on insert
   });
 
   // Regression (B3): create never scored the new client, so a birthday +
   // interests + email signup (10 + 10 + 10) was stored as the default 0/cold.
   it("stores an accurate heat score for a newly created client", async () => {
-    const uniqueSuffix = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const suffix = uniqueSuffix();
     const req = new Request("http://localhost:3000/api/clients", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -158,7 +168,7 @@ describe("POST /api/clients", () => {
         firstName: "Heat",
         lastName: "OnCreate",
         preferredContact: "email",
-        email: `heat-create-${uniqueSuffix}@example.com`,
+        email: `heat-create-${suffix}@example.com`,
         birthday: "1985-04-12",
         onEmailList: true,
         productsOfInterest: [{ model: "IX1002-01X", collection: "CAMBRIDGE", brand: "Meridian", intent: "interested" }],
@@ -715,16 +725,16 @@ describe("associate session", () => {
 
   it("POST /api/clients — associate creates client; employeeId is the associate", async () => {
     vi.mocked(getServerSession).mockResolvedValue(associateSession);
-    const uniqueSuffix = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const suffix = uniqueSuffix();
     const req = new Request("http://localhost:3000/api/clients", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        firstName: `Assoc-${uniqueSuffix}`,
+        firstName: `Assoc-${suffix}`,
         preferredContact: "call",
-        lastName: `Created-${uniqueSuffix}`,
-        phone: `555-${uniqueSuffix}`,
-        email: `assoc-create-${uniqueSuffix}@example.com`,
+        lastName: `Created-${suffix}`,
+        phone: `555-${suffix}`,
+        email: `assoc-create-${suffix}@example.com`,
         source: "Walk-in",
       }),
     });
