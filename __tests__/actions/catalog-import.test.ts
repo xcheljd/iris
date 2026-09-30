@@ -96,6 +96,61 @@ describe("catalog RVX import", () => {
     expect(row.flaggedCollection).toBeNull();
   });
 
+  // Regression: a file without a Retail Price column (or a non-watch class
+  // code) parses msrp/brand as null, and the import wrote those nulls over the
+  // catalog — and counted every re-imported row as "updated".
+  it("keeps existing msrp/brand when the file has none, and counts no update", async () => {
+    const model = `CIMP4-${Date.now()}`;
+    models.push(model);
+    const seenAt = new Date("2026-01-15T00:00:00Z");
+    db.insert(modelCatalog).values({
+      model, collection: "BELGRAVE", source: "curated", brand: "Ashford", msrp: 500, msrpSeenAt: seenAt,
+    }).run();
+    const noPrice = `<Workbook xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet><Table>
+<Row><Cell ss:Index="3"><Data>Class Code</Data></Cell><Cell><Data>Sub-Class Code</Data></Cell><Cell ss:Index="6"><Data>Vendor Style</Data></Cell></Row>
+<Row><Cell ss:Index="3"><Data>JWL-JEWELRY</Data></Cell><Cell><Data>SUT-BELGRAVE</Data></Cell><Cell ss:Index="6"><Data>${model}</Data></Cell></Row>
+</Table></Worksheet></Workbook>`;
+
+    const a = await analyzeCatalogRvx(noPrice);
+    if ("error" in a) throw new Error(a.error);
+    expect(a.unchangedCount).toBe(1);
+    expect(a.updatedCount).toBe(0);
+
+    const r = await importCatalogRvx(noPrice);
+    if ("error" in r) throw new Error(r.error);
+    expect(r.updated).toBe(0);
+    const row = db.select().from(modelCatalog).where(eq(modelCatalog.model, model)).get()!;
+    expect(row.msrp).toBe(500);
+    expect(row.msrpSeenAt).toEqual(seenAt);
+    expect(row.brand).toBe("Ashford");
+  });
+
+  it("does not count a data-identical re-import as updated", async () => {
+    const model = `CIMP5-${Date.now()}`;
+    models.push(model);
+    const xml = fixture(model, "ASH-ASHFORD", "SUT-BELGRAVE", "500");
+    const first = await importCatalogRvx(xml);
+    if ("error" in first) throw new Error(first.error);
+    expect(first.created).toBe(1);
+
+    const again = await importCatalogRvx(xml);
+    if ("error" in again) throw new Error(again.error);
+    expect(again).toMatchObject({ created: 0, updated: 0 });
+  });
+
+  it("still promotes a data-identical non-curated row to curated", async () => {
+    const model = `CIMP6-${Date.now()}`;
+    models.push(model);
+    db.insert(modelCatalog).values({ model, collection: "BELGRAVE", source: "promo", brand: "Ashford", msrp: 500, needsReview: true }).run();
+
+    const r = await importCatalogRvx(fixture(model, "ASH-ASHFORD", "SUT-BELGRAVE", "500"));
+    if ("error" in r) throw new Error(r.error);
+    expect(r.updated).toBe(0);
+    const row = db.select().from(modelCatalog).where(eq(modelCatalog.model, model)).get()!;
+    expect(row.source).toBe("curated");
+    expect(row.needsReview).toBe(false);
+  });
+
   it("rejects a non-manager", async () => {
     vi.mocked(getServerSession).mockResolvedValue(ASSOCIATE as never);
     await expect(analyzeCatalogRvx(fixture("X-1", "ASH-ASHFORD", "SUT-BELGRAVE", "1"))).rejects.toThrow();

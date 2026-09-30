@@ -21,6 +21,9 @@ export type CatalogImportAnalysis = {
   prevCuratedMissingFromFile: number;
 };
 
+// A null brand/msrp in the file means "no information" (no Retail Price
+// column, or a non-watch class code), not "clear it": the import keeps the
+// existing value, so it isn't a change either.
 function diffRow(
   row: CatalogImportRow,
   existing: { collection: string; brand: string | null; msrp: number | null } | undefined,
@@ -28,8 +31,8 @@ function diffRow(
   if (!existing) return "new";
   if (
     existing.collection !== row.collection ||
-    (existing.brand ?? null) !== (row.brand ?? null) ||
-    (existing.msrp ?? null) !== (row.msrp ?? null)
+    (row.brand != null && row.brand !== existing.brand) ||
+    (row.msrp != null && row.msrp !== existing.msrp)
   )
     return "updated";
   return "unchanged";
@@ -43,11 +46,21 @@ function existingIndex() {
       brand: modelCatalog.brand,
       msrp: modelCatalog.msrp,
       source: modelCatalog.source,
+      needsReview: modelCatalog.needsReview,
+      flaggedCollection: modelCatalog.flaggedCollection,
     })
     .from(modelCatalog)
     .all();
-  const m = new Map<string, { collection: string; brand: string | null; msrp: number | null; source: string }>();
-  for (const r of rows) m.set(r.model, { collection: r.collection, brand: r.brand ?? null, msrp: r.msrp ?? null, source: r.source });
+  const m = new Map<string, {
+    collection: string; brand: string | null; msrp: number | null; source: string;
+    needsReview: boolean; flagged: boolean;
+  }>();
+  for (const r of rows) {
+    m.set(r.model, {
+      collection: r.collection, brand: r.brand ?? null, msrp: r.msrp ?? null, source: r.source,
+      needsReview: r.needsReview, flagged: r.flaggedCollection != null,
+    });
+  }
   return m;
 }
 
@@ -110,12 +123,16 @@ export async function importCatalogRvx(
       for (const row of rows) {
         const ex = idx.get(row.model);
         if (ex) {
+          const changed = diffRow(row, ex) === "updated";
+          // Data-identical rows are still rewritten when they aren't clean
+          // curated rows yet (promo/manual source, provisional, or a pending
+          // flag), so the import keeps promoting them — just not counted.
+          if (!changed && ex.source === "curated" && !ex.needsReview && !ex.flagged) continue;
           tx.update(modelCatalog)
             .set({
               collection: row.collection,
-              brand: row.brand,
-              msrp: row.msrp,
-              msrpSeenAt: row.msrp != null ? now : null,
+              ...(row.brand != null && { brand: row.brand }),
+              ...(row.msrp != null && { msrp: row.msrp, msrpSeenAt: now }),
               source: "curated",
               needsReview: false,
               updatedAt: now,
@@ -125,7 +142,7 @@ export async function importCatalogRvx(
             })
             .where(eq(modelCatalog.model, row.model))
             .run();
-          updated++;
+          if (changed) updated++;
         } else {
           tx.insert(modelCatalog)
             .values({
