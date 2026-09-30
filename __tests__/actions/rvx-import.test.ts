@@ -17,7 +17,7 @@ import { getServerSession } from "next-auth";
 import type { Session } from "next-auth";
 import { analyzeRvxImport, importProspectsFromRvx } from "@/lib/actions/rvx-import";
 import { db } from "@/lib/db";
-import { prospects, bannedCustomers, unsubscribeList } from "@/lib/db/schema";
+import { prospects, bannedCustomers, unsubscribeList, rvxImportBatches } from "@/lib/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
@@ -89,6 +89,16 @@ afterAll(() => {
 });
 
 describe("importProspectsFromRvx", () => {
+  // Regression: a report with no (or an impossible) date range imported a batch
+  // stamped with today's date instead of reporting the problem.
+  it("refuses a report without a valid date range", async () => {
+    const csv = buildCsv([["100", "9009", "Nova", "Bright", `${PHONES.nova}|${EMAILS.nova}`]])
+      .replace("FROM 01/01/25 TO 12/31/25", "FROM 02/01/26 TO 02/30/26");
+    expect(await analyzeRvxImport(csv)).toEqual({ error: expect.stringMatching(/date range/i) });
+    expect(await importProspectsFromRvx(csv)).toEqual({ error: expect.stringMatching(/date range/i) });
+    expect(countByPhone(PHONES.nova)).toBe(0);
+  });
+
   it("imports a fresh batch of unknown customers", async () => {
     const csv = buildCsv([
       ["100", "9001", "Nova", "Bright", `${PHONES.nova}|${EMAILS.nova}`],
@@ -210,11 +220,13 @@ describe("importProspectsFromRvx authorization + failure modes", () => {
     expect(countByPhone("7025550107")).toBe(before);
   });
 
-  it("returns a result (never throws) for an unparseable CSV, importing nothing", async () => {
+  // Used to "succeed" with importedCount 0 and record an empty batch dated
+  // today; it now reports the missing date range instead (B21).
+  it("returns an error (never throws) for an unparseable CSV, importing nothing", async () => {
     vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    const batchesBefore = db.select().from(rvxImportBatches).all().length;
     const res = await importProspectsFromRvx("SALES BY CUSTOMER\n\n\n");
-    expect("error" in res).toBe(false);
-    if ("error" in res) throw new Error(res.error);
-    expect(res.importedCount).toBe(0);
+    expect(res).toEqual({ error: expect.stringMatching(/date range/i) });
+    expect(db.select().from(rvxImportBatches).all()).toHaveLength(batchesBefore);
   });
 });

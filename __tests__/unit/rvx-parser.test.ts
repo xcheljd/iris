@@ -22,27 +22,40 @@ describe("parseRvxCsv", () => {
       const csv = buildCsv([], { dateRow: "FROM 01/01/25 TO 12/31/25" });
       const { reportStartDate, reportEndDate, parseErrors } = parseRvxCsv(csv);
       expect(parseErrors).toHaveLength(0);
-      expect(reportStartDate.getFullYear()).toBe(2025);
-      expect(reportStartDate.getMonth()).toBe(0);
-      expect(reportStartDate.getDate()).toBe(1);
-      expect(reportEndDate.getFullYear()).toBe(2025);
-      expect(reportEndDate.getMonth()).toBe(11);
-      expect(reportEndDate.getDate()).toBe(31);
+      expect(reportStartDate).toEqual(new Date(2025, 0, 1));
+      expect(reportEndDate).toEqual(new Date(2025, 11, 31));
     });
 
     it("parses 4-digit year dates from row 1", () => {
       const csv = buildCsv([], { dateRow: "FROM 03/15/2025 TO 09/30/2025" });
       const { reportStartDate, reportEndDate } = parseRvxCsv(csv);
-      expect(reportStartDate.getFullYear()).toBe(2025);
-      expect(reportStartDate.getMonth()).toBe(2);
-      expect(reportEndDate.getMonth()).toBe(8);
+      expect(reportStartDate).toEqual(new Date(2025, 2, 15));
+      expect(reportEndDate).toEqual(new Date(2025, 8, 30));
     });
 
-    it("adds a parse error when date range is missing", () => {
+    // Regression: a missing range silently became today's date.
+    it("adds a parse error and no dates when date range is missing", () => {
       const csv = buildCsv([], { dateRow: "no dates here" });
-      const { parseErrors } = parseRvxCsv(csv);
+      const { parseErrors, reportStartDate, reportEndDate } = parseRvxCsv(csv);
       expect(parseErrors.length).toBeGreaterThan(0);
       expect(parseErrors[0]).toMatch(/date range/i);
+      expect(reportStartDate).toBeNull();
+      expect(reportEndDate).toBeNull();
+    });
+
+    // Regression: new Date(2026, 1, 30) silently rolled over to Mar 2.
+    it("rejects an impossible date instead of rolling it over", () => {
+      const csv = buildCsv([], { dateRow: "FROM 02/01/2026 TO 02/30/2026" });
+      const { parseErrors, reportStartDate, reportEndDate } = parseRvxCsv(csv);
+      expect(parseErrors[0]).toMatch(/date range/i);
+      expect(reportStartDate).toBeNull();
+      expect(reportEndDate).toBeNull();
+    });
+
+    it("accepts Feb 29 in a leap year", () => {
+      const { reportEndDate, parseErrors } = parseRvxCsv(buildCsv([], { dateRow: "FROM 02/01/28 TO 02/29/28" }));
+      expect(parseErrors).toHaveLength(0);
+      expect(reportEndDate).toEqual(new Date(2028, 1, 29));
     });
   });
 

@@ -76,6 +76,13 @@ describe("normalizeDate", () => {
     expect(normalizeDate("not-a-date")).toBeNull();
     expect(normalizeDate("13/40/26")).toBeNull();
   });
+  // Regression: only day <= 31 was checked, so 2/31/26 became "2026-02-31".
+  it("rejects days that don't exist in the month", () => {
+    expect(normalizeDate("2/31/26")).toBeNull();
+    expect(normalizeDate("4/31/2026")).toBeNull();
+    expect(normalizeDate("2/29/26")).toBeNull();
+    expect(normalizeDate("2/29/28")).toBe("2028-02-29");
+  });
 });
 
 describe("extractRowsFromPage", () => {

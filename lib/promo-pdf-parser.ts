@@ -52,6 +52,9 @@ export function normalizeDate(input: string): string | null {
   let year = parseInt(m[3], 10);
   if (m[3].length === 2) year = year >= 70 ? 1900 + year : 2000 + year;
   if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  // Round-trip through Date so 2/31 (which Date rolls to Mar 3) is rejected.
+  const probe = new Date(Date.UTC(year, month - 1, day));
+  if (probe.getUTCMonth() !== month - 1 || probe.getUTCDate() !== day) return null;
   const mm = String(month).padStart(2, "0");
   const dd = String(day).padStart(2, "0");
   return `${year}-${mm}-${dd}`;

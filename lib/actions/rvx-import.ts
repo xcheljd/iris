@@ -139,6 +139,8 @@ export async function analyzeRvxImport(csvText: string): Promise<RvxAnalysisResu
   await requireManager();
 
   const { rows, reportStartDate, reportEndDate, parseErrors } = parseRvxCsv(csvText);
+  // The batch records the report period; don't preview an import that can't record it.
+  if (!reportStartDate || !reportEndDate) return { error: parseErrors[0] };
 
   const { deduped, dupeRows } = deduplicateRvxRows(rows, findWithinImportDuplicates(rows));
 
@@ -171,7 +173,8 @@ export async function importProspectsFromRvx(
 ): Promise<{ importedCount: number } | { error: string }> {
   const user = await requireManager();
 
-  const { rows, reportStartDate, reportEndDate } = parseRvxCsv(csvText);
+  const { rows, reportStartDate, reportEndDate, parseErrors } = parseRvxCsv(csvText);
+  if (!reportStartDate || !reportEndDate) return { error: parseErrors[0] };
 
   const { deduped } = deduplicateRvxRows(rows, findWithinImportDuplicates(rows));
 

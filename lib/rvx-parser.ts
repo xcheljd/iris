@@ -13,8 +13,9 @@ export interface RvxRawRow {
 
 export interface RvxParseResult {
   rows: RvxRawRow[];
-  reportStartDate: Date;
-  reportEndDate: Date;
+  // null when row 2 has no valid date range (reported in parseErrors).
+  reportStartDate: Date | null;
+  reportEndDate: Date | null;
   parseErrors: string[];
 }
 
@@ -28,12 +29,18 @@ function parseDateRange(line: string): { start: Date; end: Date } | null {
   // e.g. "FROM 01/01/25 TO 12/31/25" or "FROM 01/01/2025 TO 12/31/2025"
   const match = line.match(/FROM\s+(\d{1,2}\/\d{1,2}\/\d{2,4})\s+TO\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
   if (!match) return null;
-  const parseDate = (s: string): Date => {
+  const parseDate = (s: string): Date | null => {
     const [m, d, y] = s.split("/");
     const year = y.length === 2 ? 2000 + parseInt(y, 10) : parseInt(y, 10);
-    return new Date(year, parseInt(m, 10) - 1, parseInt(d, 10));
+    const month = parseInt(m, 10) - 1;
+    const day = parseInt(d, 10);
+    const date = new Date(year, month, day);
+    // new Date() rolls 2/30 over to Mar 2; reject instead of shifting the range.
+    return date.getMonth() === month && date.getDate() === day ? date : null;
   };
-  return { start: parseDate(match[1]), end: parseDate(match[2]) };
+  const start = parseDate(match[1]);
+  const end = parseDate(match[2]);
+  return start && end ? { start, end } : null;
 }
 
 export function parseRvxCsv(csvText: string): RvxParseResult {
@@ -43,7 +50,7 @@ export function parseRvxCsv(csvText: string): RvxParseResult {
   // Row 1: date range
   const dateRange = parseDateRange(lines[1] ?? "");
   if (!dateRange) {
-    parseErrors.push(`Could not parse date range from row 2: "${lines[1]}"`);
+    parseErrors.push(`Could not parse a valid date range from row 2: "${lines[1]}"`);
   }
 
   // Row 3 (index 3): column headers
@@ -63,8 +70,8 @@ export function parseRvxCsv(csvText: string): RvxParseResult {
     parseErrors.push("Missing required columns (STORE #, CUST #, FIRST NAME) in header row");
     return {
       rows: [],
-      reportStartDate: dateRange?.start ?? new Date(),
-      reportEndDate: dateRange?.end ?? new Date(),
+      reportStartDate: dateRange?.start ?? null,
+      reportEndDate: dateRange?.end ?? null,
       parseErrors,
     };
   }
@@ -101,8 +108,8 @@ export function parseRvxCsv(csvText: string): RvxParseResult {
 
   return {
     rows,
-    reportStartDate: dateRange?.start ?? new Date(),
-    reportEndDate: dateRange?.end ?? new Date(),
+    reportStartDate: dateRange?.start ?? null,
+    reportEndDate: dateRange?.end ?? null,
     parseErrors,
   };
 }
