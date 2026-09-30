@@ -1,8 +1,9 @@
 import { withManagerAuth } from "@/lib/api-helpers";
-import { writeFileSync, copyFileSync, renameSync, existsSync, unlinkSync } from "fs";
+import { writeFileSync, renameSync, existsSync, unlinkSync } from "fs";
 import { join } from "path";
 import Database from "better-sqlite3";
 import { DATABASE_PATH } from "@/lib/constants";
+import { sqlite, snapshotDatabase } from "@/lib/db";
 
 const SQLITE_MAGIC = Buffer.from("SQLite format 3\0");
 
@@ -40,8 +41,24 @@ export const POST = withManagerAuth(async (_session, req: Request) => {
     return Response.json({ error: "Not a valid SQLite database file" }, { status: 422 });
   }
 
+  // The .bak comes from the backup API, not a file copy: in WAL mode the main
+  // file alone is missing every commit since the last checkpoint.
   try {
-    if (existsSync(dbPath)) copyFileSync(dbPath, bakPath);
+    await snapshotDatabase(bakPath);
+  } catch {
+    try { unlinkSync(tmpPath); } catch { /* best effort */ }
+    return Response.json({ error: "Failed to back up current database" }, { status: 500 });
+  }
+
+  try {
+    // Fold the WAL into the main file and close, then drop the sidecars: a
+    // stale -wal left beside the swapped-in file would be replayed onto it
+    // on the next open.
+    sqlite.pragma("wal_checkpoint(TRUNCATE)");
+    sqlite.close();
+    for (const sidecar of [`${dbPath}-wal`, `${dbPath}-shm`]) {
+      if (existsSync(sidecar)) unlinkSync(sidecar);
+    }
     renameSync(tmpPath, dbPath);
   } catch {
     try { unlinkSync(tmpPath); } catch { /* best effort */ }

@@ -13,6 +13,12 @@ import { getServerSession } from "next-auth";
 import type { Session } from "next-auth";
 import { GET as GETCatalog } from "@/app/api/catalog/route";
 import { GET as GETBackup } from "@/app/api/backup/download/route";
+import { sqlite } from "@/lib/db";
+import Database from "better-sqlite3";
+import { randomUUID } from "crypto";
+import { mkdtempSync, rmSync, writeFileSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 
 const managerSession: Session = {
   user: { id: "2d7a352d-53a0-4544-b515-902e7dd59206", name: "Marcus", role: "manager", firstName: "Marcus", lastName: null },
@@ -90,5 +96,32 @@ describe("GET /api/backup/download", () => {
     // SQLite magic bytes
     const magic = Buffer.from(buf).subarray(0, 6).toString("ascii");
     expect(magic).toBe("SQLite");
+  });
+
+  // Regression: the route used to readFileSync the main DB file, which in WAL
+  // mode is missing every commit since the last checkpoint.
+  it("snapshot includes rows committed since the last WAL checkpoint", async () => {
+    const ids = [randomUUID(), randomUUID()];
+    const insert = sqlite.prepare(
+      "INSERT INTO clients (id, first_name, last_name, employee_id, date_added) VALUES (?, 'Backup', 'Probe', ?, unixepoch())",
+    );
+    // A file, not an in-memory deserialize: the snapshot's header is in WAL
+    // mode, which a deserialized database cannot open.
+    const snapshotDir = mkdtempSync(join(tmpdir(), "iris-backup-test-"));
+    const snapshotPath = join(snapshotDir, "snapshot.db");
+    try {
+      for (const id of ids) insert.run(id, associateSession.user.id);
+      const res = await GETBackup();
+      writeFileSync(snapshotPath, Buffer.from(await res.arrayBuffer()));
+      const snapshot = new Database(snapshotPath);
+      const rows = snapshot
+        .prepare(`SELECT id FROM clients WHERE id IN (?, ?)`)
+        .all(...ids) as { id: string }[];
+      snapshot.close();
+      expect(rows.map((r) => r.id).sort()).toEqual([...ids].sort());
+    } finally {
+      sqlite.prepare("DELETE FROM clients WHERE id IN (?, ?)").run(...ids);
+      rmSync(snapshotDir, { recursive: true, force: true });
+    }
   });
 });

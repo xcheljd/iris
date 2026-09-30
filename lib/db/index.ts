@@ -36,5 +36,13 @@ try {
   }
 }
 
+/** Writes a consistent point-in-time copy of the live DB to `destPath`.
+ *  In WAL mode recent commits live in `iris.db-wal` until a checkpoint, so
+ *  copying the main file alone can drop them; the online backup API reads
+ *  through the WAL. */
+export async function snapshotDatabase(destPath: string): Promise<void> {
+  await sqlite.backup(destPath);
+}
+
 export { sqlite };
 export * from "./schema";
