@@ -47,6 +47,7 @@ async function ProspectsFetcher({ searchParams }: { searchParams: SearchParams }
       // The query clamps a page past the end; render the page it served.
       filters={{ status, q, sort, dir, page: list.page }}
       isManager={isManager}
+      restoreLastSearch={Object.keys(sp).length === 0}
     />
   );
 }

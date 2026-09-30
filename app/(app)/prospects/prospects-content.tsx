@@ -27,6 +27,9 @@ import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 const TYPING_DELAY_MS = 300;
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
+/** sessionStorage key for the last query string navigate() wrote. */
+export const LAST_SEARCH_KEY = "prospects:last-search";
+
 const TAB_LABELS: Record<ProspectStatus, string> = {
   active: "Active Prospects",
   graduated: "Graduated Prospects",
@@ -71,9 +74,11 @@ interface ProspectsContentProps {
   counts: Record<ProspectStatus, number>;
   filters: ProspectFilters;
   isManager: boolean;
+  /** True when the page was requested with no search params at all. */
+  restoreLastSearch?: boolean;
 }
 
-export function ProspectsContent({ rows, total, counts, filters, isManager }: ProspectsContentProps) {
+export function ProspectsContent({ rows, total, counts, filters, isManager, restoreLastSearch = false }: ProspectsContentProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   // RVX Import disabled for demo — Coming Soon
@@ -103,6 +108,10 @@ export function ProspectsContent({ rows, total, counts, filters, isManager }: Pr
     if (next.sort && next.dir !== "asc") sp.set("dir", next.dir);
     if (next.page > 1) sp.set("page", String(next.page));
     const qs = sp.toString();
+    // Remembered for a bare /prospects visit later in the session; an empty
+    // query (every filter cleared) forgets it.
+    if (qs) sessionStorage.setItem(LAST_SEARCH_KEY, qs);
+    else sessionStorage.removeItem(LAST_SEARCH_KEY);
     // scroll: false keeps the pagination footer under the cursor; the
     // transition keeps the current rows interactive while the server renders.
     startTransition(() => {
@@ -115,6 +124,15 @@ export function ProspectsContent({ rows, total, counts, filters, isManager }: Pr
   useEffect(() => {
     navigateRef.current = navigate;
   });
+
+  // A bare /prospects visit adopts the filters the user last had this session.
+  // It only moves the URL; the adoption effect below pulls the restored query
+  // into the input.
+  useEffect(() => {
+    if (!restoreLastSearch) return;
+    const saved = sessionStorage.getItem(LAST_SEARCH_KEY);
+    if (saved) router.replace(`/prospects?${saved}`, { scroll: false });
+  }, [restoreLastSearch, router]);
 
   // Adopt a query that arrived from outside — a back/forward navigation, or a
   // deep link — so the input and the URL stay in step.

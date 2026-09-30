@@ -1,13 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ProspectsContent } from "@/app/(app)/prospects/prospects-content";
+import { ProspectsContent, LAST_SEARCH_KEY } from "@/app/(app)/prospects/prospects-content";
 import type { ProspectListRow } from "@/lib/queries";
 
 const replace = vi.fn();
+// Stable across renders, like Next's router instance.
+const router = { push: vi.fn(), replace, refresh: vi.fn() };
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), replace, refresh: vi.fn() }),
+  useRouter: () => router,
 }));
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -228,5 +230,77 @@ describe("ProspectsContent on the DataTable engine", () => {
     await user.click(screen.getByRole("button", { name: "Clear filters" }));
 
     expect(replace).toHaveBeenLastCalledWith("/prospects?status=rejected", { scroll: false });
+  });
+});
+
+describe("ProspectsContent remembered filters", () => {
+  beforeEach(() => {
+    replace.mockReset();
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("saves the query string whenever it navigates", async () => {
+    const user = userEvent.setup();
+    const page = Array.from({ length: 20 }, (_, i) => prospect({ id: `m${i}` }));
+    renderProspects({ rows: page, total: 44, filters: { ...FILTERS, q: "Zoe", sort: "spend" } });
+
+    await user.click(screen.getByRole("button", { name: "Go to next page" }));
+
+    expect(sessionStorage.getItem(LAST_SEARCH_KEY)).toBe("q=Zoe&sort=spend&page=2");
+  });
+
+  it("adopts the saved query on a bare /prospects visit", () => {
+    sessionStorage.setItem(LAST_SEARCH_KEY, "q=Zoe&sort=spend&page=2");
+    renderProspects({ restoreLastSearch: true });
+
+    expect(replace).toHaveBeenCalledWith("/prospects?q=Zoe&sort=spend&page=2", { scroll: false });
+  });
+
+  // The restore only moves the URL; the adoption effect pulls q into the
+  // input. The debounce must then see nothing to commit — a navigation with
+  // page: 1 here would bounce the restored page.
+  it("lets the restored URL flow through adoption without a debounce navigation", () => {
+    vi.useFakeTimers();
+    sessionStorage.setItem(LAST_SEARCH_KEY, "q=Zoe&sort=spend&page=2");
+    const { rerender } = renderProspects({ restoreLastSearch: true });
+    expect(replace).toHaveBeenCalledTimes(1);
+
+    // The server re-renders with the restored query and params present.
+    rerender(
+      <ProspectsContent
+        rows={ROWS}
+        total={44}
+        counts={COUNTS}
+        filters={{ ...FILTERS, q: "Zoe", sort: "spend", page: 2 }}
+        isManager
+        restoreLastSearch={false}
+      />,
+    );
+    act(() => { vi.advanceTimersByTime(1000); });
+
+    expect(screen.getByPlaceholderText("Search by name, phone, or email...")).toHaveValue("Zoe");
+    expect(replace).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets explicit URL params win over the saved query", () => {
+    sessionStorage.setItem(LAST_SEARCH_KEY, "q=Zoe");
+    renderProspects({ filters: { ...FILTERS, status: "graduated" }, restoreLastSearch: false });
+
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("forgets the saved query when every filter is cleared", async () => {
+    sessionStorage.setItem(LAST_SEARCH_KEY, "q=zzz");
+    const user = userEvent.setup();
+    renderProspects({ rows: [], total: 0, filters: { ...FILTERS, q: "zzz" } });
+
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+
+    expect(replace).toHaveBeenLastCalledWith("/prospects", { scroll: false });
+    expect(sessionStorage.getItem(LAST_SEARCH_KEY)).toBeNull();
   });
 });
