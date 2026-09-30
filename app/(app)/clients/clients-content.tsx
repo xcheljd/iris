@@ -46,6 +46,9 @@ const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 const SEARCH_HISTORY_KEY = "iris:recent-searches:clients";
 
+/** sessionStorage key for the last query string navigate() wrote. */
+export const LAST_SEARCH_KEY = "clients:last-search";
+
 type SortKey = "name" | "heat" | "lastContact" | "owner";
 type SortDir = "asc" | "desc";
 
@@ -93,6 +96,7 @@ export function ClientListContent({
   employeeOptions,
   currentFilters,
   currentUserRole,
+  restoreLastSearch = false,
 }: {
   rows: ClientRow[];
   total: number;
@@ -101,6 +105,8 @@ export function ClientListContent({
   employeeOptions: { id: string; name: string }[];
   currentFilters: ClientFilters;
   currentUserRole?: string;
+  /** True when the page was requested with no search params at all. */
+  restoreLastSearch?: boolean;
 }) {
   const router = useRouter();
   const [qLocal, setQLocal] = useState(currentFilters.q);
@@ -210,6 +216,10 @@ export function ClientListContent({
     if (next.page > 1) sp.set("page", String(next.page));
     const qs = sp.toString();
     const url = `/clients${qs ? `?${qs}` : ""}`;
+    // Remembered for a bare /clients visit later in the session; an empty
+    // query (every filter cleared) forgets it.
+    if (qs) sessionStorage.setItem(LAST_SEARCH_KEY, qs);
+    else sessionStorage.removeItem(LAST_SEARCH_KEY);
     // scroll: false keeps the viewport where it is (the pagination footer stays
     // under the cursor); the transition keeps the current rows interactive
     // while the server renders the next page instead of flashing a skeleton.
@@ -224,6 +234,13 @@ export function ClientListContent({
   useEffect(() => {
     navigateRef.current = navigate;
   });
+
+  // A bare /clients visit adopts the filters the user last had this session.
+  useEffect(() => {
+    if (!restoreLastSearch) return;
+    const saved = sessionStorage.getItem(LAST_SEARCH_KEY);
+    if (saved) router.replace(`/clients?${saved}`, { scroll: false });
+  }, [restoreLastSearch, router]);
 
   // Adopt a query that arrived from outside this component — a back/forward
   // navigation, or a deep link — so the input and the URL stay in step.

@@ -85,6 +85,9 @@ async function ClientListFetcher({ searchParams }: { searchParams: SearchParams 
         page: servedPage,
       }}
       currentUserRole={session.user.role}
+      // A bare /clients (sidebar, dashboard, palette) restores the last filter
+      // state; any explicit query string wins.
+      restoreLastSearch={Object.keys(sp).length === 0}
     />
   );
 }

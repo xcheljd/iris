@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { StrictMode } from "react";
 import { render, screen, act, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ClientListContent } from "@/app/(app)/clients/clients-content";
+import { ClientListContent, LAST_SEARCH_KEY } from "@/app/(app)/clients/clients-content";
 
 const push = vi.fn();
 const replace = vi.fn();
@@ -251,6 +251,49 @@ describe("ClientListContent delete undo", () => {
     expect(opts.action.label).toBe("Undo");
     await opts.action.onClick();
     expect(restoreClient).toHaveBeenCalledWith("client-0");
+  });
+});
+
+describe("ClientListContent remembered filters", () => {
+  beforeEach(() => {
+    push.mockReset();
+    replace.mockReset();
+    sessionStorage.clear();
+  });
+
+  it("saves the query string whenever it navigates", async () => {
+    const user = userEvent.setup();
+    renderList({ currentFilters: { ...BASE_FILTERS, heat: "hot", page: 1 } });
+
+    await user.click(screen.getByRole("button", { name: "Go to next page" }));
+
+    expect(sessionStorage.getItem(LAST_SEARCH_KEY)).toBe("heat=hot&page=2");
+  });
+
+  it("adopts the saved query on a bare /clients visit", () => {
+    sessionStorage.setItem(LAST_SEARCH_KEY, "heat=hot&tags=VIP");
+    renderList({ restoreLastSearch: true });
+
+    expect(replace).toHaveBeenCalledWith("/clients?heat=hot&tags=VIP", { scroll: false });
+  });
+
+  it("lets explicit URL params win over the saved query", () => {
+    sessionStorage.setItem(LAST_SEARCH_KEY, "heat=hot");
+    renderList({ currentFilters: { ...BASE_FILTERS, heat: "cold" }, restoreLastSearch: false });
+
+    expect(replace).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("forgets the saved query when every filter is cleared", async () => {
+    sessionStorage.setItem(LAST_SEARCH_KEY, "heat=hot");
+    const user = userEvent.setup();
+    renderList({ currentFilters: { ...BASE_FILTERS, heat: "hot" } });
+
+    await user.click(screen.getByRole("button", { name: /Clear all/i }));
+
+    expect(lastNavigationUrl()).toBe("/clients");
+    expect(sessionStorage.getItem(LAST_SEARCH_KEY)).toBeNull();
   });
 });
 
