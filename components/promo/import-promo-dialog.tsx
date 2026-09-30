@@ -41,11 +41,18 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
   const [filenameBrand, setFilenameBrand] = useState<Brand | "">("");
   const [bulkBrand, setBulkBrand] = useState<Brand | "">("");
 
+  // Bumped on every new file and on reset, so a parse still running when the
+  // dialog closes can't land its result in the next session.
+  const requestIdRef = useRef(0);
+
   const handleFile = async (file: File) => {
+    const requestId = ++requestIdRef.current;
+    const isStale = () => requestId !== requestIdRef.current;
     setIsParsing(true);
     setFileName(file.name);
     try {
       const parseResult = await parsePromoPdf(file);
+      if (isStale()) return;
       setParsed(parseResult);
       setFilenameBrand(parseResult.brand ?? "");
       setBulkBrand(parseResult.brand ?? "");
@@ -56,18 +63,20 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
         return;
       }
       const resolveResult = await resolvePromoRows(parseResult.rows);
+      if (isStale()) return;
       if ("error" in resolveResult) {
         toast.error(resolveResult.error);
         return;
       }
       setResolved(resolveResult.resolved);
     } catch (err) {
+      if (isStale()) return;
       console.error(err);
       toast.error("Failed to parse PDF");
       setParsed(null);
       setResolved(null);
     } finally {
-      setIsParsing(false);
+      if (!isStale()) setIsParsing(false);
     }
   };
 
@@ -132,6 +141,8 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
   };
 
   const handleReset = () => {
+    requestIdRef.current++;
+    setIsParsing(false);
     setParsed(null); setResolved(null); setFileName("");
     setPromoStart(undefined); setPromoEnd(undefined);
     setBrandOverrides({}); setFilenameBrand(""); setBulkBrand("");

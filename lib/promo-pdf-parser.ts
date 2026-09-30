@@ -230,22 +230,29 @@ export async function parsePromoPdf(file: File): Promise<ParsedPromoPdf> {
     pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
   }
   const buf = await file.arrayBuffer();
-  const doc = await pdfjs.getDocument({ data: new Uint8Array(buf) }).promise;
-  const pages: ExtractPageResult[] = [];
-  for (let i = 1; i <= doc.numPages; i++) {
-    const page = await doc.getPage(i);
-    const tc = await page.getTextContent();
-    const items: PdfTextItem[] = [];
-    for (const it of tc.items) {
-      // pdfjs text items have either a transform array or are marker items
-      // (TextMarkedContent) we can ignore.
-      const transform = (it as { transform?: number[] }).transform;
-      const str = (it as { str?: string }).str;
-      if (!transform || typeof str !== "string") continue;
-      items.push({ str, x: transform[4], y: transform[5] });
+  const task = pdfjs.getDocument({ data: new Uint8Array(buf) });
+  // Destroy the document (pdfjs v6: via its loading task) even on a parse
+  // error, or its worker-side memory outlives the import.
+  try {
+    const doc = await task.promise;
+    const pages: ExtractPageResult[] = [];
+    for (let i = 1; i <= doc.numPages; i++) {
+      const page = await doc.getPage(i);
+      const tc = await page.getTextContent();
+      const items: PdfTextItem[] = [];
+      for (const it of tc.items) {
+        // pdfjs text items have either a transform array or are marker items
+        // (TextMarkedContent) we can ignore.
+        const transform = (it as { transform?: number[] }).transform;
+        const str = (it as { str?: string }).str;
+        if (!transform || typeof str !== "string") continue;
+        items.push({ str, x: transform[4], y: transform[5] });
+      }
+      pages.push(extractRowsFromPage(items));
     }
-    pages.push(extractRowsFromPage(items));
+    const combined = combinePageResults(pages, file.name);
+    return { ...combined, pageCount: doc.numPages };
+  } finally {
+    await task.destroy();
   }
-  const combined = combinePageResults(pages, file.name);
-  return { ...combined, pageCount: doc.numPages };
 }

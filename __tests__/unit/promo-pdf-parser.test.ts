@@ -1,11 +1,20 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   brandFromFilename,
   normalizeDate,
   extractRowsFromPage,
   combinePageResults,
+  parsePromoPdf,
   type PdfTextItem,
 } from "@/lib/promo-pdf-parser";
+
+const pdfDoc = vi.hoisted(() => ({ numPages: 1, getPage: vi.fn() }));
+const destroyTask = vi.hoisted(() => vi.fn(async () => {}));
+
+vi.mock("pdfjs-dist", () => ({
+  GlobalWorkerOptions: { workerSrc: "/pdf.worker.min.mjs" },
+  getDocument: () => ({ promise: Promise.resolve(pdfDoc), destroy: destroyTask }),
+}));
 
 // Build a synthetic page of positioned text items matching the layout of the
 // Meridian promo PDF used in production: header row at y=696, data rows at
@@ -167,5 +176,29 @@ describe("combinePageResults", () => {
     expect(out.promoStart).toBe("2026-05-19");
     expect(out.promoEnd).toBe("2026-06-01");
     expect(out.pagesWithoutDiscount).toEqual([3]);
+  });
+});
+
+// Regression: parsePromoPdf never destroyed its loading task, so every import kept
+// the pdf.js document (and its worker-side memory) alive.
+describe("parsePromoPdf", () => {
+  const file = new File([new Uint8Array([37, 80, 68, 70])], "Meridian promo.pdf");
+
+  beforeEach(() => {
+    destroyTask.mockClear();
+    pdfDoc.getPage.mockReset();
+  });
+
+  it("destroys the document after parsing", async () => {
+    pdfDoc.getPage.mockResolvedValue({ getTextContent: async () => ({ items: [] }) });
+    const out = await parsePromoPdf(file);
+    expect(out.pageCount).toBe(1);
+    expect(destroyTask).toHaveBeenCalledTimes(1);
+  });
+
+  it("destroys the document when a page fails to load", async () => {
+    pdfDoc.getPage.mockRejectedValue(new Error("bad page"));
+    await expect(parsePromoPdf(file)).rejects.toThrow("bad page");
+    expect(destroyTask).toHaveBeenCalledTimes(1);
   });
 });
