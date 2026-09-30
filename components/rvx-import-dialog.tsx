@@ -26,6 +26,7 @@ export function RvxImportDialog({ open, onOpenChangeAction }: RvxImportDialogPro
   const [fileName, setFileName] = useState("");
   const [analysis, setAnalysis] = useState<RvxAnalysisResult | null>(null);
   const [importedCount, setImportedCount] = useState(0);
+  const [dragOver, setDragOver] = useState(false);
   const [pending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -37,8 +38,15 @@ export function RvxImportDialog({ open, onOpenChangeAction }: RvxImportDialogPro
     setAnalysis(null);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  // An import in flight can't be abandoned: closing would reset the steps
+  // while the server keeps writing.
+  const handleOpenChange = (next: boolean) => {
+    if (!next && step === "importing") return;
+    handleClose();
+  };
+
+  // One entry point for the file picker and a drop onto the zone.
+  const handleFile = (file: File | undefined) => {
     if (!file) return;
     setFileName(file.name);
     const reader = new FileReader();
@@ -91,7 +99,7 @@ export function RvxImportDialog({ open, onOpenChangeAction }: RvxImportDialogPro
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         {step === "upload" && (
           <>
@@ -103,22 +111,33 @@ export function RvxImportDialog({ open, onOpenChangeAction }: RvxImportDialogPro
             </DialogHeader>
 
             <div className="flex flex-col py-4 gap-4">
-              <div
-                className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:bg-muted/50 transition-colors"
+              <button
+                type="button"
+                className={`w-full border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${dragOver ? "border-meridian-gold bg-muted/50" : ""}`}
                 onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(false);
+                  handleFile(e.dataTransfer.files[0]);
+                }}
               >
                 <Upload className="size-8 mx-auto mb-2 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
                   {fileName || "Click to select a CSV file"}
                 </p>
                 {fileName && <p className="text-xs text-muted-foreground mt-1">{fileName}</p>}
-              </div>
+              </button>
               <input
                 ref={fileInputRef}
                 type="file"
                 accept=".csv,.txt"
                 className="hidden"
-                onChange={handleFileChange}
+                onChange={(e) => handleFile(e.target.files?.[0])}
               />
             </div>
 
