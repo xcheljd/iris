@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { OnChangeFn, SortingState } from "@tanstack/react-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +30,9 @@ import { ActiveFilterChips, type ActiveFilterChip } from "@/components/active-fi
 
 type CatalogFilterChipKey = "mod" | "col" | "brands" | "msrp";
 
+/** sessionStorage key for the last query string navigate() wrote. */
+export const LAST_SEARCH_KEY = "catalog:last-search";
+
 interface CatalogRow {
   model: string;
   collection: string;
@@ -55,11 +58,13 @@ interface CatalogContentProps {
   sort: "model" | "collection" | "brand" | "msrp";
   dir: "asc" | "desc";
   page: number;
+  /** True when the page was requested with no search params at all. */
+  restoreLastSearch?: boolean;
 }
 
 type SortKey = "model" | "collection" | "brand" | "msrp";
 
-export function CatalogContent({ rows, total, needsReview, flagged, mod, col, brands, msrpMin, msrpMax, msrpCeiling, sort, dir, page }: CatalogContentProps) {
+export function CatalogContent({ rows, total, needsReview, flagged, mod, col, brands, msrpMin, msrpMax, msrpCeiling, sort, dir, page, restoreLastSearch = false }: CatalogContentProps) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [editing, setEditing] = useState<string | null>(null);
@@ -98,8 +103,21 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
     if (next.sort !== "model") sp.set("sort", next.sort);
     if (next.dir !== "asc") sp.set("dir", next.dir);
     if (next.page > 1) sp.set("page", String(next.page));
-    router.replace(`/catalog${sp.toString() ? `?${sp.toString()}` : ""}`);
+    const qs = sp.toString();
+    // Remembered for a bare /catalog visit later in the session; an empty
+    // query (every filter cleared) forgets it.
+    if (qs) sessionStorage.setItem(LAST_SEARCH_KEY, qs);
+    else sessionStorage.removeItem(LAST_SEARCH_KEY);
+    router.replace(`/catalog${qs ? `?${qs}` : ""}`);
   }
+
+  // A bare /catalog visit adopts the filters the user last had this session.
+  // The review and conflict panels are their own queries, so only the list moves.
+  useEffect(() => {
+    if (!restoreLastSearch) return;
+    const saved = sessionStorage.getItem(LAST_SEARCH_KEY);
+    if (saved) router.replace(`/catalog?${saved}`, { scroll: false });
+  }, [restoreLastSearch, router]);
 
   // The engine compares state slices shallowly, so this has to keep its
   // identity between renders that did not change the sort.

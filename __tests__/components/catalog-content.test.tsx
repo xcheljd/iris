@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { CatalogContent } from "@/app/(app)/catalog/catalog-content";
+import { CatalogContent, LAST_SEARCH_KEY } from "@/app/(app)/catalog/catalog-content";
 
 const replace = vi.fn();
+// Stable across renders, like Next's router instance.
+const router = { push: vi.fn(), replace, refresh: vi.fn() };
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), replace, refresh: vi.fn() }),
+  useRouter: () => router,
 }));
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -136,5 +138,49 @@ describe("CatalogContent on the DataTable engine", () => {
     renderCatalog({ rows: [], total: 0, mod: "zzz" });
     expect(screen.getByText("No matches for current filters")).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+});
+
+describe("CatalogContent remembered filters", () => {
+  beforeEach(() => {
+    replace.mockReset();
+    sessionStorage.clear();
+  });
+
+  it("saves the query string whenever it navigates", async () => {
+    const user = userEvent.setup();
+    renderCatalog({ brands: ["voss"] });
+
+    await user.click(screen.getByRole("button", { name: /^MSRP/ }));
+
+    expect(sessionStorage.getItem(LAST_SEARCH_KEY)).toBe("brands=voss&sort=msrp");
+  });
+
+  it("adopts the saved query on a bare /catalog visit, leaving the review panel alone", () => {
+    sessionStorage.setItem(LAST_SEARCH_KEY, "brands=voss&page=2");
+    renderCatalog({ restoreLastSearch: true, needsReview: [{ ...ROWS[0], model: "VS-0001", needsReview: true }] });
+
+    expect(replace).toHaveBeenCalledTimes(1);
+    expect(replace).toHaveBeenCalledWith("/catalog?brands=voss&page=2", { scroll: false });
+    // The panel is its own query, fed straight from props.
+    expect(screen.getByText(/Needs cataloging \(1\)/)).toBeInTheDocument();
+  });
+
+  it("lets explicit URL params win over the saved query", () => {
+    sessionStorage.setItem(LAST_SEARCH_KEY, "brands=voss");
+    renderCatalog({ col: "Solaris", restoreLastSearch: false });
+
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("forgets the saved query when every filter is cleared", async () => {
+    sessionStorage.setItem(LAST_SEARCH_KEY, "brands=voss");
+    const user = userEvent.setup();
+    renderCatalog({ brands: ["voss"] });
+
+    await user.click(screen.getByRole("button", { name: /Clear all/i }));
+
+    expect(replace).toHaveBeenLastCalledWith("/catalog");
+    expect(sessionStorage.getItem(LAST_SEARCH_KEY)).toBeNull();
   });
 });
