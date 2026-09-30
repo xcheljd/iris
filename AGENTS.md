@@ -149,6 +149,12 @@ they do. If either grows a query it pages against, it moves to the shape above.
   turns a dead session (deactivated employee: middleware passes the signed JWT, `getSession()`
   returns null) into the unscoped manager view. `__tests__/app/page-auth-gate.test.tsx` runs
   every scoped loader with no session; add a new scoped page to its list.
+- **Email suppression:** any query that produces people to email or promo-contact applies
+  `notSuppressed(emailCol)` from `lib/suppression.ts` (unsubscribe list + banned emails,
+  case-insensitive), and any write that can set `onEmailList` checks `isEmailSuppressed()`.
+- **Duplicate matches:** never echo a matched client row. Return `toDuplicateResult()` from
+  `lib/duplicate-client.ts` — `{ duplicate, ownedByYou, id?, name? }`, with `id`/`name` only for
+  the owner or a manager.
 - **Heat scoring:** computed in exactly one place — `lib/heat-score.ts` (`calcHeatScore`).
   Seeds, migrations and tests call it; nothing reimplements the rules inline. Any write that
   changes a scored field (create, edit, status, email list, graduation) calls `recalcHeat(id)`
