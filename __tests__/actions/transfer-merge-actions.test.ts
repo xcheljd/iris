@@ -13,8 +13,8 @@ vi.mock("next/cache", () => ({
 import { getServerSession } from "next-auth";
 import type { Session } from "next-auth";
 import { transferClient, mergeClients, patchClientFromFormMerge } from "@/lib/actions";
-import { db } from "@/lib/db";
-import { clients, activityEvents, outreachLogs } from "@/lib/db/schema";
+import { db, sqlite } from "@/lib/db";
+import { clients, activityEvents, outreachLogs, promoMatches, promoWatches } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
@@ -259,6 +259,32 @@ describe("mergeClients", () => {
     createdClientIds.push(aId, bId);
 
     await expect(mergeClients(aId, bId, {}, null)).rejects.toThrow();
+  });
+
+  // Regression: promo matches move to the winner with an UPDATE, and
+  // promo_matches only had INSERT/DELETE FTS triggers, so the winner's index
+  // row never picked up the loser's collections.
+  it("indexes the loser's promo collections on the winner", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    const aId = createTestClient({ firstName: "FtsWinner", dateAdded: new Date("2019-01-01") });
+    const bId = createTestClient({ firstName: "FtsLoser", dateAdded: new Date("2022-01-01") });
+    createdClientIds.push(aId, bId);
+    const promoId = randomUUID();
+    db.insert(promoWatches).values({ id: promoId, modelNumber: "MER-FTS-1", collection: "Quillmoor", brand: "Meridian" }).run();
+    db.insert(promoMatches).values({ id: randomUUID(), clientId: bId, promoId, matchType: "collection" }).run();
+
+    try {
+      const { winnerId } = await mergeClients(aId, bId, {}, null) as { winnerId: string };
+      createdClientIds.splice(createdClientIds.indexOf(bId), 1);
+
+      const hits = sqlite
+        .prepare("SELECT client_id FROM clients_fts WHERE clients_fts MATCH 'quillmoor'")
+        .all() as { client_id: string }[];
+      expect(hits.map((h) => h.client_id)).toEqual([winnerId]);
+    } finally {
+      db.delete(promoMatches).where(eq(promoMatches.promoId, promoId)).run();
+      db.delete(promoWatches).where(eq(promoWatches.id, promoId)).run();
+    }
   });
 
   it("rolls back both clients when the transaction fails mid-merge", async () => {

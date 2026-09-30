@@ -71,6 +71,7 @@ export function setupClientsFts(sqlite: Database.Database) {
       sqlite.exec("DROP TRIGGER IF EXISTS clients_fts_after_delete");
       sqlite.exec("DROP TRIGGER IF EXISTS promo_matches_after_insert");
       sqlite.exec("DROP TRIGGER IF EXISTS promo_matches_after_delete");
+      sqlite.exec("DROP TRIGGER IF EXISTS promo_matches_after_update");
       sqlite.exec("DROP TRIGGER IF EXISTS promo_watches_fts_after_update");
       sqlite.exec("DROP TABLE clients_fts");
     }
@@ -94,9 +95,8 @@ export function setupClientsFts(sqlite: Database.Database) {
     );
   `);
 
-  // Build the FTS row-projection SQL from one template so the seven
-  // places that need it (5 triggers + backfill + the delete-only trigger)
-  // can't drift apart when a column is added or a join is changed.
+  // Build the FTS row-projection SQL from one template so every trigger
+  // and the backfill can't drift apart when a column is added or a join is changed.
   // `clientIdPredicate` is the predicate suffix attached to `c.id` —
   // either `= NEW.id`, `= OLD.client_id`, or `IN (SELECT …)`.
   const insertProjection = (clientIdPredicate: string) => `
@@ -164,6 +164,17 @@ export function setupClientsFts(sqlite: Database.Database) {
     BEGIN
       ${deletePredicate("= OLD.client_id")};
       ${insertProjection("= OLD.client_id")};
+    END;
+  `);
+
+  // A merge reassigns the loser's links with an UPDATE, so both the old and
+  // the new owner's rows need re-projecting.
+  sqlite.exec(`
+    CREATE TRIGGER IF NOT EXISTS promo_matches_after_update
+    AFTER UPDATE OF client_id ON promo_matches
+    BEGIN
+      ${deletePredicate("IN (OLD.client_id, NEW.client_id)")};
+      ${insertProjection("IN (OLD.client_id, NEW.client_id)")};
     END;
   `);
 
