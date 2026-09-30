@@ -14,6 +14,7 @@ import {
 import { requireAuth } from "./_shared";
 import { recordProductsOfInterest } from "./model-catalog";
 import { recalcHeat } from "@/lib/heat-recalc";
+import { isEmailSuppressed } from "@/lib/suppression";
 
 export async function graduateProspect(input: GraduateProspectInput): Promise<
   | { type: "created"; clientId: string }
@@ -100,7 +101,11 @@ export async function graduateProspectIntoExistingClient(
   // Only backfill fields that are currently null/empty on the existing client
   const patch: Partial<typeof clients.$inferInsert> = { updatedAt: new Date() };
   if (!existing.phone && enrichment.phone) patch.phone = enrichment.phone;
-  if (!existing.email && enrichment.email) patch.email = enrichment.email;
+  if (!existing.email && enrichment.email) {
+    patch.email = enrichment.email;
+    // The client may already be on the list; a suppressed address must not join it.
+    if (isEmailSuppressed(enrichment.email)) patch.onEmailList = false;
+  }
   if (!existing.birthday && enrichment.birthday) patch.birthday = enrichment.birthday;
   if (!existing.anniversary && enrichment.anniversary) patch.anniversary = enrichment.anniversary;
   if (!existing.notes && enrichment.notes) patch.notes = enrichment.notes;

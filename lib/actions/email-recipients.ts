@@ -5,6 +5,7 @@ import { clients, prospects, employees } from "@/lib/db/schema";
 import { and, eq, isNotNull, notInArray, type SQL } from "drizzle-orm";
 import { buildClientFilterConds, type ClientFilterParams } from "@/lib/client-filter-conds";
 import { requireAuth } from "./_shared";
+import { notSuppressed } from "@/lib/suppression";
 
 /** Filter shape accepted by the Email Recipients server action. */
 export type ClientEmailFilters = ClientFilterParams;
@@ -34,6 +35,7 @@ export async function getEmailRecipients(filters: ClientEmailFilters = {}): Prom
     notInArray(clients.status, ["banned", "deleted", "unsubscribed"]),
     eq(clients.onEmailList, true),
     isNotNull(clients.email),
+    notSuppressed(clients.email),
     employeeId ? eq(clients.employeeId, employeeId) : undefined,
     ...filterConds,
   ];
@@ -50,7 +52,7 @@ export async function getEmailRecipients(filters: ClientEmailFilters = {}): Prom
   const prospectRows = db
     .select({ email: prospects.email })
     .from(prospects)
-    .where(and(eq(prospects.status, "active"), isNotNull(prospects.email)))
+    .where(and(eq(prospects.status, "active"), isNotNull(prospects.email), notSuppressed(prospects.email)))
     .orderBy(prospects.email)
     .all();
 

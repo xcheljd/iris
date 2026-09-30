@@ -9,6 +9,7 @@ import { saveClientEdits } from "@/lib/actions/clients";
 import { recalcHeat } from "@/lib/heat-recalc";
 import { findDuplicateClient } from "@/lib/duplicate-client";
 import { recordProductsOfInterest } from "@/lib/actions/model-catalog";
+import { isEmailSuppressed } from "@/lib/suppression";
 
 // GET /api/clients — list all clients
 export const GET = withAuth(async (session, request: Request) => {
@@ -70,7 +71,8 @@ export const POST = withAuth(async (session, request: Request) => {
       productsOfInterest: data.productsOfInterest,
       notes: data.notes ?? null,
       preferredContact: data.preferredContact,
-      onEmailList: data.onEmailList,
+      // A banned or unsubscribed address never goes back on the list.
+      onEmailList: data.onEmailList && !isEmailSuppressed(data.email),
       source: data.source,
       birthday: data.birthday ?? null,
       anniversary: data.anniversary ?? null,

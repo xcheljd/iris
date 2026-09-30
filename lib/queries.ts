@@ -3,6 +3,7 @@ import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bann
 import { eq, desc, asc, and, or, isNull, isNotNull, lte, gte, gt, inArray, notInArray, sql as rawSql } from "drizzle-orm";
 import { containsLike, containsLikeLower, containsPhone } from "@/lib/like";
 import { sameEmail } from "@/lib/email-identity";
+import { notSuppressed } from "@/lib/suppression";
 import type { SQL } from "drizzle-orm";
 import { BRAND_VALUES, OUTREACH_METHOD_VALUES, type Brand, type OutreachMethod } from "@/lib/db/schema";
 import { applyClientFilter } from "@/lib/utils";
@@ -497,6 +498,8 @@ export async function getMatchedClients(employeeId?: string, limit: number = PAG
     .where(and(
       isNull(clients.deletedAt),
       notInArray(clients.status, ["deleted"]),
+      // Banned and unsubscribed addresses never surface here or in its CSV.
+      notSuppressed(clients.email),
       employeeId ? eq(clients.employeeId, employeeId) : undefined,
     ))
     .orderBy(clients.lastName, clients.firstName, promoWatches.modelNumber)
