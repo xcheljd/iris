@@ -1,7 +1,7 @@
 "use server";
 import { db } from "@/lib/db";
 import { clients, outreachLogs, activityEvents, promoMatches, bannedCustomers, unsubscribeList, approvalRequests, employees, prospects, type ProductOfInterest } from "@/lib/db/schema";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireAuth, requireManager } from "./_shared";
@@ -137,8 +137,19 @@ export async function addUnsubscribeEmail(rawEmail: string): Promise<
 
   const existing = db.select().from(unsubscribeList).where(sameEmail(unsubscribeList.email, email)).get();
   if (existing) return { error: "Email already exists" };
-  const matchingClient = db.select({ id: clients.id, firstName: clients.firstName, lastName: clients.lastName, customerId: clients.customerId })
-    .from(clients).where(sameEmail(clients.email, email)).get();
+  // Several clients can share an address. Same precedence as
+  // getUnsubscribeList's join: never a banned or soft-deleted client, prefer
+  // the one already unsubscribed, then lowest id. If the only matches are
+  // banned or deleted, refuse — the status write would stomp the ban or
+  // resurrect the deleted row as "unsubscribed".
+  const candidates = db.select({ id: clients.id, firstName: clients.firstName, lastName: clients.lastName, customerId: clients.customerId, status: clients.status, deletedAt: clients.deletedAt })
+    .from(clients).where(sameEmail(clients.email, email))
+    .orderBy(sql`${clients.status} = 'unsubscribed' DESC`, clients.id).all();
+  const isBlocked = (c: (typeof candidates)[number]) => c.status === "banned" || c.status === "deleted" || c.deletedAt !== null;
+  const matchingClient = candidates.find((c) => !isBlocked(c));
+  if (!matchingClient && candidates.length > 0) {
+    return { error: candidates.some((c) => c.status === "banned") ? "Email belongs to a banned client" : "Email belongs to a deleted client" };
+  }
   const unsub = db.transaction((tx) => {
     const inserted = tx.insert(unsubscribeList).values({ id: randomUUID(), email }).returning().get();
     if (matchingClient) {

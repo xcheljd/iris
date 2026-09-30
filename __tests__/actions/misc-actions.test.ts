@@ -18,7 +18,7 @@ import {
   banClient,
 } from "@/lib/actions";
 import { db } from "@/lib/db";
-import { outreachLogs, bannedCustomers, unsubscribeList, clients } from "@/lib/db/schema";
+import { outreachLogs, bannedCustomers, unsubscribeList, clients, activityEvents } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
 const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
@@ -221,6 +221,67 @@ describe("Misc Actions", () => {
         expect(db.select().from(unsubscribeList).all().length).toBe(before);
       },
     );
+
+    // The match ignored status and picked arbitrarily among shared emails, so
+    // a Quick Add could overwrite a banned or soft-deleted client's status to
+    // "unsubscribed" — silently lifting the ban.
+    describe("shared and blocked addresses", () => {
+      const createdClientIds: string[] = [];
+
+      function insertClient(email: string, overrides: Partial<typeof clients.$inferInsert> = {}) {
+        const id = `unsub-guard-${createdClientIds.length}-${Date.now()}`;
+        db.insert(clients).values({
+          id, firstName: "Voss", lastName: "Guard", employeeId: MANAGER_ID, source: "Walk-in",
+          email, productsOfInterest: [], tags: [], onEmailList: true, status: "active", ...overrides,
+        }).run();
+        createdClientIds.push(id);
+        return id;
+      }
+
+      afterEach(() => {
+        for (const id of createdClientIds) {
+          db.delete(activityEvents).where(eq(activityEvents.clientId, id)).run();
+          db.delete(clients).where(eq(clients.id, id)).run();
+        }
+        createdClientIds.length = 0;
+      });
+
+      it("refuses an address whose only client is banned, leaving the ban intact", async () => {
+        vi.mocked(getServerSession).mockResolvedValue(managerSession);
+        const email = `banned-only-${Date.now()}@example.com`;
+        const id = insertClient(email, { status: "banned" });
+
+        await expect(addUnsubscribeEmail(email)).resolves.toEqual({ error: "Email belongs to a banned client" });
+
+        expect(db.select().from(clients).where(eq(clients.id, id)).get()!.status).toBe("banned");
+        expect(db.select().from(unsubscribeList).where(eq(unsubscribeList.email, email)).get()).toBeUndefined();
+      });
+
+      it("refuses an address whose only client is soft-deleted", async () => {
+        vi.mocked(getServerSession).mockResolvedValue(managerSession);
+        const email = `deleted-only-${Date.now()}@example.com`;
+        const id = insertClient(email, { deletedAt: new Date() });
+
+        await expect(addUnsubscribeEmail(email)).resolves.toEqual({ error: "Email belongs to a deleted client" });
+
+        expect(db.select().from(clients).where(eq(clients.id, id)).get()!.status).toBe("active");
+      });
+
+      it("picks the unsubscribed client among shared emails and skips the banned one", async () => {
+        vi.mocked(getServerSession).mockResolvedValue(managerSession);
+        const email = `shared-${Date.now()}@example.com`;
+        const bannedId = insertClient(email, { status: "banned" });
+        const activeId = insertClient(email);
+        const unsubId = insertClient(email, { status: "unsubscribed" });
+
+        const res = await addUnsubscribeEmail(email);
+        expect(res).toMatchObject({ row: { clientId: unsubId } });
+        if ("row" in res) cleanupUnsubIds.push(res.row.unsub.id);
+
+        expect(db.select().from(clients).where(eq(clients.id, bannedId)).get()!.status).toBe("banned");
+        expect(db.select().from(clients).where(eq(clients.id, activeId)).get()!.status).toBe("active");
+      });
+    });
   });
 
   describe("resubscribeClient", () => {
@@ -246,9 +307,10 @@ describe("Misc Actions", () => {
       expect(client!.status).toBe("active");
     });
 
-    it("should do nothing for nonexistent client", async () => {
-      await resubscribeClient("nonexistent-client-id");
-      // Should not throw
+    it("reports { error } for a nonexistent client", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+
+      await expect(resubscribeClient("nonexistent-client-id")).resolves.toEqual({ error: "Client not found" });
     });
   });
 });
