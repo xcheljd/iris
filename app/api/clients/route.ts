@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 import { clientCreateSchema, clientPatchSchema } from "@/lib/validation/client";
 import { saveClientEdits } from "@/lib/actions/clients";
 import { recalcHeat } from "@/lib/heat-recalc";
-import { findDuplicateClient } from "@/lib/duplicate-client";
+import { findDuplicateClient, toDuplicateResult } from "@/lib/duplicate-client";
 import { recordProductsOfInterest } from "@/lib/actions/model-catalog";
 import { isEmailSuppressed } from "@/lib/suppression";
 
@@ -53,12 +53,14 @@ export const POST = withAuth(async (session, request: Request) => {
     // hard gate does not block on one — that stays a pre-submit warning.
     const existing = findDuplicateClient({ email: data.email, phone: data.phone });
 
-    if (existing) {
-      // Generic conflict, no row echoed back. The old response returned the
-      // entire matched client — including soft-deleted ones, unfiltered and
-      // not owner-scoped — so an associate could be handed another
-      // associate's client record just by guessing an email or phone.
-      return Response.json({ error: "Duplicate found" }, { status: 409 });
+    // An explicit override lets a shared household phone/email through, but
+    // never past a banned match — that would be a way round the ban.
+    if (existing && !(data.allowDuplicate && existing.status !== "banned")) {
+      // Owner-safe shape, never the matched row: the old response returned the
+      // entire client — soft-deleted ones included, not owner-scoped — so an
+      // associate could be handed another associate's record by guessing an
+      // email or phone.
+      return Response.json({ error: "Duplicate found", ...toDuplicateResult(existing, session.user) }, { status: 409 });
     }
 
     db.insert(clients).values({

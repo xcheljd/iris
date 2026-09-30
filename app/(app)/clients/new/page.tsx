@@ -20,6 +20,9 @@ export default function AddClientPage() {
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [duplicateClient, setDuplicateClient] = useState<DuplicateResult | null>(null);
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
+  // Set by "Create New Record" on the duplicate warning; cleared when the
+  // contact details change so a new match is warned about again.
+  const [allowDuplicate, setAllowDuplicate] = useState(false);
   const { catalogIndex, isManager } = useCatalog();
 
   const [formData, setFormData] = useState<ClientFormData>({
@@ -79,6 +82,7 @@ export default function AddClientPage() {
   const handleFieldChange = (field: string, value: string | boolean | Date | null | undefined | string[]) => {
     const updated = { ...formData, [field]: value };
     setFormData(updated);
+    if (field === "phone" || field === "email") setAllowDuplicate(false);
     if (field === "firstName" || field === "phone" || field === "email") {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => checkForDuplicates(updated), 500);
@@ -112,6 +116,7 @@ export default function AddClientPage() {
             birthday: toDateOnly(formData.birthday),
             anniversary: toDateOnly(formData.anniversary),
             productsOfInterest,
+            allowDuplicate,
           }),
         });
 
@@ -119,8 +124,11 @@ export default function AddClientPage() {
           const data = await response.json();
           toast.success("Client created successfully");
           router.push(`/clients/${data.id}`);
+        } else if (response.status === 409 && allowDuplicate) {
+          // The server refuses the override for some matches (a banned client).
+          toast.error("This contact can't be added as a new client. Ask a manager.");
         } else if (response.status === 409) {
-          const duplicateData = await response.json();
+          const duplicateData: DuplicateResult = await response.json();
           setDuplicateClient(duplicateData);
           setShowDuplicateWarning(true);
         } else {
@@ -173,16 +181,19 @@ export default function AddClientPage() {
             onRemoveTagAction={handleRemoveTag}
             showDuplicateWarning={showDuplicateWarning}
             duplicateClient={duplicateClient}
-            onDismissDuplicateAction={() => setShowDuplicateWarning(false)}
+            onDismissDuplicateAction={() => {
+              setShowDuplicateWarning(false);
+              setAllowDuplicate(true);
+            }}
             onEditExistingAction={handleEditExisting}
-            onMergeWithDuplicateAction={duplicateClient?.id ? handleMergeWithDuplicate : undefined}
+            onMergeWithDuplicateAction={isManager && duplicateClient?.id ? handleMergeWithDuplicate : undefined}
             showCommonTags
             isLoading={isPending}
             submitLabel="Create Client"
             onSubmitAction={handleSubmit}
             onCancelAction={() => router.back()}
           />
-          {duplicateClient?.id && (
+          {isManager && duplicateClient?.id && (
             <MergeFromFormDialog
               existingClientId={duplicateClient.id}
               formData={formData}

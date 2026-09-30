@@ -64,7 +64,10 @@ export function MergeFromFormDialog({
   useEffect(() => {
     if (!open || !existingClientId) return;
     fetch(`/api/clients/${existingClientId}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        return r.json();
+      })
       .then((data: MergeableClient) => {
         setExistingClient(data);
         setChoices(initChoices(data, formSnapshot));

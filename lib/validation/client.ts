@@ -76,6 +76,9 @@ export const clientCreateSchema = z.object({
   notes: nullableStr(5000).optional(),
   tags: z.array(z.string().max(50)).default([]),
   productsOfInterest: z.array(productOfInterestSchema).default([]),
+  // Set after the user dismisses a duplicate warning: two people can share a
+  // household phone or email.
+  allowDuplicate: z.boolean().default(false),
 });
 
 // Allowed fields for client patch — all optional, no defaults.

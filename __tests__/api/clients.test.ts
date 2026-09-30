@@ -231,9 +231,10 @@ describe("POST /api/clients", () => {
     expect(res2.status).toBe(409);
     const data2 = await res2.json();
     expect(data2.error).toBe("Duplicate found");
-    // F-7: the 409 used to echo the whole matched client row back. It is a
-    // generic conflict now — see "POST /api/clients duplicate conflict" below.
-    expect(data2).not.toHaveProperty("duplicate");
+    // F-7: the 409 used to echo the whole matched client row back. It carries
+    // the owner-safe duplicate shape now — see "POST /api/clients duplicate conflict".
+    expect(data2).toMatchObject({ duplicate: true, id: data1.id });
+    expect(data2).not.toHaveProperty("email");
   });
 
   it("should return 409 for duplicate phone", async () => {
@@ -489,7 +490,7 @@ describe("GET /api/clients/check-duplicates", () => {
 // included, and not owner-scoped. An associate could be handed another
 // associate's client record just by guessing an email or phone.
 describe("POST /api/clients duplicate conflict", () => {
-  it("returns a generic 409 without echoing the matched client back", async () => {
+  it("returns the owner-safe duplicate shape without echoing the matched client back", async () => {
     const id = randomUUID();
     db.insert(clients).values({
       id,
@@ -517,7 +518,7 @@ describe("POST /api/clients duplicate conflict", () => {
 
     expect(res.status).toBe(409);
     const body = await res.json();
-    expect(body).toEqual({ error: "Duplicate found" });
+    expect(body).toEqual({ error: "Duplicate found", duplicate: true, ownedByYou: true, id, name: "Existing Person" });
     expect(JSON.stringify(body)).not.toContain("Private note");
   });
 
@@ -546,6 +547,51 @@ describe("POST /api/clients duplicate conflict", () => {
     );
 
     expect(res.status).toBe(409);
+  });
+
+  // M4: a dismissed duplicate warning had no way through — the retry 409'd
+  // again with no id, so "Edit Existing" pointed nowhere.
+  function createWith(email: string, extra: Record<string, unknown> = {}) {
+    return POST(new Request("http://localhost:3000/api/clients", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ firstName: "House", lastName: "Hold", preferredContact: "email", email, ...extra }),
+    }));
+  }
+
+  it("creates a second record for a shared contact when the caller overrides", async () => {
+    const email = `household-${uniqueSuffix()}@example.com`;
+    const first = await createWith(email);
+    createdIds.push((await first.json()).id);
+    expect((await createWith(email)).status).toBe(409);
+
+    const second = await createWith(email, { allowDuplicate: true });
+    expect(second.status).toBe(200);
+    createdIds.push((await second.json()).id);
+  });
+
+  it("refuses the override against a banned client", async () => {
+    const id = randomUUID();
+    const email = `banned-override-${uniqueSuffix()}@example.com`;
+    db.insert(clients).values({ id, firstName: "Banned", lastName: "Match", email, status: "banned", employeeId: managerSession.user.id }).run();
+    createdIds.push(id);
+
+    expect((await createWith(email, { allowDuplicate: true })).status).toBe(409);
+  });
+
+  it("gives an associate no id for another book's match", async () => {
+    const id = randomUUID();
+    const email = `foreign-409-${uniqueSuffix()}@example.com`;
+    db.insert(clients).values({ id, firstName: "Foreign", lastName: "Match", email, employeeId: managerSession.user.id }).run();
+    createdIds.push(id);
+
+    vi.mocked(getServerSession).mockResolvedValue({
+      user: { id: "590628cf-d623-456d-bdad-d16ab0ec2b23", name: "Test Associate", role: "associate", firstName: "Test", lastName: "Associate" },
+      expires: "2099-12-31T23:59:59.000Z",
+    });
+    const res = await createWith(email);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "Duplicate found", duplicate: true, ownedByYou: false });
   });
 
   it("does not 409 against a soft-deleted client", async () => {
