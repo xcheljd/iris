@@ -35,6 +35,19 @@ const associateSession: Session = {
 
 describe("Outreach Actions", () => {
   const createdLogIds: string[] = [];
+  const createdClientIds: string[] = [];
+
+  // Ownership-sensitive tests insert their own client (AGENTS.md): the shared
+  // fixture client is associate-owned.
+  function createClient(employeeId: string) {
+    const id = randomUUID();
+    db.insert(clients).values({
+      id, firstName: "FollowUp", lastName: "Owner", employeeId, source: "Walk-in",
+      productsOfInterest: [], tags: [], onEmailList: false, status: "active",
+    }).run();
+    createdClientIds.push(id);
+    return id;
+  }
 
   afterEach(() => {
     // Clean up created outreach logs and their activity events
@@ -46,6 +59,16 @@ describe("Outreach Actions", () => {
       }
     }
     createdLogIds.length = 0;
+    for (const id of createdClientIds) {
+      try {
+        db.delete(outreachLogs).where(eq(outreachLogs.clientId, id)).run();
+        db.delete(activityEvents).where(eq(activityEvents.clientId, id)).run();
+        db.delete(clients).where(eq(clients.id, id)).run();
+      } catch {
+        // ignore
+      }
+    }
+    createdClientIds.length = 0;
   });
 
   describe("logOutreach", () => {
@@ -292,17 +315,18 @@ describe("Outreach Actions", () => {
       expect(db.select().from(outreachLogs).where(eq(outreachLogs.id, log!.id)).get()!.completed).toBe(false);
     });
 
-    it("refuses an associate reopening a log they do not own", async () => {
+    it("refuses an associate reopening a follow-up on a client they do not own", async () => {
       vi.mocked(getServerSession).mockResolvedValue(managerSession);
+      const clientId = createClient(MANAGER_ID);
       await logOutreach({
-        clientId: FIRST_CLIENT_ID,
+        clientId,
         method: "call",
         outcome: "wants_to_come_in",
         followUpDate: "2026-06-01",
         notes: "Reopen ownership test",
       });
       const log = db.select().from(outreachLogs)
-        .where(eq(outreachLogs.clientId, FIRST_CLIENT_ID))
+        .where(eq(outreachLogs.clientId, clientId))
         .all()
         .find((l) => l.notes === "Reopen ownership test");
       createdLogIds.push(log!.id);
@@ -315,26 +339,46 @@ describe("Outreach Actions", () => {
   });
 
   // Regression tests for plan 010 — follow-up actions previously accepted any
-  // logId without checking who owned the log. FIRST_CLIENT_ID is manager-owned,
-  // so a log created by the manager must be untouchable by the associate.
+  // logId without checking ownership. A follow-up on a manager-owned client
+  // must be untouchable by the associate.
   describe("follow-up ownership", () => {
-    async function createManagerLog(marker: string) {
+    async function createManagerLog(marker: string, clientId = createClient(MANAGER_ID)) {
       vi.mocked(getServerSession).mockResolvedValue(managerSession);
       await logOutreach({
-        clientId: FIRST_CLIENT_ID,
+        clientId,
         method: "call",
         outcome: "wants_to_come_in",
         followUpDate: "2026-12-01",
         notes: marker,
       });
       const log = db.select().from(outreachLogs)
-        .where(eq(outreachLogs.clientId, FIRST_CLIENT_ID))
+        .where(eq(outreachLogs.clientId, clientId))
         .all()
         .find((l) => l.notes === marker);
       expect(log).toBeDefined();
       createdLogIds.push(log!.id);
       return log!;
     }
+
+    // B19: the Follow-ups list shows an associate the follow-ups on the clients
+    // they own, whoever logged them, so the actions must let them act on those.
+    it("lets the client's owner complete a follow-up someone else logged", async () => {
+      const log = await createManagerLog("ownership-owner-completes", createClient(ASSOCIATE_ID));
+
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
+      expect(await markFollowUpComplete(log.id)).toBeUndefined();
+      expect(db.select().from(outreachLogs).where(eq(outreachLogs.id, log.id)).get()!.completed).toBe(true);
+    });
+
+    it("refuses the logger once the client has been transferred away", async () => {
+      const clientId = createClient(ASSOCIATE_ID);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
+      await logOutreach({ clientId, method: "call", outcome: "wants_to_come_in", followUpDate: "2026-12-01", notes: "ownership-after-transfer" });
+      const log = db.select().from(outreachLogs).where(eq(outreachLogs.clientId, clientId)).get()!;
+      db.update(clients).set({ employeeId: MANAGER_ID }).where(eq(clients.id, clientId)).run();
+
+      expect(await rescheduleFollowUp(log.id, "2027-01-01")).toEqual({ error: "Not authorized to reschedule this follow-up" });
+    });
 
     it("should reject an associate completing another employee's follow-up", async () => {
       const log = await createManagerLog("ownership-test-010a");
@@ -363,6 +407,55 @@ describe("Outreach Actions", () => {
       vi.mocked(getServerSession).mockResolvedValue(managerSession);
       const result = await markFollowUpComplete("00000000-0000-4000-8000-000000000000");
       expect(result).toEqual({ error: "Follow-up not found" });
+    });
+  });
+
+  // Regression (B19): queryFollowUps listed follow-ups on deleted and banned
+  // clients, and scoped by who logged the follow-up rather than who owns the
+  // client, so after a transfer the new owner never saw them.
+  describe("follow-up lists", () => {
+    const overdueDate = "2026-01-15";
+
+    async function logFollowUp(clientId: string, session: Session) {
+      vi.mocked(getServerSession).mockResolvedValue(session);
+      expect(await logOutreach({ clientId, method: "call", outcome: "wants_to_come_in", followUpDate: overdueDate })).toBeUndefined();
+      return db.select().from(outreachLogs).where(eq(outreachLogs.clientId, clientId)).get()!.id;
+    }
+    const overdueIds = async (scope?: string) => (await getOverdueFollowUps(scope)).map((r) => r.log.id);
+
+    it("hides follow-ups on deleted and banned clients", async () => {
+      const liveId = await logFollowUp(createClient(ASSOCIATE_ID), associateSession);
+      const bannedClient = createClient(ASSOCIATE_ID);
+      const deletedClient = createClient(ASSOCIATE_ID);
+      const bannedLog = await logFollowUp(bannedClient, associateSession);
+      const deletedLog = await logFollowUp(deletedClient, associateSession);
+      db.update(clients).set({ status: "banned" }).where(eq(clients.id, bannedClient)).run();
+      db.update(clients).set({ status: "deleted" }).where(eq(clients.id, deletedClient)).run();
+
+      for (const scope of [ASSOCIATE_ID, undefined]) {
+        const ids = await overdueIds(scope);
+        expect(ids).toContain(liveId);
+        expect(ids).not.toContain(bannedLog);
+        expect(ids).not.toContain(deletedLog);
+      }
+    });
+
+    it("follows the client to its new owner after a transfer", async () => {
+      const clientId = createClient(ASSOCIATE_ID);
+      const logId = await logFollowUp(clientId, associateSession);
+      expect(await overdueIds(ASSOCIATE_ID)).toContain(logId);
+
+      db.update(clients).set({ employeeId: MANAGER_ID }).where(eq(clients.id, clientId)).run();
+
+      expect(await overdueIds(MANAGER_ID)).toContain(logId);
+      expect(await overdueIds(ASSOCIATE_ID)).not.toContain(logId);
+    });
+
+    it("shows the owner a follow-up someone else logged on their client", async () => {
+      const clientId = createClient(ASSOCIATE_ID);
+      const logId = await logFollowUp(clientId, managerSession);
+      expect(await overdueIds(ASSOCIATE_ID)).toContain(logId);
+      expect(await overdueIds(MANAGER_ID)).not.toContain(logId);
     });
   });
 
@@ -466,9 +559,9 @@ describe("Outreach Actions", () => {
 
       expect(log.followUpDate).toEqual(new Date(2026, 8, 25));
       expect(formatDate(log.followUpDate)).toBe("Sep 25, 2026");
-      const overdue = await getOverdueFollowUps(MANAGER_ID);
+      const overdue = await getOverdueFollowUps();
       expect(overdue.map((r) => r.log.id)).not.toContain(log.id);
-      const upcoming = await getUpcomingFollowUps(MANAGER_ID);
+      const upcoming = await getUpcomingFollowUps();
       expect(upcoming.map((r) => r.log.id)).toContain(log.id);
     });
 
@@ -486,7 +579,7 @@ describe("Outreach Actions", () => {
 
       const after = db.select().from(outreachLogs).where(eq(outreachLogs.id, log.id)).get();
       expect(after!.followUpDate).toEqual(new Date(2026, 8, 25));
-      const overdue = await getOverdueFollowUps(MANAGER_ID);
+      const overdue = await getOverdueFollowUps();
       expect(overdue.map((r) => r.log.id)).not.toContain(log.id);
       const event = db.select().from(activityEvents)
         .where(eq(activityEvents.clientId, FIRST_CLIENT_ID))

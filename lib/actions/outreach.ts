@@ -84,11 +84,22 @@ export async function logOutreach(data: OutreachInput): Promise<{ error: string 
   revalidatePath("/");
 }
 
+// Follow-ups belong to the client relationship: the Follow-ups list shows an
+// associate the follow-ups on clients they own now, so that is who may act on
+// them — not whoever logged the outreach (who may have since lost the client).
+function getFollowUpOwner(logId: string) {
+  return db.select({ clientId: outreachLogs.clientId, ownerId: clients.employeeId })
+    .from(outreachLogs)
+    .innerJoin(clients, eq(outreachLogs.clientId, clients.id))
+    .where(eq(outreachLogs.id, logId))
+    .get();
+}
+
 export async function markFollowUpComplete(logId: string): Promise<{ error: string } | undefined> {
   const user = await requireAuth();
-  const log = db.select({ clientId: outreachLogs.clientId, employeeId: outreachLogs.employeeId }).from(outreachLogs).where(eq(outreachLogs.id, logId)).get();
+  const log = getFollowUpOwner(logId);
   if (!log) return { error: "Follow-up not found" };
-  if (user.role !== "manager" && log.employeeId !== user.id) return { error: "Not authorized to complete this follow-up" };
+  if (user.role !== "manager" && log.ownerId !== user.id) return { error: "Not authorized to complete this follow-up" };
   try {
     db.transaction((tx) => {
       tx.update(outreachLogs).set({ completed: true }).where(eq(outreachLogs.id, logId)).run();
@@ -107,9 +118,9 @@ export async function markFollowUpComplete(logId: string): Promise<{ error: stri
 /** Undo for markFollowUpComplete: same auth, flips `completed` back. */
 export async function reopenFollowUp(logId: string): Promise<{ error: string } | undefined> {
   const user = await requireAuth();
-  const log = db.select({ clientId: outreachLogs.clientId, employeeId: outreachLogs.employeeId }).from(outreachLogs).where(eq(outreachLogs.id, logId)).get();
+  const log = getFollowUpOwner(logId);
   if (!log) return { error: "Follow-up not found" };
-  if (user.role !== "manager" && log.employeeId !== user.id) return { error: "Not authorized to reopen this follow-up" };
+  if (user.role !== "manager" && log.ownerId !== user.id) return { error: "Not authorized to reopen this follow-up" };
   try {
     db.transaction((tx) => {
       tx.update(outreachLogs).set({ completed: false }).where(eq(outreachLogs.id, logId)).run();
@@ -132,9 +143,9 @@ export async function rescheduleFollowUp(logId: string, newDate: string): Promis
   // parseISO reads a date-only string as local midnight; `new Date("2026-09-25")` is UTC
   // midnight, which is the evening of the 24th west of Greenwich.
   const followUpDate = parseISO(newDate);
-  const log = db.select({ clientId: outreachLogs.clientId, employeeId: outreachLogs.employeeId }).from(outreachLogs).where(eq(outreachLogs.id, logId)).get();
+  const log = getFollowUpOwner(logId);
   if (!log) return { error: "Follow-up not found" };
-  if (user.role !== "manager" && log.employeeId !== user.id) return { error: "Not authorized to reschedule this follow-up" };
+  if (user.role !== "manager" && log.ownerId !== user.id) return { error: "Not authorized to reschedule this follow-up" };
   try {
     db.transaction((tx) => {
       tx.update(outreachLogs).set({ followUpDate }).where(eq(outreachLogs.id, logId)).run();

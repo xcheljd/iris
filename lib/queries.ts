@@ -204,18 +204,21 @@ export async function getClientsWithEmployee(employeeId?: string) {
   return rows;
 }
 
+// Scoped by who owns the client now, not who logged the follow-up, so a
+// transferred client's follow-ups move with it. `employee` is still the logger.
 function queryFollowUps(from: Date | null, to: Date, employeeId?: string) {
-  const employeeFilter = employeeId ? eq(outreachLogs.employeeId, employeeId) : undefined;
+  const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
   return db.select({
     log: outreachLogs,
     client: clients,
     employee: employees,
   }).from(outreachLogs)
-    .leftJoin(clients, eq(outreachLogs.clientId, clients.id))
+    .innerJoin(clients, eq(outreachLogs.clientId, clients.id))
     .leftJoin(employees, eq(outreachLogs.employeeId, employees.id))
     .where(and(
       isNotNull(outreachLogs.followUpDate),
       eq(outreachLogs.completed, false),
+      notInArray(clients.status, ["banned", "deleted"]),
       from ? gte(outreachLogs.followUpDate, from) : undefined,
       lte(outreachLogs.followUpDate, to),
       employeeFilter,
