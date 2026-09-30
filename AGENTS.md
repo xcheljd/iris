@@ -54,6 +54,18 @@ list, and never TanStack's client-side row models. Sort keys are whitelisted
 server-side (index a `Record` of columns; never interpolate a URL value into
 SQL). A new list surface follows the same shape.
 
+Every engine-backed list surface also **remembers its last query**: `navigate()`
+saves the query string it writes under `<surface>:last-search` in
+`sessionStorage` (`clients:`, `promos:`, `prospects:`, `catalog:`), and removes
+it when the string is empty (every filter back to default). The page passes
+`restoreLastSearch={Object.keys(sp).length === 0}`, so only a bare URL visit
+restores, and it does that client-side with one `router.replace` to the saved
+query. The surface's own URL-adoption effect then pulls the query into any draft
+state; the restore never writes draft state itself. Explicit params always win,
+so deep links (palette, stat cards, `?filter=`) are never overridden, and passing
+`restoreLastSearch={false}` opts a caller out. A new list surface with the
+standard shape adopts this; the client-side-mode exceptions below do not.
+
 The analytics **Outreach** tab follows the same contract without the table
 engine: its log is a plain list over `listOutreachLogs` (page/sort in
 `searchParams`, sort keys whitelisted, page clamped), and its method/outcome
