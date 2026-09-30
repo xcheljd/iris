@@ -230,6 +230,12 @@ export function PromosContent({ promos, total, summary, collections: distinctCol
     !!draft.q || brandFilter.length > 0 || collectionFilter.length > 0 ||
     !!draft.msrpMax || !!draft.discMin || filters.size1Pos || filters.size2Pos;
 
+  function clearFilters() {
+    const cleared: DraftFilters = { q: "", msrpMax: "", discMin: "" };
+    setDraft(cleared);
+    navigate({ brands: [], collections: [], size1Pos: false, size2Pos: false, page: 1 }, cleared);
+  }
+
   const handleCreatePromo = async () => {
     if (!newPromo.modelNumber.trim() || !newPromo.collection.trim()) {
       toast.error("Model number and collection are required");
@@ -579,11 +585,7 @@ export function PromosContent({ promos, total, summary, collections: distinctCol
                   variant="ghost"
                   size="sm"
                   className="w-full"
-                  onClick={() => {
-                    const cleared: DraftFilters = { q: "", msrpMax: "", discMin: "" };
-                    setDraft(cleared);
-                    navigate({ brands: [], collections: [], size1Pos: false, size2Pos: false, page: 1 }, cleared);
-                  }}
+                  onClick={clearFilters}
                 >
                   Clear filters
                 </Button>
@@ -602,7 +604,11 @@ export function PromosContent({ promos, total, summary, collections: distinctCol
               description="Import this week's promo list to get started"
             />
           ) : total === 0 ? (
-            <EmptyState description="No promos match your search" compact />
+            <EmptyState
+              description="No promos match your search"
+              compact
+              {...(hasActiveFilters ? { action: { label: "Clear filters", onClick: clearFilters } } : {})}
+            />
           ) : (
             <DataTable
               chrome={false}

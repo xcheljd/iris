@@ -621,7 +621,16 @@ export function ClientListContent({
           onPaginationChange={handlePaginationChange}
           onRowSelectionChange={setRowSelection}
           selection={{ label: "clients" }}
-          empty={<EmptyState icon={Users} description="No clients match." compact />}
+          empty={
+            <EmptyState
+              icon={Users}
+              description="No clients match."
+              compact
+              {...(hasActiveClientFilters(emailRecipientFilters)
+                ? { action: { label: "Clear filters", onClick: clearAllFilters } }
+                : {})}
+            />
+          }
           rowClassName={(row) => (row.getIsSelected() ? "bg-accent/5" : "hover:bg-muted/30")}
           pagination={{ itemLabel: "clients" }}
         />

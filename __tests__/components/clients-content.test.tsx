@@ -206,6 +206,16 @@ describe("ClientListContent table", () => {
     renderList({ rows: [], total: 0 });
     expect(screen.getByText("No clients match.")).toBeInTheDocument();
     expect(screen.getAllByRole("cell")[0]).toHaveAttribute("colspan", "8");
+    expect(screen.queryByRole("button", { name: "Clear filters" })).not.toBeInTheDocument();
+  });
+
+  it("offers Clear filters on the empty state when filters are active", async () => {
+    const user = userEvent.setup();
+    renderList({ rows: [], total: 0, currentFilters: { ...BASE_FILTERS, heat: "hot", tags: ["VIP"], filter: "stale" } });
+
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+
+    expect(lastNavigationUrl()).toBe("/clients");
   });
 
   it("reflects the URL sort on the th", () => {

@@ -261,6 +261,15 @@ describe("PromosContent on the DataTable engine", () => {
     expect(screen.queryByText("No promos match your search")).not.toBeInTheDocument();
   });
 
+  it("clears every filter from the filtered-empty state", async () => {
+    const user = userEvent.setup();
+    renderPromos({ promos: [], total: 0, filters: { ...FILTERS, q: "zzz", brands: ["Voss"], size2Pos: true } });
+
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+
+    expect(replace).toHaveBeenLastCalledWith("/promos", { scroll: false });
+  });
+
   it("opens the delete confirmation from the manager actions menu", async () => {
     const user = userEvent.setup();
     renderPromos();

@@ -218,5 +218,15 @@ describe("ProspectsContent on the DataTable engine", () => {
 
     renderProspects({ rows: [], total: 0, filters: { ...FILTERS, status: "rejected" } });
     expect(screen.getByText("No rejected prospects")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Clear filters" })).not.toBeInTheDocument();
+  });
+
+  it("clears the search from the searched-empty state, keeping the tab", async () => {
+    const user = userEvent.setup();
+    renderProspects({ rows: [], total: 0, filters: { ...FILTERS, status: "rejected", q: "zzz" } });
+
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+
+    expect(replace).toHaveBeenLastCalledWith("/prospects?status=rejected", { scroll: false });
   });
 });

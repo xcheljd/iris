@@ -317,6 +317,9 @@ export function ProspectsContent({ rows, total, counts, filters, isManager }: Pr
                     icon={UserSearch}
                     title={searching ? "No matching prospects" : copy.title}
                     description={searching ? "Try a different search term" : copy.description}
+                    {...(searching
+                      ? { action: { label: "Clear filters", onClick: () => { setQLocal(""); navigate({ q: "", page: 1 }); } } }
+                      : {})}
                   />
                 ) : (
                   <DataTable
