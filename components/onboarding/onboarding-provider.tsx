@@ -16,9 +16,9 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import {
   getOnboardingState,
   updateOnboardingState,
-  ensureTourDemoClient,
   type OnboardingState,
 } from "@/lib/actions/onboarding";
+import { TOUR_DEMO_CLIENT_ID } from "@/lib/tour-demo-client";
 import type { TourStep } from "./tour-steps";
 import { getStepsForRole } from "./tour-steps";
 import type { HintId } from "./hint-definitions";
@@ -234,19 +234,12 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
           return Promise.resolve();
         }
         case "client-detail": {
-          return ensureTourDemoClient()
-            .then((clientId) => {
-              setStepOverrides((prev) => ({
-                ...prev,
-                "client-detail": { page: `/clients/${clientId}` },
-              }));
-            })
-            .catch(() => {
-              setStepOverrides((prev) => ({
-                ...prev,
-                "client-detail": { page: "/clients" },
-              }));
-            });
+          // The demo client is rendered in memory by the detail page.
+          setStepOverrides((prev) => ({
+            ...prev,
+            "client-detail": { page: `/clients/${TOUR_DEMO_CLIENT_ID}` },
+          }));
+          return Promise.resolve();
         }
         case "command-palette": {
           const trigger = document.querySelector("[data-tour='command-palette-trigger']");

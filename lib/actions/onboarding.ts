@@ -1,9 +1,8 @@
 "use server";
 import { db } from "@/lib/db";
-import { employees, clients, activityEvents } from "@/lib/db/schema";
+import { employees } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { randomUUID } from "crypto";
 import { requireAuth } from "./_shared";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -111,57 +110,6 @@ function mergeHints(existing: string[], incoming: string[]): string[] {
     if (!set.has(h)) set.add(h);
   }
   return [...set];
-}
-
-// ─── Tour Demo Client ───────────────────────────────────────────────────────
-
-const TOUR_DEMO_CLIENT_ID = "__tour_demo__";
-
-/**
- * Ensures the tour demo client exists and returns its id.
- * The demo client is a clearly-labeled example profile used only by the onboarding tour.
- */
-export async function ensureTourDemoClient(): Promise<string> {
-  const user = await requireAuth();
-
-  const existing = db.select({ id: clients.id })
-    .from(clients)
-    .where(eq(clients.id, TOUR_DEMO_CLIENT_ID))
-    .get();
-
-  if (existing) return existing.id;
-
-  db.insert(clients).values({
-    id: TOUR_DEMO_CLIENT_ID,
-    firstName: "Alex",
-    lastName: "Tourguide",
-    phone: "(555) 000-0000",
-    email: "alex.tourguide@example.com",
-    employeeId: user.id,
-    productsOfInterest: [
-      { model: "IX1002-01X", collection: "CAMBRIDGE", brand: "Meridian", intent: "promo" },
-      { model: "LX1024-01X", collection: "LUNARIS", brand: null, intent: "interested" },
-    ],
-    notes: "This is an example client profile used by the onboarding tour.",
-    onEmailList: true,
-    preferredContact: "email",
-    source: "Walk-in",
-    birthday: "1990-06-15",
-    tags: ["VIP", "repeat-buyer"],
-    heatScore: 75,
-    heatLevel: "hot",
-    status: "active",
-  }).run();
-
-  db.insert(activityEvents).values({
-    id: randomUUID(),
-    clientId: TOUR_DEMO_CLIENT_ID,
-    eventType: "created",
-    description: "Demo client created for onboarding tour",
-    employeeId: user.id,
-  }).run();
-
-  return TOUR_DEMO_CLIENT_ID;
 }
 
 // ─── Actions ────────────────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ import { eq, desc, and, isNotNull, sql } from "drizzle-orm";
 import { ClientDetailContent } from "./client-detail-content";
 import { ClientDetailSkeleton } from "@/components/skeletons";
 import { getSession } from "@/lib/auth";
+import { TOUR_DEMO_CLIENT_ID, tourDemoClient } from "@/lib/tour-demo-client";
 
 async function getFullClient(clientId: string) {
   const row = db
@@ -97,6 +98,9 @@ export default function ClientDetailPage({
 async function ClientDetailFetcher({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await getSession();
+  if (id === TOUR_DEMO_CLIENT_ID && session?.user) {
+    return <ClientDetailContent client={tourDemoClient(session.user)} currentUserRole={session.user.role} />;
+  }
   const client = await getFullClient(id);
   if (!client) {
     notFound();
