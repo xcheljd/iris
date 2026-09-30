@@ -328,6 +328,9 @@ export async function purgeClient(clientId: string): Promise<{ error: string } |
     tx.delete(approvalRequests).where(eq(approvalRequests.clientId, clientId)).run();
     // prospects.graduated_to_client_id has no ON DELETE action, so a live link fails the delete.
     tx.update(prospects).set({ graduatedToClientId: null }).where(eq(prospects.graduatedToClientId, clientId)).run();
+    // banned_customers.customer_id has no FK, so nothing stops it dangling;
+    // the ban row describes a client that no longer exists.
+    tx.delete(bannedCustomers).where(eq(bannedCustomers.customerId, clientId)).run();
     tx.delete(clients).where(eq(clients.id, clientId)).run();
   });
 
@@ -356,6 +359,8 @@ export async function mergeClients(
   finalNotes: string | null,
 ): Promise<{ winnerId: string } | { error: string }> {
   const user = await requireManager();
+  // Merging a client into itself would delete it as the "loser".
+  if (clientAId === clientBId) return { error: "Cannot merge a client with itself" };
 
   const clientA = db.select().from(clients).where(eq(clients.id, clientAId)).get();
   const clientB = db.select().from(clients).where(eq(clients.id, clientBId)).get();
@@ -396,6 +401,8 @@ export async function mergeClients(
       preferredContact: (pick("preferredContact") as typeof clients.$inferSelect.preferredContact)
         ?? clientA.preferredContact ?? clientB.preferredContact ?? null,
       onEmailList: (clientA.onEmailList || clientB.onEmailList),
+      // A ban on either record survives the merge.
+      ...(clientA.status === "banned" || clientB.status === "banned" ? { status: "banned" as const } : {}),
       notes: finalNotes ?? null,
       productsOfInterest: mergedProducts,
       tags: Array.from(new Set([...(clientA.tags || []), ...(clientB.tags || [])])),
@@ -409,6 +416,7 @@ export async function mergeClients(
     tx.update(activityEvents).set({ clientId: winner.id }).where(eq(activityEvents.clientId, loser.id)).run();
     tx.update(approvalRequests).set({ clientId: winner.id }).where(eq(approvalRequests.clientId, loser.id)).run();
     tx.update(prospects).set({ graduatedToClientId: winner.id }).where(eq(prospects.graduatedToClientId, loser.id)).run();
+    tx.update(bannedCustomers).set({ customerId: winner.id }).where(eq(bannedCustomers.customerId, loser.id)).run();
 
     // promoMatches: delete loser's entries that conflict with winner's, then migrate the rest
     const winnerPromoIds = tx.select({ promoId: promoMatches.promoId })
