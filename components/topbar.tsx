@@ -1,4 +1,5 @@
 "use client";
+import { useSyncExternalStore } from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -8,11 +9,16 @@ import { Search, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useCommandPalette } from "@/components/command-palette";
 import { useNavigationTransition } from "@/components/navigation-transition";
+import { getShortcutText } from "@/components/onboarding/hint-definitions";
+
+const subscribeNoop = () => () => {};
 
 export function Topbar({ title, children }: { title?: string; children?: React.ReactNode }) {
   const { theme, setTheme } = useTheme();
   const { setOpen: setPaletteOpen } = useCommandPalette();
   const { state, targetTitle } = useNavigationTransition();
+  // The server can't see the platform; hydrate as non-Mac, then correct.
+  const shortcut = useSyncExternalStore(subscribeNoop, getShortcutText, () => "Ctrl+K");
   const toggleTheme = () => {
     // Smooth cross-fade: enable transitions only for the duration of the switch.
     const root = document.documentElement;
@@ -35,7 +41,7 @@ export function Topbar({ title, children }: { title?: string; children?: React.R
       <Button variant="outline" size="sm" className="gap-2 text-muted-foreground h-8" onClick={() => setPaletteOpen(true)} data-tour="command-palette-trigger" data-hint="command-palette">
         <Search className="size-3.5" />
         <span className="hidden sm:inline">Search</span>
-        <Kbd>⌘K</Kbd>
+        <Kbd className="hidden sm:inline-flex">{shortcut}</Kbd>
       </Button>
       <Tooltip>
         <TooltipTrigger asChild>
