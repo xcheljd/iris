@@ -6,6 +6,7 @@ import {
   serializeDuplicatesToCsv,
   type RvxRawRow,
 } from "@/lib/rvx-parser";
+import { splitCsvLine } from "@/lib/csv-parser";
 
 // Minimal valid CSV for most tests
 function buildCsv(dataRows: string[], options?: { dateRow?: string; headerRow?: string }): string {
@@ -338,6 +339,25 @@ describe("serializeDuplicatesToCsv", () => {
     const row = makeRow({ firstName: "Smith, John" });
     const csv = serializeDuplicatesToCsv([row]);
     expect(csv).toContain('"Smith, John"');
+  });
+
+  // Regression: only commas triggered quoting, so an embedded quote or newline
+  // broke the row and a leading "=" opened as a spreadsheet formula.
+  it("escapes embedded quotes and newlines", () => {
+    const row = makeRow({ firstName: 'Ana "AJ"', lastName: "Line1\nLine2" });
+    const csv = serializeDuplicatesToCsv([row]);
+    expect(csv).toContain('"Ana ""AJ"""');
+    expect(csv).toContain('"Line1\nLine2"');
+    // The quoted cell round-trips through the repo's reader.
+    const fields = splitCsvLine(csv.split("\n")[1]);
+    expect(fields[2]).toBe('Ana "AJ"');
+  });
+
+  it("neutralizes values that would open as a formula", () => {
+    const row = makeRow({ firstName: "=HYPERLINK(\"x\")", lastName: "@SUM(A1)" });
+    const fields = splitCsvLine(serializeDuplicatesToCsv([row]).split("\n")[1]);
+    expect(fields[2]).toBe("'=HYPERLINK(\"x\")");
+    expect(fields[3]).toBe("'@SUM(A1)");
   });
 
   it("produces correct number of data lines", () => {

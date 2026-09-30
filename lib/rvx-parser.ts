@@ -1,4 +1,5 @@
 import { splitCsvLine } from "./csv-parser";
+import { toCsv } from "./csv";
 
 export interface RvxRawRow {
   storeId: string;
@@ -152,18 +153,14 @@ export function selectBestRecord(group: RvxRawRow[]): RvxRawRow {
 }
 
 export function serializeDuplicatesToCsv(rows: RvxRawRow[]): string {
-  const header = "STORE #,CUST #,FIRST NAME,LAST NAME,TELEPHONE,EMAIL ADDRESS,TOTAL SALES";
-  const dataLines = rows.map((r) => {
-    const fields = [
-      r.storeId,
-      r.customerId,
-      r.firstName,
-      r.lastName ?? "",
-      r.phone ?? "",
-      r.email ?? "",
-      r.spend !== null ? r.spend.toFixed(2) : "",
-    ];
-    return fields.map((f) => (f.includes(",") ? `"${f}"` : f)).join(",");
-  });
-  return [header, ...dataLines].join("\n");
+  const header = ["STORE #", "CUST #", "FIRST NAME", "LAST NAME", "TELEPHONE", "EMAIL ADDRESS", "TOTAL SALES"];
+  return toCsv(header, rows.map((r) => [
+    r.storeId,
+    r.customerId,
+    r.firstName,
+    r.lastName ?? "",
+    r.phone ?? "",
+    r.email ?? "",
+    r.spend !== null ? r.spend.toFixed(2) : "",
+  ]));
 }
