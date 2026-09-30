@@ -28,8 +28,12 @@ export async function createApprovalRequest(
   if (!result.success) return { error: result.error.issues[0].message };
   const parsed = result.data;
 
-  const client = db.select({ employeeId: clients.employeeId }).from(clients).where(eq(clients.id, parsed.clientId)).get();
+  const client = db.select({ employeeId: clients.employeeId, status: clients.status }).from(clients).where(eq(clients.id, parsed.clientId)).get();
   if (!client) return { error: "Client not found" };
+  // Nothing left to request: approving would be a no-op or a resurrection.
+  if (client.status === "banned" || client.status === "deleted") {
+    return { error: `Cannot request approval for a ${client.status} client` };
+  }
   if (user.role !== "manager" && client.employeeId !== user.id) {
     return { error: "You can only request approval for your own clients" };
   }

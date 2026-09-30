@@ -97,6 +97,9 @@ export async function graduateProspectIntoExistingClient(
   const existing = db.select().from(clients).where(eq(clients.id, existingClientId)).get();
   if (!existing) return { error: "Client not found" };
   if (user.role !== "manager" && existing.employeeId !== user.id) return { error: "Not authorized to modify this client" };
+  if (existing.status === "deleted" || existing.status === "banned") {
+    return { error: `Cannot graduate into a ${existing.status} client` };
+  }
 
   // Only backfill fields that are currently null/empty on the existing client
   const patch: Partial<typeof clients.$inferInsert> = { updatedAt: new Date() };

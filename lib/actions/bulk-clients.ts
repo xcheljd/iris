@@ -6,6 +6,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireAuth, requireManager } from "./_shared";
+import { BANNABLE_STATUSES, UNSUBSCRIBABLE_STATUSES } from "./_client-status-core";
 import { recalcHeat } from "@/lib/heat-recalc";
 
 interface BulkResult {
@@ -312,8 +313,9 @@ export async function bulkBanClients(
       let ok = 0;
       for (const row of rows) {
         // banned_customers has no unique constraint on customer_id, so re-banning
-        // an already-banned client would silently add a second row.
-        if (row.status === "banned") continue;
+        // an already-banned client would silently add a second row; a deleted
+        // client must not be resurrected as banned.
+        if (!(BANNABLE_STATUSES as readonly string[]).includes(row.status)) continue;
         tx.update(clients).set({ status: "banned", updatedAt: now }).where(eq(clients.id, row.id)).run();
         heatIds.push(row.id);
         tx.insert(bannedCustomers).values({
@@ -355,11 +357,12 @@ export async function bulkUnsubscribeClients(clientIds: string[]): Promise<BulkR
     heatIds,
     revalidate: ["/clients", "/unsubscribed"],
     mutate: (tx) => {
-      // Deleted and banned clients keep their status — the blanket UPDATE used
-      // to resurrect a soft-deleted client as "unsubscribed", the same guard
-      // bulkDeleteClients/bulkBanClients make before they write.
+      // Only active/inactive clients move — the blanket UPDATE used to
+      // resurrect a soft-deleted client as "unsubscribed", and an already
+      // unsubscribed one would get a second audit event. Same source guard as
+      // bulkBanClients and applyUnsubscribeUnchecked.
       const rows = tx.select().from(clients).where(inArray(clients.id, clientIds)).all()
-        .filter((r) => r.status !== "deleted" && r.status !== "banned");
+        .filter((r) => (UNSUBSCRIBABLE_STATUSES as readonly string[]).includes(r.status));
       if (rows.length === 0) return 0;
       const eligible = rows.map((r) => r.id);
       const now = new Date();

@@ -38,6 +38,12 @@ export function runStatusChange(fn: (tx: Tx) => StatusChangeResult): StatusChang
   }
 }
 
+/** Statuses a client may be banned / unsubscribed from. Anything else is
+ *  either already there (banned: idempotent no-op, no second
+ *  banned_customers row) or must not be resurrected (deleted). */
+export const BANNABLE_STATUSES = ["active", "inactive", "unsubscribed"] as const;
+export const UNSUBSCRIBABLE_STATUSES = ["active", "inactive"] as const;
+
 export function applyBanUnchecked(
   tx: DbOrTx,
   clientId: string,
@@ -45,9 +51,11 @@ export function applyBanUnchecked(
   reason: string,
   employeeId: string,
 ): StatusChangeResult {
-  const c = tx.select({ firstName: clients.firstName, lastName: clients.lastName, email: clients.email, phone: clients.phone })
+  const c = tx.select({ firstName: clients.firstName, lastName: clients.lastName, email: clients.email, phone: clients.phone, status: clients.status })
     .from(clients).where(eq(clients.id, clientId)).get();
   if (!c) return { error: "Client not found" };
+  if (c.status === "banned") return;
+  if (c.status === "deleted") return { error: "Cannot ban a deleted client" };
 
   tx.update(clients).set({ status: "banned", updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
   tx.insert(bannedCustomers).values({
@@ -70,8 +78,11 @@ export function applyUnsubscribeUnchecked(
   clientId: string,
   employeeId: string,
 ): StatusChangeResult {
-  const c = tx.select({ email: clients.email }).from(clients).where(eq(clients.id, clientId)).get();
+  const c = tx.select({ email: clients.email, status: clients.status }).from(clients).where(eq(clients.id, clientId)).get();
   if (!c) return { error: "Client not found" };
+  if (!(UNSUBSCRIBABLE_STATUSES as readonly string[]).includes(c.status)) {
+    return { error: `Cannot unsubscribe a client who is ${c.status}` };
+  }
 
   tx.update(clients).set({ status: "unsubscribed", onEmailList: false, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
   // Normalized both ways: the suppression list holds one canonical row per

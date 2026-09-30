@@ -2,10 +2,14 @@
 
 import { db } from "@/lib/db";
 import { prospects, unsubscribeList } from "@/lib/db/schema";
-import { inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireAuth } from "./_shared";
+
+// Only active prospects move, as in the single-row reject/unsubscribe: a
+// graduated, rejected or unsubscribed prospect must not be flipped again.
+const ACTIVE = eq(prospects.status, "active");
 
 interface BulkResult {
   ok: number;
@@ -41,7 +45,7 @@ export async function bulkRejectProspects(ids: string[]): Promise<BulkResult> {
       const r = tx
         .update(prospects)
         .set({ status: "rejected", updatedAt: new Date() })
-        .where(inArray(prospects.id, ids))
+        .where(and(inArray(prospects.id, ids), ACTIVE))
         .run();
       return r.changes ?? 0;
     },
@@ -57,12 +61,12 @@ export async function bulkUnsubscribeProspects(ids: string[]): Promise<BulkResul
       const rows = tx
         .select({ id: prospects.id, email: prospects.email })
         .from(prospects)
-        .where(inArray(prospects.id, ids))
+        .where(and(inArray(prospects.id, ids), ACTIVE))
         .all();
 
       tx.update(prospects)
         .set({ status: "unsubscribed", updatedAt: new Date() })
-        .where(inArray(prospects.id, ids))
+        .where(and(inArray(prospects.id, ids), ACTIVE))
         .run();
 
       // One query for the whole batch instead of one per row. Seeded with the
