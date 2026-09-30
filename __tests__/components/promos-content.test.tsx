@@ -1,13 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { PromosContent } from "@/app/(app)/promos/promos-content";
+import { PromosContent, LAST_SEARCH_KEY } from "@/app/(app)/promos/promos-content";
 import type { PromoWatch } from "@/lib/db/schema";
 
 const replace = vi.fn();
+// Stable across renders, like Next's router instance.
+const router = { push: vi.fn(), replace, refresh: vi.fn() };
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), replace, refresh: vi.fn() }),
+  useRouter: () => router,
   useSearchParams: () => new URLSearchParams(),
 }));
 
@@ -277,5 +279,78 @@ describe("PromosContent on the DataTable engine", () => {
     await user.click(within(tableRows()[1]).getByRole("button", { name: "Actions" }));
     await user.click(await screen.findByRole("menuitem", { name: /Delete/ }));
     expect(await screen.findByText("Delete Promo Watch")).toBeInTheDocument();
+  });
+});
+
+describe("PromosContent remembered filters", () => {
+  beforeEach(() => {
+    replace.mockReset();
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("saves the query string whenever it navigates", async () => {
+    const user = userEvent.setup();
+    const page = Array.from({ length: 15 }, (_, i) => promo({ id: `m${i}` }));
+    renderPromos({ promos: page, total: 40, matchCounts: {}, filters: { ...FILTERS, brands: ["Voss"] } });
+
+    await user.click(screen.getByRole("button", { name: "Go to next page" }));
+
+    expect(sessionStorage.getItem(LAST_SEARCH_KEY)).toBe("brands=Voss&page=2");
+  });
+
+  it("adopts the saved query on a bare /promos visit", () => {
+    sessionStorage.setItem(LAST_SEARCH_KEY, "brands=Voss&s1=1");
+    renderPromos({ restoreLastSearch: true });
+
+    expect(replace).toHaveBeenCalledWith("/promos?brands=Voss&s1=1", { scroll: false });
+  });
+
+  // The restore only moves the URL; the adoption effect pulls the typed
+  // filters into the draft. The debounce must then see nothing to commit —
+  // a navigation with page: 1 here would bounce the restored page and sort.
+  it("lets the restored URL flow through adoption without a debounce navigation", () => {
+    vi.useFakeTimers();
+    sessionStorage.setItem(LAST_SEARCH_KEY, "q=MR&sort=msrp&page=2");
+    const { rerender } = renderPromos({ restoreLastSearch: true });
+    expect(replace).toHaveBeenCalledTimes(1);
+
+    // The server re-renders with the restored query and params present.
+    rerender(
+      <PromosContent
+        promos={PROMOS}
+        total={PROMOS.length}
+        summary={SUMMARY}
+        collections={["Ashwood", "Solaris"]}
+        filters={{ ...FILTERS, q: "MR", sort: "msrp", page: 2 }}
+        isManager
+        restoreLastSearch={false}
+      />,
+    );
+    act(() => { vi.advanceTimersByTime(1000); });
+
+    expect(screen.getByPlaceholderText("Search model, collection or brand...")).toHaveValue("MR");
+    expect(replace).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets explicit URL params win over the saved query", () => {
+    sessionStorage.setItem(LAST_SEARCH_KEY, "brands=Voss");
+    renderPromos({ filters: { ...FILTERS, brands: ["Kinetic"] }, restoreLastSearch: false });
+
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("forgets the saved query when every filter is cleared", async () => {
+    sessionStorage.setItem(LAST_SEARCH_KEY, "brands=Voss");
+    const user = userEvent.setup();
+    renderPromos({ promos: [], total: 0, filters: { ...FILTERS, brands: ["Voss"] } });
+
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+
+    expect(replace).toHaveBeenLastCalledWith("/promos", { scroll: false });
+    expect(sessionStorage.getItem(LAST_SEARCH_KEY)).toBeNull();
   });
 });

@@ -70,6 +70,7 @@ async function PromosFetcher({ searchParams }: { searchParams: SearchParams }) {
       matchCounts={matchCounts}
       currentUserId={session.user.id}
       matchedClients={matchedClients}
+      restoreLastSearch={Object.keys(sp).length === 0}
     />
   );
 }

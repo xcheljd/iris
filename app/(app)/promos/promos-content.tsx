@@ -45,6 +45,9 @@ import { PROMO_PAGE_SIZE } from "@/lib/constants";
 /** Debounce before a typed filter becomes a navigation. Clients uses the same. */
 const TYPING_DELAY_MS = 300;
 
+/** sessionStorage key for the last query string navigate() wrote. */
+export const LAST_SEARCH_KEY = "promos:last-search";
+
 /** The promo list's URL state — the server has already applied all of it. */
 export interface PromoFilters {
   q: string;
@@ -81,6 +84,8 @@ interface PromosContentProps {
   matchCounts?: Record<string, number>;
   currentUserId?: string;
   matchedClients?: MatchedClientRow[];
+  /** True when the page was requested with no search params at all. */
+  restoreLastSearch?: boolean;
 }
 
 /** The three text filters, kept as strings while the user is still typing. */
@@ -104,7 +109,7 @@ const parseBound = (v: string) => {
   return Number.isFinite(n) && n >= 0 ? n : undefined;
 };
 
-export function PromosContent({ promos, total, summary, collections: distinctCollections, filters, isManager, matchCounts = {}, currentUserId = "", matchedClients = [] }: PromosContentProps) {
+export function PromosContent({ promos, total, summary, collections: distinctCollections, filters, isManager, matchCounts = {}, currentUserId = "", matchedClients = [], restoreLastSearch = false }: PromosContentProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
@@ -162,6 +167,10 @@ export function PromosContent({ promos, total, summary, collections: distinctCol
     if (next.sort && next.dir !== "asc") sp.set("dir", next.dir);
     if (next.page > 1) sp.set("page", String(next.page));
     const qs = sp.toString();
+    // Remembered for a bare /promos visit later in the session; an empty
+    // query (every filter cleared) forgets it.
+    if (qs) sessionStorage.setItem(LAST_SEARCH_KEY, qs);
+    else sessionStorage.removeItem(LAST_SEARCH_KEY);
     // scroll: false keeps the pagination footer under the cursor; the
     // transition keeps the current rows interactive while the server renders.
     startTransition(() => {
@@ -174,6 +183,15 @@ export function PromosContent({ promos, total, summary, collections: distinctCol
   useEffect(() => {
     navigateRef.current = navigate;
   });
+
+  // A bare /promos visit adopts the filters the user last had this session.
+  // It only moves the URL: the adoption effect below pulls the restored
+  // values into the draft, so draft keeps a single writer.
+  useEffect(() => {
+    if (!restoreLastSearch) return;
+    const saved = sessionStorage.getItem(LAST_SEARCH_KEY);
+    if (saved) router.replace(`/promos?${saved}`, { scroll: false });
+  }, [restoreLastSearch, router]);
 
   // Adopt values that arrived from outside — a back/forward navigation, or a
   // deep link — so the inputs and the URL stay in step.
