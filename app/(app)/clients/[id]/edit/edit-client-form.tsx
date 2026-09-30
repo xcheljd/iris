@@ -8,6 +8,7 @@ import { Topbar } from "@/components/topbar";
 import { ClientForm } from "@/components/client-form";
 import type { ClientFormData } from "@/components/client-form";
 import type { ClientSource, ProductOfInterest } from "@/lib/db/schema";
+import type { DuplicateResult } from "@/lib/duplicate-client";
 import { validateClientForm } from "@/lib/validation/client";
 import { useCatalog } from "@/components/use-catalog";
 import { parseOccasionDate, toDateOnly } from "@/lib/utils";
@@ -50,7 +51,7 @@ export function EditClientForm({ initialClient, clientId, employees }: EditClien
   const [isPending, start] = useTransition();
   const [_isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
-  const [duplicateClient, setDuplicateClient] = useState<ClientData | null>(null);
+  const [duplicateClient, setDuplicateClient] = useState<DuplicateResult | null>(null);
 
   const [formData, setFormData] = useState<ClientFormData>({
     firstName: initialClient.firstName,
@@ -94,9 +95,9 @@ export function EditClientForm({ initialClient, clientId, employees }: EditClien
     try {
       const response = await fetch(`/api/clients/check-duplicates?firstName=${encodeURIComponent(formData.firstName)}&lastName=${encodeURIComponent(formData.lastName ?? "")}&phone=${encodeURIComponent(formData.phone ?? "")}&email=${encodeURIComponent(formData.email ?? "")}`, { signal: controller.signal });
       if (response.ok) {
-        const data = await response.json();
-        if (data.duplicate && data.duplicate.id !== clientId) {
-          setDuplicateClient(data.duplicate);
+        const data: DuplicateResult = await response.json();
+        if (data.duplicate && data.id !== clientId) {
+          setDuplicateClient(data);
           setShowDuplicateWarning(true);
         } else {
           setShowDuplicateWarning(false);
@@ -171,7 +172,7 @@ export function EditClientForm({ initialClient, clientId, employees }: EditClien
   };
 
   const handleEditExisting = () => {
-    if (!duplicateClient) return;
+    if (!duplicateClient?.id) return;
     router.push(`/clients/${duplicateClient.id}`);
   };
 

@@ -318,13 +318,12 @@ describe("PUT /api/clients", () => {
 });
 
 describe("GET /api/clients/check-duplicates", () => {
-  it("should return duplicate null when no params provided", async () => {
+  it("should return no duplicate when no params provided", async () => {
     const req = new Request("http://localhost:3000/api/clients/check-duplicates");
     const res = await GETDuplicates(req);
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data).toHaveProperty("duplicate");
-    expect(data.duplicate).toBeNull();
+    expect(data).toEqual({ duplicate: false, ownedByYou: false });
   });
 
   it("should find duplicate by email", async () => {
@@ -350,8 +349,8 @@ describe("GET /api/clients/check-duplicates", () => {
     const checkRes = await GETDuplicates(checkReq);
     expect(checkRes.status).toBe(200);
     const data = await checkRes.json();
-    expect(data.duplicate).not.toBeNull();
-    expect(data.duplicate.email).toBe("dup-check@example.com");
+    expect(data.duplicate).toBe(true);
+    expect(data.id).toBe(createData.id);
   });
 
   it("should find duplicate by phone", async () => {
@@ -375,8 +374,8 @@ describe("GET /api/clients/check-duplicates", () => {
     const checkRes = await GETDuplicates(checkReq);
     expect(checkRes.status).toBe(200);
     const data = await checkRes.json();
-    expect(data.duplicate).not.toBeNull();
-    expect(data.duplicate.phone).toBe("5550001234");
+    expect(data.duplicate).toBe(true);
+    expect(data.id).toBe(createData.id);
   });
 
   it("should find duplicate by first name", async () => {
@@ -392,18 +391,18 @@ describe("GET /api/clients/check-duplicates", () => {
     const checkRes = await GETDuplicates(checkReq);
     expect(checkRes.status).toBe(200);
     const data = await checkRes.json();
-    expect(data.duplicate).not.toBeNull();
-    expect(data.duplicate.firstName.toLowerCase()).toBe(firstName.toLowerCase());
+    expect(data.duplicate).toBe(true);
+    expect(data.name.toLowerCase()).toContain(firstName.toLowerCase());
   });
 
-  it("should return null duplicate for non-matching data", async () => {
+  it("should return no duplicate for non-matching data", async () => {
     const checkReq = new Request(
       "http://localhost:3000/api/clients/check-duplicates?email=nonexistent-no-match@example.com&phone=999-NOMATCH"
     );
     const checkRes = await GETDuplicates(checkReq);
     expect(checkRes.status).toBe(200);
     const data = await checkRes.json();
-    expect(data.duplicate).toBeNull();
+    expect(data.duplicate).toBe(false);
   });
 
   // F-7: the check normalized the *query* phone and compared it against the
@@ -425,8 +424,8 @@ describe("GET /api/clients/check-duplicates", () => {
       new Request("http://localhost:3000/api/clients/check-duplicates?phone=7025550133"),
     );
     const data = await res.json();
-    expect(data.duplicate).not.toBeNull();
-    expect(data.duplicate.id).toBe(id);
+    expect(data.duplicate).toBe(true);
+    expect(data.id).toBe(id);
   });
 
   it("matches the other direction too — formatted query, unformatted store", async () => {
@@ -444,7 +443,7 @@ describe("GET /api/clients/check-duplicates", () => {
       new Request(`http://localhost:3000/api/clients/check-duplicates?phone=${encodeURIComponent("(702) 555-0144")}`),
     );
     const data = await res.json();
-    expect(data.duplicate?.id).toBe(id);
+    expect(data.id).toBe(id);
   });
 
   it("matches an email regardless of case", async () => {
@@ -462,7 +461,7 @@ describe("GET /api/clients/check-duplicates", () => {
       new Request("http://localhost:3000/api/clients/check-duplicates?email=mixed.case@example.com"),
     );
     const data = await res.json();
-    expect(data.duplicate?.id).toBe(id);
+    expect(data.id).toBe(id);
   });
 
   it("ignores soft-deleted clients", async () => {
@@ -481,7 +480,7 @@ describe("GET /api/clients/check-duplicates", () => {
     const res = await GETDuplicates(
       new Request("http://localhost:3000/api/clients/check-duplicates?email=deleted-dup@example.com"),
     );
-    expect((await res.json()).duplicate).toBeNull();
+    expect((await res.json()).duplicate).toBe(false);
   });
 });
 
@@ -748,6 +747,44 @@ describe("associate session", () => {
     const getRes = await GETById(getReq, { params: Promise.resolve({ id: data.id }) });
     const client = await getRes.json();
     expect(client.employeeId).toBe("590628cf-d623-456d-bdad-d16ab0ec2b23");
+  });
+
+  // M1: check-duplicates used to echo the matched row (name, phone, email) to
+  // any caller, so an associate could read another book by probing contacts.
+  describe("check-duplicates", () => {
+    function insertWithEmail(owner: string, status: "active" | "banned" = "active") {
+      const id = randomUUID();
+      const email = `dup-scope-${uniqueSuffix()}@example.com`;
+      db.insert(clients).values({ id, firstName: "Probe", lastName: "Target", email, employeeId: owner, status }).run();
+      createdIds.push(id);
+      return { id, email };
+    }
+    const check = async (email: string) =>
+      (await GETDuplicates(new Request(`http://localhost:3000/api/clients/check-duplicates?email=${encodeURIComponent(email)}`))).json();
+
+    it("tells an associate a foreign match exists without identifying it", async () => {
+      const { email } = insertWithEmail(MANAGER_ID);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
+      expect(await check(email)).toEqual({ duplicate: true, ownedByYou: false });
+    });
+
+    it("does not reveal a banned foreign match to an associate", async () => {
+      const { email } = insertWithEmail(MANAGER_ID, "banned");
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
+      expect(await check(email)).toEqual({ duplicate: true, ownedByYou: false });
+    });
+
+    it("identifies the associate's own client", async () => {
+      const { id, email } = insertWithEmail(ASSOCIATE_ID);
+      vi.mocked(getServerSession).mockResolvedValue(associateSession);
+      expect(await check(email)).toEqual({ duplicate: true, ownedByYou: true, id, name: "Probe Target" });
+    });
+
+    it("identifies any match for a manager", async () => {
+      const { id, email } = insertWithEmail(ASSOCIATE_ID);
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+      expect(await check(email)).toEqual({ duplicate: true, ownedByYou: false, id, name: "Probe Target" });
+    });
   });
 
   it("GET /api/clients — unauthenticated returns 401", async () => {

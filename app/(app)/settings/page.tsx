@@ -27,7 +27,7 @@ async function SettingsFetcher() {
 
   const tags = await getTags();
   const templates = await getTemplates();
-  const deletedClients = await getDeletedClients();
+  const deletedClients = await getDeletedClients(isManager ? undefined : userId);
   const onboardingState = await getOnboardingState();
   return <SettingsContent employees={employees} tags={tags} templates={templates} deletedClients={JSON.parse(JSON.stringify(deletedClients))} currentUserId={userId} currentUserRole={userRole} onboardingState={onboardingState} />;
 }

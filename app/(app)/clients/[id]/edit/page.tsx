@@ -10,6 +10,7 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
 
   const session = await getSession();
   const isManager = session?.user?.role === "manager";
+  if (!isManager && client.employeeId !== session?.user?.id) notFound();
 
   const employees = isManager
     ? (await getEmployees()).map((e) => ({

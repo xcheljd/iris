@@ -79,6 +79,8 @@ describe("findDuplicateClient", () => {
     insertClient({ email: "projection@example.com", notes: "Private note" });
 
     const match = findDuplicateClient({ email: "projection@example.com" })!;
-    expect(Object.keys(match).sort()).toEqual(["email", "firstName", "id", "lastName", "phone"]);
+    // employeeId/status feed toDuplicateResult's owner scoping; they are
+    // never sent to the client.
+    expect(Object.keys(match).sort()).toEqual(["email", "employeeId", "firstName", "id", "lastName", "phone", "status"]);
   });
 });

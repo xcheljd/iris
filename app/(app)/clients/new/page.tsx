@@ -8,6 +8,7 @@ import { Topbar } from "@/components/topbar";
 import { ClientForm } from "@/components/client-form";
 import type { ClientFormData } from "@/components/client-form";
 import type { ProductOfInterest } from "@/lib/db/schema";
+import type { DuplicateResult } from "@/lib/duplicate-client";
 import { MergeFromFormDialog } from "@/components/merge-client-dialog";
 import { validateClientForm } from "@/lib/validation/client";
 import { useCatalog } from "@/components/use-catalog";
@@ -17,7 +18,7 @@ export default function AddClientPage() {
   const router = useRouter();
   const [isPending, start] = useTransition();
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
-  const [duplicateClient, setDuplicateClient] = useState<{ id: string; firstName: string; lastName?: string | null; phone?: string | null; email?: string | null } | null>(null);
+  const [duplicateClient, setDuplicateClient] = useState<DuplicateResult | null>(null);
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
   const { catalogIndex, isManager } = useCatalog();
 
@@ -58,9 +59,9 @@ export default function AddClientPage() {
     try {
       const response = await fetch(`/api/clients/check-duplicates?firstName=${encodeURIComponent(data.firstName)}&lastName=${encodeURIComponent(data.lastName ?? "")}&phone=${encodeURIComponent(data.phone ?? "")}&email=${encodeURIComponent(data.email ?? "")}`, { signal: controller.signal });
       if (response.ok) {
-        const result = await response.json();
+        const result: DuplicateResult = await response.json();
         if (result.duplicate) {
-          setDuplicateClient(result.duplicate);
+          setDuplicateClient(result);
           setShowDuplicateWarning(true);
         } else {
           setShowDuplicateWarning(false);
@@ -134,7 +135,7 @@ export default function AddClientPage() {
   };
 
   const handleEditExisting = () => {
-    if (!duplicateClient) return;
+    if (!duplicateClient?.id) return;
     router.push(`/clients/${duplicateClient.id}`);
   };
 
@@ -174,14 +175,14 @@ export default function AddClientPage() {
             duplicateClient={duplicateClient}
             onDismissDuplicateAction={() => setShowDuplicateWarning(false)}
             onEditExistingAction={handleEditExisting}
-            onMergeWithDuplicateAction={duplicateClient ? handleMergeWithDuplicate : undefined}
+            onMergeWithDuplicateAction={duplicateClient?.id ? handleMergeWithDuplicate : undefined}
             showCommonTags
             isLoading={isPending}
             submitLabel="Create Client"
             onSubmitAction={handleSubmit}
             onCancelAction={() => router.back()}
           />
-          {duplicateClient && (
+          {duplicateClient?.id && (
             <MergeFromFormDialog
               existingClientId={duplicateClient.id}
               formData={formData}

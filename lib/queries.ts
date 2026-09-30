@@ -1059,8 +1059,10 @@ export async function searchClients(query: string, employeeId?: string): Promise
   return { clients: phonetic, isPhoneticFallback: true };
 }
 
+// Managers omit employeeId for the whole trash. Any passed id scopes, even an
+// empty one: a session without an id must see nothing, not everything.
 export async function getDeletedClients(employeeId?: string) {
-  const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
+  const employeeFilter = employeeId !== undefined ? eq(clients.employeeId, employeeId) : undefined;
   return db.select().from(clients).where(and(eq(clients.status, "deleted"), employeeFilter)).orderBy(desc(clients.deletedAt)).limit(LIST_QUERY_LIMIT).all();
 }
 

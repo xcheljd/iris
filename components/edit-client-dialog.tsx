@@ -9,6 +9,7 @@ import { Edit3 } from "lucide-react";
 import { toast } from "sonner";
 import type { FullClient } from "@/components/client-provider";
 import type { ProductOfInterest } from "@/lib/db/schema";
+import type { DuplicateResult } from "@/lib/duplicate-client";
 import { ClientForm, type ClientFormData } from "@/components/client-form";
 import { validateClientForm } from "@/lib/validation/client";
 import { useCatalog } from "@/components/use-catalog";
@@ -25,7 +26,7 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
   const { catalogIndex, isManager } = useCatalog();
   const [isPending, start] = useTransition();
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
-  const [duplicateClient, setDuplicateClient] = useState<{ id: string; firstName: string; lastName?: string | null; phone?: string | null; email?: string | null } | null>(null);
+  const [duplicateClient, setDuplicateClient] = useState<DuplicateResult | null>(null);
   const [formData, setFormData] = useState<ClientFormData>({
     firstName: client.firstName,
     lastName: client.lastName || "",
@@ -147,7 +148,7 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
             showDuplicateWarning={showDuplicateWarning}
             duplicateClient={duplicateClient}
             onDismissDuplicateAction={() => setShowDuplicateWarning(false)}
-            onEditExistingAction={() => { setOpen(false); router.push(`/clients/${duplicateClient!.id}`); }}
+            onEditExistingAction={() => { setOpen(false); if (duplicateClient?.id) router.push(`/clients/${duplicateClient.id}`); }}
             isLoading={isPending}
             submitLabel="Save Changes"
             onSubmitAction={handleSubmit}

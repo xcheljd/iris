@@ -17,14 +17,7 @@ import { CLIENT_SOURCE_VALUES, type ProductOfInterest } from "@/lib/db/schema";
 import { ProductsOfInterestInput } from "@/components/products-of-interest-input";
 import { COMMON_TAGS } from "@/lib/constants";
 import type { CatalogEntry } from "@/lib/actions/model-catalog";
-
-interface DuplicateClient {
-  id: string;
-  firstName: string;
-  lastName?: string | null;
-  phone?: string | null;
-  email?: string | null;
-}
+import type { DuplicateResult } from "@/lib/duplicate-client";
 
 export interface ClientFormData {
   firstName: string;
@@ -56,7 +49,7 @@ interface ClientFormProps {
   onRemoveTagAction: (tag: string) => void;
   // Duplicate warning
   showDuplicateWarning: boolean;
-  duplicateClient: DuplicateClient | null;
+  duplicateClient: DuplicateResult | null;
   onDismissDuplicateAction: () => void;
   onEditExistingAction: () => void;
   onMergeWithDuplicateAction?: () => void;
@@ -96,28 +89,28 @@ export function ClientForm({
   return (
     <div className="flex flex-col gap-6">
       {/* Duplicate Warning */}
-      {showDuplicateWarning && duplicateClient && (
+      {showDuplicateWarning && duplicateClient?.duplicate && (
         <Alert>
           <AlertCircle className="size-4" />
           <AlertTitle>Potential Duplicate Found</AlertTitle>
           <AlertDescription>
-            This client may already exist in the system. Would you like to merge with the existing record?
-            <div className="flex flex-col mt-2 gap-1">
-              <div className="text-sm">
-                <strong>Existing client:</strong> {duplicateClient.firstName} {duplicateClient.lastName}
-              </div>
-              {duplicateClient.phone && (
-                <div className="text-sm text-muted-foreground">Phone: {duplicateClient.phone}</div>
-              )}
-              {duplicateClient.email && (
-                <div className="text-sm text-muted-foreground">Email: {duplicateClient.email}</div>
-              )}
-            </div>
+            {duplicateClient.id ? (
+              <>
+                This client may already exist in the system. Would you like to open the existing record?
+                <div className="text-sm mt-2">
+                  <strong>Existing client:</strong> {duplicateClient.name}
+                </div>
+              </>
+            ) : (
+              "A client with matching details already exists."
+            )}
             <div className="flex gap-2 mt-3 flex-wrap">
-              <Button onClick={onEditExistingAction} variant="default" size="sm">
-                Edit Existing
-              </Button>
-              {onMergeWithDuplicateAction && (
+              {duplicateClient.id && (
+                <Button onClick={onEditExistingAction} variant="default" size="sm">
+                  Edit Existing
+                </Button>
+              )}
+              {duplicateClient.id && onMergeWithDuplicateAction && (
                 <Button onClick={onMergeWithDuplicateAction} variant="outline" size="sm">
                   Merge Records
                 </Button>

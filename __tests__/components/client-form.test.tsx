@@ -112,12 +112,28 @@ describe("ClientForm", () => {
       <ClientForm
         {...createProps({
           showDuplicateWarning: true,
-          duplicateClient: { id: "dup1", firstName: "Jane", lastName: "Smith", phone: null, email: null },
+          duplicateClient: { duplicate: true, ownedByYou: true, id: "dup1", name: "Jane Smith" },
         })}
       />
     );
     expect(screen.getByText("Potential Duplicate Found")).toBeInTheDocument();
     expect(screen.getByText(/Jane Smith/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit Existing" })).toBeInTheDocument();
+  });
+
+  it("hides Edit Existing and Merge when the match is not identifiable", () => {
+    render(
+      <ClientForm
+        {...createProps({
+          showDuplicateWarning: true,
+          duplicateClient: { duplicate: true, ownedByYou: false },
+          onMergeWithDuplicateAction: vi.fn(),
+        })}
+      />
+    );
+    expect(screen.getByText("Potential Duplicate Found")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit Existing" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Merge Records" })).not.toBeInTheDocument();
   });
 
   it("shows Status and Preferences heading in edit mode", () => {

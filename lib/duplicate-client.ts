@@ -38,6 +38,37 @@ export interface DuplicateClient {
   lastName: string | null;
   phone: string | null;
   email: string | null;
+  employeeId: string | null;
+  status: string;
+}
+
+/**
+ * What a viewer may learn about a duplicate match. The matched row itself is
+ * never echoed: `id` and `name` are only for a manager or the owner, so an
+ * associate probing emails and phones learns "someone has this" and nothing
+ * about whose book it is in. Status is never reported, so a banned match in
+ * another book looks like any other foreign one.
+ */
+export interface DuplicateResult {
+  duplicate: boolean;
+  ownedByYou: boolean;
+  id?: string;
+  name?: string;
+}
+
+export function toDuplicateResult(
+  match: DuplicateClient | null,
+  viewer: { id: string; role: string },
+): DuplicateResult {
+  if (!match) return { duplicate: false, ownedByYou: false };
+  const ownedByYou = match.employeeId === viewer.id;
+  if (viewer.role !== "manager" && !ownedByYou) return { duplicate: true, ownedByYou };
+  return {
+    duplicate: true,
+    ownedByYou,
+    id: match.id,
+    name: [match.firstName, match.lastName].filter(Boolean).join(" "),
+  };
 }
 
 export function findDuplicateClient(criteria: DuplicateCriteria): DuplicateClient | null {
@@ -57,6 +88,8 @@ export function findDuplicateClient(criteria: DuplicateCriteria): DuplicateClien
       lastName: clients.lastName,
       phone: clients.phone,
       email: clients.email,
+      employeeId: clients.employeeId,
+      status: clients.status,
     })
     .from(clients)
     .where(ne(clients.status, "deleted"))
