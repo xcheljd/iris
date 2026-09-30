@@ -1,6 +1,6 @@
 "use server";
 import { db } from "@/lib/db";
-import { clients, activityEvents, approvalRequests, employees, type ApprovalRequestType } from "@/lib/db/schema";
+import { clients, activityEvents, approvalRequests, bannedCustomers, employees, type ApprovalRequestType } from "@/lib/db/schema";
 import { approvalRequestInputSchema } from "@/lib/validation/approval";
 import { and, eq, desc, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -14,6 +14,8 @@ import {
   applyDeleteUnchecked,
   type StatusChangeResult,
 } from "./_client-status-core";
+
+const BAN_CATEGORIES = bannedCustomers.banReasonCategory.enumValues;
 
 export async function createApprovalRequest(
   type: ApprovalRequestType,
@@ -112,9 +114,14 @@ export async function reviewApprovalRequest(
       if (approved) {
         let outcome: StatusChangeResult;
         switch (request.type) {
-          case "ban":
-            outcome = applyBanUnchecked(tx, request.clientId, "Other", request.reason, user.id);
+          case "ban": {
+            // The associate's category rides on the request's metadata
+            // (unvalidated JSON), so only a known category is carried over.
+            const requested = request.metadata?.category;
+            const category = BAN_CATEGORIES.find((c) => c === requested) ?? "Other";
+            outcome = applyBanUnchecked(tx, request.clientId, category, request.reason, user.id);
             break;
+          }
           case "unsubscribe":
             outcome = applyUnsubscribeUnchecked(tx, request.clientId, user.id);
             break;

@@ -309,6 +309,28 @@ describe("reviewApprovalRequest", () => {
     expect(client!.status).toBe("banned");
   });
 
+  // The associate's category was saved on the request's metadata but the
+  // approval hardcoded "Other" into the ban record.
+  it("approving a ban request records the category the associate chose", async () => {
+    const { id } = await createApprovalRequest("ban", FIRST_CLIENT_ID, "Test ban reason", { category: "Gift Card Fraud" }) as { id: string };
+    createdRequestIds.push(id);
+
+    await expect(reviewApprovalRequest(id, true)).resolves.toBeUndefined();
+
+    const ban = db.select().from(bannedCustomers).where(eq(bannedCustomers.customerId, FIRST_CLIENT_ID)).get();
+    expect(ban!.banReasonCategory).toBe("Gift Card Fraud");
+  });
+
+  it("falls back to Other for a missing or unknown requested category", async () => {
+    const { id } = await createApprovalRequest("ban", FIRST_CLIENT_ID, "Test ban reason", { category: "Not A Category" }) as { id: string };
+    createdRequestIds.push(id);
+
+    await reviewApprovalRequest(id, true);
+
+    const ban = db.select().from(bannedCustomers).where(eq(bannedCustomers.customerId, FIRST_CLIENT_ID)).get();
+    expect(ban!.banReasonCategory).toBe("Other");
+  });
+
   it("approving an unsubscribe request sets onEmailList to false", async () => {
     const requestId = await createPendingRequest("unsubscribe");
     await reviewApprovalRequest(requestId, true);
