@@ -25,8 +25,8 @@ vi.mock("@/lib/actions", () => ({
 }));
 
 import { toast } from "sonner";
-import { deleteClient, restoreClient } from "@/lib/actions";
-import { DeleteCustomerDialog } from "@/components/client-status-actions";
+import { deleteClient, restoreClient, unsubscribeClient } from "@/lib/actions";
+import { DeleteCustomerDialog, UnsubscribeCustomerDialog } from "@/components/client-status-actions";
 
 describe("DeleteCustomerDialog (manager)", () => {
   beforeEach(() => {
@@ -71,5 +71,29 @@ describe("DeleteCustomerDialog (manager)", () => {
     expect(restoreClient).toHaveBeenCalledWith("c1");
     expect(mockRefresh).toHaveBeenCalled();
     expect(toast.error).not.toHaveBeenCalled();
+  });
+});
+
+// M7: the manager unsubscribe/ban paths awaited the action and toasted
+// success unconditionally, so a returned { error } read as a win.
+describe("UnsubscribeCustomerDialog (manager)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("toasts an error, not success, when the action returns { error }", async () => {
+    vi.mocked(unsubscribeClient).mockResolvedValue({ error: "Client not found" });
+    const user = userEvent.setup();
+    render(
+      <UnsubscribeCustomerDialog clientId="c1" clientName="Jane Doe">
+        <button>Open unsubscribe</button>
+      </UnsubscribeCustomerDialog>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Open unsubscribe" }));
+    await user.click(await screen.findByRole("button", { name: "Unsubscribe" }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Failed to unsubscribe customer"));
+    expect(toast.success).not.toHaveBeenCalled();
   });
 });

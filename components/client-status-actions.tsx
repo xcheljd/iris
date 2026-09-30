@@ -219,7 +219,8 @@ export function BanCustomerDialog({
       managerActionLabel="Ban Customer"
       managerPendingLabel="Banning…"
       onManagerAction={async () => {
-        await banClient(clientId, category, reason);
+        const r = await banClient(clientId, category, reason);
+        if (r?.error) throw new Error(r.error);
         setReason("");
         setCategory("Other");
       }}
@@ -262,7 +263,10 @@ export function UnsubscribeCustomerDialog({
       }
       managerActionLabel="Unsubscribe"
       managerPendingLabel="Unsubscribing…"
-      onManagerAction={async () => { await unsubscribeClient(clientId); }}
+      onManagerAction={async () => {
+        const r = await unsubscribeClient(clientId);
+        if (r?.error) throw new Error(r.error);
+      }}
       managerSuccessMessage={`${clientName} has been unsubscribed`}
       managerErrorMessage="Failed to unsubscribe customer"
       associateTitle="Request Unsubscribe Approval"

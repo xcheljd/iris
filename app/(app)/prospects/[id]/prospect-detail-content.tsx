@@ -67,7 +67,11 @@ export function ProspectDetailContent({
   const handleReject = () => {
     startTransition(async () => {
       try {
-        await rejectProspect(prospect.id);
+        const result = await rejectProspect(prospect.id);
+        if (result?.error) {
+          toast.error(result.error);
+          return;
+        }
         toast.success("Prospect rejected");
       } catch {
         toast.error("Failed to reject prospect");

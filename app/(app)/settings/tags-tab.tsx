@@ -50,7 +50,11 @@ export function SettingsTagsTab({ tags: initialTags, isManager }: SettingsTagsTa
       return;
     }
     try {
-      await createTag(newTag.name, newTag.color);
+      const result = await createTag(newTag.name, newTag.color);
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
       toast.success("Tag created");
       setShowDialog(false);
       setNewTag({ name: "", color: "blue" });
@@ -62,7 +66,11 @@ export function SettingsTagsTab({ tags: initialTags, isManager }: SettingsTagsTa
 
   const handleDelete = async (id: string) => {
     try {
-      await deleteTag(id);
+      const result = await deleteTag(id);
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
       setTags(tags.filter((t) => t.id !== id));
       toast.success("Tag deleted");
       setDeleteTarget(null);

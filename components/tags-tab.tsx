@@ -38,7 +38,11 @@ export function TagsTab({ client }: TagsTabProps) {
     }
     startTransition(async () => {
       try {
-        await addTag(client.id, newTag.trim());
+        const result = await addTag(client.id, newTag.trim());
+        if (result?.error) {
+          toast.error(result.error);
+          return;
+        }
         setNewTag("");
         setIsAdding(false);
         toast.success("Tag added");
@@ -51,7 +55,11 @@ export function TagsTab({ client }: TagsTabProps) {
   const handleRemoveTag = (tag: string) => {
     startTransition(async () => {
       try {
-        await removeTag(client.id, tag);
+        const result = await removeTag(client.id, tag);
+        if (result?.error) {
+          toast.error(result.error);
+          return;
+        }
         toast.success("Tag removed");
       } catch (_error) {
         toast.error("Failed to remove tag");

@@ -297,7 +297,11 @@ export function PromosContent({ promos, total, summary, collections: distinctCol
 
   const handleClearAll = async () => {
     try {
-      await clearAllPromos();
+      const result = await clearAllPromos();
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
       toast.success("All promos cleared — ready for next week's list");
       setClearAllOpen(false);
       router.refresh();

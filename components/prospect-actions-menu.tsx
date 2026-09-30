@@ -26,7 +26,11 @@ export function ProspectActionsMenu({ prospect }: ProspectActionsMenuProps) {
   const handleReject = () => {
     startTransition(async () => {
       try {
-        await rejectProspect(prospect.id);
+        const result = await rejectProspect(prospect.id);
+        if (result?.error) {
+          toast.error(result.error);
+          return;
+        }
         toast.success("Prospect rejected");
       } catch {
         toast.error("Failed to reject prospect");
@@ -37,7 +41,11 @@ export function ProspectActionsMenu({ prospect }: ProspectActionsMenuProps) {
   const handleUnsubscribe = () => {
     startTransition(async () => {
       try {
-        await unsubscribeProspect(prospect.id);
+        const result = await unsubscribeProspect(prospect.id);
+        if (result?.error) {
+          toast.error(result.error);
+          return;
+        }
         toast.success("Prospect unsubscribed");
       } catch {
         toast.error("Failed to unsubscribe prospect");
