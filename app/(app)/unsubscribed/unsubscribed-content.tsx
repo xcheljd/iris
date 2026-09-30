@@ -234,7 +234,8 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
     // `list` is local state seeded once from the prop, so router.refresh()
     // alone never shows the new row; add it here. Newest first, as served.
     setList((prev) => [result.row, ...prev]);
-    toast.success("Email added to unsubscribe list");
+    setAddEmail("");
+    toast.success(`${result.row.unsub.email} added to unsubscribe list`);
     router.refresh();
   };
 

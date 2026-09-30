@@ -220,7 +220,37 @@ describe("UnsubscribedContent on the DataTable engine", () => {
     expect(addUnsubscribeEmail).toHaveBeenCalledWith("new@example.com");
     await waitFor(() => expect(screen.getByText("new@example.com")).toBeInTheDocument());
     expect(tableRows()).toHaveLength(LIST.length + 2);
-    expect(toast.success).toHaveBeenCalledWith("Email added to unsubscribe list");
+    expect(toast.success).toHaveBeenCalledWith("new@example.com added to unsubscribe list");
+  });
+
+  it("clears the Quick Add input after a successful add", async () => {
+    const user = userEvent.setup();
+    vi.mocked(addUnsubscribeEmail).mockResolvedValue({
+      row: {
+        unsub: { id: "u-clear", email: "cleared@example.com", unsubscribedAt: at("2026-09-01") },
+        clientId: null, firstName: null, lastName: null, customerId: null,
+      },
+    });
+    renderUnsubscribed();
+    const input = screen.getByPlaceholderText("email@example.com");
+
+    await user.type(input, "cleared@example.com{Enter}");
+
+    await waitFor(() => expect(input).toHaveValue(""));
+    expect(toast.success).toHaveBeenCalledWith("cleared@example.com added to unsubscribe list");
+  });
+
+  it("keeps the Quick Add input on error", async () => {
+    const user = userEvent.setup();
+    vi.mocked(addUnsubscribeEmail).mockResolvedValue({ error: "Email belongs to a banned client" });
+    renderUnsubscribed();
+    const input = screen.getByPlaceholderText("email@example.com");
+
+    await user.type(input, "banned@example.com{Enter}");
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Email belongs to a banned client"));
+    expect(input).toHaveValue("banned@example.com");
+    expect(toast.success).not.toHaveBeenCalled();
   });
 
   it("resubscribes a client from the row actions menu", async () => {
