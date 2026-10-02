@@ -1,4 +1,6 @@
-"use server";
+// Auth helpers for the action modules, deliberately NOT a "use server" module:
+// with the directive every export here was a callable server endpoint, and
+// isSessionEmployeeStale performs no auth. Import only from server code.
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { employees } from "@/lib/db/schema";
