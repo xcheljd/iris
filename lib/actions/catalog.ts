@@ -1,6 +1,6 @@
 "use server";
 import { db } from "@/lib/db";
-import { clients, promoWatches, promoMatches, modelCatalog, activityEvents, type ProductOfInterest, type Brand } from "@/lib/db/schema";
+import { clients, modelCatalog, activityEvents, type ProductOfInterest, type Brand } from "@/lib/db/schema";
 import { and, asc, desc, eq, gte, inArray, isNotNull, lte, or, sql, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
@@ -11,8 +11,8 @@ const STALE_SESSION_ERROR =
 import { DEFAULT_PAGE_SIZE, PAGE_READ_LIMIT } from "@/lib/constants";
 import { normalizeModel } from "@/lib/normalize";
 import { containsLike } from "@/lib/like";
-import { buildPromoClientIndex, matchPromoToClients } from "@/lib/promo-match";
-import { getCatalogIndex, recordProductsOfInterest } from "./model-catalog";
+import { rematchClientPromos } from "@/lib/promo-match";
+import { recordProductsOfInterest } from "./model-catalog";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -76,29 +76,9 @@ function applyCorrection(
     }))).run();
   }
 
-  rematchClientPromos(tx, affected);
+  rematchClientPromos(tx, affected.map((a) => a.id));
 
   return { affected: affected.length };
-}
-
-/**
- * Drop the given clients' promo matches and rebuild them from the current
- * catalog state against all active promos. Cheap re-index over only the
- * affected clients — call after any catalog mutation that could change a
- * cataloged model's derived collection/brand.
- */
-function rematchClientPromos(
-  tx: Tx,
-  affected: { id: string; productsOfInterest: ProductOfInterest[] }[],
-): void {
-  if (affected.length === 0) return;
-  const ids = affected.map((a) => a.id);
-  tx.delete(promoMatches).where(inArray(promoMatches.clientId, ids)).run();
-  const index = buildPromoClientIndex(affected, getCatalogIndex());
-  const promos = tx.select().from(promoWatches).all();
-  for (const promo of promos) {
-    matchPromoToClients(tx, promo.id, promo.modelNumber, promo.collection, index);
-  }
 }
 
 export async function correctCatalog(
@@ -257,7 +237,7 @@ export async function deleteCatalogRows(
       }
       if (events.length > 0) tx.insert(activityEvents).values(events).run();
 
-      rematchClientPromos(tx, affected);
+      rematchClientPromos(tx, affected.map((a) => a.id));
       affectedCount = affected.length;
     });
     revalidatePath("/catalog");
@@ -312,7 +292,7 @@ export async function deleteCatalogRow(
         }))).run();
       }
 
-      rematchClientPromos(tx, affected);
+      rematchClientPromos(tx, affected.map((a) => a.id));
       affectedCount = affected.length;
     });
     revalidatePath("/catalog");

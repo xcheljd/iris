@@ -1,6 +1,6 @@
 "use server";
 import { db } from "@/lib/db";
-import { clients, clientTags, activityEvents } from "@/lib/db/schema";
+import { clients, clientTags, activityEvents, smartLists } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
@@ -101,10 +101,27 @@ export async function deleteTag(id: string): Promise<{ error: string } | undefin
         tx.update(clients).set({ tags: next, updatedAt: new Date() }).where(eq(clients.id, c.id)).run();
       }
       if (events.length > 0) tx.insert(activityEvents).values(events).run();
+      // Smart lists filtering on the tag would otherwise match nothing, with
+      // no sign why. Drop it from `tags` (and the legacy single `tag`) so
+      // each list keeps filtering on its surviving tags.
+      for (const list of tx.select({ id: smartLists.id, filters: smartLists.filters }).from(smartLists).all()) {
+        const f = list.filters;
+        const hasTag = Array.isArray(f.tags) && f.tags.includes(tag.name);
+        if (!hasTag && f.tag !== tag.name) continue;
+        const next = { ...f };
+        if (hasTag) {
+          const remaining = (f.tags as unknown[]).filter((t) => t !== tag.name);
+          if (remaining.length > 0) next.tags = remaining;
+          else delete next.tags;
+        }
+        if (f.tag === tag.name) delete next.tag;
+        tx.update(smartLists).set({ filters: next }).where(eq(smartLists.id, list.id)).run();
+      }
       tx.delete(clientTags).where(eq(clientTags.id, id)).run();
     });
     revalidatePath("/settings");
     revalidatePath("/clients");
+    revalidatePath("/smart-lists");
   } catch (err) {
     console.error("deleteTag failed:", err);
     return { error: "Failed to delete tag" };

@@ -1,6 +1,6 @@
 "use server";
 import { db } from "@/lib/db";
-import { outreachTemplates } from "@/lib/db/schema";
+import { outreachLogs, outreachTemplates } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
@@ -14,6 +14,11 @@ export async function createTemplate(name: string, body: string, subject: string
 
 export async function deleteTemplate(id: string) {
   await requireManager();
-  db.delete(outreachTemplates).where(eq(outreachTemplates.id, id)).run();
+  // outreach_logs.template_id has no FK, so clear it here rather than leave
+  // logs pointing at a template that no longer exists.
+  db.transaction((tx) => {
+    tx.update(outreachLogs).set({ templateId: null }).where(eq(outreachLogs.templateId, id)).run();
+    tx.delete(outreachTemplates).where(eq(outreachTemplates.id, id)).run();
+  });
   revalidatePath("/settings");
 }

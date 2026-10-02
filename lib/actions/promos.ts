@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireManager } from "./_shared";
 import { recordModelCollection, getCatalogIndex, getCatalogIndexWithMsrp } from "./model-catalog";
-import { buildPromoClientIndex, matchPromoToClients } from "@/lib/promo-match";
+import { buildPromoClientIndex, matchPromoToClients, promoIndexColumns } from "@/lib/promo-match";
 import { normalizeModel } from "@/lib/normalize";
 import { promoNumbersSchema, promoPeriodSchema } from "@/lib/validation/promo";
 
@@ -28,7 +28,7 @@ export async function createPromo(
   const nums = promoNumbersSchema.safeParse({ msrp: msrp ?? null, discountPercent: discountPercent ?? null, discountPrice: discountPrice ?? null, sizeOneQty, sizeTwoQty });
   if (!nums.success) return { error: nums.error.issues[0]?.message ?? "Invalid promo values" };
   try {
-    const all = db.select({ id: clients.id, productsOfInterest: clients.productsOfInterest }).from(clients).all();
+    const all = db.select(promoIndexColumns).from(clients).all();
     const index = buildPromoClientIndex(all, getCatalogIndex());
     const id = randomUUID();
     db.transaction((tx) => {
@@ -145,7 +145,7 @@ export async function importPromos(
   const period = promoPeriodSchema.safeParse({ promoStart: promoStart ?? null, promoEnd: promoEnd ?? null });
   if (!period.success) return { error: period.error.issues[0]?.message ?? "Invalid promo period" };
   try {
-    const all = db.select({ id: clients.id, productsOfInterest: clients.productsOfInterest }).from(clients).all();
+    const all = db.select(promoIndexColumns).from(clients).all();
     const catalog = getCatalogIndexWithMsrp();
     const index = buildPromoClientIndex(all, new Map(
       [...catalog].map(([k, v]) => [k, { collection: v.collection, brand: v.brand }])

@@ -1,9 +1,12 @@
 import { randomUUID } from "crypto";
+import { inArray } from "drizzle-orm";
 import type { db } from "@/lib/db";
-import { promoMatches, type ProductOfInterest } from "@/lib/db/schema";
+import { clients, promoMatches, promoWatches, type ProductOfInterest } from "@/lib/db/schema";
 import { normalizeModel } from "@/lib/normalize";
 import { resolveInterest } from "@/lib/resolve-interest";
-import type { CatalogEntry } from "@/lib/actions/model-catalog";
+import { getCatalogIndex, type CatalogEntry } from "@/lib/actions/model-catalog";
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 // Promo ↔ client matching, extracted so both promo create/import and a
 // catalog correction's re-match reuse the exact same logic (and so it can
@@ -19,13 +22,21 @@ export interface PromoClientIndex {
   entries: PromoClientEntry[];     // for exact collection match
 }
 
+// Banned and deleted clients never get promo matches: they are off every
+// surface that would contact them, so a match would only be noise.
 export function buildPromoClientIndex(
-  all: Array<{ id: string; productsOfInterest: ProductOfInterest[] | null }>,
+  all: Array<{
+    id: string;
+    productsOfInterest: ProductOfInterest[] | null;
+    status: typeof clients.$inferSelect.status;
+    deletedAt: Date | null;
+  }>,
   catalog: Map<string, CatalogEntry>,
 ): PromoClientIndex {
   const modelMap = new Map<string, string[]>();
   const entries: PromoClientEntry[] = [];
   for (const c of all) {
+    if (c.status === "banned" || c.status === "deleted" || c.deletedAt) continue;
     const collections = new Set<string>();
     for (const p of c.productsOfInterest ?? []) {
       const m = normalizeModel(p.model);
@@ -80,4 +91,30 @@ export function matchPromoToClients(
   // Client IDs matched to this promo (≤1 row per client/promo via the
   // unique constraint). Callers may union these for distinct-client counts.
   return matches.map((m) => m.clientId);
+}
+
+/** The client columns buildPromoClientIndex needs. */
+export const promoIndexColumns = {
+  id: clients.id,
+  productsOfInterest: clients.productsOfInterest,
+  status: clients.status,
+  deletedAt: clients.deletedAt,
+};
+
+/**
+ * Drop the given clients' promo matches and rebuild them from the current
+ * catalog state against all active promos. Cheap re-index over only the
+ * affected clients — call after any catalog mutation that could change a
+ * cataloged model's derived collection/brand. Reads the clients inside `tx`,
+ * so interests rewritten earlier in the same transaction are what's matched.
+ */
+export function rematchClientPromos(tx: Tx, clientIds: string[]): void {
+  if (clientIds.length === 0) return;
+  tx.delete(promoMatches).where(inArray(promoMatches.clientId, clientIds)).run();
+  const rows = tx.select(promoIndexColumns).from(clients).where(inArray(clients.id, clientIds)).all();
+  const index = buildPromoClientIndex(rows, getCatalogIndex());
+  const promos = tx.select().from(promoWatches).all();
+  for (const promo of promos) {
+    matchPromoToClients(tx, promo.id, promo.modelNumber, promo.collection, index);
+  }
 }

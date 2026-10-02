@@ -1,10 +1,12 @@
 "use server";
 import { db } from "@/lib/db";
-import { modelCatalog } from "@/lib/db/schema";
+import { clients, modelCatalog } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireManager } from "./_shared";
 import { parseRvxCatalogXml, type CatalogImportRow } from "@/lib/rvx-catalog-parser";
+import { normalizeModel } from "@/lib/normalize";
+import { rematchClientPromos } from "@/lib/promo-match";
 
 export type CatalogImportAnalysis = {
   total: number;
@@ -118,10 +120,14 @@ export async function importCatalogRvx(
     const idx = existingIndex();
     let created = 0, updated = 0;
     const now = new Date();
+    // Models whose catalog collection is new or different: clients
+    // interested in them can match different promos now.
+    const recollected = new Set<string>();
 
     db.transaction((tx) => {
       for (const row of rows) {
         const ex = idx.get(row.model);
+        if (!ex || ex.collection !== row.collection) recollected.add(row.model);
         if (ex) {
           const changed = diffRow(row, ex) === "updated";
           // Data-identical rows are still rewritten when they aren't clean
@@ -158,10 +164,20 @@ export async function importCatalogRvx(
           created++;
         }
       }
+
+      // Same re-match a single catalog correction runs, so promo matches
+      // aren't stale until the next correction.
+      if (recollected.size > 0) {
+        const affected = tx.select({ id: clients.id, productsOfInterest: clients.productsOfInterest }).from(clients).all()
+          .filter((c) => (c.productsOfInterest ?? []).some((p) => recollected.has(normalizeModel(p.model))))
+          .map((c) => c.id);
+        rematchClientPromos(tx, affected);
+      }
     });
 
     revalidatePath("/catalog");
     revalidatePath("/clients");
+    revalidatePath("/promos");
     return { imported: created + updated, created, updated };
   } catch (err) {
     console.error("importCatalogRvx failed:", err);
