@@ -67,6 +67,7 @@ export function OnboardingSettingsTab({ initialState }: OnboardingSettingsTabPro
         hintsDismissed: hints as HintId[],
         tourSkipped: false,
       });
+      if ("error" in updated) throw new Error(updated.error);
       // Pipe the reset state back into the provider so the tab reflects it immediately
       refreshOnboardingState(updated);
       setConfirmOpen(false);

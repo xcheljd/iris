@@ -23,7 +23,9 @@ export async function graduateProspect(input: GraduateProspectInput): Promise<
   | { type: "error"; error: string }
 > {
   const user = await requireAuth();
-  const parsed = graduateProspectSchema.parse(input);
+  const result = graduateProspectSchema.safeParse(input);
+  if (!result.success) return { type: "error", error: result.error.issues[0]?.message ?? "Invalid request" };
+  const parsed = result.data;
 
   const prospect = db.select().from(prospects).where(eq(prospects.id, parsed.prospectId)).get();
   if (!prospect) return { type: "error", error: "Prospect not found" };
@@ -89,7 +91,9 @@ export async function graduateProspectIntoExistingClient(
   rawEnrichment: Partial<GraduateProspectInput>,
 ): Promise<{ error: string } | undefined> {
   const user = await requireAuth();
-  const enrichment = graduateEnrichmentSchema.parse(rawEnrichment);
+  const enrichmentResult = graduateEnrichmentSchema.safeParse(rawEnrichment);
+  if (!enrichmentResult.success) return { error: enrichmentResult.error.issues[0]?.message ?? "Invalid request" };
+  const enrichment = enrichmentResult.data;
 
   const prospect = db.select().from(prospects).where(eq(prospects.id, prospectId)).get();
   if (!prospect) return { error: "Prospect not found" };

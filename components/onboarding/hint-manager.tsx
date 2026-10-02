@@ -157,6 +157,7 @@ function HintOverlay({ hint }: { hint: HintDefinition }) {
         const updated = await updateOnboardingState({
           hintsDismissed: [...existing, hint.id] as HintId[],
         });
+        if ("error" in updated) throw new Error(updated.error);
         // Sync the provider's state so hints don't reappear on page navigation
         refreshOnboardingState(updated);
       }

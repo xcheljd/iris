@@ -73,7 +73,8 @@ async function runBulk(opts: {
     db.transaction((tx) => {
       ok = opts.mutate(tx);
     });
-  } catch {
+  } catch (err) {
+    console.error(`${opts.errorMessage}:`, err);
     return { ok: 0, error: opts.errorMessage };
   }
   for (const id of opts.heatIds ?? []) await recalcHeat(id);

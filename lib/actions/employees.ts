@@ -262,7 +262,8 @@ export async function deactivateEmployee(
     revalidatePath("/settings");
     revalidatePath("/clients");
     return { success: true as const };
-  } catch {
+  } catch (err) {
+    console.error("deactivateEmployee failed:", err);
     return { error: "Failed to deactivate employee" };
   }
 }

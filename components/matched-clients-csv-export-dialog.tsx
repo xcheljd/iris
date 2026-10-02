@@ -65,6 +65,8 @@ export function MatchedClientsCsvExportDialog({ open, onOpenChange, owners, matc
       .then((res) => { if (!cancelled) setData(res); })
       .catch((err) => {
         if (cancelled) return;
+        // Drop the previous scope's rows so a failed export can't show them.
+        setData(null);
         console.error("[MatchedClientsCsvExport] Failed:", err);
         toast.error("Failed to build CSV export");
       })

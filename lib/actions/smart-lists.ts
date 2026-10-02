@@ -15,7 +15,8 @@ export async function deleteSmartList(listId: string): Promise<{ error: string }
   try {
     db.delete(smartLists).where(eq(smartLists.id, listId)).run();
     revalidatePath("/smart-lists");
-  } catch {
+  } catch (err) {
+    console.error("deleteSmartList failed:", err);
     return { error: "Failed to delete smart list" };
   }
 }
@@ -37,7 +38,8 @@ export async function duplicateSmartList(listId: string): Promise<{ error: strin
       isShared: original.isShared,
     }).run();
     revalidatePath("/smart-lists");
-  } catch {
+  } catch (err) {
+    console.error("duplicateSmartList failed:", err);
     return { error: "Failed to duplicate smart list" };
   }
 }
@@ -52,7 +54,8 @@ export async function renameSmartList(listId: string, newName: string): Promise<
   try {
     db.update(smartLists).set({ name: name.data }).where(eq(smartLists.id, listId)).run();
     revalidatePath("/smart-lists");
-  } catch {
+  } catch (err) {
+    console.error("renameSmartList failed:", err);
     return { error: "Failed to rename smart list" };
   }
 }
@@ -78,7 +81,8 @@ export async function createSmartList(
     }).run();
     revalidatePath("/smart-lists");
     return { id };
-  } catch {
+  } catch (err) {
+    console.error("createSmartList failed:", err);
     return { error: "Failed to create smart list" };
   }
 }

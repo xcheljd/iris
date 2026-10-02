@@ -29,7 +29,8 @@ export async function addTag(clientId: string, rawTag: string) {
       }).run();
     });
     revalidatePath(`/clients/${clientId}`);
-  } catch (_err) {
+  } catch (err) {
+    console.error("addTag failed:", err);
     return { error: "Failed to add tag" };
   }
 }
@@ -53,7 +54,8 @@ export async function removeTag(clientId: string, tag: string) {
       }).run();
     });
     revalidatePath(`/clients/${clientId}`);
-  } catch (_err) {
+  } catch (err) {
+    console.error("removeTag failed:", err);
     return { error: "Failed to remove tag" };
   }
 }
@@ -103,7 +105,8 @@ export async function deleteTag(id: string): Promise<{ error: string } | undefin
     });
     revalidatePath("/settings");
     revalidatePath("/clients");
-  } catch {
+  } catch (err) {
+    console.error("deleteTag failed:", err);
     return { error: "Failed to delete tag" };
   }
 }

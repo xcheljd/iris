@@ -11,7 +11,7 @@ vi.mock("next/cache", () => ({
 
 import { getServerSession } from "next-auth";
 import type { Session } from "next-auth";
-import { getOnboardingState, updateOnboardingState } from "@/lib/actions/onboarding";
+import { getOnboardingState, updateOnboardingState, type OnboardingState } from "@/lib/actions/onboarding";
 import { db } from "@/lib/db";
 import { employees } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -141,12 +141,12 @@ describe("Onboarding Actions", () => {
       // currentStep = 0 (below minimum)
       await expect(
         updateOnboardingState({ currentStep: 0 })
-      ).rejects.toThrow();
+      ).resolves.toHaveProperty("error");
 
       // currentStep = 9 (above associate max)
       await expect(
         updateOnboardingState({ currentStep: 9 })
-      ).rejects.toThrow();
+      ).resolves.toHaveProperty("error");
 
       // currentStep = 8 should be valid
       await expect(
@@ -160,7 +160,7 @@ describe("Onboarding Actions", () => {
       // currentStep = 13 (above manager max)
       await expect(
         updateOnboardingState({ currentStep: 13 })
-      ).rejects.toThrow();
+      ).resolves.toHaveProperty("error");
 
       // currentStep = 12 should be valid
       await expect(
@@ -177,7 +177,7 @@ describe("Onboarding Actions", () => {
           currentStep: 1,
           hintsDismissed: ["invalid-hint" as "add-client"],
         })
-      ).rejects.toThrow();
+      ).resolves.toHaveProperty("error");
 
       // Valid hint IDs
       await expect(
@@ -212,7 +212,8 @@ describe("Onboarding Actions", () => {
       });
 
       // Should not have duplicates
-      const parsed = result;
+      expect(result).not.toHaveProperty("error");
+      const parsed = result as OnboardingState;
       expect(parsed.hintsDismissed).toContain("add-client");
       expect(parsed.hintsDismissed).toContain("edit-client");
       const addClientCount = parsed.hintsDismissed.filter((h: string) => h === "add-client").length;
@@ -287,7 +288,7 @@ describe("Onboarding Actions", () => {
           currentStep: 1,
           completedSteps: ["invalid-step-id"],
         })
-      ).rejects.toThrow();
+      ).resolves.toHaveProperty("error");
     });
 
     it("should merge updates with existing state correctly", async () => {
@@ -313,7 +314,8 @@ describe("Onboarding Actions", () => {
         hintsDismissed: ["command-palette"],
       });
 
-      const parsed = result;
+      expect(result).not.toHaveProperty("error");
+      const parsed = result as OnboardingState;
       expect(parsed.currentStep).toBe(3);
       expect(parsed.completedSteps).toEqual(["welcome", "dashboard"]);
       expect(parsed.hintsDismissed).toEqual(["command-palette"]);
@@ -330,7 +332,8 @@ describe("Onboarding Actions", () => {
         tourCompleted: false,
       });
 
-      const parsed = result;
+      expect(result).not.toHaveProperty("error");
+      const parsed = result as OnboardingState;
       expect(parsed.tourSkipped).toBe(true);
       expect(parsed.tourCompleted).toBe(false);
     });
@@ -344,7 +347,7 @@ describe("Onboarding Actions", () => {
           currentStep: 1,
           tourCompleted: "yes" as unknown as boolean,
         })
-      ).rejects.toThrow();
+      ).resolves.toHaveProperty("error");
     });
   });
 });

@@ -288,7 +288,8 @@ export function PromosContent({ promos, total, summary, collections: distinctCol
   // all have to move together.
   const handleDelete = async (id: string) => {
     try {
-      await deletePromo(id);
+      const res = await deletePromo(id);
+      if (res?.error) { toast.error(res.error); return; }
       toast.success("Promo deleted");
       setDeleteTarget(null);
       router.refresh();

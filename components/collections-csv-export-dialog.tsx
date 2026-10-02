@@ -57,6 +57,8 @@ export function CollectionsCsvExportDialog({ open, onOpenChange, selectedCollect
       .then((res) => { if (!cancelled) setData(res); })
       .catch((err) => {
         if (cancelled) return;
+        // Drop the previous scope's rows so a failed export can't show them.
+        setData(null);
         console.error("[CollectionsCsvExport] Failed:", err);
         toast.error("Failed to build CSV export");
       })

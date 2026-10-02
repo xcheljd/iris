@@ -350,7 +350,7 @@ describe("graduateProspect", () => {
         birthday: "08/29",
         productsOfInterest: [],
       }),
-    ).rejects.toThrow(/Use a valid date/);
+    ).resolves.toEqual({ type: "error", error: "Use a valid date" });
   });
 
   it("returns type=duplicate when email matches an existing client", async () => {
@@ -576,7 +576,7 @@ describe("graduateProspectIntoExistingClient", () => {
 
     await expect(
       graduateProspectIntoExistingClient(prospectId, existingClientId, { birthday: "08/29" }),
-    ).rejects.toThrow(/Use a valid date/);
+    ).resolves.toEqual({ error: "Use a valid date" });
 
     await graduateProspectIntoExistingClient(prospectId, existingClientId, {
       birthday: "1990-08-29T07:00:00.000Z",

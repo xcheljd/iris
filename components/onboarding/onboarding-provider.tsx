@@ -170,6 +170,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
               const persisted = await updateOnboardingState({
                 currentStep: 1,
               });
+              if ("error" in persisted) throw new Error(persisted.error);
               setOnboardingState(persisted);
             } catch {
               // Persist failed — tour will still start, may re-trigger on next hard nav
@@ -292,6 +293,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
               completedSteps: newCompleted,
               ...args.extra,
             });
+            if ("error" in updated) throw new Error(updated.error);
             completedSteps = updated.completedSteps;
             setOnboardingState(updated);
           } catch (err) {
@@ -340,6 +342,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
           currentStep: totalSteps,
           completedSteps: rawSteps.map((s) => s.id),
         });
+        if ("error" in updated) throw new Error(updated.error);
         setOnboardingState(updated);
       } catch (err) {
         console.error("[OnboardingProvider] Failed to persist tour completion on last step:", err);
@@ -402,6 +405,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         tourSkipped: true,
         currentStep: currentStepIndex || 1,
       });
+      if ("error" in updated) throw new Error(updated.error);
       setOnboardingState(updated);
     } catch (err) {
       console.error("[OnboardingProvider] Failed to persist skip tour:", err);
@@ -442,6 +446,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         currentStep: totalSteps,
         completedSteps: rawSteps.map((s) => s.id),
       });
+      if ("error" in updated) throw new Error(updated.error);
       setOnboardingState(updated);
     } catch (err) {
       console.error("[OnboardingProvider] Failed to persist tour completion:", err);

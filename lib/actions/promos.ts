@@ -221,11 +221,16 @@ export async function clearAllPromos() {
 
 export async function deletePromo(id: string) {
   await requireManager();
-  db.transaction((tx) => {
-    tx.delete(promoMatches).where(eq(promoMatches.promoId, id)).run();
-    tx.delete(promoWatches).where(eq(promoWatches.id, id)).run();
-  });
-  revalidatePath("/promos");
-  revalidatePath("/clients");
-  revalidatePath("/", "layout");
+  try {
+    db.transaction((tx) => {
+      tx.delete(promoMatches).where(eq(promoMatches.promoId, id)).run();
+      tx.delete(promoWatches).where(eq(promoWatches.id, id)).run();
+    });
+    revalidatePath("/promos");
+    revalidatePath("/clients");
+    revalidatePath("/", "layout");
+  } catch (err) {
+    console.error("deletePromo failed:", err);
+    return { error: "Failed to delete promo" };
+  }
 }

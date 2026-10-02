@@ -88,20 +88,22 @@ function defaultState(): OnboardingState {
   };
 }
 
-function validateCurrentStep(step: number, role: string): void {
+function validateCurrentStep(step: number, role: string): string | null {
   const max = getMaxStep(role);
   if (step < 1 || step > max) {
-    throw new Error(`currentStep must be between 1 and ${max} for role ${role}`);
+    return `currentStep must be between 1 and ${max} for role ${role}`;
   }
+  return null;
 }
 
-function validateCompletedSteps(steps: string[], role: string): void {
+function validateCompletedSteps(steps: string[], role: string): string | null {
   const validIds = getValidStepIds(role);
   for (const step of steps) {
     if (!validIds.includes(step)) {
-      throw new Error(`Invalid completedStep "${step}" for role ${role}`);
+      return `Invalid completedStep "${step}" for role ${role}`;
     }
   }
+  return null;
 }
 
 function mergeHints(existing: string[], incoming: string[]): string[] {
@@ -126,17 +128,17 @@ export async function getOnboardingState(): Promise<OnboardingState | null> {
 
 export async function updateOnboardingState(
   updates: z.infer<typeof updateSchema>,
-): Promise<OnboardingState> {
+): Promise<OnboardingState | { error: string }> {
   const user = await requireAuth();
-  const parsed = updateSchema.parse(updates);
+  const result = updateSchema.safeParse(updates);
+  if (!result.success) return { error: result.error.issues[0]?.message ?? "Invalid onboarding update" };
+  const parsed = result.data;
 
   // Role-based validation
-  if (parsed.currentStep !== undefined) {
-    validateCurrentStep(parsed.currentStep, user.role);
-  }
-  if (parsed.completedSteps) {
-    validateCompletedSteps(parsed.completedSteps, user.role);
-  }
+  const roleError =
+    (parsed.currentStep !== undefined ? validateCurrentStep(parsed.currentStep, user.role) : null) ??
+    (parsed.completedSteps ? validateCompletedSteps(parsed.completedSteps, user.role) : null);
+  if (roleError) return { error: roleError };
 
   // Read current state
   const row = db.select({ onboarding_state: employees.onboardingState })

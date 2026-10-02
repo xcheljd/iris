@@ -30,7 +30,8 @@ function runBulk(opts: {
     db.transaction((tx) => {
       ok = opts.mutate(tx);
     });
-  } catch {
+  } catch (err) {
+    console.error(`${opts.errorMessage}:`, err);
     return { ok: 0, error: opts.errorMessage };
   }
   revalidatePath("/prospects");
