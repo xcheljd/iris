@@ -1,7 +1,7 @@
 "use server";
 import { db } from "@/lib/db";
 import { employees, clients, activityEvents } from "@/lib/db/schema";
-import { eq, asc, and, notInArray } from "drizzle-orm";
+import { eq, ne, asc, and, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { MIN_PASSWORD_LENGTH, BCRYPT_SALT_ROUNDS } from "@/lib/constants";
@@ -14,7 +14,20 @@ import {
   employeeUpdateSchema,
   newPasswordSchema,
 } from "@/lib/validation/employee";
-import { getSessionUser } from "./_shared";
+import { assertAssignableEmployee, getSessionUser } from "./_shared";
+
+// Usernames are stored as typed and login matches them exactly (BINARY), but
+// uniqueness is case-insensitive so "marcus" can't sit beside "Marcus" and
+// leave two people one Caps Lock apart. `exceptId` lets a rename change case.
+function usernameTaken(username: string, exceptId?: string) {
+  const row = db.select({ id: employees.id }).from(employees)
+    .where(and(
+      sql`lower(${employees.username}) = lower(${username})`,
+      exceptId ? ne(employees.id, exceptId) : undefined,
+    ))
+    .get();
+  return !!row;
+}
 
 export async function createEmployee(data: unknown) {
   const user = await getSessionUser();
@@ -26,19 +39,27 @@ export async function createEmployee(data: unknown) {
     return { error: `First name, username, and password (min ${MIN_PASSWORD_LENGTH} chars) are required` };
   }
   const { firstName, lastName, username, password, role } = parsed.data;
-  const existing = db.select().from(employees).where(eq(employees.username, username)).get();
-  if (existing) return { error: "Username already taken" };
+  if (usernameTaken(username)) return { error: "Username already taken" };
   const passwordHash = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
-  db.insert(employees).values({
-    id: randomUUID(),
-    name: lastName ? `${firstName} ${lastName}` : firstName,
-    firstName,
-    lastName,
-    username,
-    passwordHash,
-    role,
-    active: true,
-  }).run();
+  // The check above ran before the hash's await, so a concurrent create can
+  // win the name in between; the column's UNIQUE constraint catches that.
+  try {
+    db.insert(employees).values({
+      id: randomUUID(),
+      name: lastName ? `${firstName} ${lastName}` : firstName,
+      firstName,
+      lastName,
+      username,
+      passwordHash,
+      role,
+      active: true,
+    }).run();
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("UNIQUE constraint failed: employees.username")) {
+      return { error: "Username already taken" };
+    }
+    throw err;
+  }
   revalidatePath("/settings");
   return { success: true as const };
 }
@@ -57,9 +78,8 @@ export async function updateEmployee(employeeId: string, data: unknown) {
   const target = db.select().from(employees).where(eq(employees.id, employeeId)).get();
   if (!target) return { error: "Employee not found" };
 
-  if (username !== target.username) {
-    const existing = db.select().from(employees).where(eq(employees.username, username)).get();
-    if (existing) return { error: "Username already taken" };
+  if (username !== target.username && usernameTaken(username, employeeId)) {
+    return { error: "Username already taken" };
   }
 
   const updates: Partial<typeof employees.$inferInsert> = {
@@ -155,8 +175,11 @@ export async function reorderEmployee(employeeId: string, direction: "up" | "dow
   const user = await getSessionUser();
   if (user?.role !== "manager") return { error: "Unauthorized" };
 
+  // Only the rows the Employees tab shows: swapping with a soft-deleted
+  // neighbour made the arrow look like it did nothing.
   const all = db.select({ id: employees.id, sortOrder: employees.sortOrder, firstName: employees.firstName })
     .from(employees)
+    .where(isNull(employees.deletedAt))
     .orderBy(asc(employees.sortOrder), asc(employees.firstName))
     .all();
 
@@ -214,19 +237,16 @@ export async function deactivateEmployee(
   if (options.clientHandling === "reassign") {
     if (!options.reassignToId) return { error: "Pick an employee to reassign to" };
     if (options.reassignToId === employeeId) return { error: "Can't reassign to the same employee" };
-    const t = db
-      .select({ id: employees.id, firstName: employees.firstName, lastName: employees.lastName, active: employees.active })
-      .from(employees)
-      .where(eq(employees.id, options.reassignToId))
-      .get();
-    if (!t) return { error: "Reassign target not found" };
-    if (!t.active) return { error: "Reassign target is inactive" };
-    reassignTarget = t;
+    const t = assertAssignableEmployee(options.reassignToId, "Reassign target");
+    if (t.error !== undefined) return { error: t.error };
+    reassignTarget = t.employee;
   }
 
   try {
     db.transaction((tx) => {
-      // Collect impacted clients first so we can log per-client activity
+      // Collect impacted clients first so we can log per-client activity.
+      // Banned and deleted clients stay on the (now-inactive) employee: the
+      // UPDATE moves exactly the rows that get a transferred event.
       const impacted = tx
         .select({ id: clients.id })
         .from(clients)
@@ -239,7 +259,7 @@ export async function deactivateEmployee(
       if (shouldUpdate && impacted.length > 0) {
         tx.update(clients)
           .set({ employeeId: newOwner, updatedAt: new Date() })
-          .where(eq(clients.employeeId, employeeId))
+          .where(inArray(clients.id, impacted.map((c) => c.id)))
           .run();
 
         const description = options.clientHandling === "reassign"

@@ -5,7 +5,7 @@ import { clients, activityEvents, bannedCustomers, unsubscribeList, clientTags }
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
-import { requireAuth, requireManager } from "./_shared";
+import { assertAssignableEmployee, requireAuth, requireManager } from "./_shared";
 import { BANNABLE_STATUSES, UNSUBSCRIBABLE_STATUSES } from "./_client-status-core";
 import { recalcHeat } from "@/lib/heat-recalc";
 import { normalizeEmail } from "@/lib/email-identity";
@@ -192,6 +192,11 @@ export async function bulkReassignOwner(
   newEmployeeId: string | null,
 ): Promise<BulkResult> {
   const user = await requireManager();
+  // null clears the owner; any real target must be able to work the clients.
+  if (newEmployeeId !== null) {
+    const target = assertAssignableEmployee(newEmployeeId);
+    if (target.error !== undefined) return { ok: 0, error: target.error };
+  }
   return runBulk({
     clientIds,
     errorMessage: "Failed to reassign owner",

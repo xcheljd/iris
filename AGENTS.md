@@ -153,6 +153,13 @@ they do. If either grows a query it pages against, it moves to the shape above.
 - **Email suppression:** any query that produces people to email or promo-contact applies
   `notSuppressed(emailCol)` from `lib/suppression.ts` (unsubscribe list + banned emails,
   case-insensitive), and any write that can set `onEmailList` checks `isEmailSuppressed()`.
+- **Usernames:** stored as typed, and login/recover match them exactly (SQLite TEXT is BINARY).
+  Uniqueness is case-insensitive (`usernameTaken` in `lib/actions/employees.ts`), so no two
+  employees differ only by case. A lost create race hits the column's UNIQUE constraint and
+  maps to "Username already taken".
+- **Assigning clients:** any write that hands clients to an employee (transfer, bulk reassign,
+  deactivate→reassign) checks the target with `assertAssignableEmployee()` (`lib/actions/_shared.ts`).
+  The target must exist, be active, and not be soft-deleted.
 - **Duplicate matches:** never echo a matched client row. Return `toDuplicateResult()` from
   `lib/duplicate-client.ts` — `{ duplicate, ownedByYou, id?, name? }`, with `id`/`name` only for
   the owner or a manager.

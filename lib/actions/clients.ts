@@ -4,7 +4,7 @@ import { clients, outreachLogs, activityEvents, promoMatches, bannedCustomers, u
 import { eq, and, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
-import { requireAuth, requireManager } from "./_shared";
+import { assertAssignableEmployee, requireAuth, requireManager } from "./_shared";
 import { recalcHeat } from "@/lib/heat-recalc";
 import { fullName } from "@/lib/utils";
 import { recordProductsOfInterest } from "./model-catalog";
@@ -251,8 +251,9 @@ export async function transferClient(clientId: string, newEmployeeId: string): P
   const clientRow = db.select({ employeeId: clients.employeeId }).from(clients).where(eq(clients.id, clientId)).get();
   if (!clientRow) return { error: "Client not found" };
 
-  const newEmployee = db.select({ firstName: employees.firstName, lastName: employees.lastName }).from(employees).where(eq(employees.id, newEmployeeId)).get();
-  if (!newEmployee) return { error: "Employee not found" };
+  const target = assertAssignableEmployee(newEmployeeId);
+  if (target.error !== undefined) return { error: target.error };
+  const newEmployee = target.employee;
 
   const previousEmployee = clientRow.employeeId
     ? db.select({ firstName: employees.firstName, lastName: employees.lastName }).from(employees).where(eq(employees.id, clientRow.employeeId)).get()

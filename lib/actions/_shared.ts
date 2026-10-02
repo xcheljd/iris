@@ -4,7 +4,7 @@
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { employees } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
 export async function getSessionUser() {
   const session = await getSession();
@@ -36,4 +36,22 @@ export async function isSessionEmployeeStale(userId: string): Promise<boolean> {
     .where(eq(employees.id, userId))
     .get();
   return !row;
+}
+
+/**
+ * Clients may only be handed to an employee who can still work them: an
+ * existing row that is active and not soft-deleted. `label` names the target
+ * in the error ("Employee not found", "Reassign target is inactive").
+ */
+export function assertAssignableEmployee(id: string, label = "Employee"):
+  | { employee: { id: string; firstName: string; lastName: string | null }; error?: undefined }
+  | { error: string } {
+  const row = db
+    .select({ id: employees.id, firstName: employees.firstName, lastName: employees.lastName, active: employees.active })
+    .from(employees)
+    .where(and(eq(employees.id, id), isNull(employees.deletedAt)))
+    .get();
+  if (!row) return { error: `${label} not found` };
+  if (!row.active) return { error: `${label} is inactive` };
+  return { employee: { id: row.id, firstName: row.firstName, lastName: row.lastName } };
 }
