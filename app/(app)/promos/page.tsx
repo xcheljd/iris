@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { listPromos, getPromoMatchCounts, getMatchedClients, PROMO_SORT_KEYS, type PromoSortKey } from "@/lib/queries";
 import { requirePageSession } from "@/lib/auth";
+import { PAGE_READ_LIMIT } from "@/lib/constants";
 import { PromosContent } from "./promos-content";
 import { PromosSkeleton } from "@/components/skeletons";
 
@@ -40,10 +41,13 @@ async function PromosFetcher({ searchParams }: { searchParams: SearchParams }) {
   const session = await requirePageSession();
   const isManager = session.user.role === "manager";
 
-  const [promoList, matchedClients] = await Promise.all([
+  const [promoList, matchedRows] = await Promise.all([
     listPromos({ q, brands, collections, msrpMax, discMin, size1Pos, size2Pos, sort, sortDir: dir, page }),
-    getMatchedClients(isManager ? undefined : session.user.id),
+    // One past the cap so the tab can say it was cut, like the CSV export does.
+    getMatchedClients(isManager ? undefined : session.user.id, PAGE_READ_LIMIT + 1),
   ]);
+  const matchedClientsTruncated = matchedRows.length > PAGE_READ_LIMIT;
+  const matchedClients = matchedClientsTruncated ? matchedRows.slice(0, PAGE_READ_LIMIT) : matchedRows;
   // Only the promos actually on this page need a Clients badge.
   const matchCounts = await getPromoMatchCounts(promoList.rows.map((p) => p.id));
 
@@ -70,6 +74,7 @@ async function PromosFetcher({ searchParams }: { searchParams: SearchParams }) {
       matchCounts={matchCounts}
       currentUserId={session.user.id}
       matchedClients={matchedClients}
+      matchedClientsTruncated={matchedClientsTruncated}
       restoreLastSearch={Object.keys(sp).length === 0}
     />
   );

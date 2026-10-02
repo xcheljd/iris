@@ -471,18 +471,31 @@ export interface MatchedClientRow {
   matchType: string;
 }
 
+/** Matched Clients tab facets; an empty/absent array leaves that facet unconstrained. */
+export interface MatchedClientFacets {
+  owners?: string[];
+  matchTypes?: string[];
+  brands?: string[];
+}
+
 // One row per (client, promo) match for the Matched Clients tab.
 // Excludes soft-deleted/orphaned clients (same predicate as
 // getPromoMatchCounts). Employee-scoped like the CSV exports:
-// pass the associate's id to limit to their own clients.
-export async function getMatchedClients(employeeId?: string, limit: number = PAGE_READ_LIMIT): Promise<MatchedClientRow[]> {
+// pass the associate's id to limit to their own clients. Facets are
+// applied in SQL so they filter before the LIMIT, not after it.
+export async function getMatchedClients(
+  employeeId?: string,
+  limit: number = PAGE_READ_LIMIT,
+  facets: MatchedClientFacets = {},
+): Promise<MatchedClientRow[]> {
+  const ownerName = rawSql<string | null>`NULLIF(TRIM(COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, '')), '')`;
   return db
     .select({
       clientId: clients.id,
       clientFirstName: clients.firstName,
       clientLastName: clients.lastName,
       clientEmployeeId: clients.employeeId,
-      ownerName: rawSql<string | null>`NULLIF(TRIM(COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, '')), '')`.as("owner_name"),
+      ownerName: ownerName.as("owner_name"),
       preferredContact: clients.preferredContact,
       phone: clients.phone,
       email: clients.email,
@@ -503,6 +516,14 @@ export async function getMatchedClients(employeeId?: string, limit: number = PAG
       // Banned and unsubscribed addresses never surface here or in its CSV.
       notSuppressed(clients.email),
       employeeId ? eq(clients.employeeId, employeeId) : undefined,
+      facets.owners?.length ? inArray(ownerName, facets.owners) : undefined,
+      // Facet values arrive as free strings; one off the enum simply matches nothing.
+      facets.matchTypes?.length
+        ? inArray(promoMatches.matchType, facets.matchTypes as (typeof promoMatches.$inferSelect.matchType)[])
+        : undefined,
+      facets.brands?.length
+        ? inArray(promoWatches.brand, facets.brands as NonNullable<typeof promoWatches.$inferSelect.brand>[])
+        : undefined,
     ))
     .orderBy(clients.lastName, clients.firstName, promoWatches.modelNumber)
     .limit(limit)

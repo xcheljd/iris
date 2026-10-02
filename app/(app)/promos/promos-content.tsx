@@ -84,6 +84,8 @@ interface PromosContentProps {
   matchCounts?: Record<string, number>;
   currentUserId?: string;
   matchedClients?: MatchedClientRow[];
+  /** True when matchedClients was cut at the page-read cap. */
+  matchedClientsTruncated?: boolean;
   /** True when the page was requested with no search params at all. */
   restoreLastSearch?: boolean;
 }
@@ -109,7 +111,7 @@ const parseBound = (v: string) => {
   return Number.isFinite(n) && n >= 0 ? n : undefined;
 };
 
-export function PromosContent({ promos, total, summary, collections: distinctCollections, filters, isManager, matchCounts = {}, currentUserId = "", matchedClients = [], restoreLastSearch = false }: PromosContentProps) {
+export function PromosContent({ promos, total, summary, collections: distinctCollections, filters, isManager, matchCounts = {}, currentUserId = "", matchedClients = [], matchedClientsTruncated = false, restoreLastSearch = false }: PromosContentProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
@@ -684,7 +686,7 @@ export function PromosContent({ promos, total, summary, collections: distinctCol
         </TabsContent>
         <TabsContent value="matched" className="flex-1">
           <div className="flex-1 p-4 md:p-6">
-            <MatchedClientsTab clients={matchedClients} isManager={isManager} currentUserId={currentUserId} />
+            <MatchedClientsTab clients={matchedClients} truncated={matchedClientsTruncated} isManager={isManager} currentUserId={currentUserId} />
           </div>
         </TabsContent>
       </Tabs>

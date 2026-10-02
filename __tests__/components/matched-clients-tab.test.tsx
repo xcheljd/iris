@@ -72,6 +72,13 @@ describe("MatchedClientsTab", () => {
     expect(screen.getByText("Jane Doe")).toBeInTheDocument(); // still rendered, no throw
   });
 
+  it("warns when the server truncated the match list, and only then", () => {
+    const { rerender } = render(<MatchedClientsTab clients={rows} isManager currentUserId="mgr" />);
+    expect(screen.queryByText(/Showing the first/)).not.toBeInTheDocument();
+    rerender(<MatchedClientsTab clients={rows} truncated isManager currentUserId="mgr" />);
+    expect(screen.getByText(/Showing the first 1,000 matches/)).toBeInTheDocument();
+  });
+
   it("shows an empty state with no rows", () => {
     render(<MatchedClientsTab clients={[]} isManager currentUserId="mgr" />);
     expect(screen.getByText("No matched clients")).toBeInTheDocument();

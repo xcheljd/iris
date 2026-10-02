@@ -8,7 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PaginationFooter } from "@/components/pagination-footer";
 import { EmptyState } from "@/components/empty-state";
-import { Filter, Users, Download } from "lucide-react";
+import { Filter, Users, Download, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { PAGE_READ_LIMIT } from "@/lib/constants";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ColumnHeader } from "@/components/column-header";
 import { brandLabel } from "@/lib/brand";
@@ -24,13 +26,15 @@ type SortKey =
 
 interface Props {
   clients: MatchedClientRow[];
+  /** True when the server cut the match list at PAGE_READ_LIMIT. */
+  truncated?: boolean;
   isManager: boolean;
   currentUserId: string;
 }
 
 const fullName = (r: MatchedClientRow) => `${r.clientFirstName} ${r.clientLastName ?? ""}`.trim();
 
-export function MatchedClientsTab({ clients, isManager, currentUserId }: Props) {
+export function MatchedClientsTab({ clients, truncated = false, isManager, currentUserId }: Props) {
   const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -149,6 +153,14 @@ export function MatchedClientsTab({ clients, isManager, currentUserId }: Props) 
         </div>
       </CardHeader>
       <CardContent>
+        {truncated && (
+          <Alert variant="warning" className="mb-4">
+            <AlertTriangle className="size-4" />
+            <AlertDescription>
+              Showing the first {PAGE_READ_LIMIT.toLocaleString()} matches. Use Export CSV for the full set.
+            </AlertDescription>
+          </Alert>
+        )}
         {rows.length === 0 ? (
           <EmptyState icon={Users} title="No matched clients" compact />
         ) : (
