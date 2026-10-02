@@ -240,9 +240,14 @@ export async function getOverdueFollowUps(employeeId?: string) {
   return queryFollowUps(null, startOfDay(new Date()), employeeId);
 }
 
+// Unscoped (manager store view): raw ban/unsubscribe list sizes and every
+// outreach logged. Scoped to an employee: everything is their book — clients
+// they own now, bans/unsubscribes matching those clients (walk-in bans and
+// duplicate ban rows don't count), and outreach to those clients whoever
+// logged it — the same owner scoping follow-ups use.
 export async function getStats(employeeId?: string) {
   const clientFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
-  const outreachFilter = employeeId ? eq(outreachLogs.employeeId, employeeId) : undefined;
+  const ownedLive = (id: string) => and(eq(clients.employeeId, id), notInArray(clients.status, ["deleted"]));
 
   const clientStats = db.select({
     total: rawSql<number>`sum(case when ${clients.status} != 'deleted' then 1 else 0 end)`,
@@ -252,14 +257,24 @@ export async function getStats(employeeId?: string) {
     cold: rawSql<number>`sum(case when ${clients.heatLevel} = 'cold' and ${clients.status} = 'active' then 1 else 0 end)`,
   }).from(clients).where(clientFilter).get();
 
-  const banned = db.select({ c: rawSql<number>`count(*)` }).from(bannedCustomers).get();
-  const unsubscribed = db.select({ c: rawSql<number>`count(*)` }).from(unsubscribeList).get();
+  const banned = employeeId
+    ? db.select({ c: rawSql<number>`count(distinct ${clients.id})` }).from(bannedCustomers)
+      .innerJoin(clients, eq(bannedCustomers.customerId, clients.id))
+      .where(ownedLive(employeeId)).get()
+    : db.select({ c: rawSql<number>`count(*)` }).from(bannedCustomers).get();
+  const unsubscribed = employeeId
+    ? db.select({ c: rawSql<number>`count(distinct ${unsubscribeList.id})` }).from(unsubscribeList)
+      .innerJoin(clients, sameEmail(unsubscribeList.email, clients.email))
+      .where(ownedLive(employeeId)).get()
+    : db.select({ c: rawSql<number>`count(*)` }).from(unsubscribeList).get();
 
   const weekAgo = new Date(Date.now() - FOLLOW_UP_LOOKAHEAD_DAYS * MS_PER_DAY);
   const outreachStats = db.select({
     outreachWeek: rawSql<number>`count(*)`,
     purchasesWeek: rawSql<number>`sum(case when ${outreachLogs.outcome} = 'purchased' then 1 else 0 end)`,
-  }).from(outreachLogs).where(and(gte(outreachLogs.date, weekAgo), outreachFilter)).get();
+  }).from(outreachLogs)
+    .innerJoin(clients, eq(outreachLogs.clientId, clients.id))
+    .where(and(gte(outreachLogs.date, weekAgo), clientFilter)).get();
 
   return {
     total: clientStats?.total ?? 0,
