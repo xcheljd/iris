@@ -34,7 +34,8 @@ const BANNED = `Supp.Banned.${tag}@Example.com`;
 // On the ban list only, with no client record, so create does not 409 on it.
 const BANNED_ONLY = `Supp.BannedOnly.${tag}@Example.com`;
 const CLEAN = `supp.clean.${tag}@example.com`;
-const model = `SUPP-${tag}`;
+// createPromo stores the normalized (upper-cased) model number.
+const model = `SUPP-${tag}`.toUpperCase();
 
 const clientIds: string[] = [];
 const unsubId = randomUUID();

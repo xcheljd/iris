@@ -104,7 +104,7 @@ describe("Template & Smart List Actions", () => {
     it("should create a smart list with name and filters", async () => {
       vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
-      const filters = { status: "active", heatLevel: "hot" };
+      const filters = { source: "Walk-in", heatLevel: "hot" };
       await createSmartList("Hot Active Clients", filters);
 
       const list = db.select().from(smartLists)
@@ -140,7 +140,7 @@ describe("Template & Smart List Actions", () => {
     it("should create a copy with (Copy) suffix", async () => {
       vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
-      await createSmartList("List To Dupe", { status: "active" });
+      await createSmartList("List To Dupe", { source: "Walk-in" });
       const original = db.select().from(smartLists)
         .where(eq(smartLists.name, "List To Dupe"))
         .get();
@@ -152,7 +152,7 @@ describe("Template & Smart List Actions", () => {
         .where(eq(smartLists.name, "List To Dupe (Copy)"))
         .get();
       expect(copy).toBeDefined();
-      expect(copy!.filters).toEqual({ status: "active" });
+      expect(copy!.filters).toEqual({ source: "Walk-in" });
       expect(copy!.ownerId).toBe(MANAGER_ID);
       if (copy) createdListIds.push(copy.id);
     });

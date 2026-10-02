@@ -57,17 +57,26 @@ export const productOfInterestSchema = z
     message: "A product of interest needs a model, collection, or brand",
   });
 
+// Client email: trimmed, blank → null, then zod's email check. Shared with
+// validateClientForm so the form can't pass an address the server 400s.
+const clientEmail = z.preprocess(
+  (v) => {
+    if (typeof v !== "string") return v;
+    const t = v.trim();
+    return t === "" ? null : t;
+  },
+  z.email("Invalid email").max(200).nullable(),
+);
+
 // Allowed fields for client create. Enforces enum on source, format on email.
 export const clientCreateSchema = z.object({
-  firstName: z.string().min(1, "First name is required").max(100),
-  lastName: z.string().min(1, "Last name is required").max(100),
+  firstName: z.string().trim().min(1, "First name is required").max(100),
+  lastName: z.string().trim().min(1, "Last name is required").max(100),
   preferredContact: z.enum(PREFERRED_CONTACT_VALUES, {
     error: () => "Preferred contact method is required",
   }),
   phone: nullableStr(20).optional(),
-  email: z
-    .preprocess((v) => (v === "" ? null : v), z.email("Invalid email").max(200).nullable())
-    .optional(),
+  email: clientEmail.optional(),
   customerId: nullableStr(50).optional(),
   source: z.enum(CLIENT_SOURCE_VALUES).default("Walk-in"),
   birthday: occasionDate.optional(),
@@ -84,15 +93,17 @@ export const clientCreateSchema = z.object({
 // Allowed fields for client patch — all optional, no defaults.
 // Building the DB patch from this schema's parsed result implements the C-03 field allowlist:
 // unknown fields (heatScore, status, employeeId, dateAdded, etc.) are stripped automatically.
+// lastName stays nullable on purpose: legacy, imported and walk-in-ban rows can
+// lack one, and saveClientEdits must be able to round-trip them.
 export const clientPatchSchema = z
   .object({
-    firstName: z.string().min(1).max(100),
-    lastName: nullableStr(100),
-    phone: nullableStr(20),
-    email: z.preprocess(
-      (v) => (v === "" ? null : v),
-      z.email("Invalid email").max(200).nullable(),
+    firstName: z.string().trim().min(1).max(100),
+    lastName: z.preprocess(
+      (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+      z.string().trim().max(100).nullable(),
     ),
+    phone: nullableStr(20),
+    email: clientEmail,
     customerId: nullableStr(50),
     source: z.enum(CLIENT_SOURCE_VALUES),
     preferredContact: z.enum(PREFERRED_CONTACT_VALUES),
@@ -132,6 +143,14 @@ export const banWalkInSchema = z.object({
   reason: z.preprocess((v) => (typeof v === "string" && v.trim() === "" ? null : v), z.string().trim().max(5000).nullable()).default(null),
 });
 
+// A ban on an existing client (single and bulk). Category reuses the walk-in
+// enum; the reason is optional in the ban dialogs, so blank is allowed, but it
+// is trimmed and capped like the walk-in and approval reasons.
+export const banClientSchema = z.object({
+  category: banWalkInSchema.shape.category,
+  reason: z.string("Reason is required").trim().max(5000, "Reason must be 5000 characters or fewer"),
+});
+
 // Lightweight form-side validation before submitting (H-14).
 // Date fields are excluded — the date picker guarantees format correctness.
 export function validateClientForm(data: {
@@ -143,7 +162,6 @@ export function validateClientForm(data: {
   if (!data.firstName.trim()) return "First name is required";
   if (!data.lastName?.trim()) return "Last name is required";
   if (!data.preferredContact) return "Preferred contact method is required";
-  const email = data.email?.trim();
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Invalid email format";
+  if (!clientEmail.safeParse(data.email ?? null).success) return "Invalid email format";
   return null;
 }

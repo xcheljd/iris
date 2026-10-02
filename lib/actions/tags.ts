@@ -6,8 +6,10 @@ import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireAuth, requireManager } from "./_shared";
 
-export async function addTag(clientId: string, tag: string) {
+export async function addTag(clientId: string, rawTag: string) {
   const user = await requireAuth();
+  const tag = rawTag.trim();
+  if (!tag) return { error: "Tag name is required" };
   const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
   if (!c) return { error: "Client not found" };
   if (user.role !== "manager" && c.employeeId !== user.id) return { error: "Not authorized to tag this client" };

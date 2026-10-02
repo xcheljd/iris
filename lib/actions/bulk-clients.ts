@@ -9,6 +9,7 @@ import { requireAuth, requireManager } from "./_shared";
 import { BANNABLE_STATUSES, UNSUBSCRIBABLE_STATUSES } from "./_client-status-core";
 import { recalcHeat } from "@/lib/heat-recalc";
 import { normalizeEmail } from "@/lib/email-identity";
+import { banClientSchema } from "@/lib/validation/client";
 
 interface BulkResult {
   ok: number;
@@ -297,10 +298,13 @@ export async function bulkDeleteClients(clientIds: string[]): Promise<BulkResult
 
 export async function bulkBanClients(
   clientIds: string[],
-  category: "Reselling" | "Gift Card Fraud" | "Other",
-  reason: string,
+  rawCategory: "Reselling" | "Gift Card Fraud" | "Other",
+  rawReason: string,
 ): Promise<BulkResult> {
   const user = await requireManager();
+  const parsed = banClientSchema.safeParse({ category: rawCategory, reason: rawReason });
+  if (!parsed.success) return { ok: 0, error: parsed.error.issues[0]?.message ?? "Invalid request" };
+  const { category, reason } = parsed.data;
   const heatIds: string[] = [];
   return runBulk({
     clientIds,

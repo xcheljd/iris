@@ -10,7 +10,7 @@ import { fullName } from "@/lib/utils";
 import { recordProductsOfInterest } from "./model-catalog";
 import { applyClientPatchUnchecked } from "./_client-patch-core";
 import { runStatusChange, applyBanUnchecked, applyUnsubscribeUnchecked, applyDeleteUnchecked } from "./_client-status-core";
-import { clientPatchSchema, banWalkInSchema, unsubscribeEmailSchema } from "@/lib/validation/client";
+import { clientPatchSchema, banClientSchema, banWalkInSchema, unsubscribeEmailSchema } from "@/lib/validation/client";
 import { sameEmail } from "@/lib/email-identity";
 
 // Structural de-dupe for products of interest (objects, so Set won't dedupe).
@@ -43,8 +43,11 @@ export async function saveClientEdits(clientId: string, data: unknown): Promise<
   await recalcHeat(clientId);
 }
 
-export async function banClient(clientId: string, category: "Reselling" | "Gift Card Fraud" | "Other", reason: string): Promise<{ error: string } | undefined> {
+export async function banClient(clientId: string, rawCategory: "Reselling" | "Gift Card Fraud" | "Other", rawReason: string): Promise<{ error: string } | undefined> {
   const user = await requireManager();
+  const parsed = banClientSchema.safeParse({ category: rawCategory, reason: rawReason });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid request" };
+  const { category, reason } = parsed.data;
   const result = runStatusChange((tx) => applyBanUnchecked(tx, clientId, category, reason, user.id));
   if (result?.error) return result;
   await recalcHeat(clientId);
@@ -469,8 +472,9 @@ export async function patchClientFromFormMerge(
 
   db.transaction((tx) => {
     tx.update(clients).set({
+      // Both names are required on create; a merge must not blank one out.
       firstName: data.firstName ?? existing.firstName,
-      lastName: data.lastName ?? null,
+      lastName: data.lastName ?? existing.lastName,
       phone: data.phone ?? null,
       email: data.email ?? null,
       birthday: data.birthday ?? null,

@@ -8,6 +8,7 @@ import { requireManager } from "./_shared";
 import { recordModelCollection, getCatalogIndex, getCatalogIndexWithMsrp } from "./model-catalog";
 import { buildPromoClientIndex, matchPromoToClients } from "@/lib/promo-match";
 import { normalizeModel } from "@/lib/normalize";
+import { promoNumbersSchema, promoPeriodSchema } from "@/lib/validation/promo";
 
 export async function createPromo(
   modelNumber: string,
@@ -20,16 +21,20 @@ export async function createPromo(
   sizeTwoQty = 0,
 ) {
   await requireManager();
-  if (!modelNumber?.trim() || !collection?.trim()) return { error: "Model number and collection are required" };
+  // Same model shape importPromos writes, so the two paths match one catalog key.
+  const model = normalizeModel(modelNumber);
+  if (!model || !collection?.trim()) return { error: "Model number and collection are required" };
   if (!brand || !BRAND_VALUES.includes(brand)) return { error: "Brand is required" };
+  const nums = promoNumbersSchema.safeParse({ msrp: msrp ?? null, discountPercent: discountPercent ?? null, discountPrice: discountPrice ?? null, sizeOneQty, sizeTwoQty });
+  if (!nums.success) return { error: nums.error.issues[0]?.message ?? "Invalid promo values" };
   try {
     const all = db.select({ id: clients.id, productsOfInterest: clients.productsOfInterest }).from(clients).all();
     const index = buildPromoClientIndex(all, getCatalogIndex());
     const id = randomUUID();
     db.transaction((tx) => {
-      tx.insert(promoWatches).values({ id, modelNumber, collection, brand, sizeOneQty, sizeTwoQty, msrp: msrp ?? null, discountPercent: discountPercent ?? null, discountPrice: discountPrice ?? null }).run();
-      recordModelCollection(tx, modelNumber, collection, "promo");
-      matchPromoToClients(tx, id, modelNumber, collection, index);
+      tx.insert(promoWatches).values({ id, modelNumber: model, collection, brand, ...nums.data }).run();
+      recordModelCollection(tx, model, collection, "promo");
+      matchPromoToClients(tx, id, model, collection, index);
     });
     revalidatePath("/promos");
   } catch (err) {
@@ -137,6 +142,8 @@ export async function importPromos(
   promoEnd?: string | null,
 ) {
   await requireManager();
+  const period = promoPeriodSchema.safeParse({ promoStart: promoStart ?? null, promoEnd: promoEnd ?? null });
+  if (!period.success) return { error: period.error.issues[0]?.message ?? "Invalid promo period" };
   try {
     const all = db.select({ id: clients.id, productsOfInterest: clients.productsOfInterest }).from(clients).all();
     const catalog = getCatalogIndexWithMsrp();
@@ -171,8 +178,8 @@ export async function importPromos(
           msrp: effectiveMsrp,
           discountPercent: row.discountPercent ?? null,
           discountPrice: row.discountPrice ?? null,
-          promoStart: promoStart ?? null,
-          promoEnd: promoEnd ?? null,
+          promoStart: period.data.promoStart,
+          promoEnd: period.data.promoEnd,
         }).run();
         // Always record the PDF's collection so the catalog's
         // disagreement-flag pipeline can fire. recordModelCollection
