@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth";
+import { requirePageSession } from "@/lib/auth";
 import { listCatalog } from "@/lib/actions";
 import { CatalogContent } from "./catalog-content";
 import { Topbar } from "@/components/topbar";
@@ -18,8 +18,8 @@ export default function CatalogPage({ searchParams }: { searchParams: SearchPara
 
 async function CatalogFetcher({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const session = await getSession();
-  if (session?.user?.role !== "manager") {
+  const session = await requirePageSession();
+  if (session.user.role !== "manager") {
     redirect("/");
   }
   const mod = typeof sp.mod === "string" ? sp.mod : "";

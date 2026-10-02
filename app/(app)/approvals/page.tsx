@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth";
+import { requirePageSession } from "@/lib/auth";
 import { getPendingApprovalRequests } from "@/lib/actions";
 import { ApprovalsContent } from "./approvals-content";
 import { ApprovalsSkeleton } from "@/components/skeletons";
@@ -14,8 +14,8 @@ export default function ApprovalsPage() {
 }
 
 async function ApprovalsFetcher() {
-  const session = await getSession();
-  if (session?.user?.role !== "manager") {
+  const session = await requirePageSession();
+  if (session.user.role !== "manager") {
     redirect("/");
   }
   const requests = await getPendingApprovalRequests();

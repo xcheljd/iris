@@ -5,7 +5,7 @@ import { clients, outreachLogs, activityEvents, promoMatches, promoWatches, clie
 import { eq, desc, and, isNotNull, sql } from "drizzle-orm";
 import { ClientDetailContent } from "./client-detail-content";
 import { ClientDetailSkeleton } from "@/components/skeletons";
-import { getSession } from "@/lib/auth";
+import { requirePageSession } from "@/lib/auth";
 import { TOUR_DEMO_CLIENT_ID, tourDemoClient } from "@/lib/tour-demo-client";
 
 async function getFullClient(clientId: string) {
@@ -97,16 +97,16 @@ export default function ClientDetailPage({
 
 async function ClientDetailFetcher({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = await getSession();
-  if (id === TOUR_DEMO_CLIENT_ID && session?.user) {
+  const session = await requirePageSession();
+  if (id === TOUR_DEMO_CLIENT_ID) {
     return <ClientDetailContent client={tourDemoClient(session.user)} currentUserRole={session.user.role} />;
   }
   const client = await getFullClient(id);
   if (!client) {
     notFound();
   }
-  const isManager = session?.user?.role === "manager";
-  if (!isManager && client.employeeId !== session?.user?.id) {
+  const isManager = session.user.role === "manager";
+  if (!isManager && client.employeeId !== session.user.id) {
     notFound();
   }
   // Bump global recency so future searches nudge this client toward the top.
@@ -117,5 +117,5 @@ async function ClientDetailFetcher({ params }: { params: Promise<{ id: string }>
   } catch {
     // ignore — search ranking is a nice-to-have, never a page blocker
   }
-  return <ClientDetailContent client={JSON.parse(JSON.stringify(client))} currentUserRole={session?.user?.role ?? "associate"} />;
+  return <ClientDetailContent client={JSON.parse(JSON.stringify(client))} currentUserRole={session.user.role} />;
 }

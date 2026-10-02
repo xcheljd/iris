@@ -8,7 +8,7 @@ import {
 } from "@/lib/queries";
 import { ProspectsContent } from "./prospects-content";
 import { ProspectsSkeleton } from "@/components/skeletons";
-import { getSession } from "@/lib/auth";
+import { requirePageSession } from "@/lib/auth";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -34,8 +34,8 @@ async function ProspectsFetcher({ searchParams }: { searchParams: SearchParams }
   const dir = str(sp.dir) === "desc" ? "desc" : "asc";
   const page = Math.max(1, parseInt(str(sp.page) || "1") || 1);
 
-  const session = await getSession();
-  const isManager = session?.user?.role === "manager";
+  const session = await requirePageSession();
+  const isManager = session.user.role === "manager";
 
   const list = await listProspects({ status, q, sort, sortDir: dir, page });
 

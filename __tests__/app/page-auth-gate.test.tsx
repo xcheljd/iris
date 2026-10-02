@@ -20,6 +20,15 @@ import AnalyticsPage from "@/app/(app)/analytics/page";
 import CollectionsPage from "@/app/(app)/analytics/collections/page";
 import SmartListsPage from "@/app/(app)/smart-lists/page";
 import PromosPage from "@/app/(app)/promos/page";
+import UnsubscribedPage from "@/app/(app)/unsubscribed/page";
+import SettingsPage from "@/app/(app)/settings/page";
+import ProspectsPage from "@/app/(app)/prospects/page";
+import ProspectDetailPage from "@/app/(app)/prospects/[id]/page";
+import ClientDetailPage from "@/app/(app)/clients/[id]/page";
+import EditClientPage from "@/app/(app)/clients/[id]/edit/page";
+import BannedPage from "@/app/(app)/banned/page";
+import ApprovalsPage from "@/app/(app)/approvals/page";
+import CatalogPage from "@/app/(app)/catalog/page";
 
 // Regression: the middleware only verifies the JWT signature, so a deactivated
 // employee's cookie still reaches these pages. There the `jwt` callback throws,
@@ -95,6 +104,38 @@ describe("page auth gate", () => {
       vi.mocked(getServerSession).mockResolvedValue(associateSession);
       await expect(runLoader(page())).resolves.toBeTruthy();
     });
+  });
+
+  // Regression (m9): these loaders called getSession() directly, so a dead
+  // session degraded instead of redirecting — settings fell back to
+  // `userId = ""` and an unscoped deleted-clients query.
+  describe("loaders routed through requirePageSession", () => {
+    const FIXTURE_CLIENT_ID = "e18e3ba8-b3b1-4bc1-b0f2-f13a219dd30b"; // associate-owned (setup.ts)
+    const params = Promise.resolve({ id: FIXTURE_CLIENT_ID });
+    const loaders: [string, () => Promise<unknown>][] = [
+      ["unsubscribed", () => runLoader(UnsubscribedPage() as PageEl)],
+      ["settings", () => runLoader(SettingsPage() as PageEl)],
+      ["prospects", () => runLoader(ProspectsPage({ searchParams }) as PageEl)],
+      ["prospects/[id]", () => runLoader(ProspectDetailPage({ params }) as PageEl)],
+      ["clients/[id]", () => runLoader(ClientDetailPage({ params }) as PageEl)],
+      ["clients/[id]/edit", () => EditClientPage({ params })],
+      ["banned", () => runLoader(BannedPage() as PageEl)],
+      ["approvals", () => runLoader(ApprovalsPage() as PageEl)],
+      ["catalog", () => runLoader(CatalogPage({ searchParams }) as PageEl)],
+    ];
+
+    it.each(loaders)("%s redirects to /login when there is no session", async (_name, load) => {
+      vi.mocked(getServerSession).mockResolvedValue(null);
+      await expect(load()).rejects.toMatchObject({ digest: expect.stringContaining("/login") });
+    });
+
+    it.each(loaders.filter(([n]) => ["unsubscribed", "settings", "banned", "clients/[id]", "clients/[id]/edit"].includes(n)))(
+      "%s still loads for a live session",
+      async (_name, load) => {
+        vi.mocked(getServerSession).mockResolvedValue(associateSession);
+        await expect(load()).resolves.toBeTruthy();
+      },
+    );
   });
 
   it("scopes an associate's page data to their own records", async () => {

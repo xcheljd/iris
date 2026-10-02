@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getProspectWithBatch } from "@/lib/queries";
 import { ProspectDetailContent } from "./prospect-detail-content";
 import { ProspectDetailSkeleton } from "@/components/skeletons";
-import { getSession } from "@/lib/auth";
+import { requirePageSession } from "@/lib/auth";
 
 export default function ProspectDetailPage({
   params,
@@ -19,7 +19,7 @@ export default function ProspectDetailPage({
 
 async function ProspectDetailFetcher({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = await getSession();
+  const session = await requirePageSession();
   const data = await getProspectWithBatch(id);
   if (!data?.prospect) notFound();
 
@@ -28,7 +28,7 @@ async function ProspectDetailFetcher({ params }: { params: Promise<{ id: string 
       prospect={JSON.parse(JSON.stringify(data.prospect))}
       batchStart={data.batchStart ? new Date(data.batchStart).toISOString() : null}
       batchEnd={data.batchEnd ? new Date(data.batchEnd).toISOString() : null}
-      currentUserRole={session?.user?.role ?? "associate"}
+      currentUserRole={session.user.role}
     />
   );
 }
