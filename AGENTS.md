@@ -15,6 +15,7 @@ A self-hosted clienteling/CRM web app for Meridian Watch retail — replaces a s
 | One test (watch) | `pnpm test:watch` |
 | Push schema → DB | `pnpm db:push` |
 | Seed DB | `pnpm db:seed` |
+| Purge legacy `__tour_demo__` client (one-off, idempotent) | `pnpm exec tsx scripts/purge-tour-demo.ts` |
 
 > `pnpm` is the only supported package manager — `pnpm-lock.yaml` is the sole lockfile. Do not run `npm install`; it creates a divergent `package-lock.json`.
 
