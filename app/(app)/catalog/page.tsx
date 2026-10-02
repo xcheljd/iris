@@ -34,5 +34,5 @@ async function CatalogFetcher({ searchParams }: { searchParams: SearchParams }) 
   const dir = (typeof sp.dir === "string" && (sp.dir === "asc" || sp.dir === "desc")) ? sp.dir : ("asc" as const);
   const page = Math.max(1, parseInt(typeof sp.page === "string" ? sp.page : "1") || 1);
   const data = await listCatalog({ mod, col, brands, msrpMin, msrpMax, sort, dir, page });
-  return <CatalogContent {...JSON.parse(JSON.stringify(data))} mod={mod} col={col} brands={brands} msrpMin={msrpMin} msrpMax={msrpMax} sort={sort} dir={dir} page={page} restoreLastSearch={Object.keys(sp).length === 0} />;
+  return <CatalogContent {...JSON.parse(JSON.stringify(data))} mod={mod} col={col} brands={brands} msrpMin={msrpMin} msrpMax={msrpMax} sort={sort} dir={dir} page={data.page} restoreLastSearch={Object.keys(sp).length === 0} />;
 }

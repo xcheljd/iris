@@ -1,7 +1,7 @@
 "use server";
 import { db } from "@/lib/db";
 import { clients, promoWatches, promoMatches, modelCatalog, activityEvents, type ProductOfInterest, type Brand } from "@/lib/db/schema";
-import { and, asc, desc, eq, gte, inArray, isNotNull, like, lte, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, lte, or, sql, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireManager, isSessionEmployeeStale } from "./_shared";
@@ -10,6 +10,7 @@ const STALE_SESSION_ERROR =
   "Your session is out of sync with the employee record. Sign out and sign back in, then retry.";
 import { DEFAULT_PAGE_SIZE, PAGE_READ_LIMIT } from "@/lib/constants";
 import { normalizeModel } from "@/lib/normalize";
+import { containsLike } from "@/lib/like";
 import { buildPromoClientIndex, matchPromoToClients } from "@/lib/promo-match";
 import { getCatalogIndex, recordProductsOfInterest } from "./model-catalog";
 
@@ -394,8 +395,8 @@ export async function listCatalog({
   const conditions: SQL[] = [];
   const modU = mod.trim().toUpperCase();
   const colU = col.trim().toUpperCase();
-  if (modU) conditions.push(like(modelCatalog.model, `%${modU}%`));
-  if (colU) conditions.push(like(modelCatalog.collection, `%${colU}%`));
+  if (modU) conditions.push(containsLike(modelCatalog.model, modU));
+  if (colU) conditions.push(containsLike(modelCatalog.collection, colU));
   if (brands.length) conditions.push(inArray(modelCatalog.brand, brands as Brand[]));
   if (msrpMin != null) conditions.push(gte(modelCatalog.msrp, msrpMin));
   if (msrpMax != null) conditions.push(lte(modelCatalog.msrp, msrpMax));
@@ -412,10 +413,14 @@ export async function listCatalog({
     sort === "msrp"
       ? sql`${modelCatalog.msrp} ${sql.raw(dir === "desc" ? "desc" : "asc")} nulls last`
       : dir === "desc" ? desc(sortCol) : asc(sortCol);
-  const offset = (page - 1) * DEFAULT_PAGE_SIZE;
-
-  const rows = db.select().from(modelCatalog).where(filter).orderBy(order).limit(DEFAULT_PAGE_SIZE).offset(offset).all();
   const totalRow = db.select({ n: sql<number>`count(*)` }).from(modelCatalog).where(filter).get();
+  const total = Number(totalRow?.n ?? 0);
+  // A stale or hand-typed `?page=` past the end shows the last real page, as
+  // listPromos does; the caller renders the returned page number.
+  const lastPage = Math.max(1, Math.ceil(total / DEFAULT_PAGE_SIZE));
+  const effectivePage = Math.min(Math.max(1, page), lastPage);
+
+  const rows = db.select().from(modelCatalog).where(filter).orderBy(order).limit(DEFAULT_PAGE_SIZE).offset((effectivePage - 1) * DEFAULT_PAGE_SIZE).all();
   // The two review panels render every row they get and have no paging of
   // their own, so they take the house cap for page-backing reads rather than
   // pulling an unbounded slice of the catalog into a server render. Both are
@@ -426,5 +431,5 @@ export async function listCatalog({
   // Global (unfiltered) max so the slider's upper bound stays stable as filters change.
   const ceilingRow = db.select({ m: sql<number>`max(${modelCatalog.msrp})` }).from(modelCatalog).get();
 
-  return { rows, total: Number(totalRow?.n ?? 0), needsReview, flagged, msrpCeiling: Math.ceil(Number(ceilingRow?.m ?? 0)) };
+  return { rows, total, page: effectivePage, needsReview, flagged, msrpCeiling: Math.ceil(Number(ceilingRow?.m ?? 0)) };
 }
