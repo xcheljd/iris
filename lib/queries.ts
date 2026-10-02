@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bannedCustomers, unsubscribeList, employees, clientTags, outreachTemplates, smartLists, rvxImportBatches, prospects } from "@/lib/db/schema";
-import { eq, desc, asc, and, or, isNull, isNotNull, lte, gte, gt, inArray, notInArray, sql as rawSql } from "drizzle-orm";
+import { eq, desc, asc, and, or, isNull, isNotNull, lte, lt, gte, gt, inArray, notInArray, sql as rawSql } from "drizzle-orm";
 import { containsLike, containsLikeLower, containsPhone } from "@/lib/like";
 import { sameEmail } from "@/lib/email-identity";
 import { notSuppressed } from "@/lib/suppression";
@@ -10,6 +10,7 @@ import { applyClientFilter } from "@/lib/utils";
 import { buildClientFilterConds } from "@/lib/client-filter-conds";
 import { smartListToClientFilters } from "@/lib/smart-list-filters";
 import { toFtsQuery } from "@/lib/fts";
+import { addDays, startOfDay } from "date-fns";
 import { getCatalogMap } from "@/lib/actions/model-catalog";
 import { MS_PER_DAY, SEC_PER_DAY, LIST_QUERY_LIMIT, PAGE_READ_LIMIT, FOLLOW_UP_LOOKAHEAD_DAYS, DEFAULT_PAGE_SIZE, PROMO_PAGE_SIZE } from "@/lib/constants";
 
@@ -207,7 +208,9 @@ export async function getClientsWithEmployee(employeeId?: string) {
 
 // Scoped by who owns the client now, not who logged the follow-up, so a
 // transferred client's follow-ups move with it. `employee` is still the logger.
-function queryFollowUps(from: Date | null, to: Date, employeeId?: string) {
+// Follow-up dates are stored at local midnight, so the bounds are day boundaries:
+// a follow-up for today is upcoming all day, never overdue. `before` is exclusive.
+function queryFollowUps(from: Date | null, before: Date, employeeId?: string) {
   const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
   return db.select({
     log: outreachLogs,
@@ -221,7 +224,7 @@ function queryFollowUps(from: Date | null, to: Date, employeeId?: string) {
       eq(outreachLogs.completed, false),
       notInArray(clients.status, ["banned", "deleted"]),
       from ? gte(outreachLogs.followUpDate, from) : undefined,
-      lte(outreachLogs.followUpDate, to),
+      lt(outreachLogs.followUpDate, before),
       employeeFilter,
     ))
     .orderBy(outreachLogs.followUpDate)
@@ -229,13 +232,12 @@ function queryFollowUps(from: Date | null, to: Date, employeeId?: string) {
 }
 
 export async function getUpcomingFollowUps(employeeId?: string) {
-  const now = new Date();
-  const in7d = new Date(Date.now() + FOLLOW_UP_LOOKAHEAD_DAYS * MS_PER_DAY);
-  return queryFollowUps(now, in7d, employeeId);
+  const today = startOfDay(new Date());
+  return queryFollowUps(today, addDays(today, FOLLOW_UP_LOOKAHEAD_DAYS + 1), employeeId);
 }
 
 export async function getOverdueFollowUps(employeeId?: string) {
-  return queryFollowUps(null, new Date(), employeeId);
+  return queryFollowUps(null, startOfDay(new Date()), employeeId);
 }
 
 export async function getStats(employeeId?: string) {

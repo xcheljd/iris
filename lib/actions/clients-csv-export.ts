@@ -8,6 +8,7 @@ import { buildClientFilterConds, type ClientFilterParams } from "@/lib/client-fi
 import { LIST_QUERY_LIMIT } from "@/lib/constants";
 import { requireAuth } from "./_shared";
 import { toCsv } from "@/lib/csv";
+import { format } from "date-fns";
 
 export interface ClientsCsvExportResult {
   csv: string;
@@ -95,9 +96,9 @@ export async function exportClientsCsv(filters: ClientFilterParams = {}): Promis
     r.source,
     r.birthday ?? "",
     r.anniversary ?? "",
-    r.lastOutreachAt ? toIsoDate(r.lastOutreachAt) : "",
-    r.lastPurchaseAt ? toIsoDate(r.lastPurchaseAt) : "",
-    r.createdAt ? toIsoDate(r.createdAt) : "",
+    r.lastOutreachAt ? toLocalDate(r.lastOutreachAt) : "",
+    r.lastPurchaseAt ? toLocalDate(r.lastPurchaseAt) : "",
+    r.createdAt ? toLocalDate(r.createdAt) : "",
     r.notes ?? "",
   ]);
 
@@ -108,7 +109,7 @@ export async function exportClientsCsv(filters: ClientFilterParams = {}): Promis
   };
 }
 
-function toIsoDate(d: Date | number | string): string {
-  const date = d instanceof Date ? d : new Date(d);
-  return date.toISOString().slice(0, 10); // YYYY-MM-DD
+// Local calendar date: toISOString() would export an evening timestamp as tomorrow.
+function toLocalDate(d: Date | number | string): string {
+  return format(d instanceof Date ? d : new Date(d), "yyyy-MM-dd");
 }

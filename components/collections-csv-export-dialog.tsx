@@ -9,6 +9,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
+import { format } from "date-fns";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { exportCollectionsCsv, type CollectionsCsvExportResult, type CollectionsCsvScope } from "@/lib/actions/collections-csv-export";
 import { LIST_QUERY_LIMIT } from "@/lib/constants";
@@ -84,7 +85,7 @@ export function CollectionsCsvExportDialog({ open, onOpenChange, selectedCollect
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    const stamp = new Date().toISOString().slice(0, 10);
+    const stamp = format(new Date(), "yyyy-MM-dd");
     a.href = url;
     a.download = `collections-${stamp}.csv`;
     document.body.appendChild(a);

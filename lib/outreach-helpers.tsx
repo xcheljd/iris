@@ -1,4 +1,5 @@
 import { Phone, MessageCircle, Mail, User } from "lucide-react";
+import { startOfDay } from "date-fns";
 
 export function getMethodIcon(method: string, size = "h-4 w-4") {
   const props = { className: size };
@@ -21,9 +22,10 @@ export function getMethodBadgeVariant(method: string) {
   }
 }
 
+// Follow-up dates are stored at local midnight, so "today" must not count as overdue.
 export function isFollowUpOverdue(followUpDate: Date | string | null) {
   if (!followUpDate) return false;
-  return new Date(followUpDate) < new Date();
+  return new Date(followUpDate) < startOfDay(new Date());
 }
 
 export function isFollowUpUpcoming(followUpDate: Date | string | null) {

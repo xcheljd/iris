@@ -14,6 +14,7 @@ import { revalidatePath } from "next/cache";
 import { logOutreach, markFollowUpComplete, reopenFollowUp, rescheduleFollowUp } from "@/lib/actions";
 import { getOverdueFollowUps, getUpcomingFollowUps } from "@/lib/queries";
 import { formatDate } from "@/lib/utils";
+import { isFollowUpOverdue } from "@/lib/outreach-helpers";
 import { db } from "@/lib/db";
 import { outreachLogs, activityEvents, clients } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -563,6 +564,31 @@ describe("Outreach Actions", () => {
       expect(overdue.map((r) => r.log.id)).not.toContain(log.id);
       const upcoming = await getUpcomingFollowUps();
       expect(upcoming.map((r) => r.log.id)).toContain(log.id);
+    });
+
+    // Regression (m7): a follow-up dated today is stored at local midnight, so
+    // comparing against `now` made it overdue from 00:00 and never upcoming.
+    it("treats a follow-up dated today as upcoming, not overdue, for the whole local day", async () => {
+      await logOutreach({
+        clientId: FIRST_CLIENT_ID,
+        method: "call",
+        outcome: "wants_to_come_in",
+        followUpDate: "2026-09-24",
+        notes: "tz-follow-up-today",
+      });
+      const log = findLog("tz-follow-up-today");
+
+      for (const localTime of [new Date(2026, 8, 24, 0, 1), new Date(2026, 8, 24, 12, 0), new Date(2026, 8, 24, 23, 59)]) {
+        vi.setSystemTime(localTime);
+        expect((await getOverdueFollowUps()).map((r) => r.log.id)).not.toContain(log.id);
+        expect((await getUpcomingFollowUps()).map((r) => r.log.id)).toContain(log.id);
+        expect(isFollowUpOverdue(log.followUpDate)).toBe(false);
+      }
+
+      vi.setSystemTime(new Date(2026, 8, 25, 0, 1));
+      expect((await getOverdueFollowUps()).map((r) => r.log.id)).toContain(log.id);
+      expect((await getUpcomingFollowUps()).map((r) => r.log.id)).not.toContain(log.id);
+      expect(isFollowUpOverdue(log.followUpDate)).toBe(true);
     });
 
     it("reschedules to local midnight and logs the picked day", async () => {

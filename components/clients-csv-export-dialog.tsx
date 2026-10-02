@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
+import { format } from "date-fns";
 import { exportClientsCsv, type ClientsCsvExportResult } from "@/lib/actions/clients-csv-export";
 import { describeClientFilters } from "@/lib/smart-list-filters";
 import { LIST_QUERY_LIMIT } from "@/lib/constants";
@@ -73,7 +74,7 @@ export function ClientsCsvExportDialog({
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    const stamp = new Date().toISOString().slice(0, 10);
+    const stamp = format(new Date(), "yyyy-MM-dd");
     a.href = url;
     a.download = `clients-${stamp}.csv`;
     document.body.appendChild(a);

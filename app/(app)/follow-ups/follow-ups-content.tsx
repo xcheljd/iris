@@ -28,7 +28,7 @@ import {
 import Link from "next/link";
 import { markFollowUpComplete, reopenFollowUp, rescheduleFollowUp } from "@/lib/actions";
 import { toast } from "sonner";
-import { format, differenceInDays } from "date-fns";
+import { format, differenceInCalendarDays } from "date-fns";
 import { Topbar } from "@/components/topbar";
 import { fullName, toDateOnly } from "@/lib/utils";
 import { useRemovedKeys } from "@/hooks/use-optimistic";
@@ -65,11 +65,11 @@ interface FollowUpsContentProps {
   upcoming: FollowUpRow[];
 }
 
-import { getMethodIcon, getMethodBadgeVariant, getOutcomeColor } from "@/lib/outreach-helpers";
+import { getMethodIcon, getMethodBadgeVariant, getOutcomeColor, isFollowUpOverdue } from "@/lib/outreach-helpers";
 
 function getRelativeTime(date: Date) {
   const now = new Date();
-  const diff = differenceInDays(now, date);
+  const diff = differenceInCalendarDays(now, date);
   if (diff > 0) return `${diff} day${diff !== 1 ? "s" : ""} overdue`;
   if (diff === 0) return "Due today";
   return `In ${Math.abs(diff)} day${Math.abs(diff) !== 1 ? "s" : ""}`;
@@ -493,9 +493,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
             <>
             <div className="flex flex-col gap-3">
               {pagedAll.map((row) => {
-                const isOverdue = row.log.followUpDate
-                  ? new Date(row.log.followUpDate) <= new Date()
-                  : false;
+                const isOverdue = isFollowUpOverdue(row.log.followUpDate);
                 return (
                   <FollowUpCard key={row.log.id} row={row} isOverdue={isOverdue} onDetail={() => openDetail(row)} onComplete={handleComplete} />
                 );

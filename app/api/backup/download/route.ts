@@ -4,6 +4,7 @@ import { join } from "path";
 import { tmpdir } from "os";
 import { randomUUID } from "crypto";
 import { snapshotDatabase } from "@/lib/db";
+import { format } from "date-fns";
 
 export const GET = withManagerAuth(async () => {
   // Snapshot through the backup API rather than reading the main file: in WAL
@@ -17,7 +18,7 @@ export const GET = withManagerAuth(async () => {
     try { unlinkSync(tmpPath); } catch { /* best effort */ }
   }
 
-  const date = new Date().toISOString().split("T")[0];
+  const date = format(new Date(), "yyyy-MM-dd");
   return new Response(file, {
     headers: {
       "Content-Type": "application/x-sqlite3",

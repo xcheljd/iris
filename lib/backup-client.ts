@@ -1,5 +1,7 @@
 "use client";
 
+import { format } from "date-fns";
+
 const STORAGE_KEY = "iris_last_backup_at";
 const CHANGE_EVENT = "iris:last-backup-change";
 
@@ -46,7 +48,7 @@ export async function downloadBackup(): Promise<void> {
   if (!res.ok) throw new Error("Backup download failed");
 
   const blob = await res.blob();
-  const date = new Date().toISOString().split("T")[0];
+  const date = format(new Date(), "yyyy-MM-dd");
   const filename = `iris-backup-${date}.db`;
 
   if ("showSaveFilePicker" in window) {
