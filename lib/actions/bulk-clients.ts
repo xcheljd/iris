@@ -8,6 +8,7 @@ import { randomUUID } from "crypto";
 import { requireAuth, requireManager } from "./_shared";
 import { BANNABLE_STATUSES, UNSUBSCRIBABLE_STATUSES } from "./_client-status-core";
 import { recalcHeat } from "@/lib/heat-recalc";
+import { normalizeEmail } from "@/lib/email-identity";
 
 interface BulkResult {
   ok: number;
@@ -371,19 +372,22 @@ export async function bulkUnsubscribeClients(clientIds: string[]): Promise<BulkR
 
       // One query for the whole batch instead of one per row. Seeded with the
       // emails already on the list, then extended as we insert — two clients can
-      // share an email, and unsubscribe_list.email is UNIQUE.
-      const emails = rows.map((r) => r.email).filter((e): e is string => !!e);
+      // share an email, and unsubscribe_list.email is UNIQUE. Normalized both
+      // ways, as in applyUnsubscribeUnchecked: the UNIQUE index is BINARY, so a
+      // mixed-case address would otherwise land as a second row.
+      const emails = [...new Set(rows.map((r) => normalizeEmail(r.email)).filter((e): e is string => !!e))];
       const alreadyUnsubbed = new Set(
         emails.length > 0
-          ? tx.select({ email: unsubscribeList.email }).from(unsubscribeList).where(inArray(unsubscribeList.email, emails)).all().map((r) => r.email)
+          ? tx.select({ email: unsubscribeList.email }).from(unsubscribeList).where(inArray(sql`lower(${unsubscribeList.email})`, emails)).all().map((r) => normalizeEmail(r.email))
           : [],
       );
 
       const events: ActivityEventInsert[] = [];
       for (const row of rows) {
-        if (row.email && !alreadyUnsubbed.has(row.email)) {
-          tx.insert(unsubscribeList).values({ id: randomUUID(), email: row.email }).run();
-          alreadyUnsubbed.add(row.email);
+        const email = normalizeEmail(row.email);
+        if (email && !alreadyUnsubbed.has(email)) {
+          tx.insert(unsubscribeList).values({ id: randomUUID(), email }).run();
+          alreadyUnsubbed.add(email);
         }
         events.push({
           id: randomUUID(),

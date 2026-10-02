@@ -15,6 +15,7 @@ import { requireAuth } from "./_shared";
 import { recordProductsOfInterest } from "./model-catalog";
 import { recalcHeat } from "@/lib/heat-recalc";
 import { isEmailSuppressed } from "@/lib/suppression";
+import { normalizeEmail, sameEmail } from "@/lib/email-identity";
 
 export async function graduateProspect(input: GraduateProspectInput): Promise<
   | { type: "created"; clientId: string }
@@ -172,16 +173,19 @@ export async function unsubscribeProspect(prospectId: string): Promise<{ error: 
       .where(eq(prospects.id, prospectId))
       .run();
 
-    if (prospect.email) {
+    // Normalized both ways, as in applyUnsubscribeUnchecked — the UNIQUE index
+    // on unsubscribe_list.email is BINARY.
+    const email = normalizeEmail(prospect.email);
+    if (email) {
       const alreadyUnsub = tx
         .select({ id: unsubscribeList.id })
         .from(unsubscribeList)
-        .where(eq(unsubscribeList.email, prospect.email))
+        .where(sameEmail(unsubscribeList.email, email))
         .get();
       if (!alreadyUnsub) {
         tx.insert(unsubscribeList).values({
           id: randomUUID(),
-          email: prospect.email,
+          email,
         }).run();
       }
     }

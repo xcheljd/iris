@@ -476,6 +476,38 @@ describe("Bulk Client Operations", () => {
         cleanupUnsubscribe([sharedEmail]);
       }
     });
+
+    // Regression (m1): the raw email was inserted and the existence check was
+    // case-sensitive, so "Case.Drift@Test.com" and "case.drift@test.com" landed
+    // as two suppression rows — the UNIQUE index is BINARY.
+    it("stores one normalized row for the same address in different casing", async () => {
+      const casings = ["Case.Drift-m1@Test.com", "case.drift-m1@test.com", "CASE.DRIFT-M1@TEST.COM"];
+      const ids = casings.map((email, i) => {
+        const id = randomUUID();
+        db.insert(clients).values({
+          id, firstName: "CaseDrift", lastName: `Client${i}`, email, employeeId: ASSOCIATE_ID,
+          source: "Walk-in", productsOfInterest: [], tags: [], onEmailList: true, status: "active",
+        }).run();
+        return id;
+      });
+      const listRows = () => db.select().from(unsubscribeList).all()
+        .filter((r) => r.email.toLowerCase() === "case.drift-m1@test.com");
+
+      try {
+        vi.mocked(getServerSession).mockResolvedValue(managerSession);
+        expect((await bulkUnsubscribeClients([ids[0]])).ok).toBe(1);
+        expect(listRows().map((r) => r.email)).toEqual(["case.drift-m1@test.com"]);
+
+        // Second pass, other casings — including two in one batch: a no-op on the list.
+        const result = await bulkUnsubscribeClients([ids[1], ids[2]]);
+        expect(result.error).toBeUndefined();
+        expect(result.ok).toBe(2);
+        expect(listRows()).toHaveLength(1);
+      } finally {
+        cleanupClients(ids);
+        cleanupUnsubscribe(["case.drift-m1@test.com"]);
+      }
+    });
   });
   // ---------------------------------------------------------------
   // PERF-03: activity events are emitted as ONE multi-row insert

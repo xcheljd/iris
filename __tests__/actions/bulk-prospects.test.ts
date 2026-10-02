@@ -240,6 +240,29 @@ describe("Bulk Prospect Operations", () => {
       expect(rows.length).toBe(1);
     });
 
+    // Regression (m1): the raw email was inserted and the existence check was
+    // case-sensitive, so the same address in two casings became two rows —
+    // the UNIQUE index on unsubscribe_list.email is BINARY.
+    it("stores one normalized row for the same address in different casing", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+      const normalized = "unsub-014-case@example.com";
+      testEmails = [normalized];
+      const first = createTestProspect({ email: "Unsub-014-Case@Example.com" });
+      const second = createTestProspect({ email: "UNSUB-014-CASE@EXAMPLE.COM" });
+      testIds = [first, second];
+      const listRows = () => db.select().from(unsubscribeList).all()
+        .filter((r) => r.email.toLowerCase() === normalized);
+
+      expect((await bulkUnsubscribeProspects([first])).ok).toBe(1);
+      expect(listRows().map((r) => r.email)).toEqual([normalized]);
+
+      // Second pass, other casing: a no-op on the suppression list.
+      const result = await bulkUnsubscribeProspects([second]);
+      expect(result.error).toBeUndefined();
+      expect(result.ok).toBe(1);
+      expect(listRows()).toHaveLength(1);
+    });
+
     it("allows an associate session (requireAuth, not requireManager)", async () => {
       vi.mocked(getServerSession).mockResolvedValue(associateSession);
       testIds = [createTestProspect({ email: null })];

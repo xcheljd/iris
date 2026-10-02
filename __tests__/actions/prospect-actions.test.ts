@@ -799,6 +799,26 @@ describe("unsubscribeProspect", () => {
     expect(rows).toHaveLength(1); // still just one entry
   });
 
+  // Regression (m1): the existence check was a case-sensitive eq() and the raw
+  // email was inserted, so a mixed-case prospect added a second row.
+  it("normalizes the email and matches an existing row case-insensitively", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    const normalized = `unsub-case-${randomUUID().slice(0, 8)}@example.com`;
+    createdUnsubEmails.push(normalized);
+    const first = insertProspect({ firstName: "CaseA", email: normalized.toUpperCase() });
+    const second = insertProspect({ firstName: "CaseB", email: `Unsub-Case-${normalized.slice(11)}` });
+    createdProspectIds.push(first.prospectId, second.prospectId);
+    createdBatchIds.push(first.batchId, second.batchId);
+    const listRows = () => db.select().from(unsubscribeList).all()
+      .filter((r) => r.email.toLowerCase() === normalized);
+
+    expect(await unsubscribeProspect(first.prospectId)).toBeUndefined();
+    expect(listRows().map((r) => r.email)).toEqual([normalized]);
+
+    expect(await unsubscribeProspect(second.prospectId)).toBeUndefined();
+    expect(listRows()).toHaveLength(1);
+  });
+
   it("unsubscribes a prospect with no email without error", async () => {
     vi.mocked(getServerSession).mockResolvedValue(managerSession);
     const { prospectId, batchId } = insertProspect({ firstName: "NoEmail", email: null });
