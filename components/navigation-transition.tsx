@@ -46,6 +46,8 @@ const TITLE_MAP: Record<string, string> = {
   "/change-password": "Change Password",
 };
 
+const NAVIGATION_FAILSAFE_MS = 10_000;
+
 function titleForPath(href: string): string {
   const path = href.replace(/\/+$/, "") || "/";
   if (TITLE_MAP[path]) return TITLE_MAP[path];
@@ -72,6 +74,18 @@ export function NavigationTransitionProvider({ children }: { children: ReactNode
     setTargetTitle(null);
   }, [pathname]);
 
+  // Failsafe: a navigation that never changes the pathname (e.g. a redirect back
+  // to the same path) would otherwise leave the overlay up forever.
+  useEffect(() => {
+    if (state !== "navigating") return;
+    const timer = setTimeout(() => {
+      setState("idle");
+      setTargetPath(null);
+      setTargetTitle(null);
+    }, NAVIGATION_FAILSAFE_MS);
+    return () => clearTimeout(timer);
+  }, [state]);
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       const anchor = (e.target as HTMLElement).closest("a[href]");
@@ -79,13 +93,23 @@ export function NavigationTransitionProvider({ children }: { children: ReactNode
       const href = anchor.getAttribute("href");
       if (
         !href ||
-        href.startsWith("http") ||
         href.startsWith("#") ||
         href.startsWith("mailto:") ||
         href.startsWith("tel:")
       )
         return;
-      if (href === pathname) return;
+      if (anchor.hasAttribute("download")) return;
+      let url: URL;
+      try {
+        url = new URL(href, window.location.href);
+      } catch {
+        return;
+      }
+      // blob:/data: — a blob:'s origin equals the page's, so origin-checking alone is insufficient
+      if (!url.protocol.startsWith("http")) return;
+      if (url.origin !== window.location.origin) return;
+      // usePathname() carries no query string, so a same-path ?query link never resets
+      if (url.pathname === pathname) return;
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
 
       setState("navigating");
