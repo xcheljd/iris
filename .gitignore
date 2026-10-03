@@ -58,3 +58,6 @@ tmp/
 Selling_Analysis_By_Style*
 *.txt.htm.xls
 
+
+# remotion render output
+remotion-demo/out/*.jpg
