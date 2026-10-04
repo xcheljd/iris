@@ -12,6 +12,7 @@ import { applyClientPatchUnchecked } from "./_client-patch-core";
 import { runStatusChange, applyBanUnchecked, applyUnsubscribeUnchecked, applyDeleteUnchecked } from "./_client-status-core";
 import { clientPatchSchema, banClientSchema, banWalkInSchema, unsubscribeEmailSchema } from "@/lib/validation/client";
 import { sameEmail } from "@/lib/email-identity";
+import { rematchClientPromos } from "@/lib/promo-match";
 
 // Structural de-dupe for products of interest (objects, so Set won't dedupe).
 function dedupeProducts(list: ProductOfInterest[]): ProductOfInterest[] {
@@ -109,6 +110,8 @@ export async function unbanClient(clientId: string): Promise<{ error: string } |
     tx.insert(activityEvents).values({
       id: randomUUID(), clientId, eventType: "status_changed", description: "Unbanned", metadata: { newStatus: "active" }, employeeId: user.id,
     }).run();
+    // Banning deleted their promo matches; rebuild them now that they're active.
+    rematchClientPromos(tx, [clientId]);
   });
   await recalcHeat(clientId);
   revalidatePath(`/clients/${clientId}`);

@@ -9,7 +9,7 @@ import { db } from "@/lib/db";
 import { activityEvents, bannedCustomers, clients, clientTags, modelCatalog, outreachLogs, outreachTemplates, promoMatches, promoWatches, smartLists } from "@/lib/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
-import { banClient, createPromo, createTag, createTemplate, deleteTag, deleteTemplate } from "@/lib/actions";
+import { banClient, createPromo, createTag, createTemplate, deleteTag, deleteTemplate, unbanClient } from "@/lib/actions";
 import { importCatalogRvx } from "@/lib/actions/catalog-import";
 import { bulkBanClients } from "@/lib/actions/bulk-clients";
 
@@ -149,5 +149,25 @@ describe("related data stays in sync on writes", () => {
     expect((await bulkBanClients([a, b], "Other", "bulk")).ok).toBe(2);
     expect(matched(promo, a)).toBe(false);
     expect(matched(promo, b)).toBe(false);
+  });
+
+  // Regression: banning deletes a client's promo matches, and unbanning left
+  // them matchless until some promo or catalog change re-ran matching.
+  it("unbanning a client rebuilds their promo matches", async () => {
+    const ts = Date.now();
+    const model = `SYNCU-${ts}`;
+    const eligible = addClient(model);
+    const ineligible = addClient(`SYNCN-${ts}`);
+    const promo = await addPromo(model, `SYNCUC${ts}`);
+    expect(matched(promo, eligible)).toBe(true);
+
+    expect(await banClient(eligible, "Reselling", "flipping stock")).toBeUndefined();
+    expect(await banClient(ineligible, "Other", "no match")).toBeUndefined();
+    expect(matched(promo, eligible)).toBe(false);
+
+    expect(await unbanClient(eligible)).toBeUndefined();
+    expect(await unbanClient(ineligible)).toBeUndefined();
+    expect(matched(promo, eligible)).toBe(true);
+    expect(db.select().from(promoMatches).where(eq(promoMatches.clientId, ineligible)).all()).toEqual([]);
   });
 });
