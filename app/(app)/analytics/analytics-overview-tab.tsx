@@ -47,8 +47,6 @@ interface AnalyticsOverviewTabProps {
 }
 
 export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution }: AnalyticsOverviewTabProps) {
-  // Per outreach attempt, not per active client: that ratio could pass 100%.
-  const purchaseRate = stats.outreachWeek > 0 ? Math.round((stats.purchasesWeek / stats.outreachWeek) * 100) : 0;
   return (
     <div className="flex flex-col gap-6">
       {/* Key Metrics with HoverCards */}
@@ -224,17 +222,6 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
               </span>
             </div>
             <Progress value={stats.outreachWeek > 0 ? 100 : 0} className="h-2" aria-label="Outreach completion" />
-          </div>
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between text-sm">
-              <span>Purchase Rate <span className="text-muted-foreground">(purchases ÷ outreach)</span></span>
-              <span className="font-medium">{purchaseRate}%</span>
-            </div>
-            <Progress
-              value={purchaseRate}
-              className="h-2"
-              aria-label="Purchase rate"
-            />
           </div>
         </CardContent>
       </Card>
