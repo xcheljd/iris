@@ -6,11 +6,12 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 import { getServerSession } from "next-auth";
 import type { Session } from "next-auth";
 import { db } from "@/lib/db";
-import { clients, clientTags, modelCatalog, outreachLogs, outreachTemplates, promoMatches, promoWatches, smartLists } from "@/lib/db/schema";
+import { activityEvents, bannedCustomers, clients, clientTags, modelCatalog, outreachLogs, outreachTemplates, promoMatches, promoWatches, smartLists } from "@/lib/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
-import { createPromo, createTag, createTemplate, deleteTag, deleteTemplate } from "@/lib/actions";
+import { banClient, createPromo, createTag, createTemplate, deleteTag, deleteTemplate } from "@/lib/actions";
 import { importCatalogRvx } from "@/lib/actions/catalog-import";
+import { bulkBanClients } from "@/lib/actions/bulk-clients";
 
 const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
 const mgr: Session = {
@@ -37,6 +38,8 @@ describe("related data stays in sync on writes", () => {
       db.delete(promoWatches).where(inArray(promoWatches.id, ids.promos)).run();
     }
     if (ids.clients.length) {
+      db.delete(activityEvents).where(inArray(activityEvents.clientId, ids.clients)).run();
+      db.delete(bannedCustomers).where(inArray(bannedCustomers.customerId, ids.clients)).run();
       db.delete(promoMatches).where(inArray(promoMatches.clientId, ids.clients)).run();
       db.delete(clients).where(inArray(clients.id, ids.clients)).run();
     }
@@ -123,5 +126,28 @@ describe("related data stays in sync on writes", () => {
     const promo = await addPromo(model, `SYNCBC${Date.now()}`);
     expect(matched(promo, active)).toBe(true);
     expect(matched(promo, banned)).toBe(false);
+  });
+
+  // Regression: banning left the client's existing promo_matches rows behind.
+  // Read paths filter banned clients out, but the rows lingered.
+  it("banning a client deletes their existing promo matches", async () => {
+    const model = `SYNCX-${Date.now()}`;
+    const client = addClient(model);
+    const promo = await addPromo(model, `SYNCXC${Date.now()}`);
+    expect(matched(promo, client)).toBe(true);
+
+    expect(await banClient(client, "Reselling", "flipping stock")).toBeUndefined();
+    expect(matched(promo, client)).toBe(false);
+  });
+
+  it("bulk-banning clients deletes their existing promo matches", async () => {
+    const model = `SYNCY-${Date.now()}`;
+    const [a, b] = [addClient(model), addClient(model)];
+    const promo = await addPromo(model, `SYNCYC${Date.now()}`);
+    expect(matched(promo, a) && matched(promo, b)).toBe(true);
+
+    expect((await bulkBanClients([a, b], "Other", "bulk")).ok).toBe(2);
+    expect(matched(promo, a)).toBe(false);
+    expect(matched(promo, b)).toBe(false);
   });
 });

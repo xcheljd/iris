@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { clients, activityEvents, bannedCustomers, unsubscribeList, clientTags } from "@/lib/db/schema";
+import { clients, activityEvents, bannedCustomers, unsubscribeList, clientTags, promoMatches } from "@/lib/db/schema";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
@@ -349,6 +349,8 @@ export async function bulkBanClients(
         });
         ok++;
       }
+      // Same as applyBanUnchecked: a banned client keeps no promo matches.
+      if (heatIds.length > 0) tx.delete(promoMatches).where(inArray(promoMatches.clientId, heatIds)).run();
       insertActivityEvents(tx, events);
       return ok;
     },

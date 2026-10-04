@@ -4,7 +4,7 @@
 // (see reviewApprovalRequest, which claims the request in the same tx).
 // Auth + revalidation live with the callers in ./clients.ts.
 import { db } from "@/lib/db";
-import { clients, activityEvents, bannedCustomers, unsubscribeList } from "@/lib/db/schema";
+import { clients, activityEvents, bannedCustomers, unsubscribeList, promoMatches } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { normalizeEmail, sameEmail } from "@/lib/email-identity";
@@ -68,6 +68,9 @@ export function applyBanUnchecked(
     banReasonCategory: category,
     specificBanReason: reason,
   }).run();
+  // Banned clients never get promo matches (buildPromoClientIndex), so drop
+  // the ones they already had rather than leave them for read-time filters.
+  tx.delete(promoMatches).where(eq(promoMatches.clientId, clientId)).run();
   tx.insert(activityEvents).values({
     id: randomUUID(), clientId, eventType: "status_changed", description: `Banned: ${category} — ${reason}`, metadata: { newStatus: "banned" }, employeeId,
   }).run();
