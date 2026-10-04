@@ -66,8 +66,13 @@ export async function performRestore(
 
   try {
     const tmpDb = deps.openDb(tmpPath, { readonly: true });
-    const result = tmpDb.prepare("PRAGMA integrity_check").get() as { integrity_check: string };
-    tmpDb.close();
+    let result: { integrity_check: string };
+    try {
+      result = tmpDb.prepare("PRAGMA integrity_check").get() as { integrity_check: string };
+    } finally {
+      // Close even when the integrity query throws, or the handle leaks.
+      tmpDb.close();
+    }
     if (result.integrity_check !== "ok") {
       deps.unlink(tmpPath);
       return { error: "Database integrity check failed", status: 422 };

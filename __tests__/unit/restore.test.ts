@@ -139,6 +139,26 @@ describe("performRestore", () => {
     expect(tables(dbPath)).toEqual(["live_marker"]);
   });
 
+  it("closes the temp database even when the integrity_check query throws", async () => {
+    const upload = makeDb(join(dir, "upload.db"), "uploaded_marker");
+    let closed = false;
+    const result = await performRestore(upload, deps({
+      openDb: (path, options) => {
+        const real = new Database(path, options);
+        return {
+          prepare: () => { throw new Error("corrupt b-tree"); },
+          pragma: real.pragma.bind(real),
+          close: () => { closed = true; real.close(); },
+        } as unknown as Database.Database;
+      },
+    }));
+
+    expect(result).toEqual({ error: "Not a valid SQLite database file", status: 422 });
+    expect(closed).toBe(true);
+    expect(existsSync(`${dbPath}.new`)).toBe(false);
+    expect(tables(dbPath)).toEqual(["live_marker"]);
+  });
+
   it("returns 500 when the snapshot fails and leaves the live database alone", async () => {
     const upload = makeDb(join(dir, "upload.db"), "uploaded_marker");
     const before = readFileSync(dbPath);
