@@ -77,6 +77,14 @@ describe("authOptions credentials authorize()", () => {
     });
   });
 
+  // Regression: authorize matched eq(username, input), and SQLite compares
+  // TEXT as BINARY, so signing in as "Xchel" failed for a stored "xchel".
+  it("matches the username case-insensitively", async () => {
+    const user = await authorize({ username: ACTIVE_USERNAME.toUpperCase(), password: PASSWORD });
+
+    expect(user).toMatchObject({ id: ACTIVE_ID, email: ACTIVE_USERNAME });
+  });
+
   it("returns null for a wrong password", async () => {
     expect(await authorize({ username: ACTIVE_USERNAME, password: "wrong" })).toBeNull();
   });

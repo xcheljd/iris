@@ -153,8 +153,10 @@ they do. If either grows a query it pages against, it moves to the shape above.
 - **Email suppression:** any query that produces people to email or promo-contact applies
   `notSuppressed(emailCol)` from `lib/suppression.ts` (unsubscribe list + banned emails,
   case-insensitive), and any write that can set `onEmailList` checks `isEmailSuppressed()`.
-- **Usernames:** stored as typed, and login/recover match them exactly (SQLite TEXT is BINARY).
-  Uniqueness is case-insensitive (`usernameTaken` in `lib/actions/employees.ts`), so no two
+- **Usernames:** stored as typed (no folding on write), but login (`lib/auth.ts`) and recover
+  (`app/api/recover/route.ts`) match them case-insensitively with
+  `lower(username) = lower(?)` (SQLite `lower()` folds ASCII only). That is only unambiguous
+  because uniqueness is case-insensitive too (`usernameTaken` in `lib/actions/employees.ts`), so no two
   employees differ only by case. A lost create race hits the column's UNIQUE constraint and
   maps to "Username already taken".
 - **Assigning clients:** any write that hands clients to an employee (transfer, bulk reassign,

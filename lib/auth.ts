@@ -6,7 +6,7 @@ import { cache } from "react";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { employees } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { SESSION_MAX_AGE_SECONDS } from "@/lib/constants";
 import { fullName } from "@/lib/utils";
 
@@ -24,7 +24,10 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!process.env.NEXTAUTH_SECRET) throw new Error("NEXTAUTH_SECRET is not set — set it in production via environment variable");
         if (!credentials?.username || !credentials?.password) return null;
-        const user = db.select().from(employees).where(eq(employees.username, credentials.username)).get();
+        // Case-insensitive: usernames are unique case-insensitively (usernameTaken),
+        // so folding can match at most one row. SQLite lower() folds ASCII only.
+        const user = db.select().from(employees)
+          .where(sql`lower(${employees.username}) = lower(${credentials.username})`).get();
         if (!user || !user.active) return null;
         const ok = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!ok) return null;

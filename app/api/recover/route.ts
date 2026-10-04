@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { employees } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { BCRYPT_SALT_ROUNDS } from "@/lib/constants";
 import { recoverRequestSchema } from "@/lib/validation/recover";
 
@@ -52,10 +52,9 @@ export async function POST(req: NextRequest) {
   }
   const data = parsed.data;
 
-  // Not lowercased: employees.username is a TEXT column and SQLite collates
-  // TEXT as BINARY, so the lookups below are case-sensitive. Folding the rate
-  // limit key alone would throttle spellings that can never match a row.
-  if (!checkRateLimit(data.username)) {
+  // Lowercased: the lookups below match usernames case-insensitively (as login
+  // does), so every spelling of one account shares a single rate-limit bucket.
+  if (!checkRateLimit(data.username.toLowerCase())) {
     return NextResponse.json({ error: "Too many attempts. Try again in 15 minutes." }, { status: 429 });
   }
 
@@ -63,7 +62,7 @@ export async function POST(req: NextRequest) {
     const employee = db
       .select({ secretQuestion: employees.secretQuestion, secretAnswerHash: employees.secretAnswerHash })
       .from(employees)
-      .where(and(eq(employees.username, data.username), eq(employees.active, true)))
+      .where(and(sql`lower(${employees.username}) = lower(${data.username})`, eq(employees.active, true)))
       .get();
 
     if (!employee || !employee.secretQuestion || !employee.secretAnswerHash) {
@@ -76,7 +75,7 @@ export async function POST(req: NextRequest) {
   const employee = db
     .select({ id: employees.id, secretAnswerHash: employees.secretAnswerHash })
     .from(employees)
-    .where(and(eq(employees.username, data.username), eq(employees.active, true)))
+    .where(and(sql`lower(${employees.username}) = lower(${data.username})`, eq(employees.active, true)))
     .get();
 
   if (!employee || !employee.secretAnswerHash) {

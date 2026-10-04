@@ -16,9 +16,10 @@ import {
 } from "@/lib/validation/employee";
 import { assertAssignableEmployee, getSessionUser } from "./_shared";
 
-// Usernames are stored as typed and login matches them exactly (BINARY), but
-// uniqueness is case-insensitive so "marcus" can't sit beside "Marcus" and
-// leave two people one Caps Lock apart. `exceptId` lets a rename change case.
+// Usernames are stored as typed; login and recover match them
+// case-insensitively, and uniqueness is case-insensitive too so "marcus" can't
+// sit beside "Marcus" and make that match ambiguous. `exceptId` lets a rename
+// change case.
 function usernameTaken(username: string, exceptId?: string) {
   const row = db.select({ id: employees.id }).from(employees)
     .where(and(

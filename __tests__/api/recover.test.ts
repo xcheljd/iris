@@ -21,6 +21,19 @@ describe("POST /api/recover - lookup step", () => {
     expect(data.question.length).toBeGreaterThan(0);
   });
 
+  // Regression: lookup matched the username exactly (SQLite TEXT is BINARY),
+  // so "mARCUS" found nothing while login now folds case.
+  it("should find the account when the username differs in case", async () => {
+    const req = new NextRequest("http://localhost:3000/api/recover", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ step: "lookup", username: "mARCUS" }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toHaveProperty("question");
+  });
+
   it("should return 400 when username is missing on lookup", async () => {
     const req = new NextRequest("http://localhost:3000/api/recover", {
       method: "POST",
@@ -94,6 +107,23 @@ describe("POST /api/recover - verify step", () => {
     expect(res.status).toBe(401);
     const data = await res.json();
     expect(data.error).toBe("Incorrect answer");
+  });
+
+  // Reaching the answer check (401, not the 404 for "no such account") proves
+  // verify resolved the differently-cased username to Marcus.
+  it("should resolve the username case-insensitively on verify", async () => {
+    const req = new NextRequest("http://localhost:3000/api/recover", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        step: "verify",
+        username: "MARCUS",
+        answer: "wrong answer definitely wrong",
+        newPassword: "newpass123",
+      }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(401);
   });
 
   // Regression: verify used to answer "No recovery options available for this
