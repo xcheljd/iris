@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Spinner } from "@/components/ui/spinner";
 import { Merge } from "lucide-react";
 import { patchClientFromFormMerge } from "@/lib/actions";
 import { toDateOnly } from "@/lib/utils";
@@ -107,7 +108,10 @@ export function MergeFromFormDialog({
         </DialogHeader>
 
         {!existingClient ? (
-          <div className="py-8 text-center text-sm text-muted-foreground">Loading…</div>
+          <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+            <Spinner />
+            Loading…
+          </div>
         ) : (
           <ScrollArea className="flex-1 min-h-0 py-2">
             <div className="pr-4">
