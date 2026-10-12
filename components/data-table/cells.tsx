@@ -145,16 +145,18 @@ export function HeatBadgeCell({
   level,
   score,
   showScore = false,
+  compactOnMobile = false,
   className,
 }: {
   level: "hot" | "warm" | "cold";
   score?: number;
   showScore?: boolean;
+  compactOnMobile?: boolean;
   className?: string;
 }) {
   return (
     <TableCell className={className}>
-      <HeatBadge level={level} score={score} showScore={showScore} />
+      <HeatBadge level={level} score={score} showScore={showScore} compactOnMobile={compactOnMobile} />
     </TableCell>
   );
 }

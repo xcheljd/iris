@@ -11,6 +11,7 @@ import { SearchInputWithHistory, pushSearchHistory } from "@/components/search-i
 import { TableCell } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Topbar } from "@/components/topbar";
+import { EmailText } from "@/components/email-text";
 import { formatPhone } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -382,8 +383,9 @@ export function ClientListContent({
       ),
       cell: ({ row: { original: r } }) => (
         <TableCell className="max-w-[200px]">
-          {r.client.phone && <div className="text-xs">{formatPhone(r.client.phone)}</div>}
-          {r.client.email && <div className="text-xs text-muted-foreground truncate">{r.client.email}</div>}
+          {r.client.phone && <div className="text-xs whitespace-nowrap">{formatPhone(r.client.phone)}</div>}
+          {/* Email is hidden below md so the table fits a phone; it's one tap away on the client page. */}
+          {r.client.email && <div className="hidden md:block text-xs text-muted-foreground"><EmailText email={r.client.email} /></div>}
         </TableCell>
       ),
     },
@@ -415,7 +417,7 @@ export function ClientListContent({
         />
       ),
       cell: ({ row: { original: r } }) => (
-        <HeatBadgeCell level={r.client.heatLevel} score={r.client.heatScore} showScore />
+        <HeatBadgeCell level={r.client.heatLevel} score={r.client.heatScore} showScore compactOnMobile />
       ),
     },
     {
@@ -599,7 +601,7 @@ export function ClientListContent({
           <Link href="/clients/new" aria-label="Add Client"><Plus className="size-4 sm:mr-1" /><span className="hidden sm:inline">Add Client</span></Link>
         </Button>
       </Topbar>
-      <div className="flex flex-col flex-1 p-4 md:p-6 gap-4 max-w-full overflow-hidden" data-tour="client-list">
+      <div className="flex flex-col flex-1 p-3 md:p-6 gap-4 max-w-full overflow-hidden" data-tour="client-list">
         {/* Search + Dates filter row */}
         <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
           <SearchInputWithHistory

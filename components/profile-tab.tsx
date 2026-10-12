@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { toast } from "sonner";
 import type { FullClient } from "@/components/client-provider";
 import { PhoneActions } from "@/components/phone-actions";
+import { EmailText } from "@/components/email-text";
 
 interface ProfileTabProps {
   client: FullClient;
@@ -90,7 +91,7 @@ export function ProfileTab({ client }: ProfileTabProps) {
             </div>
             {client.email ? (
               <div className="flex items-center gap-2 min-w-0">
-                <a href={`mailto:${client.email}`} className="font-mono truncate underline-offset-4 hover:underline focus-visible:underline">{client.email}</a>
+                <a href={`mailto:${client.email}`} className="font-mono min-w-0 text-right underline-offset-4 hover:underline focus-visible:underline"><EmailText email={client.email} /></a>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button

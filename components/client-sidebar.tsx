@@ -12,6 +12,7 @@ import { OutreachLogger } from "@/components/outreach-logger";
 import { isFollowUpOverdue, isFollowUpUpcoming } from "@/lib/outreach-helpers";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { PhoneActions } from "@/components/phone-actions";
+import { EmailText } from "@/components/email-text";
 
 export function ClientSidebar() {
   const client = useClient();
@@ -81,7 +82,7 @@ export function ClientSidebar() {
             <div className="flex items-center justify-between gap-2 min-w-0">
               <div className="flex items-center gap-2 min-w-0 overflow-hidden">
                 <Mail className="size-4 text-muted-foreground shrink-0" />
-                <a href={`mailto:${client.email}`} className="text-sm truncate underline-offset-4 hover:underline focus-visible:underline">{client.email}</a>
+                <a href={`mailto:${client.email}`} className="text-sm min-w-0 underline-offset-4 hover:underline focus-visible:underline"><EmailText email={client.email} /></a>
               </div>
               <Tooltip>
                 <TooltipTrigger asChild>
