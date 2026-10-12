@@ -272,7 +272,11 @@ function FollowUpDetailSheet({ row, open, onOpenChange }: { row: FollowUpRow | n
             <div>
               <p className="text-sm font-medium text-muted-foreground">Contact</p>
               {row.client.phone && <p className="text-sm">{row.client.phone}</p>}
-              {row.client.email && <p className="text-sm">{row.client.email}</p>}
+              {row.client.email && (
+                <p className="text-sm">
+                  <a href={`mailto:${row.client.email}`} className="underline-offset-4 hover:underline focus-visible:underline">{row.client.email}</a>
+                </p>
+              )}
             </div>
             <Separator />
             <div>

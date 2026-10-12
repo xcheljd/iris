@@ -75,7 +75,7 @@ export function ClientSidebar() {
             <div className="flex items-center justify-between gap-2 min-w-0">
               <div className="flex items-center gap-2 min-w-0 overflow-hidden">
                 <Mail className="size-4 text-muted-foreground shrink-0" />
-                <span className="text-sm truncate">{client.email}</span>
+                <a href={`mailto:${client.email}`} className="text-sm truncate underline-offset-4 hover:underline focus-visible:underline">{client.email}</a>
               </div>
               <Tooltip>
                 <TooltipTrigger asChild>
