@@ -122,6 +122,10 @@
   :root {
     --background: 37 42.4% 98.5%;
     --foreground: 25.1 33.3% 4.2%;
+    /* Login backdrop glow: the brand gold (#c9a84c) as HSL + alpha. Light mode
+       needs a stronger alpha — gold on near-white is barely visible below ~0.3. */
+    --login-glow: 44 54% 54% / 0.34;
+    --login-glow-soft: 44 54% 54% / 0.22;
     --card: 56.3 100% 99.7%;
     --card-foreground: 25.1 33.3% 4.2%;
     --popover: 56.3 100% 99.7%;
@@ -163,6 +167,8 @@
   .dark {
     --background: 23.5 32.4% 2.8%;
     --foreground: 37 11.1% 90.5%;
+    --login-glow: 44 54% 54% / 0.16;
+    --login-glow-soft: 44 54% 54% / 0.10;
     --card: 26.2 20.4% 5.9%;
     --card-foreground: 37 11.1% 90.5%;
     --popover: 26.2 20.4% 5.9%;
