@@ -135,6 +135,23 @@ they do. If either grows a query it pages against, it moves to the shape above.
   `@plugin` (`tailwindcss-animate`), dark mode with `@custom-variant`, and `container` is an
   `@utility`. Source files are auto-detected; `postcss.config.mjs` runs only
   `@tailwindcss/postcss` (v4 prefixes via Lightning CSS, so autoprefixer is gone).
+- **shadcn components (registry):** `components/ui/` follows current upstream conventions —
+  `cn` comes from shadcn's `cn` package (re-exported by `@/lib/utils`, so either import works)
+  and Radix comes from the single `radix-ui` package (`import { Dialog as DialogPrimitive }
+  from "radix-ui"`), never the per-package `@radix-ui/react-*` imports. New components
+  install untouched:
+  1. `npx shadcn@latest add <name> --dry-run` — confirm it only *creates* files and adds no
+     dependency beyond `cn`/`radix-ui`/`lucide-react`. Any `overwrite` line means it would
+     replace an adapted file: stop.
+  2. `npx shadcn@latest add <name> --diff` to read the code, then `add <name>` without flags.
+  3. Check `package.json` / `pnpm-workspace.yaml` are unchanged (a registry item can bump
+     `radix-ui` past pnpm's `minimumReleaseAge`; never accept an exclusion list for that), then
+     run the four gates.
+  - **Never `--overwrite`.** Adapted files carry local changes: `button.tsx` (the `gold`
+    variant), the 2px focus rings, `dialog.tsx` (mobile inset + `max-h` dvh). To refresh one,
+    use `add <name> --diff` and merge by hand, keeping those changes.
+  - Older primitives (`forwardRef`, no `data-slot`) are refreshed only when a component needs
+    changing anyway; visible changes get before/after screenshots before they ship.
 - **Validation (zod 4):** use the top-level format schemas — `z.email()`, `z.uuid()`,
   `z.iso.date()` — not `z.string().email()/.uuid()/.date()`. Custom messages go in the `error`
   option (`z.enum(V, { error: () => "…" })`); `errorMap` is gone. Issue codes are plain strings
