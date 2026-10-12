@@ -549,26 +549,54 @@ export function ClientListContent({
   return (
     <>
       <Topbar title="Clients">
-        <Button
-          onClick={() => setSaveFilterOpen(true)}
-          variant="outline"
-          size="sm"
-          disabled={!hasActiveClientFilters(emailRecipientFilters)}
-          title={hasActiveClientFilters(emailRecipientFilters) ? "Save current filter as Smart List" : "Apply a filter first"}
-        >
-          <BookmarkPlus className="size-4 mr-2" />
-          Save Filter
-        </Button>
-        <Button onClick={() => setCsvExportOpen(true)} variant="outline" size="sm">
-          <FileText className="size-4 mr-2" />
-          Export CSV
-        </Button>
-        <Button onClick={() => setEmailRecipientsOpen(true)} variant="outline" size="sm">
-          <Mail className="size-4 mr-2" />
-          Email Recipients
-        </Button>
+        {/* md+: full buttons. Below md the three secondary actions fold into a
+            ⋯ menu so the topbar fits a phone instead of widening the page. */}
+        <div className="hidden md:flex items-center gap-2">
+          <Button
+            onClick={() => setSaveFilterOpen(true)}
+            variant="outline"
+            size="sm"
+            disabled={!hasActiveClientFilters(emailRecipientFilters)}
+            title={hasActiveClientFilters(emailRecipientFilters) ? "Save current filter as Smart List" : "Apply a filter first"}
+          >
+            <BookmarkPlus className="size-4 mr-2" />
+            Save Filter
+          </Button>
+          <Button onClick={() => setCsvExportOpen(true)} variant="outline" size="sm">
+            <FileText className="size-4 mr-2" />
+            Export CSV
+          </Button>
+          <Button onClick={() => setEmailRecipientsOpen(true)} variant="outline" size="sm">
+            <Mail className="size-4 mr-2" />
+            Email Recipients
+          </Button>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="md:hidden" aria-label="More client actions">
+              <MoreHorizontal className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onSelect={() => setSaveFilterOpen(true)}
+              disabled={!hasActiveClientFilters(emailRecipientFilters)}
+            >
+              <BookmarkPlus className="size-4 mr-2" />
+              Save Filter
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setCsvExportOpen(true)}>
+              <FileText className="size-4 mr-2" />
+              Export CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setEmailRecipientsOpen(true)}>
+              <Mail className="size-4 mr-2" />
+              Email Recipients
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button asChild variant="gold" size="sm" data-hint="add-client">
-          <Link href="/clients/new"><Plus className="size-4 mr-1" /> Add Client</Link>
+          <Link href="/clients/new" aria-label="Add Client"><Plus className="size-4 sm:mr-1" /><span className="hidden sm:inline">Add Client</span></Link>
         </Button>
       </Topbar>
       <div className="flex flex-col flex-1 p-4 md:p-6 gap-4 max-w-full overflow-hidden" data-tour="client-list">
