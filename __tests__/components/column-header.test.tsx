@@ -64,7 +64,7 @@ describe("ColumnHeader a11y", () => {
 
   it("gives the sort button a focus-visible ring, not hover only", () => {
     renderHeader();
-    expect(screen.getByRole("button", { name: /MSRP/ }).className).toContain("focus-visible:ring-1");
+    expect(screen.getByRole("button", { name: /MSRP/ }).className).toContain("focus-visible:ring-2");
   });
 
   it("still calls onSortAction with the column key", async () => {
