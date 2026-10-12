@@ -17,7 +17,6 @@ import {
   Clock, 
   AlertTriangle, 
   CheckCircle2, 
-  Phone, 
   Calendar,
   ChevronRight,
   CalendarClock,
@@ -30,6 +29,7 @@ import { markFollowUpComplete, reopenFollowUp, rescheduleFollowUp } from "@/lib/
 import { toast } from "sonner";
 import { format, differenceInCalendarDays } from "date-fns";
 import { Topbar } from "@/components/topbar";
+import { PhoneActions } from "@/components/phone-actions";
 import { fullName, toDateOnly } from "@/lib/utils";
 import { useRemovedKeys } from "@/hooks/use-optimistic";
 
@@ -160,8 +160,8 @@ function FollowUpCard({
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                 {row.client.phone && (
                   <span className="flex items-center gap-1">
-                    <Phone className="size-3" />
                     {row.client.phone}
+                    <PhoneActions phone={row.client.phone} className="-my-1" />
                   </span>
                 )}
                 <span className={`text-xs capitalize ${getOutcomeColor(row.log.outcome)}`}>
@@ -271,7 +271,12 @@ function FollowUpDetailSheet({ row, open, onOpenChange }: { row: FollowUpRow | n
           <div className="flex flex-col gap-3">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Contact</p>
-              {row.client.phone && <p className="text-sm">{row.client.phone}</p>}
+              {row.client.phone && (
+                <p className="text-sm flex items-center gap-1">
+                  {row.client.phone}
+                  <PhoneActions phone={row.client.phone} />
+                </p>
+              )}
               {row.client.email && (
                 <p className="text-sm">
                   <a href={`mailto:${row.client.email}`} className="underline-offset-4 hover:underline focus-visible:underline">{row.client.email}</a>

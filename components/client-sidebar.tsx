@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { OutreachLogger } from "@/components/outreach-logger";
 import { isFollowUpOverdue, isFollowUpUpcoming } from "@/lib/outreach-helpers";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { PhoneActions } from "@/components/phone-actions";
 
 export function ClientSidebar() {
   const client = useClient();
@@ -50,25 +51,30 @@ export function ClientSidebar() {
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {client.phone && (
-            <div className="flex items-center justify-between gap-2 min-w-0">
-              <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+            // Wraps so the call/text/copy buttons drop below the number in a
+            // narrow card instead of truncating the number itself.
+            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 min-w-0">
+              <div className="flex items-center gap-2">
                 <Phone className="size-4 text-muted-foreground shrink-0" />
-                <span className="text-sm truncate">{client.phone}</span>
+                <span className="text-sm whitespace-nowrap">{client.phone}</span>
               </div>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="shrink-0"
-                    onClick={() => handleCopy(client.phone!, "phone")}
-                    aria-label="Copy phone number"
-                  >
-                    <Copy className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Copy phone number</TooltipContent>
-              </Tooltip>
+              <div className="flex items-center shrink-0 ml-auto">
+                <PhoneActions phone={client.phone} />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => handleCopy(client.phone!, "phone")}
+                      aria-label="Copy phone number"
+                    >
+                      <Copy className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Copy phone number</TooltipContent>
+                </Tooltip>
+              </div>
             </div>
           )}
           {client.email && (

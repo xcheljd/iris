@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import type { FullClient } from "@/components/client-provider";
+import { PhoneActions } from "@/components/phone-actions";
 
 interface ProfileTabProps {
   client: FullClient;
@@ -52,14 +53,16 @@ export function ProfileTab({ client }: ProfileTabProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <div className="flex items-center justify-between gap-2 min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 min-w-0">
             <div className="flex items-center gap-2 shrink-0">
               <Phone className="size-4 text-muted-foreground" />
               <span>Phone</span>
             </div>
             {client.phone ? (
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="font-mono truncate">{client.phone}</span>
+              // Wraps under the label in a narrow card rather than truncating the number.
+              <div className="flex items-center gap-1 ml-auto">
+                <span className="font-mono whitespace-nowrap">{client.phone}</span>
+                <PhoneActions phone={client.phone} />
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -87,7 +90,7 @@ export function ProfileTab({ client }: ProfileTabProps) {
             </div>
             {client.email ? (
               <div className="flex items-center gap-2 min-w-0">
-                <span className="font-mono truncate">{client.email}</span>
+                <a href={`mailto:${client.email}`} className="font-mono truncate underline-offset-4 hover:underline focus-visible:underline">{client.email}</a>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button

@@ -95,7 +95,8 @@ export function NavigationTransitionProvider({ children }: { children: ReactNode
         !href ||
         href.startsWith("#") ||
         href.startsWith("mailto:") ||
-        href.startsWith("tel:")
+        href.startsWith("tel:") ||
+        href.startsWith("sms:")
       )
         return;
       if (anchor.hasAttribute("download")) return;
