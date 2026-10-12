@@ -5,30 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Tag, Copy, Calendar, Plus, Phone, Mail } from "lucide-react";
-import { toast } from "sonner";
+import { Tag, Calendar, Plus, Phone, Mail } from "lucide-react";
 import { format } from "date-fns";
 import { OutreachLogger } from "@/components/outreach-logger";
 import { isFollowUpOverdue, isFollowUpUpcoming } from "@/lib/outreach-helpers";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { PhoneActions } from "@/components/phone-actions";
-import { EmailText } from "@/components/email-text";
+import { EmailLink, PhoneLink } from "@/components/contact-picker";
+import { fullName } from "@/lib/utils";
 
 export function ClientSidebar() {
   const client = useClient();
 
   if (!client) return null;
-
-  const handleCopy = async (text: string, type: "phone" | "email") => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.success(`Copied ${type} to clipboard`);
-    } catch (error) {
-      toast.error(`Failed to copy ${type}`, {
-        description: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
-  };
 
   // Soonest pending follow-up (earliest date, including overdue ones).
   const nextFollowUp = client.followUps
@@ -52,52 +39,15 @@ export function ClientSidebar() {
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {client.phone && (
-            // Wraps so the call/text/copy buttons drop below the number in a
-            // narrow card instead of truncating the number itself.
-            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <Phone className="size-4 text-muted-foreground shrink-0" />
-                <span className="text-sm whitespace-nowrap">{client.phone}</span>
-              </div>
-              <div className="flex items-center shrink-0 ml-auto">
-                <PhoneActions phone={client.phone} />
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="shrink-0"
-                      onClick={() => handleCopy(client.phone!, "phone")}
-                      aria-label="Copy phone number"
-                    >
-                      <Copy className="size-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Copy phone number</TooltipContent>
-                </Tooltip>
-              </div>
+            <div className="flex items-center gap-2 min-w-0">
+              <Phone className="size-4 text-muted-foreground shrink-0" />
+              <PhoneLink phone={client.phone} name={fullName(client)} className="text-sm" />
             </div>
           )}
           {client.email && (
-            <div className="flex items-center justify-between gap-2 min-w-0">
-              <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-                <Mail className="size-4 text-muted-foreground shrink-0" />
-                <a href={`mailto:${client.email}`} className="text-sm min-w-0 underline-offset-4 hover:underline focus-visible:underline"><EmailText email={client.email} /></a>
-              </div>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="shrink-0"
-                    onClick={() => handleCopy(client.email!, "email")}
-                    aria-label="Copy email address"
-                  >
-                    <Copy className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Copy email address</TooltipContent>
-              </Tooltip>
+            <div className="flex items-center gap-2 min-w-0">
+              <Mail className="size-4 text-muted-foreground shrink-0" />
+              <EmailLink email={client.email} name={fullName(client)} className="text-sm" />
             </div>
           )}
           <div className="text-sm">

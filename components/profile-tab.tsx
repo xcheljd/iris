@@ -3,47 +3,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Phone, Mail, Calendar, User, Gift, Copy } from "lucide-react";
+import { Phone, Mail, Calendar, User, Gift } from "lucide-react";
 import { format } from "date-fns";
-import { formatOccasionDate } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { toast } from "sonner";
+import { formatOccasionDate, fullName } from "@/lib/utils";
 import type { FullClient } from "@/components/client-provider";
-import { PhoneActions } from "@/components/phone-actions";
-import { EmailText } from "@/components/email-text";
+import { EmailLink, PhoneLink } from "@/components/contact-picker";
 
 interface ProfileTabProps {
   client: FullClient;
 }
 
 export function ProfileTab({ client }: ProfileTabProps) {
-  const handlePhoneCopy = async () => {
-    if (client.phone) {
-      try {
-        await navigator.clipboard.writeText(client.phone);
-        toast.success("Phone copied to clipboard");
-      } catch (error) {
-        toast.error("Failed to copy phone", {
-          description: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
-    }
-  };
-
-  const handleEmailCopy = async () => {
-    if (client.email) {
-      try {
-        await navigator.clipboard.writeText(client.email);
-        toast.success("Email copied to clipboard");
-      } catch (error) {
-        toast.error("Failed to copy email", {
-          description: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
-    }
-  };
-
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <Card>
@@ -60,25 +30,7 @@ export function ProfileTab({ client }: ProfileTabProps) {
               <span>Phone</span>
             </div>
             {client.phone ? (
-              // Wraps under the label in a narrow card rather than truncating the number.
-              <div className="flex items-center gap-1 ml-auto">
-                <span className="font-mono whitespace-nowrap">{client.phone}</span>
-                <PhoneActions phone={client.phone} />
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handlePhoneCopy}
-                      className="size-8 shrink-0"
-                      aria-label="Copy phone number"
-                    >
-                      <Copy className="size-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Copy phone number</TooltipContent>
-                </Tooltip>
-              </div>
+              <PhoneLink phone={client.phone} name={fullName(client)} className="font-mono ml-auto" />
             ) : (
               <span className="text-muted-foreground">Not provided</span>
             )}
@@ -90,23 +42,7 @@ export function ProfileTab({ client }: ProfileTabProps) {
               <span>Email</span>
             </div>
             {client.email ? (
-              <div className="flex items-center gap-2 min-w-0">
-                <a href={`mailto:${client.email}`} className="font-mono min-w-0 text-right underline-offset-4 hover:underline focus-visible:underline"><EmailText email={client.email} /></a>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleEmailCopy}
-                      className="size-8 shrink-0"
-                      aria-label="Copy email address"
-                    >
-                      <Copy className="size-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Copy email address</TooltipContent>
-                </Tooltip>
-              </div>
+              <EmailLink email={client.email} name={fullName(client)} className="font-mono text-right" />
             ) : (
               <span className="text-muted-foreground">Not provided</span>
             )}
