@@ -1,11 +1,7 @@
-import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
 import { format } from "date-fns";
 import { MS_PER_DAY } from "./constants";
 
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+export { cn } from "cn";
 
 export function normalizePhone(phone: string | null | undefined): string | null {
   if (!phone) return null;
