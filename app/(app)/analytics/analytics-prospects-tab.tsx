@@ -185,11 +185,11 @@ export function AnalyticsProspectsTab({ funnel }: AnalyticsProspectsTabProps) {
                   Last {funnel.batches.length} import batch{funnel.batches.length !== 1 ? "es" : ""}
                 </CardDescription>
               </div>
-              <Link href="/prospects">
-                <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/prospects">
                   View Prospects <ChevronRight className="size-4 ml-1" />
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           </CardHeader>
           <CardContent>

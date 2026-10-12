@@ -238,11 +238,11 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
                 </div>
                 <p className="text-2xl font-bold text-destructive mt-1">{stats.banned}</p>
               </div>
-              <Link href="/banned">
-                <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/banned">
                   View <ChevronRight className="size-4 ml-1" />
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -256,11 +256,11 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
                 </div>
                 <p className="text-2xl font-bold mt-1">{stats.unsubscribed}</p>
               </div>
-              <Link href="/unsubscribed">
-                <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/unsubscribed">
                   View <ChevronRight className="size-4 ml-1" />
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           </CardContent>
         </Card>

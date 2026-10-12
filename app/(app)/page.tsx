@@ -352,9 +352,9 @@ async function DashboardContent() {
                       <p className="text-sm text-muted-foreground">Unsubscribed</p>
                       <p className="text-2xl font-bold">{stats.unsubscribed}</p>
                     </div>
-                    <Link href="/unsubscribed">
-                      <Button variant="ghost" size="sm">View <ArrowRight className="ml-1 size-3.5" /></Button>
-                    </Link>
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href="/unsubscribed">View <ArrowRight className="ml-1 size-3.5" /></Link>
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -365,9 +365,9 @@ async function DashboardContent() {
                       <p className="text-sm text-muted-foreground">Total Outreach (7d)</p>
                       <p className="text-2xl font-bold">{stats.outreachWeek}</p>
                     </div>
-                    <Link href="/analytics">
-                      <Button variant="ghost" size="sm">Analytics <ArrowRight className="ml-1 size-3.5" /></Button>
-                    </Link>
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href="/analytics">Analytics <ArrowRight className="ml-1 size-3.5" /></Link>
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
