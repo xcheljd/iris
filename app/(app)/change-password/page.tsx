@@ -162,6 +162,7 @@ export default function ChangePasswordPage() {
                 <FieldLabel htmlFor="currentPassword">Current Password</FieldLabel>
                 <PasswordInput
                   id="currentPassword"
+                  autoComplete="current-password"
                   required
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
@@ -171,6 +172,7 @@ export default function ChangePasswordPage() {
                 <FieldLabel htmlFor="newPassword">New Password</FieldLabel>
                 <PasswordInput
                   id="newPassword"
+                  autoComplete="new-password"
                   required
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
@@ -181,6 +183,8 @@ export default function ChangePasswordPage() {
                 <FieldLabel htmlFor="confirmPassword">Confirm New Password</FieldLabel>
                 <PasswordInput
                   id="confirmPassword"
+                  autoComplete="new-password"
+                  aria-invalid={passwordsMismatch ? true : undefined}
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
@@ -227,6 +231,7 @@ export default function ChangePasswordPage() {
                 <FieldLabel htmlFor="secret-answer">Answer</FieldLabel>
                 <Input
                   id="secret-answer"
+                  autoComplete="off"
                   value={secretAnswer}
                   onChange={(e) => setSecretAnswer(e.target.value)}
                   placeholder="Your answer"

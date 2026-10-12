@@ -115,11 +115,11 @@ export default function LoginPage() {
               <FieldGroup className="gap-4">
                 <Field data-invalid={!!error || undefined}>
                   <FieldLabel htmlFor="username">Username</FieldLabel>
-                  <Input id="username" value={username} onChange={(e) => { setUsername(e.target.value); setError(""); }} placeholder="Enter your username" required autoFocus />
+                  <Input id="username" value={username} onChange={(e) => { setUsername(e.target.value); setError(""); }} placeholder="Enter your username" autoComplete="username" aria-invalid={!!error || undefined} required autoFocus />
                 </Field>
                 <Field data-invalid={!!error || undefined}>
                   <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <PasswordInput id="password" value={password} onChange={(e) => { setPassword(e.target.value); setError(""); }} placeholder="••••••" required />
+                  <PasswordInput id="password" value={password} onChange={(e) => { setPassword(e.target.value); setError(""); }} placeholder="••••••" autoComplete="current-password" aria-invalid={!!error || undefined} required />
                   {error && <FieldError>{error}</FieldError>}
                 </Field>
                 <Button type="submit" variant="gold" className="w-full" disabled={loading}>
@@ -143,6 +143,7 @@ export default function LoginPage() {
                   <FieldLabel htmlFor="forgot-username">Username</FieldLabel>
                   <Input
                     id="forgot-username"
+                    autoComplete="username"
                     value={forgotUsername}
                     onChange={(e) => setForgotUsername(e.target.value)}
                     placeholder="Enter your username"
@@ -175,6 +176,7 @@ export default function LoginPage() {
                   <FieldLabel htmlFor="secret-answer">Answer</FieldLabel>
                   <Input
                     id="secret-answer"
+                    autoComplete="off"
                     value={secretAnswer}
                     onChange={(e) => setSecretAnswer(e.target.value)}
                     placeholder="Your answer"
@@ -186,6 +188,7 @@ export default function LoginPage() {
                   <FieldLabel htmlFor="forgot-new-password">New Password</FieldLabel>
                   <PasswordInput
                     id="forgot-new-password"
+                    autoComplete="new-password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="••••••"

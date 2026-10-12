@@ -134,6 +134,7 @@ export function ClientForm({
               <FieldLabel htmlFor="firstName">First Name *</FieldLabel>
               <Input
                 id="firstName"
+                autoComplete="given-name"
                 placeholder="Enter first name"
                 value={formData.firstName}
                 onChange={(e) => onFieldChangeAction("firstName", e.target.value)}
@@ -143,6 +144,7 @@ export function ClientForm({
               <FieldLabel htmlFor="lastName">Last Name *</FieldLabel>
               <Input
                 id="lastName"
+                autoComplete="family-name"
                 placeholder="Enter last name"
                 value={formData.lastName}
                 onChange={(e) => onFieldChangeAction("lastName", e.target.value)}
@@ -189,6 +191,7 @@ export function ClientForm({
                 <FieldLabel htmlFor="phone">Phone</FieldLabel>
                 <Input
                   id="phone"
+                  autoComplete="tel"
                   placeholder="(XXX) XXX-XXXX"
                   value={formData.phone}
                   onChange={(e) => onFieldChangeAction("phone", e.target.value)}
@@ -198,6 +201,7 @@ export function ClientForm({
                 <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input
                   id="email"
+                  autoComplete="email"
                   type="email"
                   placeholder="client@example.com"
                   value={formData.email}
