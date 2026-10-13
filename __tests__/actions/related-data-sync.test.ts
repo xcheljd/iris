@@ -73,8 +73,8 @@ describe("related data stays in sync on writes", () => {
     const ts = Date.now();
     const [gone, kept] = [`SyncGone${ts}`, `SyncKept${ts}`];
     ids.tags.push(gone, kept);
-    await createTag(gone, "blue");
-    await createTag(kept, "blue");
+    await createTag(gone);
+    await createTag(kept);
     const [both, legacy] = [randomUUID(), randomUUID()];
     ids.lists.push(both, legacy);
     db.insert(smartLists).values({ id: both, name: "Both", ownerId: MANAGER_ID, filters: { tags: [gone, kept], tagMode: "all" } }).run();

@@ -17,23 +17,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tag, Plus, Trash2, MoreHorizontal } from "lucide-react";
-import { createTag, deleteTag } from "@/lib/actions";
+import { Tag, Plus, Trash2, MoreHorizontal, Pencil } from "lucide-react";
+import { createTag, deleteTag, renameTag } from "@/lib/actions";
 import { toast } from "sonner";
 
-export const tagColors = [
-  { name: "blue", class: "bg-blue-500" },
-  { name: "green", class: "bg-green-500" },
-  { name: "red", class: "bg-red-500" },
-  { name: "yellow", class: "bg-yellow-500" },
-  { name: "purple", class: "bg-purple-500" },
-  { name: "orange", class: "bg-orange-500" },
-  { name: "pink", class: "bg-pink-500" },
-  { name: "gray", class: "bg-gray-500" },
-];
-
 interface SettingsTagsTabProps {
-  tags: { id: string; name: string; color: string; usageCount: number }[];
+  tags: { id: string; name: string; usageCount: number }[];
   isManager: boolean;
 }
 
@@ -41,26 +30,55 @@ export function SettingsTagsTab({ tags: initialTags, isManager }: SettingsTagsTa
   const router = useRouter();
   const [tags, setTags] = useState(initialTags);
   const [showDialog, setShowDialog] = useState(false);
-  const [newTag, setNewTag] = useState({ name: "", color: "blue" });
+  const [newTag, setNewTag] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<(typeof initialTags)[number] | null>(null);
+  const [renameTarget, setRenameTarget] = useState<(typeof initialTags)[number] | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   const handleCreate = async () => {
-    if (!newTag.name.trim()) {
+    if (!newTag.trim()) {
       toast.error("Tag name is required");
       return;
     }
     try {
-      const result = await createTag(newTag.name, newTag.color);
+      const result = await createTag(newTag);
       if (result?.error) {
         toast.error(result.error);
         return;
       }
       toast.success("Tag created");
       setShowDialog(false);
-      setNewTag({ name: "", color: "blue" });
+      setNewTag("");
       router.refresh();
     } catch {
       toast.error("Failed to create tag");
+    }
+  };
+
+  const openRename = (tag: (typeof initialTags)[number]) => {
+    setRenameTarget(tag);
+    setRenameValue(tag.name);
+  };
+
+  const handleRename = async () => {
+    if (!renameTarget) return;
+    const next = renameValue.trim();
+    if (!next) {
+      toast.error("Tag name is required");
+      return;
+    }
+    try {
+      const result = await renameTag(renameTarget.id, next);
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      setTags(tags.map((t) => (t.id === renameTarget.id ? { ...t, name: next } : t)));
+      toast.success("Tag renamed");
+      setRenameTarget(null);
+      router.refresh();
+    } catch {
+      toast.error("Failed to rename tag");
     }
   };
 
@@ -106,21 +124,13 @@ export function SettingsTagsTab({ tags: initialTags, isManager }: SettingsTagsTa
                 <FieldGroup className="gap-4">
                   <Field>
                     <FieldLabel htmlFor="tagName">Tag Name</FieldLabel>
-                    <Input id="tagName" placeholder="e.g., VIP" value={newTag.name} onChange={(e) => setNewTag({ ...newTag, name: e.target.value })} />
-                  </Field>
-                  <Field>
-                    <FieldLabel>Color</FieldLabel>
-                    <div className="flex flex-wrap gap-2">
-                      {tagColors.map((color) => (
-                        <button
-                          key={color.name}
-                          className={`size-8 rounded-full ${color.class} ${
-                            newTag.color === color.name ? "ring-2 ring-offset-2 ring-offset-background ring-primary" : ""
-                          }`}
-                          onClick={() => setNewTag({ ...newTag, color: color.name })}
-                        />
-                      ))}
-                    </div>
+                    <Input
+                      id="tagName"
+                      placeholder="e.g., VIP"
+                      value={newTag}
+                      onChange={(e) => setNewTag(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                    />
                   </Field>
                 </FieldGroup>
                 <DialogFooter className="mt-4">
@@ -144,23 +154,15 @@ export function SettingsTagsTab({ tags: initialTags, isManager }: SettingsTagsTa
               <TableHeader>
                 <TableRow>
                   <TableHead>Tag</TableHead>
-                  <TableHead className="hidden sm:table-cell">Color</TableHead>
                   <TableHead>Usage</TableHead>
                   {isManager && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {tags.map((tag) => {
-                  const colorObj = tagColors.find((c) => c.name === tag.color);
                   return (
                     <TableRow key={tag.id}>
                       <TableCell className="font-medium">{tag.name}</TableCell>
-                      <TableCell className="hidden sm:table-cell">
-                        <div className="flex items-center gap-2">
-                          <div className={`size-4 rounded-full ${colorObj?.class || "bg-gray-500"}`} />
-                          <span className="text-sm text-muted-foreground">{tag.color}</span>
-                        </div>
-                      </TableCell>
                       <StatusBadgeCell label={tag.usageCount} />
                       {isManager && (
                       <TableCell className="text-right">
@@ -171,6 +173,10 @@ export function SettingsTagsTab({ tags: initialTags, isManager }: SettingsTagsTa
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={() => openRename(tag)}>
+                              <Pencil className="size-4 mr-2" />
+                              Rename
+                            </DropdownMenuItem>
                             <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(tag)}>
                               <Trash2 className="size-4 mr-2" />
                               Delete
@@ -188,6 +194,35 @@ export function SettingsTagsTab({ tags: initialTags, isManager }: SettingsTagsTa
           )}
         </CardContent>
       </Card>
+
+      {isManager && (
+        <Dialog open={!!renameTarget} onOpenChange={(open) => !open && setRenameTarget(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Rename Tag</DialogTitle>
+              <DialogDescription>
+                Renames <strong>{renameTarget?.name}</strong> on every client and smart list that uses it.
+              </DialogDescription>
+            </DialogHeader>
+            <Field>
+              <FieldLabel htmlFor="renameTag">New name</FieldLabel>
+              <Input
+                id="renameTag"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleRename()}
+                autoFocus
+              />
+            </Field>
+            <DialogFooter className="mt-4">
+              <Button variant="outline" onClick={() => setRenameTarget(null)}>Cancel</Button>
+              <Button onClick={handleRename} disabled={!renameValue.trim() || renameValue.trim() === renameTarget?.name}>
+                Rename
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {isManager && (
       <ConfirmDialog

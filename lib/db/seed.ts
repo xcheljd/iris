@@ -61,19 +61,19 @@ const empId = (name: string) => employees.find((e) => e.firstName === name)!.id;
 
 // Tags
 const tagData = [
-  { name: "VIP", color: "gold" },
-  { name: "repeat-buyer", color: "emerald" },
-  { name: "high-spender", color: "purple" },
-  { name: "military", color: "blue" },
-  { name: "talker", color: "amber" },
-  { name: "no-texts", color: "rose" },
-  { name: "email-only", color: "cyan" },
-  { name: "birthday-this-month", color: "pink" },
+  { name: "VIP" },
+  { name: "repeat-buyer" },
+  { name: "high-spender" },
+  { name: "military" },
+  { name: "talker" },
+  { name: "no-texts" },
+  { name: "email-only" },
+  { name: "birthday-this-month" },
 ];
 const insTag = sqlite.prepare(
-  "INSERT INTO client_tags (id,name,color,usage_count) VALUES (?,?,?,0)",
+  "INSERT INTO client_tags (id,name,usage_count) VALUES (?,?,0)",
 );
-for (const t of tagData) insTag.run(randomUUID(), t.name, t.color);
+for (const t of tagData) insTag.run(randomUUID(), t.name);
 
 // Promo watches
 const promos = [

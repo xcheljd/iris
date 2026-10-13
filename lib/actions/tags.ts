@@ -60,14 +60,62 @@ export async function removeTag(clientId: string, tag: string) {
   }
 }
 
-export async function createTag(name: string, color: string): Promise<{ error: string } | undefined> {
+export async function createTag(name: string): Promise<{ error: string } | undefined> {
   await requireManager();
   const trimmed = name.trim();
   if (!trimmed) return { error: "Tag name is required" };
   const existing = db.select({ id: clientTags.id }).from(clientTags).where(eq(clientTags.name, trimmed)).get();
   if (existing) return { error: "A tag with this name already exists" };
-  db.insert(clientTags).values({ id: randomUUID(), name: trimmed, color }).run();
+  db.insert(clientTags).values({ id: randomUUID(), name: trimmed }).run();
   revalidatePath("/settings");
+}
+
+/**
+ * Rename a tag everywhere it is used: the registry row, every client's
+ * tags[] array, and smart-list filters (`tags` and the legacy `tag`), all in
+ * one transaction. No per-client activity events: the tag itself didn't
+ * change on the client, only its name.
+ */
+export async function renameTag(id: string, rawName: string): Promise<{ error: string } | undefined> {
+  await requireManager();
+  const next = rawName.trim();
+  if (!next) return { error: "Tag name is required" };
+  const tag = db.select({ name: clientTags.name }).from(clientTags).where(eq(clientTags.id, id)).get();
+  if (!tag) return { error: "Tag not found" };
+  if (tag.name === next) return;
+  const clash = db.select({ id: clientTags.id }).from(clientTags).where(eq(clientTags.name, next)).get();
+  if (clash) return { error: "A tag with this name already exists" };
+  const prev = tag.name;
+  try {
+    db.transaction((tx) => {
+      const affected = tx
+        .select({ id: clients.id, tags: clients.tags })
+        .from(clients)
+        .where(sql`EXISTS (SELECT 1 FROM json_each(${clients.tags}) WHERE json_each.value = ${prev})`)
+        .all();
+      for (const c of affected) {
+        // Map then dedupe, in case a client somehow already carries the new name.
+        const renamed = Array.from(new Set((c.tags || []).map((t) => (t === prev ? next : t))));
+        tx.update(clients).set({ tags: renamed, updatedAt: new Date() }).where(eq(clients.id, c.id)).run();
+      }
+      for (const list of tx.select({ id: smartLists.id, filters: smartLists.filters }).from(smartLists).all()) {
+        const f = list.filters;
+        const hasTag = Array.isArray(f.tags) && f.tags.includes(prev);
+        if (!hasTag && f.tag !== prev) continue;
+        const nextFilters = { ...f };
+        if (hasTag) nextFilters.tags = Array.from(new Set((f.tags as unknown[]).map((t) => (t === prev ? next : t))));
+        if (f.tag === prev) nextFilters.tag = next;
+        tx.update(smartLists).set({ filters: nextFilters }).where(eq(smartLists.id, list.id)).run();
+      }
+      tx.update(clientTags).set({ name: next }).where(eq(clientTags.id, id)).run();
+    });
+    revalidatePath("/settings");
+    revalidatePath("/clients");
+    revalidatePath("/smart-lists");
+  } catch (err) {
+    console.error("renameTag failed:", err);
+    return { error: "Failed to rename tag" };
+  }
 }
 
 export async function deleteTag(id: string): Promise<{ error: string } | undefined> {

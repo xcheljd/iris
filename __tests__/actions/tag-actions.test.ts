@@ -156,11 +156,10 @@ describe("Tag Actions", () => {
 
   describe("createTag", () => {
     it("should create a new tag in the clientTags table", async () => {
-      await createTag("test-new-tag", "red");
+      await createTag("test-new-tag");
 
       const tag = db.select().from(clientTags).where(eq(clientTags.name, "test-new-tag")).get();
       expect(tag).toBeDefined();
-      expect(tag!.color).toBe("red");
       expect(tag!.usageCount).toBe(0);
 
       // Cleanup
@@ -173,7 +172,7 @@ describe("Tag Actions", () => {
   describe("deleteTag", () => {
     it("should delete a tag from the clientTags table", async () => {
       // First create a tag to delete
-      await createTag("tag-to-delete", "green");
+      await createTag("tag-to-delete");
 
       const tag = db.select().from(clientTags).where(eq(clientTags.name, "tag-to-delete")).get();
       expect(tag).toBeDefined();

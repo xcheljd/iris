@@ -12,7 +12,6 @@ import {
   Tag,
   Hash,
   Search,
-  Palette,
   Users
 } from "lucide-react";
 import { toast } from "sonner";
@@ -121,7 +120,6 @@ export function TagsTab({ client }: TagsTabProps) {
                       className="flex items-center justify-between p-2 border rounded-lg hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex items-center gap-2">
-                        <Palette className="size-3.5" style={{ color: tagRecord?.color || undefined }} />
                         <Badge variant="secondary" className="cursor-pointer">
                           {tag}
                         </Badge>

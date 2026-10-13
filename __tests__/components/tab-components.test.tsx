@@ -56,7 +56,7 @@ const baseClient: FullClient = {
   outreach: [],
   timeline: [],
   matches: [],
-  allTags: [{ id: "t1", name: "VIP", color: "blue", usageCount: 5 }],
+  allTags: [{ id: "t1", name: "VIP", usageCount: 5 }],
   followUps: [],
 };
 

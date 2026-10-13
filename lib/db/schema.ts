@@ -146,7 +146,6 @@ export const smartLists = sqliteTable("smart_lists", {
 export const clientTags = sqliteTable("client_tags", {
   id: text("id").primaryKey(),
   name: text("name").notNull().unique(),
-  color: text("color").notNull().default("blue"),
   usageCount: integer("usage_count").notNull().default(0),
 });
 
