@@ -40,10 +40,10 @@ describe("AnalyticsOutreachTab chart colours", () => {
     const styles = [...container.querySelectorAll("style")].map((s) => s.textContent ?? "");
     expect(styles).toHaveLength(2);
     for (const css of styles) {
-      expect(css).toContain("--color-call: hsl(var(--chart-1))");
-      expect(css).toContain("--color-text: hsl(var(--chart-2))");
-      expect(css).toContain("--color-email: hsl(var(--chart-3))");
-      expect(css).toContain("--color-in-person: hsl(var(--chart-4))");
+      expect(css).toContain("--color-call: var(--chart-1)");
+      expect(css).toContain("--color-text: var(--chart-2)");
+      expect(css).toContain("--color-email: var(--chart-3)");
+      expect(css).toContain("--color-in-person: var(--chart-4)");
     }
     expect(container.innerHTML).not.toMatch(/#[0-9a-f]{6}/i);
   });

@@ -129,10 +129,15 @@ they do. If either grows a query it pages against, it moves to the shape above.
   - The render-time state adjustments in `hooks/use-optimistic.ts` must stay conditional:
     `react-hooks/set-state-in-render` is an error, and an unconditional set loops.
 - **Styling:** Tailwind 4 is **CSS-first** — there is no `tailwind.config.ts`. Design tokens live
-  in the `@theme inline` block of `app/globals.css` (`inline` so utilities emit
-  `hsl(var(--token))` at the use site, which is what makes the `.dark` overrides and
-  `chart.tsx`'s inline `--color-*` behave as they did under v3). Plugins are registered with
-  `@plugin` (`tailwindcss-animate`), dark mode with `@custom-variant`, and `container` is an
+  in `app/globals.css` in upstream shadcn's shape: each `--token` in `:root`/`.dark` holds a
+  **complete colour** (`--primary: hsl(26.2 15.7% 10.2%)`) and the `@theme inline` block maps
+  it with a bare `var()` (`--color-primary: var(--primary)`). Inline styles and chart configs
+  use `var(--token)` directly; for alpha use `color-mix(in srgb, var(--token) 60%, transparent)`
+  or a Tailwind `/60` modifier. **Never store bare HSL triplets (`26 16% 10%`)**: registry
+  components use `var(--x)` directly, and on a triplet that is invalid CSS, silently dropped
+  (pinned by "theme token shape" in `__tests__/unit/theme-contrast.test.ts`). Animations come
+  from `tw-animate-css` (`@import "tw-animate-css"`, upstream's replacement for
+  `tailwindcss-animate`), dark mode from `@custom-variant`, and `container` is an
   `@utility`. Source files are auto-detected; `postcss.config.mjs` runs only
   `@tailwindcss/postcss` (v4 prefixes via Lightning CSS, so autoprefixer is gone).
 - **shadcn components (registry):** `components/ui/` follows current upstream conventions —

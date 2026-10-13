@@ -18,8 +18,8 @@ function injectPulseKeyframes() {
     pulseStyleElement = document.createElement("style");
     pulseStyleElement.textContent = `
       @keyframes tour-pulse {
-        0%, 100% { box-shadow: 0 0 0 2px hsl(var(--primary)), 0 0 0 9999px rgba(0, 0, 0, 0.5); }
-        50% { box-shadow: 0 0 0 6px hsl(var(--primary)), 0 0 0 9999px rgba(0, 0, 0, 0.5); }
+        0%, 100% { box-shadow: 0 0 0 2px var(--primary), 0 0 0 9999px rgba(0, 0, 0, 0.5); }
+        50% { box-shadow: 0 0 0 6px var(--primary), 0 0 0 9999px rgba(0, 0, 0, 0.5); }
       }
     `;
     document.head.appendChild(pulseStyleElement);
@@ -351,7 +351,7 @@ function Spotlight({
     // Advance happens via the Next button in the tooltip.
     pointerEvents: "none",
     boxShadow: reducedMotion
-      ? `0 0 0 2px hsl(var(--primary)), 0 0 0 9999px rgba(0, 0, 0, 0.5)`
+      ? `0 0 0 2px var(--primary), 0 0 0 9999px rgba(0, 0, 0, 0.5)`
       : undefined,
     animation: reducedMotion ? "none" : "tour-pulse 2s ease-in-out infinite",
   }), [rect, reducedMotion]);

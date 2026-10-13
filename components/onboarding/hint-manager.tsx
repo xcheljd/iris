@@ -37,10 +37,10 @@ function refCountInject() {
     pulseStyleElement.textContent = `
       @keyframes hint-pulse {
         0%, 100% {
-          box-shadow: 0 0 0 2px hsl(var(--primary)), 0 0 0 9999px rgba(0, 0, 0, 0.3);
+          box-shadow: 0 0 0 2px var(--primary), 0 0 0 9999px rgba(0, 0, 0, 0.3);
         }
         50% {
-          box-shadow: 0 0 0 4px hsl(var(--primary)), 0 0 0 9999px rgba(0, 0, 0, 0.3);
+          box-shadow: 0 0 0 4px var(--primary), 0 0 0 9999px rgba(0, 0, 0, 0.3);
         }
       }
     `;
@@ -285,7 +285,7 @@ function HintSpotlight({
     pointerEvents: "auto",
     cursor: "pointer",
     boxShadow: reducedMotion
-      ? `0 0 0 2px hsl(var(--primary)), 0 0 0 9999px rgba(0, 0, 0, 0.3)`
+      ? `0 0 0 2px var(--primary), 0 0 0 9999px rgba(0, 0, 0, 0.3)`
       : undefined,
     animation: reducedMotion ? "none" : "hint-pulse 2s ease-in-out infinite",
   }), [rect, padding, reducedMotion]);

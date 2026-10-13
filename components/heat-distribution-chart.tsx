@@ -9,9 +9,9 @@ import {
 } from "@/components/ui/chart";
 
 const heatChartConfig = {
-  hot: { label: "Hot", color: "hsl(var(--heat-hot))" },
-  warm: { label: "Warm", color: "hsl(var(--heat-warm))" },
-  cold: { label: "Cold", color: "hsl(var(--heat-cold))" },
+  hot: { label: "Hot", color: "var(--heat-hot)" },
+  warm: { label: "Warm", color: "var(--heat-warm)" },
+  cold: { label: "Cold", color: "var(--heat-cold)" },
 } satisfies ChartConfig;
 
 interface HeatDistributionChartProps {

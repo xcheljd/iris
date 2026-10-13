@@ -1,5 +1,5 @@
 @import 'tailwindcss';
-@plugin 'tailwindcss-animate';
+@import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -14,46 +14,48 @@
   }
 }
 
-/* `inline` keeps v3 semantics: utilities emit `hsl(var(--border))` at the use
-   site instead of a `--color-border` reference, so the `.dark` overrides below
-   (and any element that sets `--color-*` inline, e.g. chart.tsx) resolve the
-   same way they did under Tailwind 3. */
+/* Upstream shadcn token shape: each --token in :root/.dark holds a complete
+   colour (`hsl(...)`), and `@theme inline` maps it with a bare var(). So the
+   tokens work everywhere a colour is expected: Tailwind utilities, inline
+   styles, chart configs, and registry components that use `var(--x)`
+   directly. Never store bare HSL triplets again: `var(--x)` on one is invalid
+   CSS and the whole declaration is silently dropped. */
 @theme inline {
-  --color-border: hsl(var(--border));
-  --color-input: hsl(var(--input));
-  --color-ring: hsl(var(--ring));
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
 
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
 
-  --color-secondary: hsl(var(--secondary));
-  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
 
-  --color-destructive: hsl(var(--destructive));
-  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
 
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
 
-  --color-accent: hsl(var(--accent));
-  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
 
-  --color-popover: hsl(var(--popover));
-  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
 
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
 
-  --color-sidebar: hsl(var(--sidebar-background));
-  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
-  --color-sidebar-primary: hsl(var(--sidebar-primary));
-  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
-  --color-sidebar-accent: hsl(var(--sidebar-accent));
-  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
-  --color-sidebar-border: hsl(var(--sidebar-border));
-  --color-sidebar-ring: hsl(var(--sidebar-ring));
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 
   --color-meridian-navy: #1e3a5f;
   --color-meridian-gold: #c9a84c;
@@ -65,26 +67,26 @@
      gold was 2.2:1; this warm near-black is 7.7:1. */
   --color-meridian-gold-foreground: #1c1917;
 
-  --color-heat-hot: hsl(var(--heat-hot));
-  --color-heat-warm: hsl(var(--heat-warm));
-  --color-heat-cold: hsl(var(--heat-cold));
+  --color-heat-hot: var(--heat-hot);
+  --color-heat-warm: var(--heat-warm);
+  --color-heat-cold: var(--heat-cold);
 
   /* Status and category colours (Batch 2). Each carries its own light/dark
      step, >= 4.5:1 as text on the page, card, muted and its /15 tint
      (pinned in __tests__/unit/theme-contrast.test.ts). Use these instead of
      raw palette classes like text-green-500, which fail contrast in light
      mode. tone-* are for category icons that need a distinct hue. */
-  --color-success: hsl(var(--success));
-  --color-warning: hsl(var(--warning));
-  --color-info: hsl(var(--info));
-  --color-tone-pink: hsl(var(--tone-pink));
-  --color-tone-violet: hsl(var(--tone-violet));
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-tone-pink: var(--tone-pink);
+  --color-tone-violet: var(--tone-violet);
 
-  --color-chart-1: hsl(var(--chart-1));
-  --color-chart-2: hsl(var(--chart-2));
-  --color-chart-3: hsl(var(--chart-3));
-  --color-chart-4: hsl(var(--chart-4));
-  --color-chart-5: hsl(var(--chart-5));
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
 
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
@@ -131,100 +133,100 @@
 
 @layer base {
   :root {
-    --background: 37 42.4% 98.5%;
-    --foreground: 25.1 33.3% 4.2%;
+    --background: hsl(37 42.4% 98.5%);
+    --foreground: hsl(25.1 33.3% 4.2%);
     /* Login backdrop glow: the brand gold (#c9a84c) as HSL + alpha. Light mode
        needs a stronger alpha — gold on near-white is barely visible below ~0.3. */
-    --login-glow: 44 54% 54% / 0.34;
-    --login-glow-soft: 44 54% 54% / 0.22;
-    --card: 56.3 100% 99.7%;
-    --card-foreground: 25.1 33.3% 4.2%;
-    --popover: 56.3 100% 99.7%;
-    --popover-foreground: 25.1 33.3% 4.2%;
-    --primary: 26.2 15.7% 10.2%;
-    --primary-foreground: 37 22.7% 97.2%;
-    --secondary: 37 19.1% 94.4%;
-    --secondary-foreground: 26.1 10.8% 15.8%;
-    --muted: 37 19.1% 94.4%;
-    --muted-foreground: 26 4.7% 43.2%;
-    --accent: 37 19.1% 94.4%;
-    --accent-foreground: 26.1 10.8% 15.8%;
-    --destructive: 358.9 74.7% 50.3%;
-    --destructive-foreground: 37 22.7% 97.2%;
-    --border: 37.1 13.7% 87.7%;
-    --input: 37.1 13.7% 87.7%;
-    --ring: 26 4.7% 43.2%;
+    --login-glow: hsl(44 54% 54% / 0.34);
+    --login-glow-soft: hsl(44 54% 54% / 0.22);
+    --card: hsl(56.3 100% 99.7%);
+    --card-foreground: hsl(25.1 33.3% 4.2%);
+    --popover: hsl(56.3 100% 99.7%);
+    --popover-foreground: hsl(25.1 33.3% 4.2%);
+    --primary: hsl(26.2 15.7% 10.2%);
+    --primary-foreground: hsl(37 22.7% 97.2%);
+    --secondary: hsl(37 19.1% 94.4%);
+    --secondary-foreground: hsl(26.1 10.8% 15.8%);
+    --muted: hsl(37 19.1% 94.4%);
+    --muted-foreground: hsl(26 4.7% 43.2%);
+    --accent: hsl(37 19.1% 94.4%);
+    --accent-foreground: hsl(26.1 10.8% 15.8%);
+    --destructive: hsl(358.9 74.7% 50.3%);
+    --destructive-foreground: hsl(37 22.7% 97.2%);
+    --border: hsl(37.1 13.7% 87.7%);
+    --input: hsl(37.1 13.7% 87.7%);
+    --ring: hsl(26 4.7% 43.2%);
     --radius: 0.5rem;
-    --chart-1: 19.4 51.8% 46.4%;
-    --chart-2: 109.2 24.5% 46.9%;
-    --chart-3: 357.1 42.4% 49.8%;
-    --chart-4: 43.9 35% 42%;
-    --chart-5: 217.4 41.6% 43.2%;
+    --chart-1: hsl(19.4 51.8% 46.4%);
+    --chart-2: hsl(109.2 24.5% 46.9%);
+    --chart-3: hsl(357.1 42.4% 49.8%);
+    --chart-4: hsl(43.9 35% 42%);
+    --chart-5: hsl(217.4 41.6% 43.2%);
     /* Heat: burnt orange / ochre / slate blue. Each is >= 4.5:1 as text on the
        card and on its own /15 badge tint in both modes; bar segments use a /30
        tint with text-foreground on top. */
-    --heat-hot: 20 70% 38%;
-    --heat-warm: 38 75% 30%;
-    --heat-cold: 215 40% 40%;
-    --success: 145 55% 26%;
-    --warning: 32 85% 30%;
-    --info: 210 65% 36%;
-    --tone-pink: 330 60% 38%;
-    --tone-violet: 265 45% 45%;
-    --sidebar-background: 37 20.3% 95.8%;
-    --sidebar-foreground: 26.1 10.8% 15.8%;
-    --sidebar-accent: 37 13.3% 90.4%;
-    --sidebar-accent-foreground: 26.1 10.8% 15.8%;
-    --sidebar-border: 37.1 13.7% 87.7%;
-    --sidebar-ring: 26 4.7% 43.2%;
-    --sidebar-primary: 26.2 15.7% 10.2%;
-    --sidebar-primary-foreground: 37 22.7% 97.2%;
+    --heat-hot: hsl(20 70% 38%);
+    --heat-warm: hsl(38 75% 30%);
+    --heat-cold: hsl(215 40% 40%);
+    --success: hsl(145 55% 26%);
+    --warning: hsl(32 85% 30%);
+    --info: hsl(210 65% 36%);
+    --tone-pink: hsl(330 60% 38%);
+    --tone-violet: hsl(265 45% 45%);
+    --sidebar: hsl(37 20.3% 95.8%);
+    --sidebar-foreground: hsl(26.1 10.8% 15.8%);
+    --sidebar-accent: hsl(37 13.3% 90.4%);
+    --sidebar-accent-foreground: hsl(26.1 10.8% 15.8%);
+    --sidebar-border: hsl(37.1 13.7% 87.7%);
+    --sidebar-ring: hsl(26 4.7% 43.2%);
+    --sidebar-primary: hsl(26.2 15.7% 10.2%);
+    --sidebar-primary-foreground: hsl(37 22.7% 97.2%);
   }
   .dark {
-    --background: 23.5 32.4% 2.8%;
-    --foreground: 37 11.1% 90.5%;
-    --login-glow: 44 54% 54% / 0.16;
-    --login-glow-soft: 44 54% 54% / 0.10;
-    --card: 26.2 20.4% 5.9%;
-    --card-foreground: 37 11.1% 90.5%;
-    --popover: 26.2 20.4% 5.9%;
-    --popover-foreground: 37 11.1% 90.5%;
-    --primary: 37 11.1% 90.5%;
-    --primary-foreground: 23.5 32.4% 2.8%;
-    --secondary: 26.2 14.6% 11.1%;
-    --secondary-foreground: 37 6.6% 84.1%;
-    --muted: 26.2 14.6% 11.1%;
-    --muted-foreground: 26 4.1% 50%;
-    --accent: 26.1 12% 13.9%;
-    --accent-foreground: 37 11.1% 90.5%;
-    --destructive: 358.5 99.4% 69.3%;
+    --background: hsl(23.5 32.4% 2.8%);
+    --foreground: hsl(37 11.1% 90.5%);
+    --login-glow: hsl(44 54% 54% / 0.16);
+    --login-glow-soft: hsl(44 54% 54% / 0.10);
+    --card: hsl(26.2 20.4% 5.9%);
+    --card-foreground: hsl(37 11.1% 90.5%);
+    --popover: hsl(26.2 20.4% 5.9%);
+    --popover-foreground: hsl(37 11.1% 90.5%);
+    --primary: hsl(37 11.1% 90.5%);
+    --primary-foreground: hsl(23.5 32.4% 2.8%);
+    --secondary: hsl(26.2 14.6% 11.1%);
+    --secondary-foreground: hsl(37 6.6% 84.1%);
+    --muted: hsl(26.2 14.6% 11.1%);
+    --muted-foreground: hsl(26 4.1% 50%);
+    --accent: hsl(26.1 12% 13.9%);
+    --accent-foreground: hsl(37 11.1% 90.5%);
+    --destructive: hsl(358.5 99.4% 69.3%);
     /* Dark text on the bright red (6.9:1): near-white was 2.75:1. The red stays
        bright because it doubles as text-destructive error text on the card. */
-    --destructive-foreground: 23.5 32.4% 2.8%;
-    --border: 26.1 10.2% 13%;
-    --input: 26.1 10.2% 13%;
-    --ring: 26 4.1% 50%;
-    --chart-1: 18.8 45.8% 55.8%;
-    --chart-2: 109.2 20.8% 55.4%;
-    --chart-3: 358.7 41.5% 55.9%;
-    --chart-4: 43.7 27.5% 58.9%;
-    --chart-5: 217.2 29.7% 49.4%;
-    --heat-hot: 22 70% 62%;
-    --heat-warm: 40 60% 58%;
-    --heat-cold: 213 35% 68%;
-    --success: 145 45% 55%;
-    --warning: 40 80% 58%;
-    --info: 210 70% 66%;
-    --tone-pink: 330 65% 72%;
-    --tone-violet: 265 60% 74%;
-    --sidebar-background: 23 38% 1.7%;
-    --sidebar-foreground: 37 6.6% 84.1%;
-    --sidebar-accent: 26.1 12% 13.9%;
-    --sidebar-accent-foreground: 37 11.1% 90.5%;
-    --sidebar-border: 26.1 14.8% 8.5%;
-    --sidebar-ring: 26 4.1% 50%;
-    --sidebar-primary: 37 11.1% 90.5%;
-    --sidebar-primary-foreground: 23.5 32.4% 2.8%;
+    --destructive-foreground: hsl(23.5 32.4% 2.8%);
+    --border: hsl(26.1 10.2% 13%);
+    --input: hsl(26.1 10.2% 13%);
+    --ring: hsl(26 4.1% 50%);
+    --chart-1: hsl(18.8 45.8% 55.8%);
+    --chart-2: hsl(109.2 20.8% 55.4%);
+    --chart-3: hsl(358.7 41.5% 55.9%);
+    --chart-4: hsl(43.7 27.5% 58.9%);
+    --chart-5: hsl(217.2 29.7% 49.4%);
+    --heat-hot: hsl(22 70% 62%);
+    --heat-warm: hsl(40 60% 58%);
+    --heat-cold: hsl(213 35% 68%);
+    --success: hsl(145 45% 55%);
+    --warning: hsl(40 80% 58%);
+    --info: hsl(210 70% 66%);
+    --tone-pink: hsl(330 65% 72%);
+    --tone-violet: hsl(265 60% 74%);
+    --sidebar: hsl(23 38% 1.7%);
+    --sidebar-foreground: hsl(37 6.6% 84.1%);
+    --sidebar-accent: hsl(26.1 12% 13.9%);
+    --sidebar-accent-foreground: hsl(37 11.1% 90.5%);
+    --sidebar-border: hsl(26.1 14.8% 8.5%);
+    --sidebar-ring: hsl(26 4.1% 50%);
+    --sidebar-primary: hsl(37 11.1% 90.5%);
+    --sidebar-primary-foreground: hsl(23.5 32.4% 2.8%);
   }
 }
 

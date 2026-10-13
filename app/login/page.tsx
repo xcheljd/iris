@@ -101,7 +101,7 @@ export default function LoginPage() {
 
   return (
     <main className="relative min-h-screen flex items-center justify-center bg-background p-4">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(50% 40% at 0% 0%, hsl(var(--login-glow)), transparent 70%), radial-gradient(55% 45% at 100% 100%, hsl(var(--login-glow-soft)), transparent 70%)" }} />
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(50% 40% at 0% 0%, var(--login-glow), transparent 70%), radial-gradient(55% 45% at 100% 100%, var(--login-glow-soft), transparent 70%)" }} />
       <h1 className="sr-only">Iris Login</h1>
       <Card className="w-full max-w-md border-border/50">
         <CardHeader className="gap-2 text-center">

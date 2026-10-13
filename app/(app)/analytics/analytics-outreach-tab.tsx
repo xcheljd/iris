@@ -28,10 +28,10 @@ import { fullName } from "@/lib/utils";
 import { EmptyState } from "@/components/empty-state";
 
 const methodChartConfig = {
-  call: { label: "Call", color: "hsl(var(--chart-1))" },
-  text: { label: "Text", color: "hsl(var(--chart-2))" },
-  email: { label: "Email", color: "hsl(var(--chart-3))" },
-  "in-person": { label: "In-Person", color: "hsl(var(--chart-4))" },
+  call: { label: "Call", color: "var(--chart-1)" },
+  text: { label: "Text", color: "var(--chart-2)" },
+  email: { label: "Email", color: "var(--chart-3)" },
+  "in-person": { label: "In-Person", color: "var(--chart-4)" },
 } satisfies ChartConfig;
 
 interface OutreachRow {

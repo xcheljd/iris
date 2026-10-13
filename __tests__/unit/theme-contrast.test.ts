@@ -19,7 +19,10 @@ type Mode = keyof typeof MODES;
 
 type RGB = [number, number, number];
 function hsl(token: string): RGB {
-  const [h, s, l] = token.replace(/%/g, "").split(/\s+/).map(Number);
+  // Tokens hold full colours in upstream shape: `hsl(37 42.4% 98.5%)`.
+  const m = token.match(/^hsl\(([^)]+)\)$/);
+  if (!m) throw new Error(`token is not hsl(...): ${token}`);
+  const [h, s, l] = m[1].replace(/%/g, "").split(/\s+/).map(Number);
   const a = (s / 100) * Math.min(l / 100, 1 - l / 100);
   const f = (n: number) => {
     const k = (n + h / 30) % 12;
@@ -108,5 +111,23 @@ describe.each(["light", "dark"] as const)("theme tokens (%s)", (mode) => {
   // Regression: light --chart-4 was 2.87:1, under the 3:1 floor for graphics.
   it.each(["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"])("--%s meets 3:1 against the card", (name) => {
     expect(ratio(token(mode, name), card)).toBeGreaterThanOrEqual(3);
+  });
+});
+
+// Upstream token shape (registry alignment): every colour token is a full
+// colour and @theme maps it with a bare var(). A bare HSL triplet behind
+// var() is invalid CSS and silently dropped, so pin the shape.
+describe("theme token shape", () => {
+  it.each(["light", "dark"] as const)("%s colour tokens are complete hsl() values", (mode) => {
+    for (const [name, value] of Object.entries(MODES[mode])) {
+      if (name === "radius") continue;
+      expect(value, `--${name}`).toMatch(/^hsl\([\d.]+ [\d.]+% [\d.]+%( \/ [\d.]+)?\)$/);
+    }
+  });
+
+  it("@theme maps colours with a bare var(), never hsl(var())", () => {
+    expect(css).not.toContain("hsl(var(");
+    expect(css).toContain("--color-primary: var(--primary);");
+    expect(css).toContain("--color-sidebar: var(--sidebar);");
   });
 });

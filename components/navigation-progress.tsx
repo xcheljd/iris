@@ -79,8 +79,8 @@ export function NavigationProgress() {
         style={{
           width: "100%",
           height: "100%",
-          background: "linear-gradient(90deg, hsl(var(--accent)), hsl(var(--accent) / 0.6))",
-          boxShadow: "0 0 8px hsl(var(--accent) / 0.5)",
+          background: "linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 60%, transparent))",
+          boxShadow: "0 0 8px color-mix(in srgb, var(--accent) 50%, transparent)",
         }}
       />
     </div>,
