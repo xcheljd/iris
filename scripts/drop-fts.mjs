@@ -32,6 +32,7 @@ try {
     DROP TRIGGER IF EXISTS clients_fts_after_delete;
     DROP TRIGGER IF EXISTS promo_matches_after_insert;
     DROP TRIGGER IF EXISTS promo_matches_after_delete;
+    DROP TRIGGER IF EXISTS promo_matches_after_update;
     DROP TRIGGER IF EXISTS promo_watches_fts_after_update;
     DROP TABLE IF EXISTS clients_fts;
   `);
