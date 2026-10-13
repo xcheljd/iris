@@ -148,7 +148,9 @@ they do. If either grows a query it pages against, it moves to the shape above.
      `radix-ui` past pnpm's `minimumReleaseAge`; never accept an exclusion list for that), then
      run the four gates.
   - **Never `--overwrite`.** Adapted files carry local changes: `button.tsx` (the `gold`
-    variant), the 2px focus rings, `dialog.tsx` (mobile inset + `max-h` dvh). To refresh one,
+    variant), the solid 3px focus ring (`focus-visible:ring-[3px] ring-ring`; upstream uses
+    the fainter `ring-ring/50`, ~2:1 contrast, below WCAG's 3:1), `dialog.tsx` (mobile inset +
+    `max-h` dvh). To refresh one,
     use `add <name> --diff` and merge by hand, keeping those changes.
   - Older primitives (`forwardRef`, no `data-slot`) are refreshed only when a component needs
     changing anyway; visible changes get before/after screenshots before they ship.
