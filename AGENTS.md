@@ -157,9 +157,12 @@ they do. If either grows a query it pages against, it moves to the shape above.
     the fainter `ring-ring/50`, ~2:1 contrast, below WCAG's 3:1), `dialog.tsx` (mobile inset +
     `max-h` dvh). To refresh one,
     use `add <name> --diff` and merge by hand, keeping those changes.
-  - All primitives use upstream's structure (function components + `data-slot`) except
-    `table.tsx` (upstream's `whitespace-nowrap` cells undo the phone-width fit) and
-    `sidebar.tsx` (heavily adapted). Refresh a component when upstream has a real improvement
+  - All primitives use upstream's structure (function components + `data-slot`). `table.tsx`
+    and `sidebar.tsx` were installed verbatim from the registry, then given back only the
+    local changes measurement proved necessary (each has a "Local change" comment):
+    table keeps `px-1.5` phone padding and drops `whitespace-nowrap` (pure upstream put the
+    Clients table at 510px in a 364px phone box; ours fits); sidebar keeps the useId-hashed
+    skeleton width (upstream's `Math.random()` fails `react-hooks/purity`). Refresh a component when upstream has a real improvement
     (a11y, bug fix, behaviour), not for cosmetic churn; visible changes get before/after
     screenshots before they ship. `data-slot` makes upstream's `in-data-[slot=…]` /
     `has-data-[slot=…]` selectors live (e.g. the calendar is transparent inside a popover).
