@@ -12,7 +12,7 @@ interface PasswordInputProps extends Omit<ComponentProps<typeof Input>, "type"> 
 export function PasswordInput({ wrapperClassName, className, ...props }: PasswordInputProps) {
   const [show, setShow] = useState(false);
   return (
-    <div className={cn("relative flex items-center rounded-md border border-input bg-transparent shadow-xs has-focus-visible:border-ring has-focus-visible:ring-[3px] has-focus-visible:ring-ring", wrapperClassName)}>
+    <div className={cn("relative flex items-center rounded-md border border-input bg-transparent shadow-xs has-focus-visible:border-ring has-focus-visible:ring-[3px] has-focus-visible:ring-ring has-aria-invalid:border-destructive has-aria-invalid:ring-destructive/20 dark:has-aria-invalid:ring-destructive/40", wrapperClassName)}>
       <Input
         type={show ? "text" : "password"}
         className={cn("border-0 shadow-none focus-visible:ring-0 focus-visible:outline-hidden pr-9", className)}

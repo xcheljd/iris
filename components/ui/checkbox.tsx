@@ -8,7 +8,7 @@ const Checkbox = React.forwardRef<
   React.ElementRef<typeof CheckboxPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>
 >(({ className, ...props }, ref) => (
-  <CheckboxPrimitive.Root ref={ref} className={cn("grid place-content-center peer h-4 w-4 shrink-0 rounded-sm border border-primary shadow-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground", className)} {...props}>
+  <CheckboxPrimitive.Root ref={ref} className={cn("grid place-content-center peer h-4 w-4 shrink-0 rounded-sm border border-primary shadow-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground", className)} {...props}>
     <CheckboxPrimitive.Indicator className={cn("grid place-content-center text-current")}>
       <Check className="h-4 w-4" />
     </CheckboxPrimitive.Indicator>

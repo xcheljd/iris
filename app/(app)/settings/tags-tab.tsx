@@ -177,7 +177,7 @@ export function SettingsTagsTab({ tags: initialTags, isManager }: SettingsTagsTa
                               <Pencil className="size-4 mr-2" />
                               Rename
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(tag)}>
+                            <DropdownMenuItem variant="destructive" onClick={() => setDeleteTarget(tag)}>
                               <Trash2 className="size-4 mr-2" />
                               Delete
                             </DropdownMenuItem>

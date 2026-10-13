@@ -103,7 +103,7 @@ export function SmartListItem({
                   <Copy className="size-4 mr-2" />Duplicate
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive" onClick={onDelete}>
+                <DropdownMenuItem variant="destructive" onClick={onDelete}>
                   <Trash2 className="size-4 mr-2" />Delete
                 </DropdownMenuItem>
               </DropdownMenuContent>

@@ -132,7 +132,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                   variant="destructive"
                   onConfirmAction={async () => { const r = await emailList.toggle(); if (r?.error) { toast.error(r.error); } else { toast.success("Removed from email list"); } }}
                 >
-                  <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={(e) => e.preventDefault()}>
+                  <DropdownMenuItem variant="destructive" onSelect={(e) => e.preventDefault()}>
                     <Mail className="size-4 mr-2" /> Remove from Email List
                   </DropdownMenuItem>
                 </ConfirmDialog>
@@ -146,12 +146,12 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                 <>
                   <DropdownMenuSeparator />
                   <BanCustomerDialog clientId={client.id} clientName={`${client.firstName} ${client.lastName ?? ""}`}>
-                    <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={(e) => e.preventDefault()}>
+                    <DropdownMenuItem variant="destructive" onSelect={(e) => e.preventDefault()}>
                       <Ban className="size-4 mr-2" /> Ban Customer
                     </DropdownMenuItem>
                   </BanCustomerDialog>
                   <UnsubscribeCustomerDialog clientId={client.id} clientName={`${client.firstName} ${client.lastName ?? ""}`}>
-                    <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={(e) => e.preventDefault()}>
+                    <DropdownMenuItem variant="destructive" onSelect={(e) => e.preventDefault()}>
                       <MailX className="size-4 mr-2" /> Unsubscribe
                     </DropdownMenuItem>
                   </UnsubscribeCustomerDialog>
@@ -191,7 +191,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
                 <>
                   <DropdownMenuSeparator />
                   <DeleteCustomerDialog clientId={client.id} clientName={`${client.firstName} ${client.lastName ?? ""}`}>
-                    <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={(e) => e.preventDefault()}>
+                    <DropdownMenuItem variant="destructive" onSelect={(e) => e.preventDefault()}>
                       <Trash2 className="size-4 mr-2" /> Delete Client
                     </DropdownMenuItem>
                   </DeleteCustomerDialog>

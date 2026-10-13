@@ -177,7 +177,7 @@ export function TemplatesTab({ templates: initialTemplates, isManager }: Templat
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(template)}>
+                          <DropdownMenuItem variant="destructive" onClick={() => setDeleteTarget(template)}>
                             <Trash2 className="size-4 mr-2" />
                             Delete
                           </DropdownMenuItem>

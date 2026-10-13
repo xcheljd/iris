@@ -402,7 +402,7 @@ export function PromosContent({ promos, total, summary, collections: distinctCol
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(row.original)}>
+              <DropdownMenuItem variant="destructive" onClick={() => setDeleteTarget(row.original)}>
                 <Trash2 className="size-4 mr-2" />
                 Delete
               </DropdownMenuItem>

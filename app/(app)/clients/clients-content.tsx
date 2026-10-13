@@ -535,7 +535,7 @@ export function ClientListContent({
               {currentUserRole === "manager" && r.client.status !== "deleted" && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget(r)}>
+                  <DropdownMenuItem variant="destructive" onClick={() => setDeleteTarget(r)}>
                     <Trash2 className="size-4 mr-2" />
                     Delete Client
                   </DropdownMenuItem>
