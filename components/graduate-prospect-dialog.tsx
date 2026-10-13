@@ -230,7 +230,7 @@ export function GraduateProspectDialog({
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <AlertCircle className="size-5 text-amber-500" />
+                <AlertCircle className="size-5 text-warning" />
                 Existing Client Found
               </DialogTitle>
             </DialogHeader>

@@ -55,12 +55,12 @@ interface SmartListsContentProps {
 
 const BUILTIN_FILTERS: { id: string; label: string; icon: React.ReactNode }[] = [
   { id: "hot", label: "Hot Clients", icon: <Flame className="size-4 text-heat-hot" /> },
-  { id: "stale", label: "Stale (90+ days)", icon: <Clock className="size-4 text-yellow-500" /> },
-  { id: "recent_purchases", label: "Recent Purchases", icon: <Star className="size-4 text-emerald-500" /> },
-  { id: "no_outreach_60", label: "No Outreach (60d)", icon: <Clock className="size-4 text-red-500" /> },
-  { id: "birthdays_month", label: "Birthdays This Month", icon: <Calendar className="size-4 text-pink-500" /> },
-  { id: "anniversaries_month", label: "Anniversaries This Month", icon: <Calendar className="size-4 text-violet-500" /> },
-  { id: "email_subscribers", label: "Email Subscribers", icon: <Mail className="size-4 text-blue-500" /> },
+  { id: "stale", label: "Stale (90+ days)", icon: <Clock className="size-4 text-warning" /> },
+  { id: "recent_purchases", label: "Recent Purchases", icon: <Star className="size-4 text-success" /> },
+  { id: "no_outreach_60", label: "No Outreach (60d)", icon: <Clock className="size-4 text-destructive" /> },
+  { id: "birthdays_month", label: "Birthdays This Month", icon: <Calendar className="size-4 text-tone-pink" /> },
+  { id: "anniversaries_month", label: "Anniversaries This Month", icon: <Calendar className="size-4 text-tone-violet" /> },
+  { id: "email_subscribers", label: "Email Subscribers", icon: <Mail className="size-4 text-info" /> },
 ];
 
 function ClientRow({ client }: { client: ClientListRow }) {

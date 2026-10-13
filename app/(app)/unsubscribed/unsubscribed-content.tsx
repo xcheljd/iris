@@ -362,7 +362,7 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
       {/* Stats + Quick Add */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <StatsCard label="Total Unsubscribed" value={list.length} icon={MailX} />
-        <StatsCard label="Matched Clients" value={matchCount} icon={UserX} iconClassName="text-orange-500" />
+        <StatsCard label="Matched Clients" value={matchCount} icon={UserX} iconClassName="text-warning" />
         <Card>
           <CardContent className="pt-6">
             {isManager ? (

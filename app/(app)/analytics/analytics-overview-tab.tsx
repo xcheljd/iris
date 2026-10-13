@@ -100,7 +100,7 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
                     <p className="text-sm text-muted-foreground">Outreach (7d)</p>
                     <p className="text-2xl font-bold">{stats.outreachWeek}</p>
                   </div>
-                  <Phone className="size-8 text-blue-500" />
+                  <Phone className="size-8 text-info" />
                 </div>
               </CardContent>
             </Card>
@@ -126,9 +126,9 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Purchases (7d)</p>
-                    <p className="text-2xl font-bold text-emerald-500">{stats.purchasesWeek}</p>
+                    <p className="text-2xl font-bold text-success">{stats.purchasesWeek}</p>
                   </div>
-                  <ShoppingCart className="size-8 text-emerald-500" />
+                  <ShoppingCart className="size-8 text-success" />
                 </div>
               </CardContent>
             </Card>
@@ -143,7 +143,7 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Purchases</span>
-                <span className="font-medium text-emerald-500">{stats.purchasesWeek}</span>
+                <span className="font-medium text-success">{stats.purchasesWeek}</span>
               </div>
               <Separator />
               <div className="flex justify-between text-sm">
@@ -163,7 +163,7 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
                     <p className="text-sm text-muted-foreground">Conversion (last 7 days)</p>
                     <p className="text-2xl font-bold">{conversionRate}%</p>
                   </div>
-                  <Target className="size-8 text-orange-500" />
+                  <Target className="size-8 text-warning" />
                 </div>
               </CardContent>
             </Card>

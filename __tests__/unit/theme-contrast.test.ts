@@ -79,6 +79,20 @@ describe.each(["light", "dark"] as const)("theme tokens (%s)", (mode) => {
     expect(ratio(c, over(c, card, 0.15))).toBeGreaterThanOrEqual(4.5);
   });
 
+  // Batch 2: status and category tokens replace raw palette classes
+  // (text-green-500 was 2.2:1 and text-yellow-500 1.9:1 on the light page).
+  it.each(["success", "warning", "info", "tone-pink", "tone-violet"])(
+    "--%s reads as text on the page, card, muted and its /15 tint",
+    (name) => {
+      const c = token(mode, name);
+      for (const surface of ["background", "card", "muted"]) {
+        expect(ratio(c, token(mode, surface))).toBeGreaterThanOrEqual(4.5);
+      }
+      expect(ratio(c, over(c, card, 0.15))).toBeGreaterThanOrEqual(4.5);
+      expect(ratio(token(mode, "foreground"), over(c, card, 0.1))).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+
   it.each(["heat-hot", "heat-warm", "heat-cold"])("text-foreground reads on a /30 --%s bar segment", (name) => {
     expect(ratio(token(mode, "foreground"), over(token(mode, name), card, 0.3))).toBeGreaterThanOrEqual(4.5);
   });

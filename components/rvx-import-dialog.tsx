@@ -113,7 +113,7 @@ export function RvxImportDialog({ open, onOpenChangeAction }: RvxImportDialogPro
             <div className="flex flex-col py-4 gap-4">
               <button
                 type="button"
-                className={`w-full border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${dragOver ? "border-meridian-gold bg-muted/50" : ""}`}
+                className={`w-full border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring ${dragOver ? "border-primary bg-muted/50" : ""}`}
                 onClick={() => fileInputRef.current?.click()}
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -213,7 +213,7 @@ export function RvxImportDialog({ open, onOpenChangeAction }: RvxImportDialogPro
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <CheckCircle2 className="size-5 text-green-600 dark:text-green-500" />
+                <CheckCircle2 className="size-5 text-success" />
                 Import Complete
               </DialogTitle>
             </DialogHeader>
@@ -243,12 +243,12 @@ function AnalysisBadge({
   variant: "success" | "info" | "destructive" | "warning" | "secondary" | "outline";
 }) {
   const variantMap: Record<string, string> = {
-    success: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-    info: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+    success: "bg-success/10 text-success",
+    info: "bg-info/10 text-info",
     destructive: "bg-destructive/10 text-destructive",
-    warning: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+    warning: "bg-warning/10 text-warning",
     secondary: "bg-muted text-muted-foreground",
-    outline: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+    outline: "bg-tone-violet/10 text-tone-violet",
   };
 
   return (

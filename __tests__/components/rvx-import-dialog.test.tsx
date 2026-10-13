@@ -32,11 +32,11 @@ describe("RvxImportDialog dropzone", () => {
     render(<RvxImportDialog open onOpenChangeAction={onOpenChangeAction} />);
 
     fireEvent.dragOver(dropzone());
-    expect(dropzone()).toHaveClass("border-meridian-gold");
+    expect(dropzone()).toHaveClass("border-primary");
 
     fireEvent.drop(dropzone(), { dataTransfer: { files: [csvFile()] } });
 
-    expect(dropzone()).not.toHaveClass("border-meridian-gold");
+    expect(dropzone()).not.toHaveClass("border-primary");
     expect(screen.getAllByText("rvx-report.csv").length).toBeGreaterThan(0);
     await waitFor(() => expect(screen.getByRole("button", { name: "Analyze" })).toBeEnabled());
   });

@@ -151,7 +151,7 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
-              <Calendar className="size-5 text-blue-600" />
+              <Calendar className="size-5 text-info" />
               <div>
                 <div className="text-2xl font-bold">{timelineEvents.length}</div>
                 <div className="text-sm text-muted-foreground">Total Events</div>
@@ -163,7 +163,7 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
-              <ShoppingCart className="size-5 text-green-600" />
+              <ShoppingCart className="size-5 text-success" />
               <div>
                 <div className="text-2xl font-bold">
                   {timelineEvents.filter((e) => e.eventType === "purchase").length}
@@ -177,7 +177,7 @@ export function ActivityTimelineTab({ client }: ActivityTimelineTabProps) {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
-              <MessageSquare className="size-5 text-purple-600" />
+              <MessageSquare className="size-5 text-tone-violet" />
               <div>
                 <div className="text-2xl font-bold">
                   {timelineEvents.filter((e) => e.eventType === "outreach_logged").length}

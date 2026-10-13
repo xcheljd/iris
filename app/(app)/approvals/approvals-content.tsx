@@ -61,13 +61,13 @@ const TYPE_LABELS: Record<RequestType, string> = {
 };
 
 /**
- * Badge treatment per request type. Amber for unsubscribe is the tinted
+ * Badge treatment per request type. Warning for unsubscribe is the tinted
  * counterpart of the solid orange the card rows used — the cell vocabulary
  * renders a `Badge` variant, and unsubscribe is the softer of the three asks.
  */
 const TYPE_VARIANTS: Record<RequestType, BadgeProps["variant"]> = {
   ban: "destructive",
-  unsubscribe: "amber",
+  unsubscribe: "warning",
   delete: "destructive",
 };
 
@@ -225,7 +225,7 @@ export function ApprovalsContent({ requests: initialRequests }: ApprovalsContent
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <StatsCard label="Ban Requests" value={banCount} icon={Ban} iconClassName="text-destructive" valueClassName="text-destructive" />
-          <StatsCard label="Unsubscribe Requests" value={unsubscribeCount} icon={MailX} iconClassName="text-orange-500" valueClassName="text-orange-500" />
+          <StatsCard label="Unsubscribe Requests" value={unsubscribeCount} icon={MailX} iconClassName="text-warning" valueClassName="text-warning" />
           <StatsCard label="Delete Requests" value={deleteCount} icon={Trash2} />
         </div>
 

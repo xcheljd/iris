@@ -204,18 +204,18 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
         ) : (
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-              <span className="flex items-center gap-1.5 text-green-700 dark:text-green-600">
+              <span className="flex items-center gap-1.5 text-success">
                 <CheckCircle2 className="size-4" />
                 {counts.ready} ready
               </span>
               {counts.uncatalogued > 0 && (
-                <span className="flex items-center gap-1.5 text-yellow-700 dark:text-yellow-600">
+                <span className="flex items-center gap-1.5 text-warning">
                   <AlertCircle className="size-4" />
                   {counts.uncatalogued} uncatalogued
                 </span>
               )}
               {counts.conflicts > 0 && (
-                <span className="flex items-center gap-1.5 text-amber-700 dark:text-amber-600">
+                <span className="flex items-center gap-1.5 text-warning">
                   <AlertTriangle className="size-4" />
                   {counts.conflicts} flagged
                 </span>
@@ -224,7 +224,7 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
             </div>
 
             {parsed.pagesWithoutDiscount.length > 0 && (
-              <div className="flex items-start gap-2 text-xs text-yellow-700 dark:text-yellow-600">
+              <div className="flex items-start gap-2 text-xs text-warning">
                 <AlertCircle className="size-3.5 mt-0.5 shrink-0" />
                 <span>
                   No &quot;% OFF&quot; header on page{parsed.pagesWithoutDiscount.length !== 1 ? "s" : ""}{" "}
@@ -251,7 +251,7 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
             </div>
 
             {counts.uncatalogued > 0 && (
-              <div className="flex flex-col border rounded-md p-3 bg-yellow-50/50 dark:bg-yellow-950/20 gap-2">
+              <div className="flex flex-col border rounded-md p-3 bg-warning/10 gap-2">
                 <div className="text-sm font-medium">Assign brand to uncatalogued rows</div>
                 <p className="text-xs text-muted-foreground">
                   {counts.uncatalogued} model{counts.uncatalogued !== 1 ? "s aren't" : " isn't"} in the catalog yet
@@ -313,8 +313,8 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
                         <TableCell>
                           <span className={
                             brandStatus === "catalog" ? "" :
-                            brandStatus === "override" ? "text-amber-700 dark:text-amber-600" :
-                            "text-yellow-700 dark:text-yellow-600 italic"
+                            brandStatus === "override" ? "text-warning" :
+                            "text-warning italic"
                           }>
                             {effectiveBrand ?? "needs brand"}
                           </span>
@@ -322,14 +322,14 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
                         <TableCell>
                           <div>{effectiveCollection}</div>
                           {r.collectionMismatch && (
-                            <div className="text-xs tracking-wide text-amber-700 dark:text-amber-600">PDF said: {r.pdfCollection}</div>
+                            <div className="text-xs tracking-wide text-warning">PDF said: {r.pdfCollection}</div>
                           )}
                         </TableCell>
                         <MoneyCell
                           value={r.pdfMsrp ?? r.catalogMsrp}
                           note={
                             r.msrpLow ? (
-                              <div className="text-xs tracking-wide text-amber-700 dark:text-amber-600">below catalog {formatMoney(r.catalogMsrp)}</div>
+                              <div className="text-xs tracking-wide text-warning">below catalog {formatMoney(r.catalogMsrp)}</div>
                             ) : null
                           }
                         />

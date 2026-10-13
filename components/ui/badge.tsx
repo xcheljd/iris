@@ -1,43 +1,63 @@
-import * as React from "react";
-import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "@/lib/utils";
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
+import { Slot } from "radix-ui"
 
+import { cn } from "@/lib/utils"
+
+// Upstream shadcn (new-york-v4) badge, refreshed in Batch 2. Local changes,
+// keep them on any future registry refresh:
+// - focus ring is solid `ring-ring`, not upstream's `ring-ring/50` (AGENTS.md);
+// - destructive keeps `text-destructive-foreground` and no dark `/60` fill:
+//   upstream's `text-white` is ~2.8:1 on our light dark-mode red;
+// - extra variants: heat (hot/warm/cold) and status (success/warning/info),
+//   all on theme tokens that carry their own light/dark steps.
 const badgeVariants = cva(
-  "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3",
   {
     variants: {
       variant: {
-        default: "border-transparent bg-primary text-primary-foreground shadow-sm hover:bg-primary/80",
-        secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        destructive: "border-transparent bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/80",
-        outline: "text-foreground",
-        // Heat variants use the --heat-* tokens, which carry their own light and
-        // dark steps (>= 4.5:1 on their /15 tint in both modes).
-        hot: "border-transparent bg-heat-hot/15 text-heat-hot",
-        warm: "border-transparent bg-heat-warm/15 text-heat-warm",
-        cold: "border-transparent bg-heat-cold/15 text-heat-cold",
-        // The other tinted variants pair a -700/-800 text step (light) with
-        // -300/-400 (dark): the -400 text alone is ~1.4-2:1 on the light card.
-        gold: "border-transparent bg-meridian-gold/20 text-meridian-gold-deep dark:text-meridian-gold",
-        emerald: "border-transparent bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
-        rose: "border-transparent bg-rose-500/15 text-rose-700 dark:text-rose-400",
-        purple: "border-transparent bg-purple-500/15 text-purple-700 dark:text-purple-400",
-        cyan: "border-transparent bg-cyan-500/15 text-cyan-700 dark:text-cyan-400",
-        blue: "border-transparent bg-blue-500/15 text-blue-700 dark:text-blue-400",
-        pink: "border-transparent bg-pink-500/15 text-pink-700 dark:text-pink-400",
-        amber: "border-transparent bg-amber-500/15 text-amber-800 dark:text-amber-400",
+        default: "bg-primary text-primary-foreground [a&]:hover:bg-primary/90",
+        secondary:
+          "bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90",
+        destructive:
+          "bg-destructive text-destructive-foreground focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 [a&]:hover:bg-destructive/90",
+        outline:
+          "border-border text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+        ghost: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+        link: "text-primary underline-offset-4 [a&]:hover:underline",
+        hot: "bg-heat-hot/15 text-heat-hot",
+        warm: "bg-heat-warm/15 text-heat-warm",
+        cold: "bg-heat-cold/15 text-heat-cold",
+        success: "bg-success/15 text-success",
+        warning: "bg-warning/15 text-warning",
+        info: "bg-info/15 text-info",
       },
     },
-    defaultVariants: { variant: "default" },
-  },
-);
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
 
-export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {}
+export type BadgeProps = React.ComponentProps<"span"> &
+  VariantProps<typeof badgeVariants> & { asChild?: boolean }
 
-function Badge({ className, variant, ...props }: BadgeProps) {
-  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
+function Badge({
+  className,
+  variant = "default",
+  asChild = false,
+  ...props
+}: BadgeProps) {
+  const Comp = asChild ? Slot.Root : "span"
+
+  return (
+    <Comp
+      data-slot="badge"
+      data-variant={variant}
+      className={cn(badgeVariants({ variant }), className)}
+      {...props}
+    />
+  )
 }
 
-export { Badge, badgeVariants };
+export { Badge, badgeVariants }

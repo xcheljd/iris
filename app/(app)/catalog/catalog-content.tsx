@@ -485,7 +485,7 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
         )}
 
         {flagged.length > 0 && (
-          <Card className="border-amber-500/40">
+          <Card className="border-warning/40">
             <CardHeader>
               <CardTitle className="text-base">
                 Pending catalog conflicts ({flagged.length})

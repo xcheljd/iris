@@ -136,7 +136,7 @@ export function OnboardingSettingsTab({ initialState }: OnboardingSettingsTabPro
           <div className="flex items-center gap-2">
             {tourCompleted && !tourSkipped ? (
               <>
-                <CheckCircle2 className="size-5 text-green-500" />
+                <CheckCircle2 className="size-5 text-success" />
                 <span className="text-sm font-medium">Completed</span>
               </>
             ) : (
@@ -178,7 +178,7 @@ export function OnboardingSettingsTab({ initialState }: OnboardingSettingsTabPro
                     className="shrink-0"
                   >
                     {isCompleted ? (
-                      <CheckCircle2 className="size-4 text-green-500" />
+                      <CheckCircle2 className="size-4 text-success" />
                     ) : (
                       <Circle className="size-4 text-muted-foreground" />
                     )}

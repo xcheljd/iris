@@ -38,7 +38,7 @@ export function BackupReminderDialog() {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-2">
-            <DatabaseBackup className="size-5 text-amber-500" />
+            <DatabaseBackup className="size-5 text-warning" />
             <DialogTitle>Weekly Backup Reminder</DialogTitle>
           </div>
           <DialogDescription>

@@ -534,8 +534,8 @@ export function PromosContent({ promos, total, summary, collections: distinctCol
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <StatsCard label="Total Promos" value={summary.count} icon={Tag} />
-        <StatsCard label="Total Retail Value" value={`$${summary.retailValue.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`} icon={FileSpreadsheet} iconClassName="text-blue-500" />
-        <StatsCard label="Total Client Savings" value={`$${summary.savings.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`} icon={Calendar} iconClassName="text-green-500" valueClassName="text-green-500" />
+        <StatsCard label="Total Retail Value" value={`$${summary.retailValue.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`} icon={FileSpreadsheet} iconClassName="text-info" />
+        <StatsCard label="Total Client Savings" value={`$${summary.savings.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`} icon={Calendar} iconClassName="text-success" valueClassName="text-success" />
       </div>
 
       {/* Promo Table */}

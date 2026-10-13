@@ -68,12 +68,12 @@ export function BackupTab() {
         <CardContent className="flex flex-col gap-4">
           {lastBackup && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <CheckCircle2 className="size-4 text-green-500" />
+              <CheckCircle2 className="size-4 text-success" />
               Last backup: {format(lastBackup, "MMMM d, yyyy 'at' h:mm a")}
             </div>
           )}
           {!lastBackup && (
-            <p className="text-sm text-amber-600">No backup recorded on this device.</p>
+            <p className="text-sm text-warning">No backup recorded on this device.</p>
           )}
           <Button onClick={handleBackup} disabled={loading} className="gap-2">
             <DatabaseBackup className="size-4" />
@@ -98,9 +98,9 @@ export function BackupTab() {
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {restored ? (
-            <div className="rounded-md border border-green-500/50 bg-green-500/10 p-4 text-sm text-green-700 dark:text-green-400">
+            <div className="rounded-md border border-success/50 bg-success/10 p-4 text-sm text-success">
               <p className="font-medium">Restore complete.</p>
-              <p className="text-green-700/90 dark:text-green-400/90">The server is restarting — this page will reload in a few seconds.</p>
+              <p className="text-success/90">The server is restarting — this page will reload in a few seconds.</p>
             </div>
           ) : (
             <>

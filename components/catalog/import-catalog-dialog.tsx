@@ -112,7 +112,7 @@ export function ImportCatalogDialog({ open, onOpenChangeAction }: ImportCatalogD
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-2 text-green-500">
+            <div className="flex items-center gap-2 text-success">
               <CheckCircle2 className="size-5" />
               <span className="font-medium">
                 {analysis.total} models parsed — {analysis.newCount} new,{" "}
@@ -121,10 +121,10 @@ export function ImportCatalogDialog({ open, onOpenChangeAction }: ImportCatalogD
             </div>
             {analysis.prevCuratedCount > 0 &&
              analysis.prevCuratedMissingFromFile > analysis.prevCuratedCount * 0.3 && (
-              <div className="rounded-md border border-yellow-500/40 bg-yellow-50/60 dark:bg-yellow-950/20 p-3 text-sm flex items-start gap-2">
-                <AlertTriangle className="size-4 mt-0.5 shrink-0 text-yellow-600" />
+              <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm flex items-start gap-2">
+                <AlertTriangle className="size-4 mt-0.5 shrink-0 text-warning" />
                 <div className="flex flex-col gap-1">
-                  <div className="font-medium text-yellow-700 dark:text-yellow-400">
+                  <div className="font-medium text-warning">
                     This file is missing {analysis.prevCuratedMissingFromFile} of {analysis.prevCuratedCount} previously-imported models.
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -136,7 +136,7 @@ export function ImportCatalogDialog({ open, onOpenChangeAction }: ImportCatalogD
               </div>
             )}
             {analysis.parseErrors.length > 0 && (
-              <div className="text-xs text-yellow-500 flex items-start gap-2">
+              <div className="text-xs text-warning flex items-start gap-2">
                 <AlertCircle className="size-4 mt-0.5 shrink-0" />
                 <div>
                   {analysis.parseErrors.length} parse warning(s):

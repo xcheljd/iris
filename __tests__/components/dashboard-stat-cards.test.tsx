@@ -22,8 +22,7 @@ describe("DashboardStatCards", () => {
   it("colours the Purchases value with a light-safe emerald step", () => {
     render(<DashboardStatCards stats={stats} />);
     const value = screen.getByText("2");
-    expect(value.className).toContain("text-emerald-700");
-    expect(value.className).toContain("dark:text-emerald-400");
+    expect(value.className).toContain("text-success");
     expect(value.className).not.toMatch(/(^|\s)text-emerald-500/);
   });
 });

@@ -433,7 +433,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
           {overdueRows.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
-                <CheckCircle2 className="size-12 mx-auto text-green-500 mb-3" />
+                <CheckCircle2 className="size-12 mx-auto text-success mb-3" />
                 <h3 className="text-lg font-medium">All caught up!</h3>
                 <p className="text-muted-foreground mt-1">No overdue follow-ups right now.</p>
               </CardContent>
@@ -491,7 +491,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
           {uniqueAll.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
-                <CheckCircle2 className="size-12 mx-auto text-green-500 mb-3" />
+                <CheckCircle2 className="size-12 mx-auto text-success mb-3" />
                 <h3 className="text-lg font-medium">No follow-ups</h3>
                 <p className="text-muted-foreground mt-1">All follow-ups have been completed.</p>
               </CardContent>

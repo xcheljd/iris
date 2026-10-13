@@ -63,8 +63,8 @@ describe("HeatBadge", () => {
   it("renders badge element with the level as a child", () => {
     render(<HeatBadge level="hot" />);
     const levelText = screen.getByText("hot");
-    // The parent badge div should contain the level text
-    expect(levelText.closest("div")).toBeTruthy();
+    // The badge (a span since the Batch 2 upstream refresh) contains the level text
+    expect(levelText.closest('[data-slot="badge"]')).toBeTruthy();
   });
 
   it("renders with both level and score shown together", () => {

@@ -176,7 +176,7 @@ export function OutreachLogger({
         </FieldGroup>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button variant="gold" onClick={submit} disabled={pending}>{pending ? "Saving…" : "Save"}</Button>
+          <Button onClick={submit} disabled={pending}>{pending ? "Saving…" : "Save"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

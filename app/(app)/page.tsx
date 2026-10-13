@@ -101,7 +101,7 @@ async function DashboardContent() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2"><Calendar className="size-4 text-meridian-gold-deep dark:text-meridian-gold" /> Upcoming (7d)</CardTitle>
+                  <CardTitle className="text-base flex items-center gap-2"><Calendar className="size-4 text-muted-foreground" /> Upcoming (7d)</CardTitle>
                   <CardDescription>{upcoming.length} scheduled</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -132,7 +132,7 @@ async function DashboardContent() {
               <Card className="md:col-span-2">
                 <CardHeader className="flex-row items-center justify-between gap-2">
                   <div>
-                    <CardTitle className="text-base flex items-center gap-2"><Flame className="size-4 text-red-400" /> Hot leads</CardTitle>
+                    <CardTitle className="text-base flex items-center gap-2"><Flame className="size-4 text-heat-hot" /> Hot leads</CardTitle>
                     <CardDescription>Top {hot.length} ready to convert</CardDescription>
                   </div>
                   <Button asChild variant="ghost" size="sm"><Link href="/smart-lists">Smart lists <ArrowRight className="ml-1 size-3.5" /></Link></Button>
@@ -258,7 +258,7 @@ async function DashboardContent() {
                       <p className="text-sm text-muted-foreground">Conversion Rate</p>
                       <p className="text-2xl font-bold">{conversionRate}%</p>
                     </div>
-                    <Target className="size-8 text-orange-500" />
+                    <Target className="size-8 text-warning" />
                   </div>
                   <Progress value={conversionRate} className="h-2 mt-3" aria-label="Conversion rate" />
                 </CardContent>
@@ -270,7 +270,7 @@ async function DashboardContent() {
                       <p className="text-sm text-muted-foreground">Active Clients</p>
                       <p className="text-2xl font-bold">{activePercent}%</p>
                     </div>
-                    <Users className="size-8 text-blue-500" />
+                    <Users className="size-8 text-info" />
                   </div>
                   <Progress value={activePercent} className="h-2 mt-3" aria-label="Active clients percentage" />
                 </CardContent>

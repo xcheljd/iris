@@ -59,12 +59,12 @@ export function AnalyticsProspectsTab({ funnel }: AnalyticsProspectsTabProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Graduated</p>
-                <p className="text-2xl font-bold text-emerald-500">{funnel.graduated}</p>
+                <p className="text-2xl font-bold text-success">{funnel.graduated}</p>
                 {total > 0 && (
                   <p className="text-xs text-muted-foreground mt-0.5">{graduationRate}% of total</p>
                 )}
               </div>
-              <UserCheck className="size-8 text-emerald-500" />
+              <UserCheck className="size-8 text-success" />
             </div>
           </CardContent>
         </Card>
@@ -119,10 +119,10 @@ export function AnalyticsProspectsTab({ funnel }: AnalyticsProspectsTabProps) {
             </div>
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-emerald-600">Graduated</span>
-                <span className="font-medium text-emerald-600">{funnel.graduated} ({graduationRate}%)</span>
+                <span className="text-success">Graduated</span>
+                <span className="font-medium text-success">{funnel.graduated} ({graduationRate}%)</span>
               </div>
-              <Progress value={graduationRate} className="h-2 [&>div]:bg-emerald-500" aria-label="Graduated prospects" />
+              <Progress value={graduationRate} className="h-2 [&>div]:bg-success" aria-label="Graduated prospects" />
             </div>
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between text-sm">
@@ -156,7 +156,7 @@ export function AnalyticsProspectsTab({ funnel }: AnalyticsProspectsTabProps) {
           <CardContent>
             <div className="flex flex-col gap-3">
               {([
-                { label: "Graduated", value: funnel.avgSpendGraduated, colorClass: "text-emerald-600" },
+                { label: "Graduated", value: funnel.avgSpendGraduated, colorClass: "text-success" },
                 { label: "Active", value: funnel.avgSpendActive, colorClass: "" },
                 { label: "Rejected", value: funnel.avgSpendRejected, colorClass: "text-destructive" },
               ] as const).map(({ label, value, colorClass }) =>

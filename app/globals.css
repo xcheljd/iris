@@ -69,6 +69,17 @@
   --color-heat-warm: hsl(var(--heat-warm));
   --color-heat-cold: hsl(var(--heat-cold));
 
+  /* Status and category colours (Batch 2). Each carries its own light/dark
+     step, >= 4.5:1 as text on the page, card, muted and its /15 tint
+     (pinned in __tests__/unit/theme-contrast.test.ts). Use these instead of
+     raw palette classes like text-green-500, which fail contrast in light
+     mode. tone-* are for category icons that need a distinct hue. */
+  --color-success: hsl(var(--success));
+  --color-warning: hsl(var(--warning));
+  --color-info: hsl(var(--info));
+  --color-tone-pink: hsl(var(--tone-pink));
+  --color-tone-violet: hsl(var(--tone-violet));
+
   --color-chart-1: hsl(var(--chart-1));
   --color-chart-2: hsl(var(--chart-2));
   --color-chart-3: hsl(var(--chart-3));
@@ -155,6 +166,11 @@
     --heat-hot: 20 70% 38%;
     --heat-warm: 38 75% 30%;
     --heat-cold: 215 40% 40%;
+    --success: 145 55% 26%;
+    --warning: 32 85% 30%;
+    --info: 210 65% 36%;
+    --tone-pink: 330 60% 38%;
+    --tone-violet: 265 45% 45%;
     --sidebar-background: 37 20.3% 95.8%;
     --sidebar-foreground: 26.1 10.8% 15.8%;
     --sidebar-accent: 37 13.3% 90.4%;
@@ -196,6 +212,11 @@
     --heat-hot: 22 70% 62%;
     --heat-warm: 40 60% 58%;
     --heat-cold: 213 35% 68%;
+    --success: 145 45% 55%;
+    --warning: 40 80% 58%;
+    --info: 210 70% 66%;
+    --tone-pink: 330 65% 72%;
+    --tone-violet: 265 60% 74%;
     --sidebar-background: 23 38% 1.7%;
     --sidebar-foreground: 37 6.6% 84.1%;
     --sidebar-accent: 26.1 12% 13.9%;

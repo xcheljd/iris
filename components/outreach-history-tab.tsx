@@ -113,9 +113,9 @@ function OutreachLogRow({
       </div>
 
       {log.purchasedModel && (
-        <div className="border border-green-500/50 bg-green-500/10 rounded p-2 mb-3">
-          <div className="text-sm font-medium text-green-700 dark:text-green-400">Purchase</div>
-          <div className="text-sm text-green-700/90 dark:text-green-400/90">{log.purchasedModel}</div>
+        <div className="border border-success/50 bg-success/10 rounded p-2 mb-3">
+          <div className="text-sm font-medium text-success">Purchase</div>
+          <div className="text-sm text-success/90">{log.purchasedModel}</div>
         </div>
       )}
 
@@ -132,7 +132,7 @@ function OutreachLogRow({
         <div className="flex items-center justify-between mt-3 pt-3 border-t gap-2 flex-wrap">
           <div className="flex items-center gap-2">
             {completed ? (
-              <CheckCircle className="size-4 text-green-600" />
+              <CheckCircle className="size-4 text-success" />
             ) : (
               <Calendar className="size-4" />
             )}
@@ -140,7 +140,7 @@ function OutreachLogRow({
               Follow up: {format(new Date(log.followUpDate), "MMM d, yyyy")}
             </span>
             {completed ? (
-              <Badge variant="outline" className="text-xs border-green-600/40 text-green-700">
+              <Badge variant="outline" className="text-xs border-success/40 text-success">
                 Completed
               </Badge>
             ) : (
@@ -216,7 +216,7 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
-              <div className="text-2xl font-bold text-green-600">
+              <div className="text-2xl font-bold text-success">
                 {outreachLogs.filter((log: OutreachLog) => log.outcome === "responded" || log.outcome === "purchased").length}
               </div>
               <div className="text-sm text-muted-foreground">Positive</div>
@@ -227,7 +227,7 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
-              <div className="text-2xl font-bold text-blue-600">
+              <div className="text-2xl font-bold text-info">
                 {outreachLogs.filter((log: OutreachLog) => log.outcome === "wants_to_come_in").length}
               </div>
               <div className="text-sm text-muted-foreground">Visits Scheduled</div>
@@ -258,7 +258,7 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
               clientId={client.id}
               clientName={`${client.firstName} ${client.lastName}`}
               trigger={
-                <Button variant="gold" size="sm">
+                <Button size="sm">
                   <Phone className="size-3.5 mr-1.5" />
                   Log Outreach
                 </Button>

@@ -65,7 +65,7 @@ function getCategoryBadge(category: string) {
     case "Reselling":
       return <Badge variant="destructive">Reselling</Badge>;
     case "Gift Card Fraud":
-      return <Badge variant="destructive" className="bg-orange-600 hover:bg-orange-600/90 text-white">Gift Card Fraud</Badge>;
+      return <Badge variant="warning">Gift Card Fraud</Badge>;
     default:
       return <Badge variant="secondary">{category}</Badge>;
   }
@@ -266,8 +266,8 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <StatsCard label="Total Banned" value={banned.length} icon={Ban} iconClassName="text-destructive" valueClassName="text-destructive" />
-        <StatsCard label="Reselling" value={banned.filter((r) => r.banned.banReasonCategory === "Reselling").length} icon={AlertTriangle} iconClassName="text-orange-500" />
-        <StatsCard label="Gift Card Fraud" value={banned.filter((r) => r.banned.banReasonCategory === "Gift Card Fraud").length} icon={AlertTriangle} iconClassName="text-yellow-500" />
+        <StatsCard label="Reselling" value={banned.filter((r) => r.banned.banReasonCategory === "Reselling").length} icon={AlertTriangle} iconClassName="text-destructive" />
+        <StatsCard label="Gift Card Fraud" value={banned.filter((r) => r.banned.banReasonCategory === "Gift Card Fraud").length} icon={AlertTriangle} iconClassName="text-warning" />
       </div>
 
       {/* Banned List */}

@@ -94,7 +94,7 @@ describe("MoneyCell", () => {
   // Same light/dark pairing as the badge.tsx tinted variants.
   it("applies the sale treatment on emphasis=sale", () => {
     const { cell } = renderCell(<MoneyCell value={999} emphasis="sale" />);
-    expect(cell).toHaveClass("text-green-700", "dark:text-green-400", "font-medium");
+    expect(cell).toHaveClass("text-success", "font-medium");
     expect(cell).not.toHaveClass("text-green-500");
   });
 
