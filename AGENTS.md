@@ -157,8 +157,12 @@ they do. If either grows a query it pages against, it moves to the shape above.
     the fainter `ring-ring/50`, ~2:1 contrast, below WCAG's 3:1), `dialog.tsx` (mobile inset +
     `max-h` dvh). To refresh one,
     use `add <name> --diff` and merge by hand, keeping those changes.
-  - Older primitives (`forwardRef`, no `data-slot`) are refreshed only when a component needs
-    changing anyway; visible changes get before/after screenshots before they ship.
+  - All primitives use upstream's structure (function components + `data-slot`) except
+    `table.tsx` (upstream's `whitespace-nowrap` cells undo the phone-width fit) and
+    `sidebar.tsx` (heavily adapted). Refresh a component when upstream has a real improvement
+    (a11y, bug fix, behaviour), not for cosmetic churn; visible changes get before/after
+    screenshots before they ship. `data-slot` makes upstream's `in-data-[slot=…]` /
+    `has-data-[slot=…]` selectors live (e.g. the calendar is transparent inside a popover).
 - **Validation (zod 4):** use the top-level format schemas — `z.email()`, `z.uuid()`,
   `z.iso.date()` — not `z.string().email()/.uuid()/.date()`. Custom messages go in the `error`
   option (`z.enum(V, { error: () => "…" })`); `errorMap` is gone. Issue codes are plain strings
