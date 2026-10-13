@@ -67,7 +67,7 @@ function getCategoryBadge(category: string) {
     case "Gift Card Fraud":
       return <Badge variant="warning">Gift Card Fraud</Badge>;
     default:
-      return <Badge variant="secondary">{category}</Badge>;
+      return <Badge variant="outline">{category}</Badge>;
   }
 }
 
