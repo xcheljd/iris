@@ -453,7 +453,7 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
                 <span>Select all</span>
               </div>
               {needsReview.map((r) => (
-                <div key={r.model} className="flex items-center justify-between gap-3 text-sm border rounded-md p-2">
+                <div key={r.model} className="flex flex-col gap-2 text-sm border rounded-md p-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <Checkbox
                       checked={selectedReview.has(r.model)}
@@ -493,7 +493,7 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
             </CardHeader>
             <CardContent className="flex flex-col gap-2">
               {flagged.map((r) => (
-                <div key={r.model} className="flex items-center justify-between gap-3 text-sm border rounded-md p-2">
+                <div key={r.model} className="flex flex-col gap-2 text-sm border rounded-md p-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                   <div>
                     <span className="font-mono">{r.model}</span> — current{" "}
                     <strong>{r.collection}</strong> ({r.source}); a promo import said{" "}
@@ -515,12 +515,13 @@ export function CatalogContent({ rows, total, needsReview, flagged, mod, col, br
 
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between gap-3">
+            {/* Wraps on phones: the two buttons drop under the title instead of widening the page. */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <CardTitle className="flex items-center gap-2">
                 <Library className="size-5" />
                 Model Catalog
               </CardTitle>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"

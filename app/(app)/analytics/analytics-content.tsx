@@ -161,7 +161,11 @@ export function AnalyticsContent({ stats, outreachLog, outreachTotal, outreachPa
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="outreach">Outreach</TabsTrigger>
-            <TabsTrigger value="heat">Heat Distribution</TabsTrigger>
+            <TabsTrigger value="heat">
+              {/* Short label on phones; screen readers always get the full name. */}
+              <span aria-hidden className="md:hidden">Heat</span>
+              <span className="max-md:sr-only">Heat Distribution</span>
+            </TabsTrigger>
             <TabsTrigger value="prospects">Prospects</TabsTrigger>
           </TabsList>
 

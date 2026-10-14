@@ -16,10 +16,14 @@ function TabsList({
   ...props
 }: React.ComponentProps<typeof TabsPrimitive.List>) {
   return (
+    // Local change (keep on refresh): max-w-full + overflow-x-auto +
+    // justify-center-safe. A strip wider than a phone scrolls inside itself
+    // instead of pushing the whole page sideways; "safe" centring starts at the
+    // left edge when it overflows, so the first tab is never cut off.
     <TabsPrimitive.List
       data-slot="tabs-list"
       className={cn(
-        "inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground",
+        "inline-flex h-9 max-w-full items-center justify-center-safe overflow-x-auto rounded-lg bg-muted p-1 text-muted-foreground",
         className
       )}
       {...props}

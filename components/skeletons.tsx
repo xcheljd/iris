@@ -24,7 +24,7 @@ export function DashboardSkeleton() {
         <StatCardSkeleton />
         <StatCardSkeleton />
       </div>
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="md:col-span-2">
           <CardHeader><Skeleton className="h-5 w-40" /></CardHeader>
           <CardContent className="flex flex-col gap-3">

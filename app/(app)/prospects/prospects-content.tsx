@@ -262,7 +262,8 @@ export function ProspectsContent({ rows, total, counts, filters, isManager, rest
           <Button size="sm" disabled>
             <Upload className="size-4 mr-2" />
             Import RVX
-            <Badge variant="secondary" className="ml-2 text-xs tracking-wide">Coming Soon</Badge>
+            {/* The badge doesn't fit the phone header; the disabled button still reads as unavailable. */}
+            <Badge variant="secondary" className="ml-2 text-xs tracking-wide max-md:hidden">Coming Soon</Badge>
           </Button>
         )}
       </Topbar>
