@@ -93,6 +93,8 @@ describe("MobileNav follow-ups badge", () => {
     render(<MobileNav />);
     await waitFor(() => expect(link("Follow")).toHaveTextContent("4"));
     expect(link("Home")).not.toHaveTextContent("4");
+    // single digit drops px-1 so the badge stays a 16px circle, not a 17×16 oval
+    expect(link("Follow").querySelector('[data-slot="badge"]')).toHaveClass("px-0");
     expect(fetch).toHaveBeenCalledWith("/api/follow-ups/count");
     vi.unstubAllGlobals();
   });

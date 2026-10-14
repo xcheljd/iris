@@ -167,7 +167,7 @@ describe("AppSidebar manager badges", () => {
   });
 
   it("shows the follow-ups due count, and keeps every count visible while collapsed", async () => {
-    const counts: Record<string, number> = { "/api/approvals/count": 3, "/api/catalog/flags/count": 7, "/api/follow-ups/count": 4 };
+    const counts: Record<string, number> = { "/api/approvals/count": 15, "/api/catalog/flags/count": 7, "/api/follow-ups/count": 4 };
     vi.stubGlobal("fetch", vi.fn((url: string) => Promise.resolve({ ok: true, json: () => Promise.resolve({ count: counts[url] }) } as Response)));
     mockPathname = "/";
     render(
@@ -180,10 +180,12 @@ describe("AppSidebar manager badges", () => {
     const item = (href: string) => document.querySelector(`a[href="${href}"]`)!.closest("li")!;
     await waitFor(() => expect(item("/follow-ups")).toHaveTextContent("4"));
     // collapsed: the corner badge is the one shown in icon mode
-    for (const [href, n] of [["/follow-ups", "4"], ["/approvals", "3"], ["/catalog", "7"]]) {
+    for (const [href, n] of [["/follow-ups", "4"], ["/approvals", "15"], ["/catalog", "7"]]) {
       const corner = item(href).querySelector(':scope > [data-slot="badge"]');
       expect(corner, href).toHaveTextContent(n);
       expect(corner!.className).toContain("group-data-[collapsible=icon]:flex");
+      // Regression: px-1 made single digits a 17×16 oval; they drop padding to stay a 16px circle.
+      expect(corner!.classList.contains(n.length === 1 ? "px-0" : "px-1"), href).toBe(true);
     }
     // one badge style for every count
     const variants = new Set([...document.querySelectorAll('[data-sidebar="menu-item"] [data-slot="badge"]')].map((el) => el.getAttribute("data-variant")));
