@@ -18,7 +18,7 @@ vi.mock("@/components/date-range-picker", () => ({
   ),
 }));
 
-import { DatesFilterButton } from "@/components/column-filters";
+import { DateFilterButton } from "@/components/column-filters";
 import { getClientsWithEmployeePaginated } from "@/lib/queries";
 import { db } from "@/lib/db";
 import { clients } from "@/lib/db/schema";
@@ -38,8 +38,8 @@ afterEach(() => {
 async function pickRange(label: "Last Contact" | "Created", which: "pick" | "last 30" = "pick") {
   const onChange = vi.fn();
   const user = userEvent.setup();
-  render(<DatesFilterButton onChange={onChange} />);
-  await user.click(screen.getByRole("button", { name: /Dates/ }));
+  render(<DateFilterButton field={label === "Created" ? "created" : "lastContact"} label={label} onChange={onChange} />);
+  await user.click(screen.getByRole("button", { name: label }));
   await user.click(screen.getByRole("button", { name: `${which} ${label}` }));
   expect(onChange).toHaveBeenCalledTimes(1);
   return onChange.mock.calls[0][0] as {
@@ -66,7 +66,7 @@ function insertClient(at: Date) {
   return id;
 }
 
-describe("DatesFilterButton date ranges", () => {
+describe("DateFilterButton date ranges", () => {
   it("sends the end of the picked 'to' day for last contact", async () => {
     const next = await pickRange("Last Contact");
     expect(next.lastContactFrom).toBe(new Date(2026, 8, 1).getTime() / 1000);
@@ -108,7 +108,7 @@ describe("DatesFilterButton date ranges", () => {
 
 // Rolling shortcuts: a picked shortcut is stored by id, not by its dates, so a
 // saved filter keeps meaning "the last 30 days" whenever it is opened.
-describe("DatesFilterButton shortcuts", () => {
+describe("DateFilterButton shortcuts", () => {
   it("stores the shortcut id and clears explicit bounds", async () => {
     const next = await pickRange("Last Contact", "last 30");
     expect(next.lastContactRange).toBe("30d");
@@ -123,5 +123,17 @@ describe("DatesFilterButton shortcuts", () => {
     const ids = rows.map((r) => r.client.id);
     expect(ids).toContain(today);
     expect(ids).not.toContain(fortyDaysAgo);
+  });
+});
+
+describe("DateFilterButton trigger", () => {
+  it("keeps its name when filtered and says so to screen readers", () => {
+    render(<DateFilterButton field="created" label="Created" range="30d" onChange={() => {}} />);
+    expect(screen.getByRole("button", { name: "Created (filtered)" })).toHaveTextContent("Created");
+  });
+
+  it("only touches its own field", async () => {
+    const next = await pickRange("Created", "last 30");
+    expect(Object.keys(next).sort()).toEqual(["createdFrom", "createdRange", "createdTo"]);
   });
 });

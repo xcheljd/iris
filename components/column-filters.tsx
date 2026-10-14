@@ -391,106 +391,74 @@ export function TagsFilterMenu({
 /* Dates button — sits in the top row, opens a popover with two date ranges    */
 /* -------------------------------------------------------------------------- */
 
-interface DatesFilterButtonProps {
-  lastContactFrom?: number;
-  lastContactTo?: number;
-  createdFrom?: number;
-  createdTo?: number;
-  lastContactRange?: DatePresetId;
-  createdRange?: DatePresetId;
-  onChange(next: {
-    lastContactFrom?: number;
-    lastContactTo?: number;
-    createdFrom?: number;
-    createdTo?: number;
-    lastContactRange?: DatePresetId;
-    createdRange?: DatePresetId;
-  }): void;
-}
+type DateField = "lastContact" | "created";
 
-type RangeFields = { from?: number; to?: number; range?: DatePresetId };
+/** The URL/filter keys a date field writes, e.g. lastContactFrom / lastContactTo / lastContactRange. */
+export type DateFieldChange = Partial<Record<`${DateField}${"From" | "To"}`, number | undefined> & Record<`${DateField}Range`, DatePresetId | undefined>>;
+
+interface DateFilterButtonProps {
+  field: DateField;
+  /** Button text, e.g. "Last contact". Stays the same when a range is set; the button shades and the filter chip shows the range. */
+  label: string;
+  from?: number;
+  to?: number;
+  range?: DatePresetId;
+  onChange(next: DateFieldChange): void;
+  className?: string;
+}
 
 const toTs = (d?: Date) => (d ? Math.floor(d.getTime() / 1000) : undefined);
 // The picker yields local midnight, and the query bound is inclusive (`lte`), so a
 // midnight "to" would drop the whole last day. The columns hold whole seconds.
 const toEndTs = (d?: Date) => (d ? toTs(endOfDay(d)) : undefined);
 
-/** URL fields -> picker value: a rolling shortcut wins over explicit bounds. */
-function toValue({ from, to, range }: RangeFields): DateRangeValue {
-  if (range) return { preset: range };
-  return { from: from ? new Date(from * 1000) : undefined, to: to ? new Date(to * 1000) : undefined };
-}
-
-/** Picker value -> URL fields: a shortcut is stored by id (rolling), days as unix seconds. */
-function fromValue(v: DateRangeValue): RangeFields {
-  if (v.preset) return { range: v.preset, from: undefined, to: undefined };
-  return { from: toTs(v.from), to: toEndTs(v.to), range: undefined };
-}
-
-export function DatesFilterButton({
-  lastContactFrom,
-  lastContactTo,
-  createdFrom,
-  createdTo,
-  lastContactRange,
-  createdRange,
-  onChange,
-}: DatesFilterButtonProps) {
+/**
+ * One date filter (Last contact or Created): shortcuts + a range calendar. Each
+ * field has its own button so a phone shows one calendar at a time. A shortcut
+ * is stored by id (rolling); picked days as unix seconds.
+ */
+export function DateFilterButton({ field, label, from, to, range, onChange, className }: DateFilterButtonProps) {
   const [open, setOpen] = useState(false);
+  const isSet = !!(from || to || range);
+  const value: DateRangeValue = range
+    ? { preset: range }
+    : { from: from ? new Date(from * 1000) : undefined, to: to ? new Date(to * 1000) : undefined };
 
-  const lastContact: RangeFields = { from: lastContactFrom, to: lastContactTo, range: lastContactRange };
-  const created: RangeFields = { from: createdFrom, to: createdTo, range: createdRange };
-  const isSet = (r: RangeFields) => !!(r.from || r.to || r.range);
-  const activeCount = (isSet(lastContact) ? 1 : 0) + (isSet(created) ? 1 : 0);
-
-  const emit = (lc: RangeFields, cr: RangeFields) =>
+  const emit = (v: DateRangeValue) =>
     onChange({
-      lastContactFrom: lc.from,
-      lastContactTo: lc.to,
-      lastContactRange: lc.range,
-      createdFrom: cr.from,
-      createdTo: cr.to,
-      createdRange: cr.range,
-    });
+      [`${field}From`]: v.preset ? undefined : toTs(v.from),
+      [`${field}To`]: v.preset ? undefined : toEndTs(v.to),
+      [`${field}Range`]: v.preset,
+    } as DateFieldChange);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-9 gap-2 font-normal">
+        <Button
+          variant={isSet ? "secondary" : "outline"}
+          size="sm"
+          className={cn("h-9 gap-2 font-normal", isSet && "border border-transparent", className)}
+          aria-label={isSet ? `${label} (filtered)` : label}
+        >
           <CalendarDays className="size-4" />
-          <span>Dates</span>
-          {activeCount > 0 && (
-            <Badge variant="secondary" className="text-xs tracking-wide px-1.5 py-0">{activeCount}</Badge>
-          )}
+          <span>{label}</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto max-h-[var(--radix-popover-content-available-height)] overflow-y-auto p-0" align="start">
+      <PopoverContent
+        className="w-auto max-w-[calc(100vw-1rem)] max-h-[var(--radix-popover-content-available-height)] overflow-y-auto p-0"
+        align="start"
+        collisionPadding={8}
+      >
         <DateRangePresets
-          label="Last Contact"
-          value={toValue(lastContact)}
-          onChange={(v) => emit(fromValue(v), created)}
+          label={label}
+          value={value}
+          onChange={(v) => {
+            emit(v);
+            // A shortcut, a finished range or a clear is a complete choice; the
+            // first calendar click (start day only) keeps it open for the end day.
+            if (v.preset || (v.from && v.to) || (!v.from && !v.to)) setOpen(false);
+          }}
         />
-        <div className="border-t" />
-        <DateRangePresets
-          label="Created"
-          value={toValue(created)}
-          onChange={(v) => emit(lastContact, fromValue(v))}
-        />
-        {activeCount > 0 && (
-          <div className="border-t p-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-center text-xs"
-              onClick={() => {
-                emit({}, {});
-                setOpen(false);
-              }}
-            >
-              Clear all dates
-            </Button>
-          </div>
-        )}
       </PopoverContent>
     </Popover>
   );

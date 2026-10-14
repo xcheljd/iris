@@ -25,7 +25,7 @@ import {
   TextFilterMenu,
   SingleSelectMenu,
   TagsFilterMenu,
-  DatesFilterButton,
+  DateFilterButton,
 } from "@/components/column-filters";
 import { SaveCurrentFilterDialog } from "@/components/smart-lists/save-current-filter-dialog";
 import {
@@ -613,7 +613,7 @@ export function ClientListContent({
         </Button>
       </Topbar>
       <div className="flex flex-col flex-1 p-3 md:p-6 gap-4 max-w-full overflow-hidden" data-tour="client-list">
-        {/* Search + Dates filter row */}
+        {/* Search + date filters row */}
         <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
           <SearchInputWithHistory
             value={qLocal}
@@ -622,15 +622,27 @@ export function ClientListContent({
             className="flex-1 max-w-md"
             historyKey={SEARCH_HISTORY_KEY}
           />
-          <DatesFilterButton
-            lastContactFrom={currentFilters.lastContactFrom}
-            lastContactTo={currentFilters.lastContactTo}
-            createdFrom={currentFilters.createdFrom}
-            createdTo={currentFilters.createdTo}
-            lastContactRange={currentFilters.lastContactRange}
-            createdRange={currentFilters.createdRange}
-            onChange={(next) => navigate({ ...next, page: 1 })}
-          />
+          {/* One button per date field so a phone shows one calendar at a time. */}
+          <div className="flex gap-2">
+            <DateFilterButton
+              field="lastContact"
+              label="Last contact"
+              from={currentFilters.lastContactFrom}
+              to={currentFilters.lastContactTo}
+              range={currentFilters.lastContactRange}
+              onChange={(next) => navigate({ ...next, page: 1 })}
+              className="flex-1 sm:flex-none"
+            />
+            <DateFilterButton
+              field="created"
+              label="Created"
+              from={currentFilters.createdFrom}
+              to={currentFilters.createdTo}
+              range={currentFilters.createdRange}
+              onChange={(next) => navigate({ ...next, page: 1 })}
+              className="flex-1 sm:flex-none"
+            />
+          </div>
         </div>
 
         {/* Active filters strip — only renders when filters are active */}
