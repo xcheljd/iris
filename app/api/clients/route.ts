@@ -10,6 +10,7 @@ import { recalcHeat } from "@/lib/heat-recalc";
 import { findDuplicateClient, toDuplicateResult } from "@/lib/duplicate-client";
 import { recordProductsOfInterest } from "@/lib/actions/model-catalog";
 import { isEmailSuppressed } from "@/lib/suppression";
+import { canonicalizeTags, syncTagUsage } from "@/lib/tag-registry";
 
 // GET /api/clients — list all clients
 export const GET = withAuth(async (session, request: Request) => {
@@ -63,6 +64,7 @@ export const POST = withAuth(async (session, request: Request) => {
       return Response.json({ error: "Duplicate found", ...toDuplicateResult(existing, session.user) }, { status: 409 });
     }
 
+    const newTags = canonicalizeTags(data.tags);
     db.insert(clients).values({
       id,
       firstName: data.firstName,
@@ -78,9 +80,11 @@ export const POST = withAuth(async (session, request: Request) => {
       source: data.source,
       birthday: data.birthday ?? null,
       anniversary: data.anniversary ?? null,
-      tags: data.tags,
+      tags: newTags,
       employeeId: session.user.id,
     }).run();
+    // Register the new client's tags so they show up as suggestions.
+    syncTagUsage([], newTags);
 
     // Feed the durable catalog from the new client's interests — an
     // uncatalogued model becomes a provisional needs-review row.

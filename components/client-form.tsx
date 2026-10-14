@@ -6,16 +6,17 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { DatePicker } from "@/components/date-picker";
-import { Plus, X, AlertCircle } from "lucide-react";
+import { Plus, AlertCircle } from "lucide-react";
 
 import { CLIENT_SOURCE_VALUES, type ProductOfInterest } from "@/lib/db/schema";
 import { ProductsOfInterestInput } from "@/components/products-of-interest-input";
-import { COMMON_TAGS } from "@/lib/constants";
+import { TagPicker } from "@/components/tag-picker";
+import { useTagOptions } from "@/components/use-tag-options";
+import { tagKey } from "@/lib/tag-names";
 import type { CatalogEntry } from "@/lib/actions/model-catalog";
 import type { DuplicateResult } from "@/lib/duplicate-client";
 
@@ -39,14 +40,10 @@ export interface ClientFormData {
 interface ClientFormProps {
   formData: ClientFormData;
   productsOfInterest: ProductOfInterest[];
-  newTag: string;
   catalogIndex?: Record<string, CatalogEntry> | null;
   isManager?: boolean;
   onFieldChangeAction: (field: string, value: string | boolean | Date | null | undefined | string[]) => void;
-  onNewTagChangeAction: (value: string) => void;
   onProductsChangeAction: (next: ProductOfInterest[]) => void;
-  onAddTagAction: () => void;
-  onRemoveTagAction: (tag: string) => void;
   // Duplicate warning
   showDuplicateWarning: boolean;
   duplicateClient: DuplicateResult | null;
@@ -55,7 +52,6 @@ interface ClientFormProps {
   onMergeWithDuplicateAction?: () => void;
   // Edit-only
   employees?: { id: string; name: string; role: string }[];
-  showCommonTags?: boolean;
   // Submit
   isLoading: boolean;
   submitLabel: string;
@@ -66,26 +62,26 @@ interface ClientFormProps {
 export function ClientForm({
   formData,
   productsOfInterest,
-  newTag,
   catalogIndex,
   isManager,
   onFieldChangeAction,
-  onNewTagChangeAction,
   onProductsChangeAction,
-  onAddTagAction,
-  onRemoveTagAction,
   showDuplicateWarning,
   duplicateClient,
   onDismissDuplicateAction,
   onEditExistingAction,
   onMergeWithDuplicateAction,
   employees,
-  showCommonTags = false,
   isLoading,
   submitLabel,
   onSubmitAction,
   onCancelAction,
 }: ClientFormProps) {
+  const tagOptions = useTagOptions();
+  const POPULAR = 8;
+  const popularTags = tagOptions
+    .filter((t) => t.usageCount > 0 && !formData.tags.some((c) => tagKey(c) === tagKey(t.name)))
+    .slice(0, POPULAR);
   return (
     <div className="flex flex-col gap-6">
       {/* Duplicate Warning */}
@@ -362,63 +358,34 @@ export function ClientForm({
         <CardHeader>
           <CardTitle>Tags</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Add tag..."
-                value={newTag}
-                onChange={(e) => onNewTagChangeAction(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    onAddTagAction();
-                  }
-                }}
-              />
-              <Button onClick={onAddTagAction} variant="outline">
-                <Plus className="size-4" />
-              </Button>
-            </div>
-
-            {showCommonTags && (
-              <div className="flex flex-col gap-2">
-                <p className="text-sm text-muted-foreground">Common tags:</p>
-                <div className="flex flex-wrap gap-2">
-                  {COMMON_TAGS.map((tag) => (
-                    <Badge
-                      key={tag}
-                      variant="outline"
-                      className="cursor-pointer hover:bg-primary hover:text-primary-foreground"
-                      onClick={() => {
-                        if (!formData.tags.includes(tag)) {
-                          onFieldChangeAction("tags", [...formData.tags, tag]);
-                        }
-                      }}
-                    >
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-wrap gap-2">
-              {formData.tags.map((tag) => (
-                <Badge key={tag} variant="outline" className="cursor-pointer">
-                  {tag}
+        <CardContent className="flex flex-col gap-3">
+          <TagPicker
+            value={formData.tags}
+            options={tagOptions}
+            onAdd={(tag) => onFieldChangeAction("tags", [...formData.tags, tag])}
+            onRemove={(tag) => onFieldChangeAction("tags", formData.tags.filter((t) => t !== tag))}
+          />
+          {/* Most-used tags, one tap to add (from the database, not a fixed list). */}
+          {popularTags.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <p className="text-sm text-muted-foreground">Popular tags:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {popularTags.map((t) => (
                   <Button
-                    variant="ghost"
+                    key={t.name}
+                    type="button"
+                    variant="outline"
                     size="sm"
-                    className="size-5 ml-1"
-                    onClick={() => onRemoveTagAction(tag)}
-                    aria-label={`Remove tag ${tag}`}
+                    className="h-7 gap-1 px-2 text-xs"
+                    onClick={() => onFieldChangeAction("tags", [...formData.tags, t.name])}
                   >
-                    <X className="size-3" />
+                    <Plus className="size-3" />
+                    {t.name}
                   </Button>
-                </Badge>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 

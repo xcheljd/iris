@@ -41,7 +41,6 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
     notes: client.notes || "",
     tags: (client.tags || []) as string[],
   });
-  const [newTag, setNewTag] = useState("");
   const [productsOfInterest, setProductsOfInterest] = useState<ProductOfInterest[]>(client.productsOfInterest || []);
 
   const resetForm = () => {
@@ -60,24 +59,12 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
       tags: (client.tags || []) as string[],
     });
     setProductsOfInterest(client.productsOfInterest || []);
-    setNewTag("");
     setShowDuplicateWarning(false);
     setDuplicateClient(null);
   };
 
   const handleFieldChange = (field: string, value: string | boolean | Date | null | undefined | string[]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleAddTag = () => {
-    if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
-      setFormData((prev) => ({ ...prev, tags: [...prev.tags, newTag.trim()] }));
-      setNewTag("");
-    }
-  };
-
-  const handleRemoveTag = (tag: string) => {
-    setFormData((prev) => ({ ...prev, tags: prev.tags.filter((t) => t !== tag) }));
   };
 
   const handleSubmit = () => {
@@ -139,12 +126,8 @@ export function EditClientDialog({ client, children }: EditClientDialogProps) {
             isManager={isManager}
             formData={formData}
             productsOfInterest={productsOfInterest}
-            newTag={newTag}
             onFieldChangeAction={handleFieldChange}
-            onNewTagChangeAction={setNewTag}
             onProductsChangeAction={setProductsOfInterest}
-            onAddTagAction={handleAddTag}
-            onRemoveTagAction={handleRemoveTag}
             showDuplicateWarning={showDuplicateWarning}
             duplicateClient={duplicateClient}
             onDismissDuplicateAction={() => setShowDuplicateWarning(false)}

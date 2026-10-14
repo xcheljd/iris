@@ -10,6 +10,8 @@ import { BANNABLE_STATUSES, UNSUBSCRIBABLE_STATUSES } from "./_client-status-cor
 import { recalcHeat } from "@/lib/heat-recalc";
 import { normalizeEmail } from "@/lib/email-identity";
 import { banClientSchema } from "@/lib/validation/client";
+import { canonicalizeTags } from "@/lib/tag-registry";
+import { tagKey } from "@/lib/tag-names";
 
 interface BulkResult {
   ok: number;
@@ -141,8 +143,9 @@ function mutateClientTags(opts: {
   return ok;
 }
 
-export async function bulkAddTags(clientIds: string[], tags: string[]): Promise<BulkResult> {
+export async function bulkAddTags(clientIds: string[], rawTags: string[]): Promise<BulkResult> {
   const user = await requireAuth();
+  const tags = canonicalizeTags(rawTags.filter((t) => t.trim().length <= 50));
   if (tags.length === 0) return { ok: 0 };
   const scoped = scopeToOwned(user, clientIds);
   return runBulk({
@@ -151,7 +154,7 @@ export async function bulkAddTags(clientIds: string[], tags: string[]): Promise<
     mutate: (tx) => mutateClientTags({
       tx, clientIds: scoped, userId: user.id,
       transformTags: (existing) => {
-        const added = tags.filter((t) => !existing.includes(t));
+        const added = tags.filter((t) => !existing.some((e) => tagKey(e) === tagKey(t)));
         if (added.length === 0) return null;
         return { next: [...existing, ...added], changed: added };
       },

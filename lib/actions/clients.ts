@@ -13,6 +13,7 @@ import { runStatusChange, applyBanUnchecked, applyUnsubscribeUnchecked, applyDel
 import { clientPatchSchema, banClientSchema, banWalkInSchema, unsubscribeEmailSchema } from "@/lib/validation/client";
 import { sameEmail } from "@/lib/email-identity";
 import { rematchClientPromos } from "@/lib/promo-match";
+import { canonicalizeTags, syncTagUsage } from "@/lib/tag-registry";
 
 // Structural de-dupe for products of interest (objects, so Set won't dedupe).
 function dedupeProducts(list: ProductOfInterest[]): ProductOfInterest[] {
@@ -473,8 +474,10 @@ export async function patchClientFromFormMerge(
   const parsed = clientPatchSchema.safeParse(patch);
   if (!parsed.success) return { error: "Invalid request" };
   const data = parsed.data;
+  const nextTags = data.tags ? canonicalizeTags(data.tags) : existing.tags;
 
   db.transaction((tx) => {
+    syncTagUsage(existing.tags ?? [], nextTags ?? [], tx);
     tx.update(clients).set({
       // Both names are required on create; a merge must not blank one out.
       firstName: data.firstName ?? existing.firstName,
@@ -489,7 +492,7 @@ export async function patchClientFromFormMerge(
       onEmailList: data.onEmailList ?? existing.onEmailList,
       notes: data.notes ?? null,
       productsOfInterest: data.productsOfInterest ?? existing.productsOfInterest,
-      tags: data.tags ?? existing.tags,
+      tags: nextTags,
       updatedAt: new Date(),
     }).where(eq(clients.id, existingId)).run();
 

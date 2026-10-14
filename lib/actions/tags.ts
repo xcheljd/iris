@@ -5,15 +5,19 @@ import { eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireAuth, requireManager } from "./_shared";
+import { canonicalizeTags } from "@/lib/tag-registry";
+import { tagKey } from "@/lib/tag-names";
 
 export async function addTag(clientId: string, rawTag: string) {
   const user = await requireAuth();
-  const tag = rawTag.trim();
-  if (!tag) return { error: "Tag name is required" };
+  if (!rawTag.trim()) return { error: "Tag name is required" };
+  if (rawTag.trim().length > 50) return { error: "Tag name is too long" };
+  // "vip" reuses an existing "VIP" rather than creating a second tag.
+  const [tag] = canonicalizeTags([rawTag]);
   const c = db.select().from(clients).where(eq(clients.id, clientId)).get();
   if (!c) return { error: "Client not found" };
   if (user.role !== "manager" && c.employeeId !== user.id) return { error: "Not authorized to tag this client" };
-  if ((c.tags || []).includes(tag)) return;
+  if ((c.tags || []).some((t) => tagKey(t) === tagKey(tag))) return;
   const tags = [...(c.tags || []), tag];
   try {
     db.transaction((tx) => {
@@ -64,7 +68,7 @@ export async function createTag(name: string): Promise<{ error: string } | undef
   await requireManager();
   const trimmed = name.trim();
   if (!trimmed) return { error: "Tag name is required" };
-  const existing = db.select({ id: clientTags.id }).from(clientTags).where(eq(clientTags.name, trimmed)).get();
+  const existing = db.select({ id: clientTags.id }).from(clientTags).where(sql`lower(${clientTags.name}) = ${tagKey(trimmed)}`).get();
   if (existing) return { error: "A tag with this name already exists" };
   db.insert(clientTags).values({ id: randomUUID(), name: trimmed }).run();
   revalidatePath("/settings");
@@ -83,7 +87,8 @@ export async function renameTag(id: string, rawName: string): Promise<{ error: s
   const tag = db.select({ name: clientTags.name }).from(clientTags).where(eq(clientTags.id, id)).get();
   if (!tag) return { error: "Tag not found" };
   if (tag.name === next) return;
-  const clash = db.select({ id: clientTags.id }).from(clientTags).where(eq(clientTags.name, next)).get();
+  // Ignoring case, but a tag may change only its own capitals ("vip" -> "VIP").
+  const clash = db.select({ id: clientTags.id }).from(clientTags).where(sql`lower(${clientTags.name}) = ${tagKey(next)} AND ${clientTags.id} != ${id}`).get();
   if (clash) return { error: "A tag with this name already exists" };
   const prev = tag.name;
   try {

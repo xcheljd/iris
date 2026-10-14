@@ -70,7 +70,6 @@ export function EditClientForm({ initialClient, clientId, employees }: EditClien
     tags: initialClient.tags || [],
   });
 
-  const [newTag, setNewTag] = useState("");
   const [productsOfInterest, setProductsOfInterest] = useState<ProductOfInterest[]>(
     initialClient.productsOfInterest ?? []
   );
@@ -120,17 +119,6 @@ export function EditClientForm({ initialClient, clientId, employees }: EditClien
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(checkForDuplicates, 500);
     }
-  };
-
-  const handleAddTag = () => {
-    if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
-      setFormData(prev => ({ ...prev, tags: [...prev.tags, newTag.trim()] }));
-      setNewTag("");
-    }
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setFormData(prev => ({ ...prev, tags: prev.tags.filter(tag => tag !== tagToRemove) }));
   };
 
 
@@ -198,12 +186,8 @@ export function EditClientForm({ initialClient, clientId, employees }: EditClien
             isManager={isManager}
             formData={formData}
             productsOfInterest={productsOfInterest}
-            newTag={newTag}
             onFieldChangeAction={handleFieldChange}
-            onNewTagChangeAction={setNewTag}
             onProductsChangeAction={setProductsOfInterest}
-            onAddTagAction={handleAddTag}
-            onRemoveTagAction={handleRemoveTag}
             showDuplicateWarning={showDuplicateWarning}
             duplicateClient={duplicateClient}
             onDismissDuplicateAction={() => setShowDuplicateWarning(false)}

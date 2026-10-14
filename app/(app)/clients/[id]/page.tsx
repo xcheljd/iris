@@ -1,11 +1,12 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { clients, outreachLogs, activityEvents, promoMatches, promoWatches, clientTags, employees } from "@/lib/db/schema";
+import { clients, outreachLogs, activityEvents, promoMatches, promoWatches, employees } from "@/lib/db/schema";
 import { eq, desc, and, isNotNull, sql } from "drizzle-orm";
 import { ClientDetailContent } from "./client-detail-content";
 import { ClientDetailSkeleton } from "@/components/skeletons";
 import { requirePageSession } from "@/lib/auth";
+import { getTagsSync } from "@/lib/queries";
 import { TOUR_DEMO_CLIENT_ID, tourDemoClient } from "@/lib/tour-demo-client";
 
 async function getFullClient(clientId: string) {
@@ -53,11 +54,7 @@ async function getFullClient(clientId: string) {
     .where(eq(promoMatches.clientId, clientId))
     .all();
 
-  const allTags = db
-    .select()
-    .from(clientTags)
-    .orderBy(desc(clientTags.usageCount))
-    .all();
+  const allTags = getTagsSync();
 
   const followUps = db
     .select()

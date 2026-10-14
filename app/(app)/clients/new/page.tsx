@@ -40,7 +40,6 @@ export default function AddClientPage() {
     tags: [],
   });
 
-  const [newTag, setNewTag] = useState("");
   const [productsOfInterest, setProductsOfInterest] = useState<ProductOfInterest[]>([]);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -87,17 +86,6 @@ export default function AddClientPage() {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => checkForDuplicates(updated), 500);
     }
-  };
-
-  const handleAddTag = () => {
-    if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
-      setFormData(prev => ({ ...prev, tags: [...prev.tags, newTag.trim()] }));
-      setNewTag("");
-    }
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setFormData(prev => ({ ...prev, tags: prev.tags.filter(tag => tag !== tagToRemove) }));
   };
 
   const handleSubmit = () => {
@@ -173,12 +161,8 @@ export default function AddClientPage() {
             isManager={isManager}
             formData={formData}
             productsOfInterest={productsOfInterest}
-            newTag={newTag}
             onFieldChangeAction={handleFieldChange}
-            onNewTagChangeAction={setNewTag}
             onProductsChangeAction={setProductsOfInterest}
-            onAddTagAction={handleAddTag}
-            onRemoveTagAction={handleRemoveTag}
             showDuplicateWarning={showDuplicateWarning}
             duplicateClient={duplicateClient}
             onDismissDuplicateAction={() => {
@@ -187,7 +171,6 @@ export default function AddClientPage() {
             }}
             onEditExistingAction={handleEditExisting}
             onMergeWithDuplicateAction={isManager && duplicateClient?.id ? handleMergeWithDuplicate : undefined}
-            showCommonTags
             isLoading={isPending}
             submitLabel="Create Client"
             onSubmitAction={handleSubmit}

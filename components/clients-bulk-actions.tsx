@@ -51,7 +51,7 @@ import {
   bulkBanClients,
   bulkUnsubscribeClients,
 } from "@/lib/actions/bulk-clients";
-import { cn } from "@/lib/utils";
+import { TagPicker } from "@/components/tag-picker";
 
 interface BulkActionsToolbarProps {
   selectedIds: string[];
@@ -173,6 +173,7 @@ export function BulkActionsToolbar({
           description="Tags will be added to each selected client. Duplicates are ignored."
           allTags={allTags}
           confirmLabel="Add tags"
+          creatable
           onConfirm={(tags) =>
             runBulk(
               () => bulkAddTags(selectedIds, tags),
@@ -311,6 +312,7 @@ function TagPickerDialog({
   allTags,
   confirmLabel,
   destructive = false,
+  creatable = false,
   onConfirm,
   onCancel,
 }: {
@@ -319,15 +321,12 @@ function TagPickerDialog({
   allTags: { name: string; usageCount: number }[];
   confirmLabel: string;
   destructive?: boolean;
+  /** Adding may create new tags; removing only offers existing ones. */
+  creatable?: boolean;
   onConfirm(tags: string[]): void;
   onCancel(): void;
 }) {
   const [selected, setSelected] = useState<string[]>([]);
-  const toggle = (name: string) =>
-    setSelected((prev) =>
-      prev.includes(name) ? prev.filter((t) => t !== name) : [...prev, name],
-    );
-
   return (
     <Dialog open onOpenChange={(o) => !o && onCancel()}>
       <DialogContent className="sm:max-w-md">
@@ -335,38 +334,15 @@ function TagPickerDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <Command className="border rounded-md">
-          <CommandInput placeholder="Search tags…" />
-          <CommandList className="max-h-64">
-            <CommandEmpty>No tags found.</CommandEmpty>
-            <CommandGroup>
-              {allTags.map((tag) => {
-                const isSel = selected.includes(tag.name);
-                return (
-                  <CommandItem
-                    key={tag.name}
-                    value={tag.name}
-                    onSelect={() => toggle(tag.name)}
-                    className="flex items-center gap-2"
-                  >
-                    <div
-                      className={cn(
-                        "flex size-4 items-center justify-center rounded border",
-                        isSel ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/30",
-                      )}
-                    >
-                      {isSel && <span className="text-xs tracking-wide">✓</span>}
-                    </div>
-                    <span className="flex-1 truncate">{tag.name}</span>
-                    {tag.usageCount > 0 && (
-                      <Badge variant="secondary" className="text-xs tracking-wide">{tag.usageCount}</Badge>
-                    )}
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
-          </CommandList>
-        </Command>
+        {/* Same picker as the client page and forms. */}
+        <TagPicker
+          value={selected}
+          options={allTags}
+          creatable={creatable}
+          placeholder={creatable ? "Choose or create tags…" : "Choose tags…"}
+          onAdd={(t) => setSelected((prev) => [...prev, t])}
+          onRemove={(t) => setSelected((prev) => prev.filter((x) => x !== t))}
+        />
         <DialogFooter>
           <Button variant="outline" onClick={onCancel}>Cancel</Button>
           <Button

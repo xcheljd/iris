@@ -144,3 +144,12 @@ if (
       "SearchInputWithHistory and ClientListContent pagination suites depend on it.",
   );
 }
+
+// cmdk (the Command list behind pickers) observes its size; jsdom has no ResizeObserver.
+if (typeof window !== "undefined") {
+  globalThis.ResizeObserver ??= class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+}

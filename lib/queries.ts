@@ -665,8 +665,23 @@ export async function getEmployee(id: string) {
 
 export type SafeEmployeeRow = Awaited<ReturnType<typeof getEmployees>>[number];
 
+/**
+ * Every registered tag with how many clients carry it, counted live from the
+ * clients (deleted ones excluded), most used first. The stored usage_count
+ * drifts (the seed and older form saves wrote tags without updating it), so
+ * nothing displays it.
+ */
+export function getTagsSync() {
+  const live = rawSql<number>`(SELECT count(*) FROM ${clients} c, json_each(c.tags) j WHERE j.value = ${clientTags.name} AND c.status != 'deleted')`;
+  return db
+    .select({ id: clientTags.id, name: clientTags.name, usageCount: live.mapWith(Number) })
+    .from(clientTags)
+    .orderBy(desc(live), clientTags.name)
+    .all();
+}
+
 export async function getTags() {
-  return db.select().from(clientTags).orderBy(desc(clientTags.usageCount)).all();
+  return getTagsSync();
 }
 
 export async function getTemplates() {

@@ -95,9 +95,14 @@ describe("ProfileTab", () => {
 // ─── TagsTab ─────────────────────────────────────────────────────────────────
 
 describe("TagsTab", () => {
-  it('renders "Current Tags" heading', () => {
+  it("shows one tag picker", () => {
     render(<TagsTab client={baseClient} />);
-    expect(screen.getByText("Current Tags")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Add a tag/ })).toBeInTheDocument();
+  });
+
+  it("each tag has its own remove button", () => {
+    render(<TagsTab client={baseClient} />);
+    expect(screen.getByRole("button", { name: "Remove tag VIP" })).toBeInTheDocument();
   });
 
   it('shows tag count "2 tags assigned"', () => {
@@ -114,7 +119,7 @@ describe("TagsTab", () => {
   it('shows "No tags assigned" for client with empty tags', () => {
     const noTagsClient = { ...baseClient, tags: [] };
     render(<TagsTab client={noTagsClient} />);
-    expect(screen.getByText("No tags assigned to this client")).toBeInTheDocument();
+    expect(screen.getByText(/No tags yet/)).toBeInTheDocument();
   });
 });
 

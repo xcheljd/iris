@@ -375,7 +375,8 @@ describe("patchClientFromFormMerge", () => {
     expect(row!.lastName).toBe("Merged");
     expect(row!.phone).toBe("5551234567");
     expect(row!.source).toBe("Referral");
-    expect(row!.tags).toEqual(["vip"]);
+    // Matching ignores capitals: "vip" reuses the seeded "VIP" tag.
+    expect(row!.tags).toEqual(["VIP"]);
     expect(row!.productsOfInterest.map((p) => p.model)).toEqual(["SKU-003"]);
   });
 });
