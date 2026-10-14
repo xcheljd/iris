@@ -1,15 +1,14 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Tag, FileText, Trash2, UserCircle, GraduationCap } from "lucide-react";
+import { Users, Tag, FileText, Trash2, UserCircle, GraduationCap, DatabaseBackup } from "lucide-react";
 import { Topbar } from "@/components/topbar";
 import { ProfileTab } from "./profile-tab";
 import { EmployeesTab } from "./employees-tab";
 import { SettingsTagsTab } from "./tags-tab";
 import { TemplatesTab } from "./templates-tab";
 import { DeletedTab } from "./deleted-tab";
-// Backup tab hidden for demo — restoring it also needs the DatabaseBackup icon re-added above
-// import { BackupTab } from "./backup-tab";
+import { BackupTab } from "./backup-tab";
 import { OnboardingSettingsTab } from "@/components/onboarding/onboarding-settings-tab";
 import type { SafeEmployeeRow } from "@/lib/queries";
 import type { ClientTag } from "@/lib/db/schema";
@@ -54,13 +53,13 @@ export function SettingsContent({ employees, tags, templates, deletedClients, cu
                 Employees
               </TabsTrigger>
             )}
-            {/* Backup tab hidden for demo */}
-            {/* {isManager && (
+            {/* Managers only: backups download the whole database (the API is manager-only too). */}
+            {isManager && (
               <TabsTrigger value="backup" className="gap-1" data-tour="backup">
                 <DatabaseBackup className="size-4" />
                 Backup
               </TabsTrigger>
-            )} */}
+            )}
             <TabsTrigger value="tags" className="gap-1">
               <Tag className="size-4" />
               Tags
@@ -89,12 +88,11 @@ export function SettingsContent({ employees, tags, templates, deletedClients, cu
           </TabsContent>
           )}
 
-          {/* Backup tab hidden for demo */}
-          {/* {isManager && (
+          {isManager && (
           <TabsContent value="backup">
             <BackupTab />
           </TabsContent>
-          )} */}
+          )}
 
           <TabsContent value="tags">
             <SettingsTagsTab tags={tags} isManager={isManager} />
