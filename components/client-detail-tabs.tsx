@@ -2,7 +2,6 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -79,9 +78,6 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
           </p>
           <div className="flex items-center gap-2 mt-1">
             <HeatScoreBar score={client.heatScore} />
-            <Badge variant={client.heatLevel}>
-              {client.heatLevel}
-            </Badge>
           </div>
         </div>
         <div className="sm:ml-auto">

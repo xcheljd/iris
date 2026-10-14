@@ -33,9 +33,6 @@ export function ClientSidebar() {
           <CardTitle className="text-lg">
             {client.firstName} {client.lastName}
           </CardTitle>
-          <Badge variant={client.heatLevel}>
-            {client.heatLevel.toUpperCase()}
-          </Badge>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {client.phone && (
