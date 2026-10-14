@@ -23,7 +23,6 @@ vi.mock("@/components/app-sidebar", () => ({ AppSidebar: nothing }));
 vi.mock("@/components/command-palette", () => ({ CommandPalette: nothing, CommandPaletteProvider: passthrough }));
 vi.mock("@/components/g-nav", () => ({ GNav: nothing }));
 vi.mock("@/components/mobile-nav", () => ({ MobileNav: nothing }));
-vi.mock("@/components/backup-reminder-dialog", () => ({ BackupReminderDialog: nothing }));
 vi.mock("@/components/onboarding", () => ({
   OnboardingProvider: passthrough,
   TourOverlay: nothing,

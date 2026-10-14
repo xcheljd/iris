@@ -10,6 +10,7 @@ import { useTheme } from "next-themes";
 import { useCommandPalette } from "@/components/command-palette";
 import { useNavigationTransition } from "@/components/navigation-transition";
 import { getShortcutText } from "@/components/onboarding/hint-definitions";
+import { BackupBanner } from "@/components/backup-banner";
 
 const subscribeNoop = () => () => {};
 
@@ -32,6 +33,7 @@ export function Topbar({ title, children }: { title?: string; children?: React.R
   const showChildren = !navigating;
 
   return (
+    <>
     <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/95 backdrop-blur-sm px-4">
       <SidebarTrigger />
       <Separator orientation="vertical" className="mx-1 h-4" />
@@ -54,5 +56,8 @@ export function Topbar({ title, children }: { title?: string; children?: React.R
         <TooltipContent>Toggle theme</TooltipContent>
       </Tooltip>
     </header>
+    {/* Under the sticky header, so it scrolls away with the page instead of eating phone height. */}
+    <BackupBanner />
+    </>
   );
 }

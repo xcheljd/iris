@@ -4,15 +4,16 @@ import { useState, useRef, useSyncExternalStore } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DatabaseBackup, CheckCircle2, UploadCloud } from "lucide-react";
-import { downloadBackup, getLastBackupIso, subscribeLastBackup } from "@/lib/backup-client";
+import { downloadBackup, getBackupStatusSnapshot, subscribeBackupStatus } from "@/lib/backup-client";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
 export function BackupTab() {
   const [loading, setLoading] = useState(false);
-  const lastBackupIso = useSyncExternalStore(subscribeLastBackup, getLastBackupIso, () => null);
-  const lastBackup = lastBackupIso ? new Date(lastBackupIso) : null;
+  // The store's last real backup, from the database (same on every device).
+  const status = useSyncExternalStore(subscribeBackupStatus, getBackupStatusSnapshot, () => null);
+  const lastBackup = status?.lastBackupAt ? new Date(status.lastBackupAt) : null;
 
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restoreOpen, setRestoreOpen] = useState(false);
@@ -73,7 +74,7 @@ export function BackupTab() {
             </div>
           )}
           {!lastBackup && (
-            <p className="text-sm text-warning">No backup recorded on this device.</p>
+            <p className="text-sm text-warning">No backup recorded yet.</p>
           )}
           <Button onClick={handleBackup} disabled={loading} className="gap-2">
             <DatabaseBackup className="size-4" />

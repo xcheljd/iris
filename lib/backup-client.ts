@@ -1,45 +1,79 @@
 "use client";
 
-import { format } from "date-fns";
+import { format, startOfTomorrow } from "date-fns";
+import type { BackupStatus } from "@/lib/backup-status";
 
-const STORAGE_KEY = "iris_last_backup_at";
-const CHANGE_EVENT = "iris:last-backup-change";
+export type { BackupStatus };
 
-export function getLastBackupDate(): Date | null {
-  if (typeof window === "undefined") return null;
-  const stored = localStorage.getItem(STORAGE_KEY);
-  return stored ? new Date(stored) : null;
+// Client cache of /api/backup/status, shared by the banner and Settings ->
+// Backup through useSyncExternalStore. Fetched once per page load and after
+// every backup or snooze. null = not loaded yet, or not a manager (403).
+let status: BackupStatus | null = null;
+let started = false;
+const listeners = new Set<() => void>();
+
+export function subscribeBackupStatus(onChange: () => void): () => void {
+  listeners.add(onChange);
+  if (!started) {
+    started = true;
+    void refreshBackupStatus();
+  }
+  return () => listeners.delete(onChange);
 }
 
-/**
- * The stored ISO string — a stable `useSyncExternalStore` snapshot, unlike
- * `getLastBackupDate()`, whose fresh `Date` per call would never settle.
- */
-export function getLastBackupIso(): string | null {
-  return localStorage.getItem(STORAGE_KEY);
+export function getBackupStatusSnapshot(): BackupStatus | null {
+  return status;
 }
 
-/** Notifies when `setLastBackupDate()` records a backup in this tab. */
-export function subscribeLastBackup(onChange: () => void): () => void {
-  window.addEventListener(CHANGE_EVENT, onChange);
-  return () => window.removeEventListener(CHANGE_EVENT, onChange);
+function setStatus(next: BackupStatus | null) {
+  status = next;
+  listeners.forEach((l) => l());
 }
 
-export function setLastBackupDate(): void {
-  localStorage.setItem(STORAGE_KEY, new Date().toISOString());
-  window.dispatchEvent(new Event(CHANGE_EVENT));
+export async function refreshBackupStatus(): Promise<void> {
+  try {
+    const res = await fetch("/api/backup/status");
+    setStatus(res.ok ? ((await res.json()) as BackupStatus) : null);
+  } catch {
+    setStatus(null);
+  }
 }
 
-export function shouldShowBackupReminder(): boolean {
-  if (typeof window === "undefined") return false;
-  const today = new Date();
-  if (today.getDay() !== 1) return false; // Monday only
+async function post(payload: object): Promise<void> {
+  const res = await fetch("/api/backup/status", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (res.ok) setStatus((await res.json()) as BackupStatus);
+}
 
-  const last = getLastBackupDate();
-  if (!last) return true;
+/** Hide the reminder until local midnight; the last-backup date is untouched. */
+export function snoozeBackupReminder(): Promise<void> {
+  return post({ action: "snooze", until: startOfTomorrow().toISOString() });
+}
 
-  const daysSince = (Date.now() - last.getTime()) / (1000 * 60 * 60 * 24);
-  return daysSince >= 7;
+export const BACKUP_DUE_DAYS = 7;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/** Whole days since the last backup, or null if none was ever recorded. */
+export function daysSinceBackup(s: BackupStatus, now: Date = new Date()): number | null {
+  return s.lastBackupAt ? Math.floor((now.getTime() - new Date(s.lastBackupAt).getTime()) / MS_PER_DAY) : null;
+}
+
+/** Due when there's no backup or it's 7+ days old, and the manager hasn't snoozed past now. */
+export function isBackupReminderDue(s: BackupStatus | null, now: Date = new Date()): boolean {
+  if (!s) return false;
+  if (s.snoozedUntil && new Date(s.snoozedUntil) > now) return false;
+  const days = daysSinceBackup(s, now);
+  return days === null || days >= BACKUP_DUE_DAYS;
+}
+
+export function backupReminderText(s: BackupStatus, now: Date = new Date()): string {
+  const days = daysSinceBackup(s, now);
+  if (days === null) return "No backup yet.";
+  // Non-breaking space keeps "9 days" together when the strip wraps on a phone.
+  return `Last backup was ${days}\u00a0day${days === 1 ? "" : "s"} ago.`;
 }
 
 // Replace this function body with Tauri's fs.writeBinaryFile + dialog.save() when wrapping in Tauri.
@@ -68,5 +102,6 @@ export async function downloadBackup(): Promise<void> {
     URL.revokeObjectURL(url);
   }
 
-  setLastBackupDate();
+  // Recorded only after the file was written (a cancelled save picker throws above).
+  await post({ action: "backed-up" });
 }
