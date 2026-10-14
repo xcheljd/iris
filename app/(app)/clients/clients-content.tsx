@@ -38,6 +38,7 @@ import { ActiveFilterChips } from "@/components/active-filter-chips";
 import { BulkActionsToolbar } from "@/components/clients-bulk-actions";
 import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import type { DatePresetId } from "@/lib/date-presets";
 import { deleteClient, restoreClient } from "@/lib/actions";
 import { toast } from "sonner";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
@@ -66,6 +67,9 @@ interface ClientFilters {
   lastContactTo?: number;
   createdFrom?: number;
   createdTo?: number;
+  /** Rolling shortcut ids from `?lastContactRange=` / `?createdRange=`; win over the bounds. */
+  lastContactRange?: DatePresetId;
+  createdRange?: DatePresetId;
   /** Built-in quick filter from `?filter=` (e.g. the dashboard's Hot Leads card). */
   filter?: BuiltInFilter;
   sort: SortKey;
@@ -140,6 +144,8 @@ export function ClientListContent({
       lastContactTo: currentFilters.lastContactTo,
       createdFrom: currentFilters.createdFrom,
       createdTo: currentFilters.createdTo,
+      lastContactRange: currentFilters.lastContactRange,
+      createdRange: currentFilters.createdRange,
       filter: currentFilters.filter,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -148,6 +154,7 @@ export function ClientListContent({
       currentFilters.heat, currentFilters.owner, tagsKey, currentFilters.tagMode,
       currentFilters.lastContactFrom, currentFilters.lastContactTo,
       currentFilters.createdFrom, currentFilters.createdTo, currentFilters.filter,
+      currentFilters.lastContactRange, currentFilters.createdRange,
     ],
   );
 
@@ -161,10 +168,10 @@ export function ClientListContent({
       case "owner": navigate({ owner: "any", page: 1 }); break;
       case "tags": navigate({ tags: [], tagMode: "any", page: 1 }); break;
       case "lastContact":
-        navigate({ lastContactFrom: undefined, lastContactTo: undefined, page: 1 });
+        navigate({ lastContactFrom: undefined, lastContactTo: undefined, lastContactRange: undefined, page: 1 });
         break;
       case "created":
-        navigate({ createdFrom: undefined, createdTo: undefined, page: 1 });
+        navigate({ createdFrom: undefined, createdTo: undefined, createdRange: undefined, page: 1 });
         break;
     }
   }
@@ -183,6 +190,8 @@ export function ClientListContent({
       lastContactTo: undefined,
       createdFrom: undefined,
       createdTo: undefined,
+      lastContactRange: undefined,
+      createdRange: undefined,
       filter: undefined,
       page: 1,
     });
@@ -211,6 +220,8 @@ export function ClientListContent({
     if (next.lastContactTo) sp.set("lastContactTo", String(next.lastContactTo));
     if (next.createdFrom) sp.set("createdFrom", String(next.createdFrom));
     if (next.createdTo) sp.set("createdTo", String(next.createdTo));
+    if (next.lastContactRange) sp.set("lastContactRange", next.lastContactRange);
+    if (next.createdRange) sp.set("createdRange", next.createdRange);
     if (next.filter) sp.set("filter", next.filter);
     if (next.sort !== "heat") sp.set("sort", next.sort);
     if (next.sortDir !== "desc") sp.set("sortDir", next.sortDir);
@@ -616,6 +627,8 @@ export function ClientListContent({
             lastContactTo={currentFilters.lastContactTo}
             createdFrom={currentFilters.createdFrom}
             createdTo={currentFilters.createdTo}
+            lastContactRange={currentFilters.lastContactRange}
+            createdRange={currentFilters.createdRange}
             onChange={(next) => navigate({ ...next, page: 1 })}
           />
         </div>

@@ -15,7 +15,8 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
-import { DateRangeFilter, type DateRange } from "@/components/date-range-filter";
+import { DateRangePresets, type DateRangeValue } from "@/components/date-range-picker";
+import type { DatePresetId } from "@/lib/date-presets";
 import { cn } from "@/lib/utils";
 import { endOfDay } from "date-fns";
 
@@ -395,12 +396,35 @@ interface DatesFilterButtonProps {
   lastContactTo?: number;
   createdFrom?: number;
   createdTo?: number;
+  lastContactRange?: DatePresetId;
+  createdRange?: DatePresetId;
   onChange(next: {
     lastContactFrom?: number;
     lastContactTo?: number;
     createdFrom?: number;
     createdTo?: number;
+    lastContactRange?: DatePresetId;
+    createdRange?: DatePresetId;
   }): void;
+}
+
+type RangeFields = { from?: number; to?: number; range?: DatePresetId };
+
+const toTs = (d?: Date) => (d ? Math.floor(d.getTime() / 1000) : undefined);
+// The picker yields local midnight, and the query bound is inclusive (`lte`), so a
+// midnight "to" would drop the whole last day. The columns hold whole seconds.
+const toEndTs = (d?: Date) => (d ? toTs(endOfDay(d)) : undefined);
+
+/** URL fields -> picker value: a rolling shortcut wins over explicit bounds. */
+function toValue({ from, to, range }: RangeFields): DateRangeValue {
+  if (range) return { preset: range };
+  return { from: from ? new Date(from * 1000) : undefined, to: to ? new Date(to * 1000) : undefined };
+}
+
+/** Picker value -> URL fields: a shortcut is stored by id (rolling), days as unix seconds. */
+function fromValue(v: DateRangeValue): RangeFields {
+  if (v.preset) return { range: v.preset, from: undefined, to: undefined };
+  return { from: toTs(v.from), to: toEndTs(v.to), range: undefined };
 }
 
 export function DatesFilterButton({
@@ -408,27 +432,26 @@ export function DatesFilterButton({
   lastContactTo,
   createdFrom,
   createdTo,
+  lastContactRange,
+  createdRange,
   onChange,
 }: DatesFilterButtonProps) {
   const [open, setOpen] = useState(false);
 
-  const activeCount =
-    (lastContactFrom || lastContactTo ? 1 : 0) +
-    (createdFrom || createdTo ? 1 : 0);
+  const lastContact: RangeFields = { from: lastContactFrom, to: lastContactTo, range: lastContactRange };
+  const created: RangeFields = { from: createdFrom, to: createdTo, range: createdRange };
+  const isSet = (r: RangeFields) => !!(r.from || r.to || r.range);
+  const activeCount = (isSet(lastContact) ? 1 : 0) + (isSet(created) ? 1 : 0);
 
-  const lastContactRange: DateRange = {
-    from: lastContactFrom ? new Date(lastContactFrom * 1000) : undefined,
-    to: lastContactTo ? new Date(lastContactTo * 1000) : undefined,
-  };
-  const createdRange: DateRange = {
-    from: createdFrom ? new Date(createdFrom * 1000) : undefined,
-    to: createdTo ? new Date(createdTo * 1000) : undefined,
-  };
-
-  const toTs = (d?: Date) => (d ? Math.floor(d.getTime() / 1000) : undefined);
-  // The picker yields local midnight, and the query bound is inclusive (`lte`), so a
-  // midnight "to" would drop the whole last day. The columns hold whole seconds.
-  const toEndTs = (d?: Date) => (d ? toTs(endOfDay(d)) : undefined);
+  const emit = (lc: RangeFields, cr: RangeFields) =>
+    onChange({
+      lastContactFrom: lc.from,
+      lastContactTo: lc.to,
+      lastContactRange: lc.range,
+      createdFrom: cr.from,
+      createdTo: cr.to,
+      createdRange: cr.range,
+    });
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -441,27 +464,17 @@ export function DatesFilterButton({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <DateRangeFilter
+      <PopoverContent className="w-auto max-h-[var(--radix-popover-content-available-height)] overflow-y-auto p-0" align="start">
+        <DateRangePresets
           label="Last Contact"
-          value={lastContactRange}
-          onChange={(r) => onChange({
-            lastContactFrom: toTs(r.from),
-            lastContactTo: toEndTs(r.to),
-            createdFrom,
-            createdTo,
-          })}
+          value={toValue(lastContact)}
+          onChange={(v) => emit(fromValue(v), created)}
         />
         <div className="border-t" />
-        <DateRangeFilter
+        <DateRangePresets
           label="Created"
-          value={createdRange}
-          onChange={(r) => onChange({
-            lastContactFrom,
-            lastContactTo,
-            createdFrom: toTs(r.from),
-            createdTo: toEndTs(r.to),
-          })}
+          value={toValue(created)}
+          onChange={(v) => emit(lastContact, fromValue(v))}
         />
         {activeCount > 0 && (
           <div className="border-t p-2">
@@ -470,12 +483,7 @@ export function DatesFilterButton({
               size="sm"
               className="w-full justify-center text-xs"
               onClick={() => {
-                onChange({
-                  lastContactFrom: undefined,
-                  lastContactTo: undefined,
-                  createdFrom: undefined,
-                  createdTo: undefined,
-                });
+                emit({}, {});
                 setOpen(false);
               }}
             >

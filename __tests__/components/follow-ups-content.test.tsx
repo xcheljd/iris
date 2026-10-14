@@ -117,6 +117,17 @@ describe("FollowUpsContent snooze day boundary", () => {
     // Local tomorrow is the 30th. The old toISOString() path gave "2026-08-31".
     expect(rescheduleFollowUp).toHaveBeenCalledWith("log-0", "2026-08-30");
   });
+
+  it("the reschedule dialog offers the same quick picks as logging", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(<FollowUpsContent overdue={makeRows(1)} upcoming={[]} />);
+    await user.click(screen.getByRole("button", { name: /Reschedule/ }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "1 week" }));
+    await user.click(within(dialog).getByRole("button", { name: "Reschedule" }));
+    // Local today is Aug 29 (18:00 in LA); a week out is Sep 5.
+    expect(rescheduleFollowUp).toHaveBeenCalledWith("log-0", "2026-09-05");
+  });
 });
 
 // B17: rescheduleFollowUp reports a rejection as { error } rather than

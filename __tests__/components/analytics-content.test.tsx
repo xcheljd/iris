@@ -11,10 +11,16 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/analytics",
 }));
 vi.mock("@/components/topbar", () => ({ Topbar: () => null }));
-// Each picker is a button named by its placeholder that picks local midnight, May 31.
-vi.mock("@/components/date-picker", () => ({
-  DatePicker: ({ onSelectAction, placeholder }: { onSelectAction: (d?: Date) => void; placeholder: string }) => (
-    <button type="button" onClick={() => onSelectAction(new Date(2026, 4, 31))}>{placeholder}</button>
+// The range picker stands in as three buttons: picked days (local midnight,
+// May 1 – May 31, as the calendar reports them), the Last 30 days shortcut,
+// and clear. Its label shows what the page passed in.
+vi.mock("@/components/date-range-picker", () => ({
+  DateRangePicker: ({ onChange }: { onChange: (v: { preset?: string; from?: Date; to?: Date }) => void }) => (
+    <div data-testid="range-picker">
+      <button type="button" onClick={() => onChange({ from: new Date(2026, 4, 1), to: new Date(2026, 4, 31) })}>Pick days</button>
+      <button type="button" onClick={() => onChange({ preset: "30d" })}>Last 30 days</button>
+      <button type="button" onClick={() => onChange({})}>Clear range</button>
+    </div>
   ),
 }));
 
@@ -63,27 +69,32 @@ function renderContent(props: Partial<Parameters<typeof AnalyticsContent>[0]> = 
       prospectFunnel={funnel}
       methodDistribution={methods(1, 1)}
       outcomeDistribution={[{ outcome: "no_answer", count: 2 }]}
-      allTimeMethodDistribution={methods(1, 1)}
       {...props}
     />,
   );
 }
 
-// Regression: the date range lived in useState (lost on refresh), the pickers
-// sat above every tab though only Outreach honours them, and the Overview's
-// fixed-window conversion rate was unlabelled.
+// Regression: the date range lived in useState (lost on refresh). Now one
+// range picker drives the Overview and the Outreach tab through the URL; with
+// no range both show all time.
 describe("AnalyticsContent date range", () => {
-  it("labels the Overview conversion rate as last 7 days and hides the pickers there", () => {
+  it("shows the picker on Overview and labels the outreach cards all time by default", () => {
     renderContent();
-    expect(screen.getByText("Conversion (last 7 days)")).toBeInTheDocument();
-    expect(screen.queryByText("From")).not.toBeInTheDocument();
+    expect(screen.getByTestId("range-picker")).toBeInTheDocument();
+    expect(screen.getAllByText("all time").length).toBeGreaterThanOrEqual(3);
+    expect(screen.queryByText(/7d|7 days/)).not.toBeInTheDocument();
+  });
+
+  it("labels the Overview cards with the picked range", () => {
+    renderContent({ rangePreset: "30d" });
+    expect(screen.getAllByText("Last 30 days").length).toBeGreaterThanOrEqual(3);
   });
 
   it("reads the range from props (the URL) and shows the server's rows for it on the Outreach tab", async () => {
     renderContent({ dateFrom: ts("2026-05-01T00:00:00"), dateTo: ts("2026-05-31T23:59:59") });
     await userEvent.setup().click(screen.getByRole("tab", { name: "Outreach" }));
     expect(screen.getByText("Client2")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Clear" })).toBeInTheDocument();
+    expect(screen.getByTestId("range-picker")).toBeInTheDocument();
   });
 
   it("clearing writes the URL rather than local state, keeping the employee", async () => {
@@ -92,19 +103,23 @@ describe("AnalyticsContent date range", () => {
       employees: [{ id: "e1", firstName: "Test", lastName: "Associate" }],
       selectedEmployeeId: "e1",
     });
-    const user = userEvent.setup();
-    await user.click(screen.getByRole("tab", { name: "Outreach" }));
-    await user.click(screen.getByRole("button", { name: "Clear" }));
+    await userEvent.setup().click(screen.getByRole("button", { name: "Clear range" }));
     expect(replace).toHaveBeenCalledWith("/analytics?employee=e1", { scroll: false });
   });
 
-  it("hides the pickers on Heat and Prospects", async () => {
+  it("a shortcut is written by id so the link stays rolling", async () => {
+    renderContent({ dateFrom: ts("2026-05-01T00:00:00") });
+    await userEvent.setup().click(screen.getByRole("button", { name: "Last 30 days" }));
+    expect(replace).toHaveBeenCalledWith("/analytics?range=30d", { scroll: false });
+  });
+
+  it("hides the picker on Heat and Prospects", async () => {
     renderContent();
     const user = userEvent.setup();
     await user.click(screen.getByRole("tab", { name: "Heat Distribution" }));
-    expect(screen.queryByText("From")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("range-picker")).not.toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "Prospects" }));
-    expect(screen.queryByText("From")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("range-picker")).not.toBeInTheDocument();
   });
 });
 
@@ -132,10 +147,8 @@ describe("AnalyticsContent outreach breakdowns", () => {
     renderContent();
     const user = userEvent.setup();
     await user.click(screen.getByRole("tab", { name: "Outreach" }));
-    await user.click(screen.getByRole("button", { name: "To" }));
-    expect(replace).toHaveBeenCalledWith(`/analytics?to=${ts("2026-05-31T23:59:59")}`, { scroll: false });
-    await user.click(screen.getByRole("button", { name: "From" }));
-    expect(replace).toHaveBeenLastCalledWith(`/analytics?from=${ts("2026-05-31T00:00:00")}`, { scroll: false });
+    await user.click(screen.getByRole("button", { name: "Pick days" }));
+    expect(replace).toHaveBeenCalledWith(`/analytics?from=${ts("2026-05-01T00:00:00")}&to=${ts("2026-05-31T23:59:59")}`, { scroll: false });
   });
 });
 
@@ -165,8 +178,8 @@ describe("AnalyticsContent outreach log paging", () => {
     renderContent({ outreachTotal: 45, outreachPage: 3 });
     const user = userEvent.setup();
     await user.click(screen.getByRole("tab", { name: "Outreach" }));
-    await user.click(screen.getByRole("button", { name: "From" }));
-    expect(replace).toHaveBeenCalledWith(`/analytics?from=${ts("2026-05-31T00:00:00")}`, { scroll: false });
+    await user.click(screen.getByRole("button", { name: "Pick days" }));
+    expect(replace).toHaveBeenCalledWith(`/analytics?from=${ts("2026-05-01T00:00:00")}&to=${ts("2026-05-31T23:59:59")}`, { scroll: false });
   });
 });
 
@@ -188,10 +201,10 @@ describe("AnalyticsContent truthful labels", () => {
     expect(screen.getByText("Results in the selected range")).toBeInTheDocument();
   });
 
-  it("labels the Overview methods hover as all time, fed by the unranged counts", async () => {
-    renderContent({ allTimeMethodDistribution: methods(70, 50), dateFrom: ts("2026-05-01T00:00:00") });
-    await userEvent.setup().hover(screen.getByText("Outreach (7d)"));
-    expect(await screen.findByText("Outreach Methods (all time)")).toBeInTheDocument();
+  it("the Overview methods hover follows the picked range", async () => {
+    renderContent({ methodDistribution: methods(70, 50), rangePreset: "30d" });
+    await userEvent.setup().hover(screen.getByText("Outreach", { selector: "p" }));
+    expect(await screen.findByText("Outreach Methods (Last 30 days)")).toBeInTheDocument();
     expect(screen.getByText("70")).toBeInTheDocument();
     expect(screen.queryByText(/last 50 logs/)).not.toBeInTheDocument();
   });

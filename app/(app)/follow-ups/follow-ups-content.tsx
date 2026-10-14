@@ -12,6 +12,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { DatePicker } from "@/components/date-picker";
+import { FollowUpQuickPicks } from "@/components/follow-up-quick-picks";
 import { PaginationFooter } from "@/components/pagination-footer";
 import { 
   Clock, 
@@ -243,8 +244,9 @@ function FollowUpCard({
               Pick a new date for the follow-up with {row.client.firstName} {row.client.lastName || ""}.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-2">
+          <div className="flex flex-col gap-2 py-2">
             <DatePicker date={newDate} onSelectAction={setNewDate} className="w-full" />
+            <FollowUpQuickPicks onPick={setNewDate} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRescheduleOpen(false)}>Cancel</Button>

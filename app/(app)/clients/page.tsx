@@ -3,6 +3,7 @@ import { getClientsWithEmployeePaginated, getClientOwnerNames, getTags, getEmplo
 import { ClientListContent } from "./clients-content";
 import { ClientListSkeleton } from "@/components/skeletons";
 import { requirePageSession } from "@/lib/auth";
+import { isDatePresetId } from "@/lib/date-presets";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -36,6 +37,8 @@ async function ClientListFetcher({ searchParams }: { searchParams: SearchParams 
   const lastContactTo = parseTs(sp.lastContactTo);
   const createdFrom = parseTs(sp.createdFrom);
   const createdTo = parseTs(sp.createdTo);
+  const lastContactRange = isDatePresetId(sp.lastContactRange) ? sp.lastContactRange : undefined;
+  const createdRange = isDatePresetId(sp.createdRange) ? sp.createdRange : undefined;
   const rawSort = typeof sp.sort === "string" ? sp.sort : undefined;
   const sort = VALID_SORT_KEYS.includes(rawSort as ClientSortKey) ? (rawSort as ClientSortKey) : undefined;
   // Quick filter (the dashboard stat cards link here) — whitelisted like sort.
@@ -48,7 +51,7 @@ async function ClientListFetcher({ searchParams }: { searchParams: SearchParams 
   const employeeId = isManager ? undefined : session.user.id;
 
   const [{ rows, total, page: servedPage }, ownerNames, allTags, allEmployees] = await Promise.all([
-    getClientsWithEmployeePaginated(employeeId, { q, nameQ, contactQ, heat, owner, filter, tags, tagMode, lastContactFrom, lastContactTo, createdFrom, createdTo, sort, sortDir, page }),
+    getClientsWithEmployeePaginated(employeeId, { q, nameQ, contactQ, heat, owner, filter, tags, tagMode, lastContactFrom, lastContactTo, createdFrom, createdTo, lastContactRange, createdRange, sort, sortDir, page }),
     getClientOwnerNames(employeeId),
     getTags(),
     getEmployees(),
@@ -78,6 +81,8 @@ async function ClientListFetcher({ searchParams }: { searchParams: SearchParams 
         lastContactTo,
         createdFrom,
         createdTo,
+        lastContactRange,
+        createdRange,
         filter,
         sort: sort ?? "heat",
         sortDir: sortDir ?? "desc",

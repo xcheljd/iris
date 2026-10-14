@@ -43,10 +43,15 @@ interface MethodDistribution {
 interface AnalyticsOverviewTabProps {
   stats: Stats;
   conversionRate: number;
+  /** Outreach methods counted over the same range as the cards. */
   methodDistribution: MethodDistribution[];
+  /** The picked range for the outreach cards: "All time", "Last 30 days", "May 1 – May 31, 2026". */
+  rangeLabel: string;
 }
 
-export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution }: AnalyticsOverviewTabProps) {
+export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution, rangeLabel }: AnalyticsOverviewTabProps) {
+  // Client counts are point-in-time; only the outreach/purchase cards follow the range.
+  const inRange = rangeLabel === "All time" ? "all time" : rangeLabel;
   return (
     <div className="flex flex-col gap-6">
       {/* Key Metrics with HoverCards */}
@@ -97,7 +102,8 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Outreach (7d)</p>
+                    <p className="text-sm text-muted-foreground">Outreach</p>
+                    <p className="text-xs text-muted-foreground">{inRange}</p>
                     <p className="text-2xl font-bold">{stats.outreachWeek}</p>
                   </div>
                   <Phone className="size-8 text-info" />
@@ -107,7 +113,7 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
           </HoverCardTrigger>
           <HoverCardContent className="w-64">
             <div className="flex flex-col gap-1">
-              <p className="text-sm font-medium">Outreach Methods (all time)</p>
+              <p className="text-sm font-medium">Outreach Methods ({inRange})</p>
               <Separator />
               {methodDistribution.map((m) => (
                 <div key={m.method} className="flex justify-between text-sm">
@@ -125,7 +131,8 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Purchases (7d)</p>
+                    <p className="text-sm text-muted-foreground">Purchases</p>
+                    <p className="text-xs text-muted-foreground">{inRange}</p>
                     <p className="text-2xl font-bold text-success">{stats.purchasesWeek}</p>
                   </div>
                   <ShoppingCart className="size-8 text-success" />
@@ -160,7 +167,8 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Conversion (last 7 days)</p>
+                    <p className="text-sm text-muted-foreground">Conversion</p>
+                    <p className="text-xs text-muted-foreground">{inRange}</p>
                     <p className="text-2xl font-bold">{conversionRate}%</p>
                   </div>
                   <Target className="size-8 text-warning" />
@@ -174,7 +182,7 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
               <Separator />
               <p className="text-xs text-muted-foreground">
                 {stats.purchasesWeek} purchase{stats.purchasesWeek !== 1 ? "s" : ""} from{" "}
-                {stats.outreachWeek} outreach attempt{stats.outreachWeek !== 1 ? "s" : ""} in the last 7 days.
+                {stats.outreachWeek} outreach attempt{stats.outreachWeek !== 1 ? "s" : ""} ({inRange}).
               </p>
               <Progress value={conversionRate} className="h-2 mt-2" aria-label="Conversion rate" />
             </div>
@@ -203,8 +211,8 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
       {/* Conversion Metrics with Progress Bars */}
       <Card>
         <CardHeader>
-          <CardTitle>Conversion Metrics (7d)</CardTitle>
-          <CardDescription>Outreach effectiveness at a glance</CardDescription>
+          <CardTitle>Conversion Metrics</CardTitle>
+          <CardDescription>Outreach effectiveness, {inRange}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">

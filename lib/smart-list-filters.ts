@@ -11,6 +11,7 @@
 
 import type { ClientFilterParams } from "@/lib/client-filter-conds";
 import type { BuiltInFilter } from "@/lib/queries";
+import { datePresetLabel, isDatePresetId } from "@/lib/date-presets";
 
 /** Labels for the `?filter=` quick filters (dashboard stat cards, filter menu). */
 export const QUICK_FILTER_LABELS: Record<BuiltInFilter, string> = {
@@ -73,6 +74,8 @@ export function smartListToClientFilters(raw: Record<string, unknown>): ClientFi
   if (typeof f.lastContactTo === "number") out.lastContactTo = f.lastContactTo;
   if (typeof f.createdFrom === "number") out.createdFrom = f.createdFrom;
   if (typeof f.createdTo === "number") out.createdTo = f.createdTo;
+  if (isDatePresetId(f.lastContactRange)) out.lastContactRange = f.lastContactRange;
+  if (isDatePresetId(f.createdRange)) out.createdRange = f.createdRange;
   if (typeof f.filter === "string" && Object.hasOwn(QUICK_FILTER_LABELS, f.filter)) out.filter = f.filter;
 
   return out;
@@ -119,13 +122,17 @@ export function getActiveFilterChips(f: ClientFilterParams): ClientFilterChip[] 
     chips.push({ key: "tags", label: `Tags (${mode}): ${f.tags.join(", ")}` });
   }
   const fmt = (ts: number) => new Date(ts * 1000).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
-  if (f.lastContactFrom || f.lastContactTo) {
+  if (f.lastContactRange) {
+    chips.push({ key: "lastContact", label: `Last Contact: ${datePresetLabel(f.lastContactRange)}` });
+  } else if (f.lastContactFrom || f.lastContactTo) {
     chips.push({
       key: "lastContact",
       label: `Last Contact: ${f.lastContactFrom ? fmt(f.lastContactFrom) : "—"} → ${f.lastContactTo ? fmt(f.lastContactTo) : "—"}`,
     });
   }
-  if (f.createdFrom || f.createdTo) {
+  if (f.createdRange) {
+    chips.push({ key: "created", label: `Created: ${datePresetLabel(f.createdRange)}` });
+  } else if (f.createdFrom || f.createdTo) {
     chips.push({
       key: "created",
       label: `Created: ${f.createdFrom ? fmt(f.createdFrom) : "—"} → ${f.createdTo ? fmt(f.createdTo) : "—"}`,
@@ -152,7 +159,9 @@ export function hasActiveClientFilters(f: ClientFilterParams): boolean {
     f.lastContactFrom ||
     f.lastContactTo ||
     f.createdFrom ||
-    f.createdTo,
+    f.createdTo ||
+    f.lastContactRange ||
+    f.createdRange,
   );
 }
 
@@ -187,6 +196,8 @@ export function clientFiltersToSearchParams(f: ClientFilterParams): URLSearchPar
   if (f.lastContactTo) sp.set("lastContactTo", String(f.lastContactTo));
   if (f.createdFrom) sp.set("createdFrom", String(f.createdFrom));
   if (f.createdTo) sp.set("createdTo", String(f.createdTo));
+  if (f.lastContactRange) sp.set("lastContactRange", f.lastContactRange);
+  if (f.createdRange) sp.set("createdRange", f.createdRange);
   if (f.filter) sp.set("filter", f.filter);
   return sp;
 }

@@ -74,4 +74,33 @@ describe("getStats owner scoping", () => {
     expect(store.unsubscribed).toBeGreaterThanOrEqual(3);
     expect(store.outreachWeek).toBeGreaterThanOrEqual(2);
   });
+
+  // Analytics passes its picked range ({} = all time); the dashboard keeps the
+  // default 7-day window.
+  it("counts outreach over the given window, defaulting to the last 7 days", async () => {
+    const ts = Date.now();
+    const assoc = randomUUID();
+    ids.employees.push(assoc);
+    db.insert(employees).values({
+      id: assoc, name: `Win${ts}`, firstName: `Win${ts}`, username: `win-${ts}`,
+      passwordHash: "x", role: "associate",
+    }).run();
+    const client = randomUUID();
+    ids.clients.push(client);
+    db.insert(clients).values({ id: client, firstName: "Window", employeeId: assoc }).run();
+    const log = (daysAgo: number, outcome: "purchased" | "no_answer") => {
+      const id = randomUUID();
+      ids.logs.push(id);
+      db.insert(outreachLogs).values({ id, clientId: client, employeeId: assoc, method: "call", outcome, date: new Date(ts - daysAgo * 86_400_000) }).run();
+    };
+    log(1, "purchased");
+    log(20, "no_answer");
+    log(200, "purchased");
+
+    expect(await getStats(assoc)).toMatchObject({ outreachWeek: 1, purchasesWeek: 1 });
+    expect(await getStats(assoc, {})).toMatchObject({ outreachWeek: 3, purchasesWeek: 2 });
+    const thirty = Math.floor((ts - 30 * 86_400_000) / 1000);
+    expect(await getStats(assoc, { from: thirty })).toMatchObject({ outreachWeek: 2, purchasesWeek: 1 });
+    expect(await getStats(assoc, { from: thirty, to: Math.floor((ts - 10 * 86_400_000) / 1000) })).toMatchObject({ outreachWeek: 1, purchasesWeek: 0 });
+  });
 });

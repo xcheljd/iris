@@ -20,6 +20,7 @@ import { clients, employees } from "@/lib/db/schema";
 import { toFtsQuery } from "@/lib/fts";
 import { containsLikeLower, containsPhone } from "@/lib/like";
 import { SEC_PER_DAY } from "@/lib/constants";
+import { presetRangeSeconds, type DatePresetId } from "@/lib/date-presets";
 
 export interface ClientFilterParams {
   /** Global free-text search (matches name OR email OR phone). */
@@ -38,6 +39,13 @@ export interface ClientFilterParams {
   /** Unix seconds bounds for clients.createdAt. */
   createdFrom?: number;
   createdTo?: number;
+  /**
+   * Rolling shortcut ("30d", "this_month", …) for last contact / created. Wins
+   * over the explicit bounds and is resolved against today at query time, so
+   * a saved filter or shared link keeps meaning "the last 30 days".
+   */
+  lastContactRange?: DatePresetId;
+  createdRange?: DatePresetId;
   /** Built-in quick filter from `?filter=` (a BuiltInFilter id; unknown ids are ignored). */
   filter?: string;
 }
@@ -51,8 +59,11 @@ export interface BuiltClientFilterConds {
 export function buildClientFilterConds(filters: ClientFilterParams): BuiltClientFilterConds {
   const {
     q, nameQ, contactQ, heat, owner, tags, tagMode = "any",
-    lastContactFrom, lastContactTo, createdFrom, createdTo, filter,
+    lastContactRange, createdRange, filter,
   } = filters;
+  let { lastContactFrom, lastContactTo, createdFrom, createdTo } = filters;
+  if (lastContactRange) ({ from: lastContactFrom, to: lastContactTo } = presetRangeSeconds(lastContactRange));
+  if (createdRange) ({ from: createdFrom, to: createdTo } = presetRangeSeconds(createdRange));
 
   const conds: SQL<unknown>[] = [];
 

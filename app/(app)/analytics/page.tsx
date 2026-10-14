@@ -3,6 +3,7 @@ import { getStats, getEmployees, getProspectFunnelStats, outreachMethodBreakdown
 import { AnalyticsContent } from "./analytics-content";
 import { AnalyticsSkeleton } from "@/components/skeletons";
 import { requirePageSession } from "@/lib/auth";
+import { isDatePresetId, presetRangeSeconds } from "@/lib/date-presets";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -37,8 +38,13 @@ async function AnalyticsFetcher({ searchParams }: { searchParams: SearchParams }
     return Number.isFinite(n) && n > 0 ? n : undefined;
   };
 
-  const dateFrom = parseTs(sp.from);
-  const dateTo = parseTs(sp.to);
+  // A rolling shortcut (`?range=30d`) wins over explicit days and is resolved
+  // against today, so a bookmarked link keeps meaning "the last 30 days".
+  // No range at all means all time, on the Overview and the Outreach tab alike.
+  const rangePreset = isDatePresetId(sp.range) ? sp.range : undefined;
+  const resolved = rangePreset ? presetRangeSeconds(rangePreset) : undefined;
+  const dateFrom = resolved ? resolved.from : parseTs(sp.from);
+  const dateTo = resolved ? resolved.to : parseTs(sp.to);
   // Same owner scope as every other outreach read here; an inverted range
   // matches nothing, as it does on the clients list.
   const range = { employeeId, from: dateFrom, to: dateTo };
@@ -49,14 +55,12 @@ async function AnalyticsFetcher({ searchParams }: { searchParams: SearchParams }
   const sortDir = sp.sortDir === "asc" ? "asc" : sp.sortDir === "desc" ? "desc" : undefined;
   const page = Math.max(1, parseInt(typeof sp.page === "string" ? sp.page : "1") || 1);
 
-  const [stats, outreachLog, prospectFunnel, methodDistribution, outcomeDistribution, allTimeMethodDistribution] = await Promise.all([
-    getStats(employeeId),
+  const [stats, outreachLog, prospectFunnel, methodDistribution, outcomeDistribution] = await Promise.all([
+    getStats(employeeId, { from: dateFrom, to: dateTo }),
     listOutreachLogs({ ...range, sort, sortDir, page }),
     getProspectFunnelStats(),
     outreachMethodBreakdown(range),
     outreachOutcomeBreakdown(range),
-    // The Overview ignores the date range.
-    outreachMethodBreakdown({ employeeId }),
   ]);
   return (
     <AnalyticsContent
@@ -72,9 +76,9 @@ async function AnalyticsFetcher({ searchParams }: { searchParams: SearchParams }
       prospectFunnel={prospectFunnel}
       methodDistribution={methodDistribution}
       outcomeDistribution={outcomeDistribution}
-      allTimeMethodDistribution={allTimeMethodDistribution}
-      dateFrom={dateFrom}
-      dateTo={dateTo}
+      rangePreset={rangePreset}
+      dateFrom={rangePreset ? undefined : dateFrom}
+      dateTo={rangePreset ? undefined : dateTo}
     />
   );
 }

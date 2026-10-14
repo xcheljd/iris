@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DATE_PRESET_IDS } from "@/lib/date-presets";
 
 // Same cap as the other name fields (client/employee names are max 100).
 export const smartListNameSchema = z
@@ -25,6 +26,8 @@ export const smartListFiltersSchema = z.strictObject({
   lastContactTo: unixSeconds,
   createdFrom: unixSeconds,
   createdTo: unixSeconds,
+  lastContactRange: z.enum(DATE_PRESET_IDS).optional(),
+  createdRange: z.enum(DATE_PRESET_IDS).optional(),
   filter: optionalText,
   heatLevel: optionalText,
   source: optionalText,

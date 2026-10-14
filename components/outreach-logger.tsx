@@ -9,6 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { DatePicker } from "@/components/date-picker";
+import { FollowUpQuickPicks } from "@/components/follow-up-quick-picks";
 import { logOutreach } from "@/lib/actions";
 import { toDateOnly } from "@/lib/utils";
 import { toast } from "sonner";
@@ -41,20 +42,6 @@ export function OutreachLogger({
   const [followUp, setFollowUp] = useState<Date | null>(null);
   const [templateId, setTemplateId] = useState<string>("");
   const [pending, start] = useTransition();
-
-  const quickFollowUpPresets = [
-    { label: "Tomorrow", days: 1 },
-    { label: "3 days", days: 3 },
-    { label: "1 week", days: 7 },
-    { label: "2 weeks", days: 14 },
-    { label: "1 month", days: 30 },
-  ];
-
-  function quickPick(days: number) {
-    const d = new Date();
-    d.setDate(d.getDate() + days);
-    setFollowUp(d);
-  }
 
   function reset() {
     setMethod(defaultMethod); setOutcome(defaultOutcome); setPurchasedModel(""); setNotes(""); setFollowUp(null); setTemplateId("");
@@ -165,13 +152,7 @@ export function OutreachLogger({
           <Field>
             <FieldLabel>Follow-up date (optional)</FieldLabel>
             <DatePicker date={followUp ?? undefined} onSelectAction={(d) => setFollowUp(d ?? null)} />
-            <div className="flex flex-wrap gap-2">
-              {quickFollowUpPresets.map((p) => (
-                <Button key={p.label} type="button" variant="outline" size="sm" onClick={() => quickPick(p.days)}>
-                  {p.label}
-                </Button>
-              ))}
-            </div>
+            <FollowUpQuickPicks onPick={setFollowUp} />
           </Field>
         </FieldGroup>
         <DialogFooter>

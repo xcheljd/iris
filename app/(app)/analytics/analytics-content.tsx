@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DatePicker } from "@/components/date-picker";
+import { DateRangePicker, type DateRangeValue } from "@/components/date-range-picker";
+import { describeRange, type DatePresetId } from "@/lib/date-presets";
 import { Topbar } from "@/components/topbar";
 import { AnalyticsOverviewTab } from "./analytics-overview-tab";
 import { AnalyticsOutreachTab } from "./analytics-outreach-tab";
@@ -48,16 +48,16 @@ interface AnalyticsContentProps {
   /** Counted in SQL over every log in the selected range (`outreachMethodBreakdown`). */
   methodDistribution: OutreachMethodBreakdown;
   outcomeDistribution: OutreachOutcomeBreakdown;
-  /** The Overview ignores the date range, so it gets the unranged counts. */
-  allTimeMethodDistribution: OutreachMethodBreakdown;
-  /** Outreach date range from `?from=` / `?to=`, unix seconds. */
+  /** Rolling shortcut from `?range=` (wins over from/to). */
+  rangePreset?: DatePresetId;
+  /** Explicit range from `?from=` / `?to=`, unix seconds. No range = all time. */
   dateFrom?: number;
   dateTo?: number;
 }
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
-export function AnalyticsContent({ stats, outreachLog, outreachTotal, outreachPage, outreachSort, outreachSortDir, employees, selectedEmployeeId, prospectFunnel, methodDistribution, outcomeDistribution, allTimeMethodDistribution, dateFrom: fromTs, dateTo: toTs }: AnalyticsContentProps) {
+export function AnalyticsContent({ stats, outreachLog, outreachTotal, outreachPage, outreachSort, outreachSortDir, employees, selectedEmployeeId, prospectFunnel, methodDistribution, outcomeDistribution, rangePreset, dateFrom: fromTs, dateTo: toTs }: AnalyticsContentProps) {
   const router = useRouter();
   const dateFrom = fromTs ? new Date(fromTs * 1000) : undefined;
   const dateTo = toTs ? new Date(toTs * 1000) : undefined;
@@ -66,11 +66,12 @@ export function AnalyticsContent({ stats, outreachLog, outreachTotal, outreachPa
   // The single URL writer: employee (managers only), the date range and the
   // outreach log page/sort. Omitting `page` resets to page 1.
   function navigate(
-    next: { employee?: string; from?: Date; to?: Date; page?: number; sort?: OutreachLogSortKey; sortDir?: "asc" | "desc" },
+    next: { employee?: string; range?: DatePresetId; from?: Date; to?: Date; page?: number; sort?: OutreachLogSortKey; sortDir?: "asc" | "desc" },
     history: "push" | "replace" = "replace",
   ) {
     const sp = new URLSearchParams();
     if (next.employee) sp.set("employee", next.employee);
+    if (next.range) sp.set("range", next.range);
     if (next.from) sp.set("from", String(Math.floor(next.from.getTime() / 1000)));
     if (next.to) sp.set("to", String(Math.floor(next.to.getTime() / 1000)));
     if (next.sort) sp.set("sort", next.sort);
@@ -83,6 +84,7 @@ export function AnalyticsContent({ stats, outreachLog, outreachTotal, outreachPa
   }
   const current = {
     employee: employees ? selectedEmployeeId : undefined,
+    range: rangePreset,
     from: dateFrom,
     to: dateTo,
     sort: outreachSort,
@@ -95,9 +97,12 @@ export function AnalyticsContent({ stats, outreachLog, outreachTotal, outreachPa
     ? Math.round((stats.purchasesWeek / stats.outreachWeek) * 100)
     : 0;
 
-  const clearDates = () => {
-    navigate({ ...current, from: undefined, to: undefined });
-  };
+  const rangeValue: DateRangeValue = rangePreset ? { preset: rangePreset } : { from: dateFrom, to: dateTo };
+  const rangeLabel = describeRange(rangeValue);
+  // A shortcut is written by id (rolling); picked days as unix seconds, the
+  // "to" day as its last second since the server bound is inclusive.
+  const setRange = (v: DateRangeValue) =>
+    navigate({ ...current, range: v.preset, from: v.preset ? undefined : v.from, to: v.preset ? undefined : v.to && endOfDay(v.to) });
 
   const handleEmployeeChange = (value: string) => {
     navigate({ ...current, employee: value === "all" ? undefined : value }, "push");
@@ -130,29 +135,10 @@ export function AnalyticsContent({ stats, outreachLog, outreachTotal, outreachPa
                 </SelectContent>
               </Select>
             )}
-            {/* The range filters the Outreach tab only; the other tabs are
-                fixed-window or point-in-time, so the pickers would do nothing there. */}
-            {tab === "outreach" && (
-              <>
-                <DatePicker
-                  date={dateFrom}
-                  onSelectAction={(d) => navigate({ ...current, from: d })}
-                  placeholder="From"
-                />
-                <span className="text-muted-foreground text-sm">to</span>
-                <DatePicker
-                  date={dateTo}
-                  // The picker yields local midnight and the server bound is inclusive
-                  // (`lte`), so send the end of the day or it drops the whole last day.
-                  onSelectAction={(d) => navigate({ ...current, to: d && endOfDay(d) })}
-                  placeholder="To"
-                />
-                {(dateFrom || dateTo) && (
-                  <Button variant="ghost" size="sm" onClick={clearDates}>
-                    Clear
-                  </Button>
-                )}
-              </>
+            {/* The range drives the Overview and the Outreach tab; Heat and
+                Prospects are point-in-time, so the picker would do nothing there. */}
+            {(tab === "overview" || tab === "outreach") && (
+              <DateRangePicker value={rangeValue} onChange={setRange} emptyLabel="All time" />
             )}
           </div>
         </div>
@@ -169,7 +155,8 @@ export function AnalyticsContent({ stats, outreachLog, outreachTotal, outreachPa
             <AnalyticsOverviewTab
               stats={stats}
               conversionRate={conversionRate}
-              methodDistribution={allTimeMethodDistribution}
+              methodDistribution={methodDistribution}
+              rangeLabel={rangeLabel}
             />
           </TabsContent>
 
@@ -184,7 +171,7 @@ export function AnalyticsContent({ stats, outreachLog, outreachTotal, outreachPa
               pageSize={PAGE_SIZE}
               methodDistribution={methodDistribution}
               outcomeDistribution={outcomeDistribution}
-              hasDateFilter={!!(dateFrom || dateTo)}
+              hasDateFilter={!!(rangePreset || dateFrom || dateTo)}
             />
           </TabsContent>
 

@@ -10,6 +10,7 @@ import { applyClientFilter } from "@/lib/utils";
 import { buildClientFilterConds } from "@/lib/client-filter-conds";
 import { smartListToClientFilters } from "@/lib/smart-list-filters";
 import { toFtsQuery } from "@/lib/fts";
+import type { DatePresetId } from "@/lib/date-presets";
 import { addDays, startOfDay } from "date-fns";
 import { getCatalogMap } from "@/lib/actions/model-catalog";
 import { MS_PER_DAY, SEC_PER_DAY, LIST_QUERY_LIMIT, PAGE_READ_LIMIT, FOLLOW_UP_LOOKAHEAD_DAYS, DEFAULT_PAGE_SIZE, PROMO_PAGE_SIZE } from "@/lib/constants";
@@ -125,18 +126,21 @@ export async function getClientsWithEmployeePaginated(
     createdFrom?: number;
     /** Created-at upper bound, unix seconds. */
     createdTo?: number;
+    /** Rolling shortcut ids; win over the explicit bounds (see ClientFilterParams). */
+    lastContactRange?: DatePresetId;
+    createdRange?: DatePresetId;
     sort?: ClientSortKey;
     sortDir?: "asc" | "desc";
     page?: number;
     pageSize?: number;
   },
 ) {
-  const { q, nameQ, contactQ, heat, owner, filter, tags, tagMode = "any", lastContactFrom, lastContactTo, createdFrom, createdTo, sort = "heat", sortDir = "desc", page = 1, pageSize = DEFAULT_PAGE_SIZE } = opts;
+  const { q, nameQ, contactQ, heat, owner, filter, tags, tagMode = "any", lastContactFrom, lastContactTo, createdFrom, createdTo, lastContactRange, createdRange, sort = "heat", sortDir = "desc", page = 1, pageSize = DEFAULT_PAGE_SIZE } = opts;
   // The ?filter= quick filter goes through the shared builder too, so the
   // email-recipients, CSV-export and smart-list queries match this listing.
   const { conds: filterConds } = buildClientFilterConds({
     q, nameQ, contactQ, heat, owner, tags, tagMode,
-    lastContactFrom, lastContactTo, createdFrom, createdTo,
+    lastContactFrom, lastContactTo, createdFrom, createdTo, lastContactRange, createdRange,
     filter: filter === "all" ? undefined : filter,
   });
   const conds: (SQL<unknown> | undefined)[] = [
@@ -260,7 +264,12 @@ export async function getOverdueFollowUps(employeeId?: string) {
 // they own now, bans/unsubscribes matching those clients (walk-in bans and
 // duplicate ban rows don't count), and outreach to those clients whoever
 // logged it — the same owner scoping follow-ups use.
-export async function getStats(employeeId?: string) {
+/**
+ * Client counts plus outreach/purchase counts over an outreach window. The
+ * dashboard uses the default (last 7 days); Analytics passes its picked range,
+ * or `{}` for all time. Bounds are unix seconds, inclusive, on outreach date.
+ */
+export async function getStats(employeeId?: string, outreachWindow?: { from?: number; to?: number }) {
   const clientFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
   const ownedLive = (id: string) => and(eq(clients.employeeId, id), notInArray(clients.status, ["deleted"]));
 
@@ -283,13 +292,17 @@ export async function getStats(employeeId?: string) {
       .where(ownedLive(employeeId)).get()
     : db.select({ c: rawSql<number>`count(*)` }).from(unsubscribeList).get();
 
-  const weekAgo = new Date(Date.now() - FOLLOW_UP_LOOKAHEAD_DAYS * MS_PER_DAY);
+  const win = outreachWindow ?? { from: Math.floor((Date.now() - FOLLOW_UP_LOOKAHEAD_DAYS * MS_PER_DAY) / 1000) };
   const outreachStats = db.select({
     outreachWeek: rawSql<number>`count(*)`,
     purchasesWeek: rawSql<number>`sum(case when ${outreachLogs.outcome} = 'purchased' then 1 else 0 end)`,
   }).from(outreachLogs)
     .innerJoin(clients, eq(outreachLogs.clientId, clients.id))
-    .where(and(gte(outreachLogs.date, weekAgo), clientFilter)).get();
+    .where(and(
+      win.from !== undefined ? gte(outreachLogs.date, new Date(win.from * 1000)) : undefined,
+      win.to !== undefined ? lte(outreachLogs.date, new Date(win.to * 1000)) : undefined,
+      clientFilter,
+    )).get();
 
   return {
     total: clientStats?.total ?? 0,
