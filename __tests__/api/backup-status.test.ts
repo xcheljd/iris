@@ -17,14 +17,17 @@ const associate: Session = { user: { id: "assoc", name: "Jordan", role: "associa
 const post = (body: unknown) => POST(new Request("http://x/api/backup/status", { method: "POST", body: JSON.stringify(body) }));
 
 let saved: string | undefined;
+let savedInstall: string | undefined;
 beforeEach(() => {
   saved = getMeta("last_backup_at");
-  db.delete(meta).where(or(eq(meta.key, "last_backup_at"), like(meta.key, "backup_snooze_until:%"))).run();
+  savedInstall = getMeta("installed_at");
+  db.delete(meta).where(or(eq(meta.key, "last_backup_at"), eq(meta.key, "installed_at"), like(meta.key, "backup_snooze_until:%"))).run();
   vi.mocked(getServerSession).mockResolvedValue(manager);
 });
 afterEach(() => {
-  db.delete(meta).where(or(eq(meta.key, "last_backup_at"), like(meta.key, "backup_snooze_until:%"))).run();
+  db.delete(meta).where(or(eq(meta.key, "last_backup_at"), eq(meta.key, "installed_at"), like(meta.key, "backup_snooze_until:%"))).run();
   if (saved) setMeta("last_backup_at", saved);
+  if (savedInstall) setMeta("installed_at", savedInstall);
 });
 
 describe("/api/backup/status", () => {
@@ -35,7 +38,14 @@ describe("/api/backup/status", () => {
   });
 
   it("starts with no backup and no snooze", async () => {
-    expect(await (await GET()).json()).toEqual({ lastBackupAt: null, snoozedUntil: null });
+    expect(await (await GET()).json()).toMatchObject({ lastBackupAt: null, snoozedUntil: null });
+  });
+
+  it("records the install date once, from the first employee on an existing database", async () => {
+    const first = (await (await GET()).json()).installedAt;
+    expect(new Date(first).getTime()).toBeLessThan(Date.now() - 1000);
+    expect(getMeta("installed_at")).toBe(first);
+    expect((await (await GET()).json()).installedAt).toBe(first);
   });
 
   it("records a backup in the database", async () => {
@@ -48,7 +58,7 @@ describe("/api/backup/status", () => {
   it("snoozing never touches the last backup date", async () => {
     const until = new Date(Date.now() + 6 * 3_600_000).toISOString();
     const body = await (await post({ action: "snooze", until })).json();
-    expect(body).toEqual({ lastBackupAt: null, snoozedUntil: until });
+    expect(body).toMatchObject({ lastBackupAt: null, snoozedUntil: until });
   });
 
   it("snoozes per manager", async () => {

@@ -61,12 +61,15 @@ export function daysSinceBackup(s: BackupStatus, now: Date = new Date()): number
   return s.lastBackupAt ? Math.floor((now.getTime() - new Date(s.lastBackupAt).getTime()) / MS_PER_DAY) : null;
 }
 
-/** Due when there's no backup or it's 7+ days old, and the manager hasn't snoozed past now. */
+/**
+ * Due when the last backup is 7+ days old, or there's none and the install is
+ * 7+ days old (a fresh install gets a week's grace), unless snoozed past now.
+ */
 export function isBackupReminderDue(s: BackupStatus | null, now: Date = new Date()): boolean {
   if (!s) return false;
   if (s.snoozedUntil && new Date(s.snoozedUntil) > now) return false;
-  const days = daysSinceBackup(s, now);
-  return days === null || days >= BACKUP_DUE_DAYS;
+  const since = s.lastBackupAt ?? s.installedAt;
+  return (now.getTime() - new Date(since).getTime()) / MS_PER_DAY >= BACKUP_DUE_DAYS;
 }
 
 export function backupReminderText(s: BackupStatus, now: Date = new Date()): string {
