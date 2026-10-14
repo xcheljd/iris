@@ -14,6 +14,10 @@ function Command({
   );
 }
 
+// Local change (keep on refresh): CommandDialog passes shouldFilter={false}
+// (upstream leaves cmdk's filtering on). Its only user, the command palette,
+// searches server-side (/api/search) and decides what to list itself; cmdk
+// re-filtering on the item text would fight the API's results.
 function CommandDialog({ children, ...props }: React.ComponentProps<typeof Dialog>) {
   return (
     <Dialog {...props}>

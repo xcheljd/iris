@@ -16,7 +16,7 @@ export function Providers({ children, session }: { children: React.ReactNode; se
             <NavigationProgress />
             {children}
           </NavigationTransitionProvider>
-          <Toaster />
+          <Toaster closeButton />
         </TooltipProvider>
       </ThemeProvider>
     </SessionProvider>

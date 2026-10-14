@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, Copy, FileText, Loader2, AlertTriangle } from "lucide-react";
+import { Download, Copy, FileText, AlertTriangle } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -138,11 +139,11 @@ export function ClientsCsvExportDialog({
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button variant="outline" onClick={handleCopy} disabled={disabled}>
-            {loading ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Copy className="size-4 mr-2" />}
+            {loading ? <Spinner className="mr-2" /> : <Copy className="size-4 mr-2" />}
             Copy
           </Button>
           <Button onClick={handleDownload} disabled={disabled}>
-            {loading ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Download className="size-4 mr-2" />}
+            {loading ? <Spinner className="mr-2" /> : <Download className="size-4 mr-2" />}
             Download
           </Button>
         </DialogFooter>

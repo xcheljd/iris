@@ -9,7 +9,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Upload, Download, Loader2, CheckCircle2 } from "lucide-react";
+import { Upload, Download, CheckCircle2 } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import { analyzeRvxImport, importProspectsFromRvx, type RvxAnalysisResult } from "@/lib/actions";
 
@@ -146,7 +147,7 @@ export function RvxImportDialog({ open, onOpenChangeAction }: RvxImportDialogPro
                 Cancel
               </Button>
               <Button onClick={handleAnalyze} disabled={!csvText || pending}>
-                {pending ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+                {pending ? <Spinner className="mr-2" /> : null}
                 Analyze
               </Button>
             </DialogFooter>
@@ -204,7 +205,7 @@ export function RvxImportDialog({ open, onOpenChangeAction }: RvxImportDialogPro
               <DialogTitle>Importing...</DialogTitle>
             </DialogHeader>
             <div className="py-8 flex justify-center">
-              <Loader2 className="size-8 animate-spin text-muted-foreground" />
+              <Spinner className="size-8 text-muted-foreground" />
             </div>
           </>
         )}

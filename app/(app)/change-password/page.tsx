@@ -9,7 +9,8 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
-import { Loader2, Check, X } from "lucide-react";
+import { Check, X } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { changeOwnPassword, setSecretQuestion } from "@/lib/actions";
 import { toast } from "sonner";
 import { Topbar } from "@/components/topbar";
@@ -195,7 +196,7 @@ export default function ChangePasswordPage() {
                 {passwordsMatch && <FieldDescription className="text-success">Passwords match</FieldDescription>}
               </Field>
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading && <Loader2 className="size-4 animate-spin" />}
+                {loading && <Spinner />}
                 {loading ? "Changing..." : "Change Password"}
               </Button>
             </FieldGroup>
@@ -240,7 +241,7 @@ export default function ChangePasswordPage() {
                 />
               </Field>
               <Button type="submit" className="w-full" disabled={secretLoading}>
-                {secretLoading && <Loader2 className="size-4 animate-spin" />}
+                {secretLoading && <Spinner />}
                 {secretLoading ? "Saving..." : "Save Question"}
               </Button>
             </FieldGroup>

@@ -2,7 +2,8 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { CheckCircle2, Circle, GraduationCap, Loader2 } from "lucide-react";
+import { CheckCircle2, Circle, GraduationCap } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -148,7 +149,7 @@ export function OnboardingSettingsTab({ initialState }: OnboardingSettingsTabPro
           </div>
           {isTourActive ? (
             <Button disabled variant="outline" className="gap-2">
-              <Loader2 className="size-4 animate-spin" />
+              <Spinner />
               Tour in Progress
             </Button>
           ) : (

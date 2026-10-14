@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Mail, Copy, Loader2 } from "lucide-react";
+import { Mail, Copy } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { describeClientFilters } from "@/lib/smart-list-filters";
 import { Button } from "@/components/ui/button";
 import {
@@ -158,7 +159,7 @@ export function EmailRecipientsDialog({ open, onOpenChange, filters }: EmailReci
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleCopy} disabled={copyDisabled}>
             {loading ? (
-              <Loader2 className="size-4 mr-2 animate-spin" />
+              <Spinner className="mr-2" />
             ) : (
               <Copy className="size-4 mr-2" />
             )}

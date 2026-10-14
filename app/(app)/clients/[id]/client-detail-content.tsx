@@ -1,17 +1,16 @@
 "use client";
 
-import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ClientDetailTabs } from "@/components/client-detail-tabs";
 import { ClientSidebar } from "@/components/client-sidebar";
 import { ClientProvider } from "@/components/client-provider";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Topbar } from "@/components/topbar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 import type { FullClient } from "@/components/client-provider";
 
 export function ClientDetailContent({ client, currentUserRole }: { client: FullClient; currentUserRole?: string }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const searchParams = useSearchParams();
   // When arrived from the Collections analytics page, show
   // "Collections > [collection] > [client]" instead of "Clients > [client]".
@@ -62,23 +61,15 @@ export function ClientDetailContent({ client, currentUserRole }: { client: FullC
       <ClientProvider client={client}>
         <div className="flex flex-col md:flex-row flex-1 min-h-0">
           {/* Mobile: collapsible sidebar */}
-          <div className="md:hidden">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="flex items-center justify-between w-full px-4 py-3 text-sm font-medium border-b bg-muted/30 hover:bg-muted/50 transition-colors"
-              aria-expanded={sidebarOpen}
-              aria-controls="mobile-sidebar"
-            >
+          <Collapsible className="md:hidden">
+            <CollapsibleTrigger className="group flex items-center justify-between w-full px-4 py-3 text-sm font-medium border-b bg-muted/30 hover:bg-muted/50 transition-colors">
               <span>Client Info &amp; Actions</span>
-              <ChevronDown className={`size-4 transition-transform ${sidebarOpen ? "rotate-180" : ""}`} />
-            </button>
-            <div
-              id="mobile-sidebar"
-              className={`overflow-hidden transition-all duration-200 ${sidebarOpen ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"}`}
-            >
-               <ClientSidebar />
-             </div>
-           </div>
+              <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
+              <ClientSidebar />
+            </CollapsibleContent>
+          </Collapsible>
 
            {/* Desktop: persistent sidebar */}
            <div className="hidden md:block md:w-[280px] md:shrink-0 md:border-r md:overflow-y-auto bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/60">

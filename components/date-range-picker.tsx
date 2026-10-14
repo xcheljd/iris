@@ -84,6 +84,7 @@ export function DateRangePresets({ value, onChange, label, numberOfMonths = 1, e
           captionLayout="dropdown"
           startMonth={CALENDAR_START_MONTH}
           endMonth={CALENDAR_END_MONTH}
+          fixedWeeks
           className="p-0"
         />
       </div>

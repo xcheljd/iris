@@ -380,10 +380,11 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
                       onKeyDown={(e) => {
                         if (e.key === "Enter") handleAddEmail();
                       }}
-                      className={addEmailError ? "border-destructive" : ""}
+                      aria-invalid={!!addEmailError}
+                      aria-describedby={addEmailError ? "add-email-error" : undefined}
                     />
                     {addEmailError && (
-                      <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                      <p id="add-email-error" className="text-xs text-destructive mt-1 flex items-center gap-1">
                         <AlertCircle className="size-3" />
                         {addEmailError}
                       </p>

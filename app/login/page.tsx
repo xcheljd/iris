@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel, FieldError } from "@/components/ui/field";
-import { Loader2 } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import { IrisIcon } from "@/components/iris-icon";
 import { PasswordInput } from "@/components/password-input";
@@ -123,7 +123,7 @@ export default function LoginPage() {
                   {error && <FieldError>{error}</FieldError>}
                 </Field>
                 <Button type="submit" variant="gold" className="w-full" disabled={loading}>
-                  {loading && <Loader2 className="size-4 animate-spin" />}
+                  {loading && <Spinner />}
                   {loading ? "Signing in…" : "Sign in"}
                 </Button>
                 <Button type="button" variant="link" className="block mx-auto" onClick={() => setMode("forgot-username")}>
@@ -152,7 +152,7 @@ export default function LoginPage() {
                   />
                 </Field>
                 <Button type="submit" className="w-full" disabled={forgotLoading}>
-                  {forgotLoading && <Loader2 className="size-4 animate-spin" />}
+                  {forgotLoading && <Spinner />}
                   {forgotLoading ? "Looking up…" : "Continue"}
                 </Button>
                 <Button type="button" variant="link" className="block mx-auto" onClick={() => setMode("login")}>
@@ -196,7 +196,7 @@ export default function LoginPage() {
                   />
                 </Field>
                 <Button type="submit" className="w-full" disabled={forgotLoading}>
-                  {forgotLoading && <Loader2 className="size-4 animate-spin" />}
+                  {forgotLoading && <Spinner />}
                   {forgotLoading ? "Resetting…" : "Reset Password"}
                 </Button>
                 <Button type="button" variant="link" className="block mx-auto" onClick={() => setMode("forgot-username")}>

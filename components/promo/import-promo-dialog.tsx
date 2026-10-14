@@ -236,12 +236,12 @@ export function ImportPromoDialog({ open, onOpenChangeAction }: ImportPromoDialo
             <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
               <Field className="flex-1">
                 <FieldLabel>Promo Start</FieldLabel>
-                <DatePicker date={promoStart} onSelectAction={setPromoStart} className="w-full" />
+                <DatePicker date={promoStart} onSelectAction={setPromoStart} disabledDays={promoEnd && { after: promoEnd }} className="w-full" />
               </Field>
               <div className="flex items-center pb-2 text-muted-foreground">—</div>
               <Field className="flex-1">
                 <FieldLabel>Promo End</FieldLabel>
-                <DatePicker date={promoEnd} onSelectAction={setPromoEnd} className="w-full" />
+                <DatePicker date={promoEnd} onSelectAction={setPromoEnd} disabledDays={promoStart && { before: promoStart }} className="w-full" />
               </Field>
               {(promoStart || promoEnd) && (
                 <Button variant="ghost" size="sm" className="mb-0.5" onClick={() => { setPromoStart(undefined); setPromoEnd(undefined); }}>

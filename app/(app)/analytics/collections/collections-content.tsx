@@ -127,7 +127,8 @@ export function CollectionsContent({ clients }: CollectionsContentProps) {
                     {filteredCollections.map((collection) => (
                       <button
                         key={collection.name}
-                        className={`w-full flex items-center justify-between p-3 rounded-lg text-left transition-colors ${
+                        aria-pressed={selectedCollection === collection.name}
+                        className={`w-full flex items-center justify-between p-3 rounded-lg text-left transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring ${
                           selectedCollection === collection.name
                             ? "bg-accent text-accent-foreground"
                             : "hover:bg-muted/50"

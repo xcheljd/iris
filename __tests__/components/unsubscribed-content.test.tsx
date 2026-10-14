@@ -253,6 +253,22 @@ describe("UnsubscribedContent on the DataTable engine", () => {
     expect(toast.success).not.toHaveBeenCalled();
   });
 
+  it("links the Quick Add input to its validation error", async () => {
+    const user = userEvent.setup();
+    renderUnsubscribed();
+    const input = screen.getByPlaceholderText("email@example.com");
+    expect(input).toHaveAttribute("aria-invalid", "false");
+
+    await user.type(input, "not-an-email{Enter}");
+
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(input).toHaveAccessibleDescription("Please enter a valid email address");
+
+    await user.type(input, "x");
+    expect(input).toHaveAttribute("aria-invalid", "false");
+    expect(input).not.toHaveAttribute("aria-describedby");
+  });
+
   it("resubscribes a client from the row actions menu", async () => {
     const user = userEvent.setup();
     renderUnsubscribed();

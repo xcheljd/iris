@@ -153,7 +153,7 @@ export function ResolutionPanel({
               disabled={same}
               aria-pressed={choices[key] === "a"}
               className={cn(
-                "p-2 rounded border text-left text-sm transition-colors w-full",
+                "p-2 rounded border text-left text-sm transition-colors w-full focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring",
                 same
                   ? "opacity-50 cursor-default border-border"
                   : choices[key] === "a"
@@ -169,7 +169,7 @@ export function ResolutionPanel({
               disabled={same}
               aria-pressed={choices[key] === "b"}
               className={cn(
-                "p-2 rounded border text-left text-sm transition-colors w-full",
+                "p-2 rounded border text-left text-sm transition-colors w-full focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring",
                 same
                   ? "opacity-50 cursor-default border-border"
                   : choices[key] === "b"

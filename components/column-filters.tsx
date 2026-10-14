@@ -332,8 +332,9 @@ export function TagsFilterMenu({
           <button
             type="button"
             onClick={() => setMode("any")}
+            aria-pressed={mode === "any"}
             className={cn(
-              "rounded px-2 py-0.5 transition-colors",
+              "rounded px-2 py-0.5 transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring",
               mode === "any" ? "bg-primary text-primary-foreground" : "hover:bg-muted",
             )}
           >
@@ -342,8 +343,9 @@ export function TagsFilterMenu({
           <button
             type="button"
             onClick={() => setMode("all")}
+            aria-pressed={mode === "all"}
             className={cn(
-              "rounded px-2 py-0.5 transition-colors",
+              "rounded px-2 py-0.5 transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring",
               mode === "all" ? "bg-primary text-primary-foreground" : "hover:bg-muted",
             )}
           >

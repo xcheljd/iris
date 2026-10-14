@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import type { Matcher } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -13,11 +15,14 @@ interface DatePickerProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  /** Days that can't be picked, e.g. `{ before: start }` for an end date. */
+  disabledDays?: Matcher;
 }
 
-export function DatePicker({ date, onSelectAction, placeholder = "Pick a date", className, disabled }: DatePickerProps) {
+export function DatePicker({ date, onSelectAction, placeholder = "Pick a date", className, disabled, disabledDays }: DatePickerProps) {
+  const [open, setOpen] = useState(false);
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" className={`justify-start text-left font-normal gap-2 ${className ?? ""}`} disabled={disabled}>
           <CalendarIcon className="size-4" />
@@ -29,11 +34,17 @@ export function DatePicker({ date, onSelectAction, placeholder = "Pick a date", 
         <Calendar
           mode="single"
           selected={date}
-          onSelect={onSelectAction}
+          // A pick, or clicking the picked day again to clear it, is a complete choice.
+          onSelect={(d) => {
+            onSelectAction(d);
+            setOpen(false);
+          }}
           defaultMonth={date}
           captionLayout="dropdown"
           startMonth={CALENDAR_START_MONTH}
           endMonth={CALENDAR_END_MONTH}
+          fixedWeeks
+          disabled={disabledDays}
           autoFocus
         />
       </PopoverContent>

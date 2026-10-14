@@ -54,7 +54,11 @@ export function SmartListItem({
           isSelected ? "bg-accent text-accent-foreground" : "hover:bg-muted/50"
         }`}
       >
-        <button className="flex items-center gap-2 min-w-0 flex-1" onClick={onSelect}>
+        <button
+          aria-pressed={isSelected}
+          className="flex items-center gap-2 min-w-0 flex-1 rounded-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
+          onClick={onSelect}
+        >
           <Tooltip>
             <TooltipTrigger asChild>
               <span className="flex items-center gap-2 min-w-0">
