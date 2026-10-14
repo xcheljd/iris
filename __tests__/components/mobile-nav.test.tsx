@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MobileNav } from "@/components/mobile-nav";
 
 let mockPathname = "/";
@@ -83,5 +83,17 @@ describe("MobileNav More", () => {
   it("pads the bar by the bottom safe-area inset", () => {
     render(<MobileNav />);
     expect(screen.getByRole("navigation").className).toContain("pb-[env(safe-area-inset-bottom)]");
+  });
+});
+
+describe("MobileNav follow-ups badge", () => {
+  it("shows the follow-ups due count on the Follow tab only", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ count: 4 }) } as Response)));
+    mockPathname = "/";
+    render(<MobileNav />);
+    await waitFor(() => expect(link("Follow")).toHaveTextContent("4"));
+    expect(link("Home")).not.toHaveTextContent("4");
+    expect(fetch).toHaveBeenCalledWith("/api/follow-ups/count");
+    vi.unstubAllGlobals();
   });
 });

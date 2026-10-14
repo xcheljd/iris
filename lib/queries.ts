@@ -210,8 +210,18 @@ export async function getClientsWithEmployee(employeeId?: string) {
 // transferred client's follow-ups move with it. `employee` is still the logger.
 // Follow-up dates are stored at local midnight, so the bounds are day boundaries:
 // a follow-up for today is upcoming all day, never overdue. `before` is exclusive.
+function followUpWhere(from: Date | null, before: Date, employeeId?: string) {
+  return and(
+    isNotNull(outreachLogs.followUpDate),
+    eq(outreachLogs.completed, false),
+    notInArray(clients.status, ["banned", "deleted"]),
+    from ? gte(outreachLogs.followUpDate, from) : undefined,
+    lt(outreachLogs.followUpDate, before),
+    employeeId ? eq(clients.employeeId, employeeId) : undefined,
+  );
+}
+
 function queryFollowUps(from: Date | null, before: Date, employeeId?: string) {
-  const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
   return db.select({
     log: outreachLogs,
     client: clients,
@@ -219,16 +229,21 @@ function queryFollowUps(from: Date | null, before: Date, employeeId?: string) {
   }).from(outreachLogs)
     .innerJoin(clients, eq(outreachLogs.clientId, clients.id))
     .leftJoin(employees, eq(outreachLogs.employeeId, employees.id))
-    .where(and(
-      isNotNull(outreachLogs.followUpDate),
-      eq(outreachLogs.completed, false),
-      notInArray(clients.status, ["banned", "deleted"]),
-      from ? gte(outreachLogs.followUpDate, from) : undefined,
-      lt(outreachLogs.followUpDate, before),
-      employeeFilter,
-    ))
+    .where(followUpWhere(from, before, employeeId))
     .orderBy(outreachLogs.followUpDate)
     .all();
+}
+
+// Sidebar badge: follow-ups needing action now, i.e. overdue plus due today
+// (the Follow-Ups page's overdue list plus today's slice of its upcoming list).
+export async function countFollowUpsDue(employeeId?: string): Promise<number> {
+  const tomorrow = addDays(startOfDay(new Date()), 1);
+  const row = db.select({ c: rawSql<number>`count(*)` })
+    .from(outreachLogs)
+    .innerJoin(clients, eq(outreachLogs.clientId, clients.id))
+    .where(followUpWhere(null, tomorrow, employeeId))
+    .get();
+  return row?.c ?? 0;
 }
 
 export async function getUpcomingFollowUps(employeeId?: string) {

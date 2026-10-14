@@ -12,7 +12,8 @@ import { getServerSession } from "next-auth";
 import type { Session } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { logOutreach, markFollowUpComplete, reopenFollowUp, rescheduleFollowUp } from "@/lib/actions";
-import { getOverdueFollowUps, getUpcomingFollowUps } from "@/lib/queries";
+import { getOverdueFollowUps, getUpcomingFollowUps, countFollowUpsDue } from "@/lib/queries";
+import { addDays, startOfDay } from "date-fns";
 import { formatDate } from "@/lib/utils";
 import { isFollowUpOverdue } from "@/lib/outreach-helpers";
 import { db } from "@/lib/db";
@@ -457,6 +458,29 @@ describe("Outreach Actions", () => {
       const logId = await logFollowUp(clientId, managerSession);
       expect(await overdueIds(ASSOCIATE_ID)).toContain(logId);
       expect(await overdueIds(MANAGER_ID)).not.toContain(logId);
+    });
+
+    // Sidebar badge: overdue plus due today, scoped like the page.
+    it("countFollowUpsDue counts overdue and today, not tomorrow, per owner", async () => {
+      const setDate = (logId: string, d: Date) => db.update(outreachLogs).set({ followUpDate: d }).where(eq(outreachLogs.id, logId)).run();
+      const today = startOfDay(new Date());
+      const [assocBefore, storeBefore] = [await countFollowUpsDue(ASSOCIATE_ID), await countFollowUpsDue()];
+
+      const overdue = await logFollowUp(createClient(ASSOCIATE_ID), associateSession);
+      const dueToday = await logFollowUp(createClient(ASSOCIATE_ID), associateSession);
+      const tomorrow = await logFollowUp(createClient(ASSOCIATE_ID), associateSession);
+      const othersToday = await logFollowUp(createClient(MANAGER_ID), managerSession);
+      setDate(overdue, addDays(today, -3));
+      setDate(dueToday, today);
+      setDate(tomorrow, addDays(today, 1));
+      setDate(othersToday, today);
+
+      expect(await countFollowUpsDue(ASSOCIATE_ID)).toBe(assocBefore + 2);
+      expect(await countFollowUpsDue()).toBe(storeBefore + 3);
+      // it agrees with the page's own lists
+      const page = (await getOverdueFollowUps(ASSOCIATE_ID)).length
+        + (await getUpcomingFollowUps(ASSOCIATE_ID)).filter((r) => +startOfDay(r.log.followUpDate!) === +today).length;
+      expect(await countFollowUpsDue(ASSOCIATE_ID)).toBe(page);
     });
   });
 

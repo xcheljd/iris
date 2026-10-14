@@ -9,8 +9,12 @@ const { passthrough, nothing } = vi.hoisted(() => ({
   nothing: () => null,
 }));
 
+const providerProps = vi.hoisted(() => ({ defaultOpen: undefined as boolean | undefined }));
 vi.mock("@/components/ui/sidebar", () => ({
-  SidebarProvider: passthrough,
+  SidebarProvider: ({ defaultOpen, children }: { defaultOpen?: boolean; children?: ReactNode }) => {
+    providerProps.defaultOpen = defaultOpen;
+    return children;
+  },
   SidebarInset: ({ className, children }: { className?: string; children?: ReactNode }) => (
     <main data-testid="inset" className={className}>{children}</main>
   ),
@@ -30,14 +34,28 @@ vi.mock("@/components/onboarding", () => ({
 }));
 vi.mock("@/components/page-transition-overlay", () => ({ PageTransitionOverlay: nothing }));
 vi.mock("@/components/route-fade", () => ({ RouteFade: passthrough }));
+const cookieJar = vi.hoisted(() => ({ value: undefined as string | undefined }));
+vi.mock("next/headers", () => ({
+  cookies: async () => ({ get: (name: string) => (name === "sidebar_state" && cookieJar.value !== undefined ? { value: cookieJar.value } : undefined) }),
+}));
 
 import AppLayout from "@/app/(app)/layout";
 
 describe("AppLayout", () => {
   // Regression: MobileNav is fixed to the bottom below md, and nothing padded
   // the content for it, so the last table row and pagination sat underneath.
-  it("pads the content inset to clear the fixed mobile nav, and only below md", () => {
-    render(<AppLayout><p>page</p></AppLayout>);
+  it.each([
+    [undefined, true],
+    ["true", true],
+    ["false", false],
+  ])("restores the saved sidebar state (cookie %s -> open %s)", async (cookie, open) => {
+    cookieJar.value = cookie;
+    render(await AppLayout({ children: <p>page</p> }));
+    expect(providerProps.defaultOpen).toBe(open);
+  });
+
+  it("pads the content inset to clear the fixed mobile nav, and only below md", async () => {
+    render(await AppLayout({ children: <p>page</p> }));
     const cls = screen.getByTestId("inset").className;
     expect(cls).toContain("pb-[calc(3.5rem+env(safe-area-inset-bottom))]");
     expect(cls).toContain("md:pb-0");

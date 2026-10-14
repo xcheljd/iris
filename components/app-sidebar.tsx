@@ -8,11 +8,11 @@ import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGrou
 import { IrisIcon } from "@/components/iris-icon";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { signOut, useSession } from "next-auth/react";
 import { Badge } from "@/components/ui/badge";
 import { initials } from "@/lib/utils";
+import { useFollowUpCount, formatCount } from "@/hooks/use-follow-up-count";
 
 const baseNav = [
   { section: "Overview", items: [
@@ -74,12 +74,14 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
   // On mobile the nav lives in a Sheet; close it once a destination is picked.
   const closeMobile = () => setOpenMobile(false);
   const { data: session } = useSession();
-  const collapsed = state === "collapsed";
+  // The phone Sheet always shows the full menu, whatever the desktop state is.
+  const collapsed = state === "collapsed" && !isMobile;
   const isManager = session?.user?.role === "manager";
   const userInitials = initials(session?.user?.firstName || session?.user?.name || "U", session?.user?.lastName);
   const activeHref = useMemo(() => activeHrefFor(pathname), [pathname]);
   const [pendingCount, setPendingCount] = useState(initialPendingCount);
   const [catalogFlagCount, setCatalogFlagCount] = useState(initialCatalogFlagCount);
+  const followUpCount = useFollowUpCount();
 
   // Fetch the badge counts on mount and refresh them on every client-side
   // navigation.
@@ -91,8 +93,8 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
 
   return (
     <Sidebar collapsible="icon" data-tour="sidebar">
-      <SidebarHeader className="border-b border-sidebar-border" data-tour="sidebar-header">
-        <Link href="/" className={cn("flex items-center gap-2 py-1.5", collapsed ? "justify-center px-0" : "px-2")} aria-label="Iris Dashboard">
+      <SidebarHeader className="h-14 justify-center border-b border-sidebar-border" data-tour="sidebar-header">
+        <Link href="/" className={cn("flex items-center gap-2", collapsed ? "justify-center px-0" : "px-2")} aria-label="Iris Dashboard">
           <IrisIcon size={32} className="shrink-0" />
           {!collapsed && (
             <div className="flex flex-col leading-tight">
@@ -114,34 +116,28 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
                 <SidebarMenu>
                   {visibleItems.map((item) => {
                     const active = item.href === activeHref;
-                    const isApprovals = item.href === "/approvals";
-                    const isCatalog = item.href === "/catalog";
+                    const count = item.href === "/approvals" ? pendingCount
+                      : item.href === "/catalog" ? catalogFlagCount
+                      : item.href === "/follow-ups" ? followUpCount
+                      : 0;
+                    const countText = formatCount(count);
                     return (
                       <SidebarMenuItem key={item.href}>
-                        {collapsed ? (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <SidebarMenuButton asChild isActive={active} className={cn(active && ACTIVE_ITEM)}>
-                                <Link href={item.href} onClick={closeMobile}>
-                                  <item.icon className="size-4" />
-                                </Link>
-                              </SidebarMenuButton>
-                            </TooltipTrigger>
-                            <TooltipContent side="right">{item.label}</TooltipContent>
-                          </Tooltip>
-                        ) : (
-                          <SidebarMenuButton asChild isActive={active} className={cn(active && ACTIVE_ITEM)}>
+                        {/* tooltip shows only while collapsed, never on phones (built into SidebarMenuButton) */}
+                        <SidebarMenuButton asChild isActive={active} tooltip={item.label} className={cn(active && ACTIVE_ITEM)}>
                             <Link href={item.href} onClick={closeMobile}>
                               <item.icon className="size-4" />
                               <span>{item.label}</span>
-                              {isApprovals && pendingCount > 0 && (
-                                <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1.5 text-xs tracking-wide">{pendingCount}</Badge>
-                              )}
-                              {isCatalog && catalogFlagCount > 0 && (
-                                <Badge variant="secondary" className="ml-auto h-5 min-w-5 px-1.5 text-xs tracking-wide">{catalogFlagCount}</Badge>
+                              {count > 0 && (
+                                <Badge className="ml-auto h-5 min-w-5 px-1.5 text-xs tracking-wide group-data-[collapsible=icon]:hidden">{countText}</Badge>
                               )}
                             </Link>
-                          </SidebarMenuButton>
+                        </SidebarMenuButton>
+                        {/* Local change: shadcn hides menu badges in icon mode; Iris keeps
+                            counts visible as a corner badge on the icon. A sibling of the
+                            button because the collapsed button clips its overflow. */}
+                        {count > 0 && (
+                          <Badge className="pointer-events-none absolute -top-1 -right-1 hidden h-4 min-w-4 px-1 text-[11px] font-medium leading-none group-data-[collapsible=icon]:flex">{countText}</Badge>
                         )}
                       </SidebarMenuItem>
                     );

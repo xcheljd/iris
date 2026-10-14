@@ -4,6 +4,8 @@ import { usePathname } from "next/navigation";
 import { Home, Users, Phone, BarChart3, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/components/ui/sidebar";
+import { Badge } from "@/components/ui/badge";
+import { useFollowUpCount, formatCount } from "@/hooks/use-follow-up-count";
 
 const items = [
   { href: "/", label: "Home", icon: Home },
@@ -17,6 +19,7 @@ const itemClass = "relative flex flex-col items-center justify-center gap-0.5 py
 export function MobileNav() {
   const pathname = usePathname();
   const { setOpenMobile } = useSidebar();
+  const followUpCount = useFollowUpCount();
   return (
     <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-5 border-t bg-background/95 backdrop-blur-sm pb-[env(safe-area-inset-bottom)]">
       {items.map((it) => {
@@ -33,7 +36,12 @@ export function MobileNav() {
                 : "text-muted-foreground",
             )}
           >
-            <it.icon className="size-5" />
+            <span className="relative">
+              <it.icon className="size-5" />
+              {it.href === "/follow-ups" && followUpCount > 0 && (
+                <Badge className="pointer-events-none absolute -top-1.5 -right-2.5 h-4 min-w-4 px-1 text-[11px] font-medium leading-none">{formatCount(followUpCount)}</Badge>
+              )}
+            </span>
             <span>{it.label}</span>
           </Link>
         );

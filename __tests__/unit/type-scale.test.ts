@@ -11,8 +11,9 @@ function tsxFiles(dir: string): string[] {
 }
 
 // Regression: 28 uses of text-[10px] sat below the type scale. The floor is
-// text-xs (with tracking-wide where it was a small label); mobile-nav's
-// text-[11px] font-medium tab labels are the one deliberate exception.
+// text-xs (with tracking-wide where it was a small label). Deliberate 11px
+// exceptions: mobile-nav's tab labels and the corner count badges on icons
+// (app-sidebar collapsed mode, mobile-nav Follow tab), all text-[11px] font-medium.
 describe("type scale floor", () => {
   it("has no text-[10px] in app/ or components/", () => {
     const offenders = ["app", "components"]
