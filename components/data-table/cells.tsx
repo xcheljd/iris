@@ -129,10 +129,20 @@ export function StatusBadgeCell({
   capitalize?: boolean;
   className?: string;
 }) {
+  // Numeric labels (counts): digits have no descenders, so the default line box
+  // leaves them riding ~2px high inside the pill. `leading-none` collapses the
+  // line box to the glyph; `min-h-5` keeps the pill's height, and flex
+  // centering does the rest.
+  const isCount = typeof label === "number";
   return (
     <TableCell className={className}>
       {isBlank(label) ? null : (
-        <Badge variant={variant} className={capitalize ? "capitalize" : undefined}>
+        <Badge
+          variant={variant}
+          className={[capitalize ? "capitalize" : undefined, isCount ? "tabular-nums leading-none min-h-5 pt-[3px] pb-px" : undefined]
+            .filter(Boolean)
+            .join(" ")}
+        >
           {label}
         </Badge>
       )}
