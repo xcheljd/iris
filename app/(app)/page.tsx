@@ -61,7 +61,8 @@ async function DashboardContent() {
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="flex flex-col gap-4">
-            <div className="grid md:grid-cols-3 gap-4">
+            {/* grid-cols-1 (minmax(0,1fr)) on phones: an implicit auto column grows to a card's longest line and widened the page. */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card className="md:col-span-2">
                 <CardHeader className="flex-row items-center justify-between gap-2">
                   <div>
@@ -128,7 +129,7 @@ async function DashboardContent() {
               </Card>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card className="md:col-span-2">
                 <CardHeader className="flex-row items-center justify-between gap-2">
                   <div>
@@ -344,7 +345,7 @@ async function DashboardContent() {
               </CardContent>
             </Card>
 
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">

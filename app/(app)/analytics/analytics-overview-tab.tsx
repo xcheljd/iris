@@ -234,8 +234,8 @@ export function AnalyticsOverviewTab({ stats, conversionRate, methodDistribution
         </CardContent>
       </Card>
 
-      {/* Compliance Cards */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* Compliance Cards: stacked on phones, where two across can't fit the label and View link. */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">

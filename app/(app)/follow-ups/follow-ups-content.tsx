@@ -416,7 +416,9 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
           </TabsTrigger>
           <TabsTrigger value="upcoming" className="gap-1">
             <Clock className="size-4" />
-            Upcoming (7 days)
+            {/* Short label on phones; screen readers always get the full name. */}
+            <span aria-hidden className="md:hidden">Upcoming</span>
+            <span className="max-md:sr-only">Upcoming (7 days)</span>
             {upcomingRows.length > 0 && (
               <Badge variant="secondary" className="ml-1 text-xs tracking-wide px-1.5 py-0">
                 {upcomingRows.length}
