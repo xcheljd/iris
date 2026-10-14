@@ -129,7 +129,7 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
                               <item.icon className="size-4" />
                               <span>{item.label}</span>
                               {count > 0 && (
-                                <Badge className="ml-auto h-5 min-w-5 px-1.5 text-xs tracking-wide group-data-[collapsible=icon]:hidden">{countText}</Badge>
+                                <Badge className="ml-auto h-5 min-w-5 px-1.5 text-xs tracking-wide tabular-nums group-data-[collapsible=icon]:hidden">{countText}</Badge>
                               )}
                             </Link>
                         </SidebarMenuButton>

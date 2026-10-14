@@ -407,7 +407,7 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
             <AlertTriangle className="size-4 text-destructive" />
             Overdue
             {overdueRows.length > 0 && (
-              <Badge variant="destructive" className="ml-1 text-xs tracking-wide px-1.5 py-0">
+              <Badge variant="destructive" className="ml-1 text-xs tracking-wide tabular-nums px-1.5 py-0">
                 {overdueRows.length}
               </Badge>
             )}
@@ -418,14 +418,14 @@ export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
             <span aria-hidden className="md:hidden">Upcoming</span>
             <span className="max-md:sr-only">Upcoming (7 days)</span>
             {upcomingRows.length > 0 && (
-              <Badge variant="secondary" className="ml-1 text-xs tracking-wide px-1.5 py-0">
+              <Badge variant="secondary" className="ml-1 text-xs tracking-wide tabular-nums px-1.5 py-0">
                 {upcomingRows.length}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="all" className="gap-1">
             All
-            <Badge variant="outline" className="ml-1 text-xs tracking-wide px-1.5 py-0">
+            <Badge variant="outline" className="ml-1 text-xs tracking-wide tabular-nums px-1.5 py-0">
               {uniqueAll.length}
             </Badge>
           </TabsTrigger>

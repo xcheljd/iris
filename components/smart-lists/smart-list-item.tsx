@@ -75,7 +75,7 @@ export function SmartListItem({
           </Tooltip>
         </button>
         <div className="flex items-center gap-1">
-          <Badge variant="secondary" className="text-xs shrink-0">{count}</Badge>
+          <Badge variant="secondary" className="text-xs shrink-0 tabular-nums">{count}</Badge>
           {!isBuiltIn && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

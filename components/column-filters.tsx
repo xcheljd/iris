@@ -377,7 +377,7 @@ export function TagsFilterMenu({
                   </div>
                   <span className="flex-1 truncate">{tag.name}</span>
                   {tag.usageCount > 0 && (
-                    <Badge variant="secondary" className="text-xs tracking-wide">{tag.usageCount}</Badge>
+                    <Badge variant="secondary" className="text-xs tracking-wide tabular-nums">{tag.usageCount}</Badge>
                   )}
                 </CommandItem>
               );

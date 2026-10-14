@@ -287,25 +287,25 @@ export function ProspectsContent({ rows, total, counts, filters, isManager, rest
             <TabsTrigger value="active">
               Active
               {counts.active > 0 && (
-                <Badge variant="secondary" className="ml-2 text-xs tracking-wide">{counts.active}</Badge>
+                <Badge variant="secondary" className="ml-2 text-xs tracking-wide tabular-nums">{counts.active}</Badge>
               )}
             </TabsTrigger>
             <TabsTrigger value="graduated">
               Graduated
               {counts.graduated > 0 && (
-                <Badge variant="secondary" className="ml-2 text-xs tracking-wide">{counts.graduated}</Badge>
+                <Badge variant="secondary" className="ml-2 text-xs tracking-wide tabular-nums">{counts.graduated}</Badge>
               )}
             </TabsTrigger>
             <TabsTrigger value="unsubscribed">
               Unsubscribed
               {counts.unsubscribed > 0 && (
-                <Badge variant="secondary" className="ml-2 text-xs tracking-wide">{counts.unsubscribed}</Badge>
+                <Badge variant="secondary" className="ml-2 text-xs tracking-wide tabular-nums">{counts.unsubscribed}</Badge>
               )}
             </TabsTrigger>
             <TabsTrigger value="rejected">
               Rejected
               {counts.rejected > 0 && (
-                <Badge variant="secondary" className="ml-2 text-xs tracking-wide">{counts.rejected}</Badge>
+                <Badge variant="secondary" className="ml-2 text-xs tracking-wide tabular-nums">{counts.rejected}</Badge>
               )}
             </TabsTrigger>
           </TabsList>
