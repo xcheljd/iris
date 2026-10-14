@@ -18,7 +18,7 @@ export function HeatBadge({
     <Badge variant={level} className="gap-1">
       <Icon className="size-3" />
       <span className={compactOnMobile ? "capitalize max-md:sr-only" : "capitalize"}>{level}</span>
-      {showScore && score !== undefined && <span className="font-mono opacity-80">{score}</span>}
+      {showScore && score !== undefined && <span className="tabular-nums opacity-80">{score}</span>}
     </Badge>
   );
 }
