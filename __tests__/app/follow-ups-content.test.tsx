@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, act } from "@testing-library/react";
+import { render, screen, act, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { FollowUpsContent } from "@/app/(app)/follow-ups/follow-ups-content";
 
@@ -130,5 +130,18 @@ describe("FollowUpsContent undo complete", () => {
     await act(() => opts.action.onClick());
     expect(reopenFollowUp).toHaveBeenCalledWith("log-1");
     expect(screen.getByText("Jane Doe")).toBeInTheDocument();
+  });
+});
+
+describe("FollowUpDetailSheet heat", () => {
+  it("shows one heat badge carrying the score", async () => {
+    const user = userEvent.setup();
+    render(<FollowUpsContent overdue={[overdueRow]} upcoming={[]} />);
+
+    await user.click(screen.getByRole("button", { name: /Detail/ }));
+    const sheet = screen.getByRole("dialog");
+
+    expect(within(sheet).getAllByText(/^hot$/i)).toHaveLength(1);
+    expect(within(sheet).getByText("80").closest('[data-slot="badge"]')).not.toBeNull();
   });
 });

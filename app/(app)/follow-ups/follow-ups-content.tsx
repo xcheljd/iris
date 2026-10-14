@@ -23,7 +23,6 @@ import {
   CalendarClock,
   Timer,
   Eye,
-  Flame,
 } from "lucide-react";
 import Link from "next/link";
 import { markFollowUpComplete, reopenFollowUp, rescheduleFollowUp } from "@/lib/actions";
@@ -300,8 +299,7 @@ function FollowUpDetailSheet({ row, open, onOpenChange }: { row: FollowUpRow | n
             <div>
               <p className="text-sm font-medium text-muted-foreground">Heat</p>
               <div className="flex items-center gap-2">
-                <HeatBadge level={row.client.heatLevel as "hot" | "warm" | "cold"} />
-                <span className="text-sm"><Flame className="size-4 inline" /> {row.client.heatScore}</span>
+                <HeatBadge level={row.client.heatLevel as "hot" | "warm" | "cold"} score={row.client.heatScore} showScore />
               </div>
             </div>
             <Separator />

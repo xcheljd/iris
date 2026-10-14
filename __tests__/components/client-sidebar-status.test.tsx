@@ -77,9 +77,9 @@ describe("ClientSidebar", () => {
     expect(screen.getByText("john@test.com")).toBeInTheDocument();
   });
 
-  it("shows HOT badge for hot heatLevel", () => {
+  it("does not show a heat badge in the quick profile", () => {
     renderWithProvider(<ClientSidebar />);
-    expect(screen.getByText("HOT")).toBeInTheDocument();
+    expect(screen.queryByText(/^hot$/i)).not.toBeInTheDocument();
   });
 
   it("shows no scheduled follow-ups when empty", () => {
