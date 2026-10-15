@@ -2,8 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Search, X, Clock } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { cn } from "@/lib/utils";
 
 interface SearchInputWithHistoryProps {
@@ -37,6 +41,7 @@ export function SearchInputWithHistory({
   const [history, setHistory] = useState<string[]>(() => readSearchHistory(historyKey));
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const reload = useCallback(() => {
     setHistory(readSearchHistory(historyKey));
@@ -76,28 +81,37 @@ export function SearchInputWithHistory({
 
   return (
     <div ref={containerRef} className={cn("relative", className)}>
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-      <Input
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onFocus={() => { reload(); setOpen(true); }}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") setOpen(false);
-        }}
-        className="pl-10 pr-10"
-      />
-      {value && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="absolute right-1 top-1/2 -translate-y-1/2 size-7 p-0"
-          onClick={() => onChange("")}
-          aria-label="Clear search"
-        >
-          <X className="size-3.5" />
-        </Button>
-      )}
+      <InputGroup>
+        <InputGroupInput
+          ref={inputRef}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={() => { reload(); setOpen(true); }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setOpen(false);
+          }}
+        />
+        <InputGroupAddon>
+          <Search />
+        </InputGroupAddon>
+        {value && (
+          <InputGroupAddon align="inline-end">
+            <InputGroupButton
+              size="icon-xs"
+              className="size-7"
+              onClick={() => {
+                onChange("");
+                // The clear button unmounts once empty; keep focus in the field.
+                inputRef.current?.focus();
+              }}
+              aria-label="Clear search"
+            >
+              <X className="size-3.5" />
+            </InputGroupButton>
+          </InputGroupAddon>
+        )}
+      </InputGroup>
       {showDropdown && (
         <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 rounded-md border bg-popover shadow-md">
           <div className="px-2 py-1.5 text-xs text-muted-foreground flex items-center justify-between gap-2">

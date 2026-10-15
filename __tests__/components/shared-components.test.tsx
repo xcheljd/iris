@@ -193,6 +193,26 @@ describe("SearchInput", () => {
     await user.click(screen.getByLabelText("Clear search"));
     expect(onChange).toHaveBeenCalledWith("");
   });
+
+  it("keeps focus in the field after clearing", async () => {
+    const user = userEvent.setup();
+    render(<SearchInput value="term" onChangeAction={vi.fn()} />);
+    await user.click(screen.getByLabelText("Clear search"));
+    expect(screen.getByRole("textbox")).toHaveFocus();
+  });
+
+  it("focuses the field when the search icon is clicked", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<SearchInput value="" onChangeAction={vi.fn()} />);
+    const addon = container.querySelector('[data-slot="input-group-addon"]') as HTMLElement;
+    await user.click(addon);
+    expect(screen.getByRole("textbox")).toHaveFocus();
+  });
+
+  it("uses the aria-label when given", () => {
+    render(<SearchInput value="" onChangeAction={vi.fn()} aria-label="Search promos" />);
+    expect(screen.getByRole("textbox", { name: "Search promos" })).toBeInTheDocument();
+  });
 });
 
 // ---------------------------------------------------------------------------

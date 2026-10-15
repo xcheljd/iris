@@ -1,37 +1,60 @@
 "use client";
 
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { useRef } from "react";
 import { Search, X } from "lucide-react";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 
 interface SearchInputProps {
   value: string;
   onChangeAction: (value: string) => void;
   placeholder?: string;
   className?: string;
+  /** Accessible name; falls back to the placeholder. */
+  "aria-label"?: string;
 }
 
-export function SearchInput({ value, onChangeAction, placeholder = "Search…", className }: SearchInputProps) {
+/** Search field with a leading icon and a clear button, built on ui/input-group. */
+export function SearchInput({
+  value,
+  onChangeAction,
+  placeholder = "Search…",
+  className,
+  "aria-label": ariaLabel,
+}: SearchInputProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
   return (
-    <div className={`relative ${className ?? ""}`}>
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-      <Input
+    <InputGroup className={className}>
+      <InputGroupInput
+        ref={inputRef}
         placeholder={placeholder}
+        aria-label={ariaLabel}
         value={value}
         onChange={(e) => onChangeAction(e.target.value)}
-        className="pl-10 pr-10"
       />
+      <InputGroupAddon>
+        <Search />
+      </InputGroupAddon>
       {value && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="absolute right-1 top-1/2 -translate-y-1/2 size-7 p-0"
-          onClick={() => onChangeAction("")}
-          aria-label="Clear search"
-        >
-          <X className="size-3.5" />
-        </Button>
+        <InputGroupAddon align="inline-end">
+          <InputGroupButton
+            size="icon-xs"
+            className="size-7"
+            onClick={() => {
+              onChangeAction("");
+              // The clear button unmounts once empty; keep focus in the field.
+              inputRef.current?.focus();
+            }}
+            aria-label="Clear search"
+          >
+            <X className="size-3.5" />
+          </InputGroupButton>
+        </InputGroupAddon>
       )}
-    </div>
+    </InputGroup>
   );
 }
