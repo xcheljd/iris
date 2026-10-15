@@ -251,6 +251,12 @@ they do. If either grows a query it pages against, it moves to the shape above.
   Next's `unstable_doesMiddlewareMatch`); the handler itself is not (the page loaders' own gate
   is covered by `__tests__/app/page-auth-gate.test.tsx`), so the rename is deliberately not done
   yet; do it with `npx @next/codemod@canary middleware-to-proxy .` and add a handler test first.
+- **Headless screenshots lie about sub-pixel text placement.** Playwright's bundled/headless
+  Chromium rounds font ascent/descent and runs at integer DPR; real Brave/Chrome on the KDE
+  desktop runs at DPR 1.05 and placed corner-badge digits ~1px high where headless said
+  centered. Verify vertical alignment in a headed real browser (`executablePath: "/opt/brave-bin/brave"`,
+  `viewport: null`, no `setViewportSize` — that emulates DPR 1 and adds a zoom). Prototype with
+  inline styles: injected arbitrary Tailwind classes not already in the compiled CSS are no-ops.
 - **WAL grows.** `data/iris.db-wal` can balloon during heavy test/dev runs; checkpoint or delete WAL/SHM while the server is stopped.
 - **NextAuth requires env vars** in `.env.local` (`NEXTAUTH_SECRET`, `NEXTAUTH_URL`) or auth fails at runtime.
 

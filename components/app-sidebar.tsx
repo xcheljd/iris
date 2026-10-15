@@ -136,9 +136,11 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
                         {/* Local change: shadcn hides menu badges in icon mode; Iris keeps
                             counts visible as a corner badge on the icon. A sibling of the
                             button because the collapsed button clips its overflow. A single
-                            digit drops px-1, which (plus the border) would make it 17px wide. */}
+                            digit drops px-1, which (plus the border) would make it 17px wide.
+                            text-box trims the line to cap height so flex centers the digits'
+                            ink, not Inter's ascent/descent box (which rode ~1px high at 1.05/1.25 DPR). */}
                         {count > 0 && (
-                          <Badge className={cn("pointer-events-none absolute -top-1 -right-1 hidden h-4 min-w-4 px-1 text-[11px] font-medium leading-none tabular-nums group-data-[collapsible=icon]:flex", countText.length === 1 && "px-0")}>{countText}</Badge>
+                          <Badge className={cn("pointer-events-none absolute -top-1 -right-1 hidden h-4 min-w-4 px-1 text-[11px] font-medium leading-[normal] [text-box:trim-both_cap_alphabetic] tabular-nums group-data-[collapsible=icon]:flex", countText.length === 1 && "px-0")}>{countText}</Badge>
                         )}
                       </SidebarMenuItem>
                     );

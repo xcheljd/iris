@@ -39,7 +39,7 @@ export function MobileNav() {
             <span className="relative">
               <it.icon className="size-5" />
               {it.href === "/follow-ups" && followUpCount > 0 && (
-                <Badge className={cn("pointer-events-none absolute -top-1.5 -right-2.5 h-4 min-w-4 px-1 text-[11px] font-medium leading-none tabular-nums", followUpCount < 10 && "px-0")}>{formatCount(followUpCount)}</Badge>
+                <Badge className={cn("pointer-events-none absolute -top-1.5 -right-2.5 h-4 min-w-4 px-1 text-[11px] font-medium leading-[normal] [text-box:trim-both_cap_alphabetic] tabular-nums", followUpCount < 10 && "px-0")}>{formatCount(followUpCount)}</Badge>
               )}
             </span>
             <span>{it.label}</span>
