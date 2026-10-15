@@ -14,7 +14,7 @@ import { revalidatePath } from "next/cache";
 import { logOutreach, markFollowUpComplete, reopenFollowUp, rescheduleFollowUp } from "@/lib/actions";
 import { getOverdueFollowUps, getUpcomingFollowUps, countFollowUpsDue } from "@/lib/queries";
 import { addDays, startOfDay } from "date-fns";
-import { formatDate } from "@/lib/utils";
+import { formatDate, toDateOnly } from "@/lib/utils";
 import { isFollowUpOverdue } from "@/lib/outreach-helpers";
 import { db } from "@/lib/db";
 import { outreachLogs, activityEvents, clients } from "@/lib/db/schema";
@@ -262,6 +262,60 @@ describe("Outreach Actions", () => {
       const newLog = logs.find((l) => l.notes === "Manager override test");
       expect(newLog).toBeDefined();
       if (newLog) createdLogIds.push(newLog!.id);
+    });
+  });
+
+  // A new outreach answers the client's due follow-ups (kept in sync with getKpiMetrics' follow-up completion).
+  describe("logOutreach closes due follow-ups", () => {
+    function insertFollowUp(clientId: string, followUpDate: Date) {
+      const id = randomUUID();
+      db.insert(outreachLogs).values({
+        id, clientId, method: "call", outcome: "voicemail", employeeId: MANAGER_ID,
+        date: addDays(new Date(), -10), followUpDate, completed: false,
+      }).run();
+      return id;
+    }
+    const isDone = (id: string) => db.select().from(outreachLogs).where(eq(outreachLogs.id, id)).get()!.completed;
+
+    it("closes overdue and due-today follow-ups, leaves future ones open", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+      const clientId = createClient(MANAGER_ID);
+      const today = startOfDay(new Date());
+      const overdue = insertFollowUp(clientId, addDays(today, -3));
+      const dueToday = insertFollowUp(clientId, today);
+      const future = insertFollowUp(clientId, addDays(today, 5));
+
+      expect(await logOutreach({ clientId, method: "text", outcome: "responded" })).toBeUndefined();
+
+      expect(isDone(overdue)).toBe(true);
+      expect(isDone(dueToday)).toBe(true);
+      expect(isDone(future)).toBe(false);
+      const events = db.select().from(activityEvents).where(eq(activityEvents.clientId, clientId)).all();
+      expect(events.some((e) => e.description.startsWith("2 follow-ups closed by new outreach"))).toBe(true);
+    });
+
+    it("leaves other clients' follow-ups alone", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+      const mine = createClient(MANAGER_ID);
+      const other = createClient(MANAGER_ID);
+      const otherOverdue = insertFollowUp(other, addDays(startOfDay(new Date()), -2));
+
+      await logOutreach({ clientId: mine, method: "call", outcome: "no_answer" });
+
+      expect(isDone(otherOverdue)).toBe(false);
+    });
+
+    it("the new outreach's own follow-up starts open", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+      const clientId = createClient(MANAGER_ID);
+      const tomorrow = toDateOnly(addDays(new Date(), 1))!;
+
+      await logOutreach({ clientId, method: "call", outcome: "wants_to_come_in", followUpDate: tomorrow, notes: "own fu" });
+
+      const row = db.select().from(outreachLogs).where(eq(outreachLogs.clientId, clientId)).all().find((l) => l.notes === "own fu");
+      expect(row!.completed).toBe(false);
+      const events = db.select().from(activityEvents).where(eq(activityEvents.clientId, clientId)).all();
+      expect(events.some((e) => e.description.includes("closed by new outreach"))).toBe(false);
     });
   });
 

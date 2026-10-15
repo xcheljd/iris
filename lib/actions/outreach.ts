@@ -1,11 +1,11 @@
 "use server";
 import { db } from "@/lib/db";
 import { clients, outreachLogs, activityEvents, promoWatches, promoMatches } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull, lt } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { outreachInputSchema, followUpDateSchema, type OutreachInput } from "@/lib/validation/outreach";
-import { format, parseISO } from "date-fns";
+import { addDays, format, parseISO, startOfDay } from "date-fns";
 import { requireAuth } from "./_shared";
 import { recalcHeat } from "@/lib/heat-recalc";
 
@@ -42,8 +42,27 @@ export async function logOutreach(data: OutreachInput): Promise<{ error: string 
   const date = new Date();
   const patch: Record<string, unknown> = { lastOutreachAt: date, updatedAt: date };
   if (parsed.outcome === "purchased") patch.lastPurchaseAt = date;
+  // A new outreach answers the client's follow-ups that are due (today or
+  // overdue): close them so they stop showing as overdue. Future follow-ups
+  // stay open; they were scheduled for a later reason.
+  const dueBy = addDays(startOfDay(date), 1);
   try {
     db.transaction((tx) => {
+      const closed = tx.update(outreachLogs).set({ completed: true }).where(and(
+        eq(outreachLogs.clientId, parsed.clientId),
+        eq(outreachLogs.completed, false),
+        isNotNull(outreachLogs.followUpDate),
+        lt(outreachLogs.followUpDate, dueBy),
+      )).run();
+      if (closed.changes > 0) {
+        tx.insert(activityEvents).values({
+          id: randomUUID(),
+          clientId: parsed.clientId,
+          eventType: "outreach_logged",
+          description: `${closed.changes === 1 ? "Follow-up" : `${closed.changes} follow-ups`} closed by new outreach (${user.name})`,
+          employeeId: user.id,
+        }).run();
+      }
       tx.insert(outreachLogs).values({
         id,
         clientId: parsed.clientId,
