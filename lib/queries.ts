@@ -255,6 +255,67 @@ export async function getUpcomingFollowUps(employeeId?: string) {
   return queryFollowUps(today, addDays(today, FOLLOW_UP_LOOKAHEAD_DAYS + 1), employeeId);
 }
 
+/**
+ * Overview KPIs over an outreach window (unix seconds, inclusive; omitted =
+ * the last 7 days, as getStats; `{}` = all time).
+ * - Conversion counts clients, not attempts: clients with a purchase logged
+ *   in the window / clients contacted in the window.
+ * - Follow-up completion: follow-ups whose date falls in the window and is
+ *   already past (before today) that are marked done / all of them.
+ * - `overdueNow` is right now, whatever the window (same rule as the
+ *   Follow-Ups page's Overdue tab).
+ * When the window has both bounds, the same-length window just before it is
+ * returned as `prev` for trend badges; otherwise `prev` is null.
+ * Scope matches getStats: clients the employee owns now.
+ */
+export async function getKpiMetrics(employeeId?: string, outreachWindow?: { from?: number; to?: number }) {
+  // Same default as getStats: the last 7 days (the dashboard's window).
+  const window = outreachWindow ?? { from: Math.floor((Date.now() - FOLLOW_UP_LOOKAHEAD_DAYS * MS_PER_DAY) / 1000) };
+  const owner = employeeId ? eq(clients.employeeId, employeeId) : undefined;
+  const live = notInArray(clients.status, ["banned", "deleted"]);
+  const todayStart = startOfDay(new Date());
+  const one = (w: { from?: number; to?: number }) => {
+    const c = db.select({
+      contacted: rawSql<number>`count(distinct ${outreachLogs.clientId})`,
+      bought: rawSql<number>`count(distinct case when ${outreachLogs.outcome} = 'purchased' then ${outreachLogs.clientId} end)`,
+      outreach: rawSql<number>`count(*)`,
+    }).from(outreachLogs)
+      .innerJoin(clients, eq(outreachLogs.clientId, clients.id))
+      .where(and(
+        w.from !== undefined ? gte(outreachLogs.date, new Date(w.from * 1000)) : undefined,
+        w.to !== undefined ? lte(outreachLogs.date, new Date(w.to * 1000)) : undefined,
+        owner,
+      )).get();
+    const f = db.select({
+      due: rawSql<number>`count(*)`,
+      done: rawSql<number>`sum(case when ${outreachLogs.completed} = 1 then 1 else 0 end)`,
+    }).from(outreachLogs)
+      .innerJoin(clients, eq(outreachLogs.clientId, clients.id))
+      .where(and(
+        isNotNull(outreachLogs.followUpDate),
+        live,
+        lt(outreachLogs.followUpDate, todayStart),
+        w.from !== undefined ? gte(outreachLogs.followUpDate, new Date(w.from * 1000)) : undefined,
+        w.to !== undefined ? lte(outreachLogs.followUpDate, new Date(w.to * 1000)) : undefined,
+        owner,
+      )).get();
+    return {
+      contacted: Number(c?.contacted ?? 0), bought: Number(c?.bought ?? 0), outreach: Number(c?.outreach ?? 0),
+      followUpsDue: Number(f?.due ?? 0), followUpsDone: Number(f?.done ?? 0),
+    };
+  };
+  const cur = one(window);
+  const prev = window.from !== undefined && window.to !== undefined
+    ? one({ from: window.from - (window.to - window.from) - 1, to: window.from - 1 })
+    : null;
+  const overdue = db.select({ c: rawSql<number>`count(*)` }).from(outreachLogs)
+    .innerJoin(clients, eq(outreachLogs.clientId, clients.id))
+    .where(followUpWhere(null, todayStart, employeeId)).get();
+  return { ...cur, prev, overdueNow: Number(overdue?.c ?? 0) };
+}
+
+export type KpiMetrics = Awaited<ReturnType<typeof getKpiMetrics>>;
+
 export async function getOverdueFollowUps(employeeId?: string) {
   return queryFollowUps(null, startOfDay(new Date()), employeeId);
 }

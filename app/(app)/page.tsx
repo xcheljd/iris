@@ -8,7 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { HeatBadge } from "@/components/heat-badge";
-import { getStats, getOverdueFollowUps, getUpcomingFollowUps, getRecentActivity, getTopHotClients, getClientOccasionsCurrentMonth } from "@/lib/queries";
+import { getStats, getKpiMetrics, getOverdueFollowUps, getUpcomingFollowUps, getRecentActivity, getTopHotClients, getClientOccasionsCurrentMonth } from "@/lib/queries";
+import { percent } from "@/lib/kpi";
 import { requirePageSession } from "@/lib/auth";
 import { recalcAllHeatDaily } from "@/lib/heat-recalc";
 import Link from "next/link";
@@ -33,8 +34,10 @@ async function DashboardContent() {
   // Time-based heat bonuses/penalties decay with no write to the client;
   // re-apply them before reading hot counts. Gated to once a day.
   recalcAllHeatDaily();
-  const [stats, overdue, upcoming, activity, hot, occasionRows] = await Promise.all([
+  const [stats, kpis, overdue, upcoming, activity, hot, occasionRows] = await Promise.all([
     getStats(employeeId),
+    // No window = the same last 7 days getStats uses, so the metrics tab matches the stat cards.
+    getKpiMetrics(employeeId),
     getOverdueFollowUps(employeeId),
     getUpcomingFollowUps(employeeId),
     getRecentActivity(20, employeeId),
@@ -43,7 +46,8 @@ async function DashboardContent() {
   ]);
   const occasions = occasionRows.slice(0, 5);
 
-  const conversionRate = stats.outreachWeek > 0 ? Math.round((stats.purchasesWeek / stats.outreachWeek) * 100) : 0;
+  // Clients who bought / clients contacted, as on Analytics (not purchases / attempts).
+  const conversionRate = percent(kpis.bought, kpis.contacted);
   const activePercent = stats.total > 0 ? Math.round((stats.active / stats.total) * 100) : 0;
 
   return (

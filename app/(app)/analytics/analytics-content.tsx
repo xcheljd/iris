@@ -12,7 +12,7 @@ import { AnalyticsOutreachTab } from "./analytics-outreach-tab";
 import { AnalyticsHeatTab } from "./analytics-heat-tab";
 import { AnalyticsProspectsTab } from "./analytics-prospects-tab";
 import { endOfDay } from "date-fns";
-import type { ProspectFunnelStats, OutreachMethodBreakdown, OutreachOutcomeBreakdown, OutreachLogRow, OutreachLogSortKey } from "@/lib/queries";
+import type { KpiMetrics, ProspectFunnelStats, OutreachMethodBreakdown, OutreachOutcomeBreakdown, OutreachLogRow, OutreachLogSortKey } from "@/lib/queries";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
 interface Stats {
@@ -47,6 +47,7 @@ interface AnalyticsContentProps {
   prospectFunnel: ProspectFunnelStats;
   /** Counted in SQL over every log in the selected range (`outreachMethodBreakdown`). */
   methodDistribution: OutreachMethodBreakdown;
+  kpis: KpiMetrics;
   outcomeDistribution: OutreachOutcomeBreakdown;
   /** Rolling shortcut from `?range=` (wins over from/to). */
   rangePreset?: DatePresetId;
@@ -57,7 +58,7 @@ interface AnalyticsContentProps {
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
-export function AnalyticsContent({ stats, outreachLog, outreachTotal, outreachPage, outreachSort, outreachSortDir, employees, selectedEmployeeId, prospectFunnel, methodDistribution, outcomeDistribution, rangePreset, dateFrom: fromTs, dateTo: toTs }: AnalyticsContentProps) {
+export function AnalyticsContent({ stats, kpis, outreachLog, outreachTotal, outreachPage, outreachSort, outreachSortDir, employees, selectedEmployeeId, prospectFunnel, methodDistribution, outcomeDistribution, rangePreset, dateFrom: fromTs, dateTo: toTs }: AnalyticsContentProps) {
   const router = useRouter();
   const dateFrom = fromTs ? new Date(fromTs * 1000) : undefined;
   const dateTo = toTs ? new Date(toTs * 1000) : undefined;
@@ -93,9 +94,6 @@ export function AnalyticsContent({ stats, outreachLog, outreachTotal, outreachPa
 
 
   const totalOutreach = methodDistribution.reduce((sum, m) => sum + m.count, 0);
-  const conversionRate = stats.outreachWeek > 0
-    ? Math.round((stats.purchasesWeek / stats.outreachWeek) * 100)
-    : 0;
 
   const rangeValue: DateRangeValue = rangePreset ? { preset: rangePreset } : { from: dateFrom, to: dateTo };
   const rangeLabel = describeRange(rangeValue);
@@ -158,9 +156,9 @@ export function AnalyticsContent({ stats, outreachLog, outreachTotal, outreachPa
           <TabsContent value="overview">
             <AnalyticsOverviewTab
               stats={stats}
-              conversionRate={conversionRate}
               methodDistribution={methodDistribution}
               rangeLabel={rangeLabel}
+              kpis={kpis}
             />
           </TabsContent>
 

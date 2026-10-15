@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getStats, getEmployees, getProspectFunnelStats, outreachMethodBreakdown, outreachOutcomeBreakdown, listOutreachLogs, OUTREACH_LOG_SORT_KEYS, type OutreachLogSortKey } from "@/lib/queries";
+import { getStats, getKpiMetrics, getEmployees, getProspectFunnelStats, outreachMethodBreakdown, outreachOutcomeBreakdown, listOutreachLogs, OUTREACH_LOG_SORT_KEYS, type OutreachLogSortKey } from "@/lib/queries";
 import { AnalyticsContent } from "./analytics-content";
 import { AnalyticsSkeleton } from "@/components/skeletons";
 import { requirePageSession } from "@/lib/auth";
@@ -55,8 +55,9 @@ async function AnalyticsFetcher({ searchParams }: { searchParams: SearchParams }
   const sortDir = sp.sortDir === "asc" ? "asc" : sp.sortDir === "desc" ? "desc" : undefined;
   const page = Math.max(1, parseInt(typeof sp.page === "string" ? sp.page : "1") || 1);
 
-  const [stats, outreachLog, prospectFunnel, methodDistribution, outcomeDistribution] = await Promise.all([
+  const [stats, kpis, outreachLog, prospectFunnel, methodDistribution, outcomeDistribution] = await Promise.all([
     getStats(employeeId, { from: dateFrom, to: dateTo }),
+    getKpiMetrics(employeeId, { from: dateFrom, to: dateTo }),
     listOutreachLogs({ ...range, sort, sortDir, page }),
     getProspectFunnelStats(),
     outreachMethodBreakdown(range),
@@ -65,6 +66,7 @@ async function AnalyticsFetcher({ searchParams }: { searchParams: SearchParams }
   return (
     <AnalyticsContent
       stats={stats}
+      kpis={kpis}
       outreachLog={outreachLog.rows}
       outreachTotal={outreachLog.total}
       // The query clamps a page past the end; render the page it served.

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AnalyticsContent } from "@/app/(app)/analytics/analytics-content";
-import type { ProspectFunnelStats } from "@/lib/queries";
+import type { KpiMetrics, ProspectFunnelStats } from "@/lib/queries";
 
 const replace = vi.fn();
 const push = vi.fn();
@@ -39,6 +39,9 @@ beforeEach(() => {
 });
 
 const stats = { total: 10, active: 8, hot: 2, warm: 3, cold: 3, banned: 1, unsubscribed: 1, outreachWeek: 4, purchasesWeek: 1 };
+const kpis: KpiMetrics = {
+  contacted: 4, bought: 1, outreach: 4, followUpsDue: 2, followUpsDone: 1, overdueNow: 0, prev: null,
+};
 const funnel: ProspectFunnelStats = {
   active: 0, graduated: 0, rejected: 0, unsubscribed: 0,
   avgSpendActive: null, avgSpendGraduated: null, avgSpendRejected: null,
@@ -63,6 +66,7 @@ function renderContent(props: Partial<Parameters<typeof AnalyticsContent>[0]> = 
   return render(
     <AnalyticsContent
       stats={stats}
+      kpis={kpis}
       outreachLog={outreachLog}
       outreachTotal={1}
       outreachPage={1}
@@ -201,11 +205,17 @@ describe("AnalyticsContent truthful labels", () => {
     expect(screen.getByText("Results in the selected range")).toBeInTheDocument();
   });
 
-  it("the Overview methods hover follows the picked range", async () => {
+  it("the Overview outreach card shows the method breakdown inline, no hover", () => {
     renderContent({ methodDistribution: methods(70, 50), rangePreset: "30d" });
-    await userEvent.setup().hover(screen.getByText("Outreach", { selector: "p" }));
-    expect(await screen.findByText("Outreach Methods (Last 30 days)")).toBeInTheDocument();
-    expect(screen.getByText("70")).toBeInTheDocument();
+    const list = screen.getByRole("list", { name: "Outreach by method" });
+    expect(list).toHaveTextContent("70");
+    expect(list).toHaveTextContent("50");
     expect(screen.queryByText(/last 50 logs/)).not.toBeInTheDocument();
+  });
+
+  it("drops the old Conversion Metrics card and its always-100% completion bar", () => {
+    renderContent({});
+    expect(screen.queryByText("Conversion Metrics")).not.toBeInTheDocument();
+    expect(screen.queryByRole("progressbar", { name: "Outreach completion" })).not.toBeInTheDocument();
   });
 });
