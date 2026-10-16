@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Globe, Lock, MoreHorizontal, Pencil, Copy, Trash2, ExternalLink } from "lucide-react";
 
 interface SmartListItemProps {
@@ -59,20 +58,12 @@ export function SmartListItem({
           className="flex items-center gap-2 min-w-0 flex-1 rounded-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
           onClick={onSelect}
         >
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="flex items-center gap-2 min-w-0">
-                {isBuiltIn ? icon : isShared
-                  ? <Globe className="size-4 text-muted-foreground shrink-0" />
-                  : <Lock className="size-4 text-muted-foreground shrink-0" />
-                }
-                <span className="text-sm truncate">{name}</span>
-              </span>
-            </TooltipTrigger>
-            {name.length > 20 && (
-              <TooltipContent side="right"><p>{name}</p></TooltipContent>
-            )}
-          </Tooltip>
+          {/* The full name wraps instead of hiding behind a hover tooltip (phones have no hover). */}
+          {isBuiltIn ? icon : isShared
+            ? <Globe className="size-4 text-muted-foreground shrink-0" />
+            : <Lock className="size-4 text-muted-foreground shrink-0" />
+          }
+          <span className="text-sm text-left break-words min-w-0">{name}</span>
         </button>
         <div className="flex items-center gap-1">
           <Badge variant="secondary" className="text-xs shrink-0 tabular-nums">{count}</Badge>
@@ -82,11 +73,11 @@ export function SmartListItem({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="size-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="size-8 p-0 text-muted-foreground"
                   onClick={(e) => e.stopPropagation()}
                   aria-label="List actions"
                 >
-                  <MoreHorizontal className="size-3" />
+                  <MoreHorizontal className="size-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">

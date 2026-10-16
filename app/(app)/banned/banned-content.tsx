@@ -25,7 +25,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -171,17 +170,12 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
         </div>
         {isManager && (
         <Dialog open={showBanDialog} onOpenChange={setShowBanDialog}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DialogTrigger asChild>
-                <Button variant="destructive">
-                  <Ban className="size-4 mr-2" />
-                  Ban Customer
-                </Button>
-              </DialogTrigger>
-            </TooltipTrigger>
-            <TooltipContent>Add a new customer to the banned list</TooltipContent>
-          </Tooltip>
+          <DialogTrigger asChild>
+            <Button variant="destructive">
+              <Ban className="size-4 mr-2" />
+              Ban Customer
+            </Button>
+          </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Ban Customer</DialogTitle>

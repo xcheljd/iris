@@ -320,15 +320,10 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="destructive" size="sm" className="h-7" onClick={() => setRemoveTarget(r)}>
-                    <Trash2 className="size-3.5 mr-1" />
-                    Remove
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Remove from unsubscribe list</TooltipContent>
-              </Tooltip>
+              <Button variant="destructive" size="sm" className="h-7" onClick={() => setRemoveTarget(r)}>
+                <Trash2 className="size-3.5 mr-1" />
+                Remove
+              </Button>
             )
           ) : r.clientId ? (
             <Tooltip>
@@ -390,14 +385,10 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
                       </p>
                     )}
                   </div>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="outline" onClick={handleAddEmail}>
-                        <Plus className="size-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Add to unsubscribe list (detects existing clients)</TooltipContent>
-                  </Tooltip>
+                  <Button variant="outline" onClick={handleAddEmail}>
+                    <Plus className="size-4" />
+                    Add
+                  </Button>
                 </div>
               </div>
             ) : (
