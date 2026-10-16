@@ -12,7 +12,7 @@ import { TableCell } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Topbar } from "@/components/topbar";
 import { EmailText } from "@/components/email-text";
-import { formatPhone } from "@/lib/utils";
+import { formatPhone, fullName } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, MoreHorizontal, Eye, Edit, Ban, MailX, Trash2, Mail, BookmarkPlus, FileText, Users } from "lucide-react";
@@ -531,17 +531,17 @@ export function ClientListContent({
               {r.client.status === "active" && (
                 <>
                   <DropdownMenuSeparator />
-                  <BanCustomerDialog clientId={r.client.id} clientName={`${r.client.firstName} ${r.client.lastName ?? ""}`}>
+                  <BanCustomerDialog clientId={r.client.id} clientName={fullName(r.client)}>
                     <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
+                      variant="destructive"
                       onSelect={(e) => e.preventDefault()}
                     >
                       <Ban className="size-4 mr-2" /> Ban Customer
                     </DropdownMenuItem>
                   </BanCustomerDialog>
-                  <UnsubscribeCustomerDialog clientId={r.client.id} clientName={`${r.client.firstName} ${r.client.lastName ?? ""}`}>
+                  <UnsubscribeCustomerDialog clientId={r.client.id} clientName={fullName(r.client)}>
                     <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
+                      variant="destructive"
                       onSelect={(e) => e.preventDefault()}
                     >
                       <MailX className="size-4 mr-2" /> Unsubscribe

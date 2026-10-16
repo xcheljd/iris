@@ -1,5 +1,6 @@
 "use client";
 
+import { fullName } from "@/lib/utils";
 import { useState, useTransition } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -91,7 +92,7 @@ function OutreachLogRow({
           <OutreachLogger
             key={`relog-${log.id}`}
             clientId={client.id}
-            clientName={`${client.firstName} ${client.lastName}`}
+            clientName={fullName(client)}
             defaultMethod={log.method as "call" | "text" | "email" | "in-person"}
             trigger={
               <Button variant="ghost" size="sm" title="Log another outreach with this method">
@@ -248,7 +249,7 @@ export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
             </CardTitle>
             <OutreachLogger
               clientId={client.id}
-              clientName={`${client.firstName} ${client.lastName}`}
+              clientName={fullName(client)}
               trigger={
                 <Button size="sm">
                   <Phone className="size-3.5 mr-1.5" />

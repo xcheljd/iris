@@ -1,5 +1,6 @@
 "use client";
 
+import { fullName } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
@@ -95,7 +96,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
               </EditClientDialog>
               <OutreachLogger
                 clientId={client.id}
-                clientName={`${client.firstName} ${client.lastName}`}
+                clientName={fullName(client)}
                 trigger={
                   <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                     <Calendar className="size-4 mr-2" /> Log Outreach
@@ -105,7 +106,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
               {currentUserRole === "manager" && (
                 <TransferClientDialog
                   clientId={client.id}
-                  clientName={`${client.firstName} ${client.lastName ?? ""}`}
+                  clientName={fullName(client)}
                   currentEmployeeId={client.employeeId}
                 >
                   <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
@@ -141,12 +142,12 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
               {status === "active" && (
                 <>
                   <DropdownMenuSeparator />
-                  <BanCustomerDialog clientId={client.id} clientName={`${client.firstName} ${client.lastName ?? ""}`}>
+                  <BanCustomerDialog clientId={client.id} clientName={fullName(client)}>
                     <DropdownMenuItem variant="destructive" onSelect={(e) => e.preventDefault()}>
                       <Ban className="size-4 mr-2" /> Ban Customer
                     </DropdownMenuItem>
                   </BanCustomerDialog>
-                  <UnsubscribeCustomerDialog clientId={client.id} clientName={`${client.firstName} ${client.lastName ?? ""}`}>
+                  <UnsubscribeCustomerDialog clientId={client.id} clientName={fullName(client)}>
                     <DropdownMenuItem variant="destructive" onSelect={(e) => e.preventDefault()}>
                       <MailX className="size-4 mr-2" /> Unsubscribe
                     </DropdownMenuItem>
@@ -186,7 +187,7 @@ export function ClientDetailTabs({ currentUserRole }: { currentUserRole?: string
               {client.status !== "deleted" && (
                 <>
                   <DropdownMenuSeparator />
-                  <DeleteCustomerDialog clientId={client.id} clientName={`${client.firstName} ${client.lastName ?? ""}`}>
+                  <DeleteCustomerDialog clientId={client.id} clientName={fullName(client)}>
                     <DropdownMenuItem variant="destructive" onSelect={(e) => e.preventDefault()}>
                       <Trash2 className="size-4 mr-2" /> Delete Client
                     </DropdownMenuItem>

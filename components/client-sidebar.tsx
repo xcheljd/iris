@@ -89,7 +89,7 @@ export function ClientSidebar() {
               No scheduled follow-ups
               <OutreachLogger
                 clientId={client.id}
-                clientName={`${client.firstName} ${client.lastName}`}
+                clientName={fullName(client)}
                 trigger={
                   <Button variant="outline" size="sm" className="w-full mt-2">
                     <Plus className="size-3.5 mr-1.5" />

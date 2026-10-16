@@ -1,5 +1,6 @@
 "use client";
 
+import { fullName } from "@/lib/utils";
 import { useSearchParams } from "next/navigation";
 import { ClientDetailTabs } from "@/components/client-detail-tabs";
 import { ClientSidebar } from "@/components/client-sidebar";
@@ -20,7 +21,7 @@ export function ClientDetailContent({ client, currentUserRole }: { client: FullC
 
   return (
     <div className="flex flex-col h-svh">
-      <Topbar title={`${client.firstName} ${client.lastName}`} />
+      <Topbar title={fullName(client)} />
       <div className="px-4 pt-3">
         <Breadcrumb>
           <BreadcrumbList>

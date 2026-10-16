@@ -14,7 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import { Merge } from "lucide-react";
 import { patchClientFromFormMerge } from "@/lib/actions";
-import { toDateOnly } from "@/lib/utils";
+import { toDateOnly, fullName } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ClientFormData } from "@/components/client-form";
 import type { ProductOfInterest } from "@/lib/db/schema";
@@ -118,7 +118,7 @@ export function MergeFromFormDialog({
               <ResolutionPanel
                 clientA={existingClient}
                 clientB={formSnapshot}
-                labelA={`${existingClient.firstName} ${existingClient.lastName ?? ""} (existing)`}
+                labelA={`${fullName(existingClient)} (existing)`}
                 labelB="New Entry (form)"
                 choices={choices}
                 setChoices={setChoices}

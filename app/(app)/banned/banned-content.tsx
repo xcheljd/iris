@@ -342,7 +342,7 @@ export function BannedContent({ banned: initialBanned, isManager }: { banned: Ba
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
+                          variant="destructive"
                           onClick={() => setUnbanTarget(row)}
                         >
                           <ShieldOff className="size-4 mr-2" />

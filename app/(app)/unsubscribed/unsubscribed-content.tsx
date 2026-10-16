@@ -311,7 +311,7 @@ export function UnsubscribedContent({ list: initialList, isManager }: { list: Un
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
+                    variant="destructive"
                     onClick={() => setRemoveTarget(r)}
                   >
                     <Trash2 className="size-4 mr-2" />

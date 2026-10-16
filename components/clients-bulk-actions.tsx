@@ -143,19 +143,19 @@ export function BulkActionsToolbar({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => setDialog({ kind: "ban" })}
-                className="text-destructive focus:text-destructive"
+                variant="destructive"
               >
                 <Ban className="size-4 mr-2" />Ban…
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setDialog({ kind: "unsubscribe" })}
-                className="text-destructive focus:text-destructive"
+                variant="destructive"
               >
                 <MailX className="size-4 mr-2" />Unsubscribe…
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setDialog({ kind: "delete" })}
-                className="text-destructive focus:text-destructive"
+                variant="destructive"
               >
                 <Trash2 className="size-4 mr-2" />Delete…
               </DropdownMenuItem>

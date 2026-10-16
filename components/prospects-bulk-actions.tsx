@@ -63,13 +63,13 @@ export function ProspectsBulkToolbar({ selectedIds, onClearAction }: ProspectsBu
         <DropdownMenuContent align="start">
           <DropdownMenuItem
             onClick={() => setDialog("unsubscribe")}
-            className="text-destructive focus:text-destructive"
+            variant="destructive"
           >
             <MailX className="size-4 mr-2" />Unsubscribe…
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() => setDialog("reject")}
-            className="text-destructive focus:text-destructive"
+            variant="destructive"
           >
             <XCircle className="size-4 mr-2" />Reject…
           </DropdownMenuItem>

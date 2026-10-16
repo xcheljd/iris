@@ -1,5 +1,6 @@
 "use client";
 
+import { fullName } from "@/lib/utils";
 import { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -135,7 +136,7 @@ export function MergeClientDialog({ children }: { children: React.ReactNode }) {
           </DialogTitle>
           <DialogDescription>
             {step === "search"
-              ? `Find the duplicate record to merge with ${client.firstName} ${client.lastName ?? ""}.`
+              ? `Find the duplicate record to merge with ${fullName(client)}.`
               : "Choose the winning value for each conflicting field. Outreach history, tags, and products will be combined."}
           </DialogDescription>
         </DialogHeader>
@@ -185,8 +186,8 @@ export function MergeClientDialog({ children }: { children: React.ReactNode }) {
                 <ResolutionPanel
                   clientA={client as MergeableClient}
                   clientB={candidateClient}
-                  labelA={`${client.firstName} ${client.lastName ?? ""} (this client)`}
-                  labelB={`${candidateClient.firstName} ${candidateClient.lastName ?? ""}`}
+                  labelA={`${fullName(client)} (this client)`}
+                  labelB={fullName(candidateClient)}
                   choices={choices}
                   setChoices={setChoices}
                   finalNotes={finalNotes}

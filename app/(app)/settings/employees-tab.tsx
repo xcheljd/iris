@@ -429,7 +429,7 @@ export function EmployeesTab({ employees, currentUserId }: EmployeesTabProps) {
                         </DropdownMenuItem>
                         {!employee.active && (
                           <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
+                            variant="destructive"
                             onClick={() => setDeleteTarget(employee)}
                           >
                             <Trash2 className="size-4 mr-2" />

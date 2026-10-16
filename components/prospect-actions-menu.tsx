@@ -75,7 +75,7 @@ export function ProspectActionsMenu({ prospect }: ProspectActionsMenuProps) {
           <DropdownMenuItem
             onSelect={handleReject}
             disabled={pending}
-            className="text-destructive focus:text-destructive"
+            variant="destructive"
           >
             <X className="size-4 mr-2" />
             Reject

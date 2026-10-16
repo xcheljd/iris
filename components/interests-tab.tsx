@@ -23,7 +23,7 @@ import { normalizeModel } from "@/lib/normalize";
 import { useCatalog } from "@/components/use-catalog";
 import { INTEREST_INTENT_VALUES, BRAND_VALUES, type InterestIntent, type ProductOfInterest } from "@/lib/db/schema";
 import type { FullClient, PromoMatchWithPromo } from "@/components/client-provider";
-import { formatMoney } from "@/lib/utils";
+import { formatMoney, fullName } from "@/lib/utils";
 import { ProductsOfInterestInput } from "@/components/products-of-interest-input";
 import { saveClientEdits } from "@/lib/actions";
 
@@ -446,7 +446,7 @@ export function InterestsTab({ client }: InterestsTabProps) {
                           <DropdownMenuContent align="end">
                             <OutreachLogger
                               clientId={client.id}
-                              clientName={`${client.firstName} ${client.lastName || ""}`}
+                              clientName={fullName(client)}
                               trigger={
                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                   Log Outreach
