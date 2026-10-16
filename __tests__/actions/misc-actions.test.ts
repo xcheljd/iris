@@ -73,13 +73,13 @@ describe("Misc Actions", () => {
       if (logs.length === 0) return; // Skip if no logs
 
       const log = logs[0];
-      const newDate = "2026-12-31";
+      const newDate = "2099-12-31";
 
       await rescheduleFollowUp(log.id, newDate);
 
       const updated = db.select().from(outreachLogs).where(eq(outreachLogs.id, log.id)).get();
       expect(updated!.followUpDate).toBeDefined();
-      expect(new Date(updated!.followUpDate!).getFullYear()).toBe(2026);
+      expect(new Date(updated!.followUpDate!).getFullYear()).toBe(2099);
 
       // Restore original date
       db.update(outreachLogs).set({ followUpDate: log.followUpDate }).where(eq(outreachLogs.id, log.id)).run();

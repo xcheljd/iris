@@ -172,7 +172,7 @@ describe("Outreach Actions", () => {
     it("should set follow-up date when provided", async () => {
       vi.mocked(getServerSession).mockResolvedValue(managerSession);
 
-      const followUp = "2026-06-01";
+      const followUp = "2099-06-01";
       await logOutreach({
         clientId: FIRST_CLIENT_ID,
         method: "call",
@@ -188,6 +188,27 @@ describe("Outreach Actions", () => {
       expect(newLog).toBeDefined();
       expect(newLog!.followUpDate).toBeDefined();
       if (newLog) createdLogIds.push(newLog!.id);
+    });
+
+    it("refuses a follow-up date before today and writes nothing", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+      const clientId = createClient(MANAGER_ID);
+      const yesterday = toDateOnly(addDays(new Date(), -1))!;
+
+      expect(await logOutreach({ clientId, method: "call", outcome: "no_answer", followUpDate: yesterday }))
+        .toEqual({ error: "Follow-up date can't be in the past" });
+
+      expect(db.select().from(outreachLogs).where(eq(outreachLogs.clientId, clientId)).all()).toHaveLength(0);
+    });
+
+    it("accepts a follow-up dated today", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(managerSession);
+      const clientId = createClient(MANAGER_ID);
+
+      expect(await logOutreach({ clientId, method: "call", outcome: "no_answer", followUpDate: toDateOnly(new Date())! })).toBeUndefined();
+
+      const row = db.select().from(outreachLogs).where(eq(outreachLogs.clientId, clientId)).get();
+      expect(row!.followUpDate).toEqual(startOfDay(new Date()));
     });
 
     it("should revalidate relevant paths", async () => {
@@ -328,7 +349,7 @@ describe("Outreach Actions", () => {
         clientId: FIRST_CLIENT_ID,
         method: "call",
         outcome: "wants_to_come_in",
-        followUpDate: "2026-06-01",
+        followUpDate: "2099-06-01",
         notes: "Mark complete test",
       });
 
@@ -357,7 +378,7 @@ describe("Outreach Actions", () => {
         clientId: FIRST_CLIENT_ID,
         method: "call",
         outcome: "wants_to_come_in",
-        followUpDate: "2026-06-01",
+        followUpDate: "2099-06-01",
         notes: "Reopen test",
       });
       const log = db.select().from(outreachLogs)
@@ -378,7 +399,7 @@ describe("Outreach Actions", () => {
         clientId,
         method: "call",
         outcome: "wants_to_come_in",
-        followUpDate: "2026-06-01",
+        followUpDate: "2099-06-01",
         notes: "Reopen ownership test",
       });
       const log = db.select().from(outreachLogs)
@@ -404,7 +425,7 @@ describe("Outreach Actions", () => {
         clientId,
         method: "call",
         outcome: "wants_to_come_in",
-        followUpDate: "2026-12-01",
+        followUpDate: "2099-12-01",
         notes: marker,
       });
       const log = db.select().from(outreachLogs)
@@ -429,11 +450,11 @@ describe("Outreach Actions", () => {
     it("refuses the logger once the client has been transferred away", async () => {
       const clientId = createClient(ASSOCIATE_ID);
       vi.mocked(getServerSession).mockResolvedValue(associateSession);
-      await logOutreach({ clientId, method: "call", outcome: "wants_to_come_in", followUpDate: "2026-12-01", notes: "ownership-after-transfer" });
+      await logOutreach({ clientId, method: "call", outcome: "wants_to_come_in", followUpDate: "2099-12-01", notes: "ownership-after-transfer" });
       const log = db.select().from(outreachLogs).where(eq(outreachLogs.clientId, clientId)).get()!;
       db.update(clients).set({ employeeId: MANAGER_ID }).where(eq(clients.id, clientId)).run();
 
-      expect(await rescheduleFollowUp(log.id, "2027-01-01")).toEqual({ error: "Not authorized to reschedule this follow-up" });
+      expect(await rescheduleFollowUp(log.id, "2099-01-01")).toEqual({ error: "Not authorized to reschedule this follow-up" });
     });
 
     it("should reject an associate completing another employee's follow-up", async () => {
@@ -452,7 +473,7 @@ describe("Outreach Actions", () => {
       const originalDate = log.followUpDate;
 
       vi.mocked(getServerSession).mockResolvedValue(associateSession);
-      const result = await rescheduleFollowUp(log.id, "2027-01-01");
+      const result = await rescheduleFollowUp(log.id, "2099-01-01");
 
       expect(result).toEqual({ error: "Not authorized to reschedule this follow-up" });
       const after = db.select().from(outreachLogs).where(eq(outreachLogs.id, log.id)).get();
@@ -470,12 +491,15 @@ describe("Outreach Actions", () => {
   // clients, and scoped by who logged the follow-up rather than who owns the
   // client, so after a transfer the new owner never saw them.
   describe("follow-up lists", () => {
-    const overdueDate = "2026-01-15";
-
+    // logOutreach refuses past follow-up dates, so log one for tomorrow and
+    // backdate the row to make it overdue.
     async function logFollowUp(clientId: string, session: Session) {
       vi.mocked(getServerSession).mockResolvedValue(session);
-      expect(await logOutreach({ clientId, method: "call", outcome: "wants_to_come_in", followUpDate: overdueDate })).toBeUndefined();
-      return db.select().from(outreachLogs).where(eq(outreachLogs.clientId, clientId)).get()!.id;
+      const tomorrow = toDateOnly(addDays(new Date(), 1))!;
+      expect(await logOutreach({ clientId, method: "call", outcome: "wants_to_come_in", followUpDate: tomorrow })).toBeUndefined();
+      const id = db.select().from(outreachLogs).where(eq(outreachLogs.clientId, clientId)).get()!.id;
+      db.update(outreachLogs).set({ followUpDate: addDays(startOfDay(new Date()), -30) }).where(eq(outreachLogs.id, id)).run();
+      return id;
     }
     const overdueIds = async (scope?: string) => (await getOverdueFollowUps(scope)).map((r) => r.log.id);
 
@@ -547,7 +571,7 @@ describe("Outreach Actions", () => {
         clientId: FIRST_CLIENT_ID,
         method: "call",
         outcome: "wants_to_come_in",
-        followUpDate: "2026-12-01",
+        followUpDate: "2099-12-01",
         notes: marker,
       });
       const log = db.select().from(outreachLogs)
@@ -580,14 +604,35 @@ describe("Outreach Actions", () => {
       expect(after!.followUpDate).toEqual(originalDate);
     });
 
+    it("rejects a day before today without touching the row", async () => {
+      const log = await createManagerLog("reschedule-past-date");
+      const originalDate = log.followUpDate;
+      const yesterday = toDateOnly(addDays(new Date(), -1))!;
+
+      expect(await rescheduleFollowUp(log.id, yesterday)).toEqual({ error: "Follow-up date can't be in the past" });
+
+      const after = db.select().from(outreachLogs).where(eq(outreachLogs.id, log.id)).get();
+      expect(after!.followUpDate).toEqual(originalDate);
+    });
+
+    it("accepts today", async () => {
+      const log = await createManagerLog("reschedule-today");
+      const today = toDateOnly(new Date())!;
+
+      expect(await rescheduleFollowUp(log.id, today)).toBeUndefined();
+
+      const after = db.select().from(outreachLogs).where(eq(outreachLogs.id, log.id)).get();
+      expect(after!.followUpDate).toEqual(startOfDay(new Date()));
+    });
+
     it("still reschedules on a valid YYYY-MM-DD date", async () => {
       const log = await createManagerLog("reschedule-valid-date");
 
-      const result = await rescheduleFollowUp(log.id, "2027-01-05");
+      const result = await rescheduleFollowUp(log.id, "2099-01-05");
 
       expect(result).toBeUndefined();
       const after = db.select().from(outreachLogs).where(eq(outreachLogs.id, log.id)).get();
-      expect(after!.followUpDate).toEqual(new Date(2027, 0, 5));
+      expect(after!.followUpDate).toEqual(new Date(2099, 0, 5));
     });
   });
 

@@ -164,6 +164,7 @@ function OutreachLogRow({
                 date={new Date(log.followUpDate)}
                 onSelectAction={(d) => d && onReschedule(log.id, d)}
                 disabled={reschedulePending}
+                noPastDays
               />
               <Button size="sm" onClick={handleComplete}>
                 <CheckCircle className="size-4 mr-1" />

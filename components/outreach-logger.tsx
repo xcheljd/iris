@@ -151,7 +151,7 @@ export function OutreachLogger({
 
           <Field>
             <FieldLabel>Follow-up date (optional)</FieldLabel>
-            <DatePicker date={followUp ?? undefined} onSelectAction={(d) => setFollowUp(d ?? null)} />
+            <DatePicker date={followUp ?? undefined} onSelectAction={(d) => setFollowUp(d ?? null)} noPastDays />
             <FollowUpQuickPicks onPick={setFollowUp} />
           </Field>
         </FieldGroup>

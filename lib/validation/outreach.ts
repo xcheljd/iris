@@ -4,6 +4,18 @@ import { OUTREACH_METHOD_VALUES, OUTREACH_OUTCOME_VALUES } from "@/lib/db/schema
 /** A calendar day (`YYYY-MM-DD`) — the same shape `outreachInputSchema.followUpDate` accepts. */
 export const followUpDateSchema = z.iso.date();
 
+export const PAST_FOLLOW_UP_ERROR = "Follow-up date can't be in the past";
+
+/**
+ * A follow-up dated before today would be overdue the moment it's saved, so
+ * the write paths refuse it. Today itself is fine ("call back this
+ * afternoon"). Both sides are local `YYYY-MM-DD`, so string order is day order.
+ */
+export function isPastFollowUpDay(day: string, now: Date = new Date()): boolean {
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return day < today;
+}
+
 export const outreachInputSchema = z
   .object({
     clientId: z.uuid(),

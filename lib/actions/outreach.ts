@@ -4,7 +4,7 @@ import { clients, outreachLogs, activityEvents, promoWatches, promoMatches } fro
 import { and, eq, isNotNull, lt } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
-import { outreachInputSchema, followUpDateSchema, type OutreachInput } from "@/lib/validation/outreach";
+import { outreachInputSchema, followUpDateSchema, isPastFollowUpDay, PAST_FOLLOW_UP_ERROR, type OutreachInput } from "@/lib/validation/outreach";
 import { addDays, format, parseISO, startOfDay } from "date-fns";
 import { requireAuth } from "./_shared";
 import { recalcHeat } from "@/lib/heat-recalc";
@@ -31,6 +31,7 @@ export async function logOutreach(data: OutreachInput): Promise<{ error: string 
   }
   const parsed = result.data;
   const user = await requireAuth();
+  if (parsed.followUpDate && isPastFollowUpDay(parsed.followUpDate)) return { error: PAST_FOLLOW_UP_ERROR };
 
   const client = db.select({ employeeId: clients.employeeId }).from(clients).where(eq(clients.id, parsed.clientId)).get();
   if (!client) return { error: "Client not found" };
@@ -159,6 +160,7 @@ export async function rescheduleFollowUp(logId: string, newDate: string): Promis
   const user = await requireAuth();
   // `new Date("whatever")` yields an Invalid Date, which Drizzle happily writes as NaN.
   if (!followUpDateSchema.safeParse(newDate).success) return { error: "Invalid date" };
+  if (isPastFollowUpDay(newDate)) return { error: PAST_FOLLOW_UP_ERROR };
   // parseISO reads a date-only string as local midnight; `new Date("2026-09-25")` is UTC
   // midnight, which is the evening of the 24th west of Greenwich.
   const followUpDate = parseISO(newDate);

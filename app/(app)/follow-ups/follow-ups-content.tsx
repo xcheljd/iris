@@ -244,7 +244,7 @@ function FollowUpCard({
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-2 py-2">
-            <DatePicker date={newDate} onSelectAction={setNewDate} className="w-full" />
+            <DatePicker date={newDate} onSelectAction={setNewDate} className="w-full" noPastDays />
             <FollowUpQuickPicks onPick={setNewDate} />
           </div>
           <DialogFooter>
