@@ -65,7 +65,7 @@ if (typeof window !== "undefined" && !Element.prototype.scrollIntoView) {
 // ---------------------------------------------------------------------------
 // localStorage regression: expose a working Storage in the jsdom environment.
 //
-// The SearchInputWithHistory suite and the ClientListContent pagination suite
+// The ClientListContent suites (pagination, legacy search-history cleanup)
 // call `localStorage.clear()` directly in their beforeEach hooks (and read the
 // same store via `window.localStorage`). jsdom only provides a usable
 // localStorage when the document runs on a non-opaque origin; on the default
@@ -128,10 +128,10 @@ function resolveLocalStorage(): Storage {
   return installTestLocalStorage();
 }
 
-// Regression assertion: the SearchInputWithHistory / ClientListContent
-// pagination suites depend on a callable localStorage in beforeEach. Asserting
-// it here surfaces a broken environment at suite setup rather than as the 13
-// "localStorage is not defined" spec failures.
+// Regression assertion: the ClientListContent suites depend on a callable
+// localStorage in beforeEach. Asserting it here surfaces a broken environment
+// at suite setup rather than as the 13 "localStorage is not defined" spec
+// failures.
 const TEST_LOCAL_STORAGE = resolveLocalStorage();
 if (
   !TEST_LOCAL_STORAGE ||
@@ -141,7 +141,7 @@ if (
 ) {
   throw new Error(
     "localStorage regression: no usable localStorage in the test environment — " +
-      "SearchInputWithHistory and ClientListContent pagination suites depend on it.",
+      "the ClientListContent suites depend on it.",
   );
 }
 
