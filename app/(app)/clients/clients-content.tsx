@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { HeatBadgeCell, RelativeDateCell, TextCell } from "@/components/data-table/cells";
 import { DataTable, type DataTableColumn } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
-import { SearchInputWithHistory, pushSearchHistory } from "@/components/search-input-with-history";
+import { SearchInput } from "@/components/search-input";
 import { TableCell } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Topbar } from "@/components/topbar";
@@ -46,7 +46,8 @@ import type { BuiltInFilter } from "@/lib/queries";
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
-const SEARCH_HISTORY_KEY = "iris:recent-searches:clients";
+// Only used to clear data left by the retired recent-searches feature.
+const LEGACY_SEARCH_HISTORY_KEY = "iris:recent-searches:clients";
 
 /** sessionStorage key for the last query string navigate() wrote. */
 export const LAST_SEARCH_KEY = "clients:last-search";
@@ -127,6 +128,15 @@ export function ClientListContent({
   const committedQ = useRef(currentFilters.q);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // One-time cleanup of the retired recent-searches history.
+  useEffect(() => {
+    try {
+      window.localStorage.removeItem(LEGACY_SEARCH_HISTORY_KEY);
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+
   // Stable filter object for the EmailRecipientsDialog — prevents refetch
   // on every parent re-render. Joining tags keeps the dep primitive. Carries
   // the ?filter= quick filter so the dialogs scope to exactly what's listed.
@@ -203,7 +213,6 @@ export function ClientListContent({
     if (searchTimer.current !== null) {
       clearTimeout(searchTimer.current);
       searchTimer.current = null;
-      if (qLocal.trim()) pushSearchHistory(SEARCH_HISTORY_KEY, qLocal);
     }
     // qLocal is the live truth for the search box; overrides still win.
     const next = { ...currentFilters, q: qLocal, ...overrides };
@@ -268,14 +277,11 @@ export function ClientListContent({
   // every mount (StrictMode, and the Suspense boundary remounting this tree
   // after each navigation), and the old ref let those re-runs commit a
   // navigation with page: 1 that bounced the user off the page they picked.
-  // After the debounce fires, push the committed (non-empty) query into
-  // localStorage so the SearchInputWithHistory dropdown can surface it later.
   useEffect(() => {
     if (qLocal === committedQ.current) return;
     searchTimer.current = setTimeout(() => {
       searchTimer.current = null;
       navigateRef.current({ q: qLocal, page: 1 });
-      if (qLocal.trim()) pushSearchHistory(SEARCH_HISTORY_KEY, qLocal);
     }, 300);
     return () => {
       if (searchTimer.current !== null) clearTimeout(searchTimer.current);
@@ -615,12 +621,12 @@ export function ClientListContent({
       <div className="flex flex-col flex-1 p-3 md:p-6 gap-4 max-w-full overflow-hidden" data-tour="client-list">
         {/* Search + date filters row */}
         <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
-          <SearchInputWithHistory
+          <SearchInput
             value={qLocal}
-            onChange={(v) => setQLocal(v)}
+            onChangeAction={(v) => setQLocal(v)}
             placeholder="Search name, email, phone…"
+            aria-label="Search clients"
             className="flex-1 max-w-md"
-            historyKey={SEARCH_HISTORY_KEY}
           />
           {/* One button per date field so a phone shows one calendar at a time. */}
           <div className="flex gap-2">

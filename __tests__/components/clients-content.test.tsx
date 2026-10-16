@@ -327,3 +327,22 @@ describe("ClientListContent quick filter", () => {
     expect(sp.get("filter")).toBeNull();
   });
 });
+
+describe("ClientListContent search box", () => {
+  beforeEach(() => {
+    push.mockReset();
+    replace.mockReset();
+    sessionStorage.clear();
+  });
+
+  it("clears the retired recent-searches key on mount", () => {
+    localStorage.setItem("iris:recent-searches:clients", JSON.stringify(["voss"]));
+    renderList();
+    expect(localStorage.getItem("iris:recent-searches:clients")).toBeNull();
+  });
+
+  it("exposes the search input by its accessible name", () => {
+    renderList();
+    expect(screen.getByRole("textbox", { name: "Search clients" })).toBeInTheDocument();
+  });
+});
