@@ -13,6 +13,8 @@ import { FollowUpQuickPicks } from "@/components/follow-up-quick-picks";
 import { logOutreach } from "@/lib/actions";
 import { toDateOnly } from "@/lib/utils";
 import { toast } from "sonner";
+import { OUTCOME_LABELS } from "@/lib/outreach-helpers";
+import { OUTREACH_OUTCOME_VALUES, type OutreachOutcome } from "@/lib/db/schema";
 import { Phone, MessageSquare, Mail, User } from "lucide-react";
 
 type Method = "call" | "text" | "email" | "in-person";
@@ -56,7 +58,7 @@ export function OutreachLogger({
       const result = await logOutreach({
         clientId,
         method,
-        outcome: outcome as "no_answer" | "voicemail" | "voicemail_full" | "responded" | "not_interested" | "wants_to_come_in" | "purchased",
+        outcome: outcome as OutreachOutcome,
         purchasedModel: purchasedModel || undefined,
         notes: notes || undefined,
         // toDateOnly, not toISOString(): the picker hands back a local-midnight
@@ -87,7 +89,7 @@ export function OutreachLogger({
             <ToggleGroup
               type="single"
               value={method}
-              onValueChange={(v) => { if (v) setMethod(v as "call" | "text" | "email" | "in-person"); }}
+              onValueChange={(v) => { if (v) setMethod(v as Method); }}
               variant="outline"
               className="grid grid-cols-4 gap-2"
             >
@@ -108,18 +110,10 @@ export function OutreachLogger({
           <FieldSet>
             <FieldLegend variant="label">Outcome</FieldLegend>
             <RadioGroup value={outcome} onValueChange={setOutcome} className="grid grid-cols-2 gap-1">
-              {[
-                { v: "no_answer", l: "No answer" },
-                { v: "voicemail", l: "Left voicemail" },
-                { v: "voicemail_full", l: "VM full" },
-                { v: "responded", l: "Responded" },
-                { v: "not_interested", l: "Not interested" },
-                { v: "wants_to_come_in", l: "Wants to come in" },
-                { v: "purchased", l: "Purchased" },
-              ].map((o) => (
-                <label key={o.v} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm cursor-pointer hover:bg-accent/5">
-                  <RadioGroupItem value={o.v} />
-                  <span>{o.l}</span>
+              {OUTREACH_OUTCOME_VALUES.map((v) => (
+                <label key={v} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm cursor-pointer hover:bg-accent/5">
+                  <RadioGroupItem value={v} />
+                  <span>{OUTCOME_LABELS[v]}</span>
                 </label>
               ))}
             </RadioGroup>

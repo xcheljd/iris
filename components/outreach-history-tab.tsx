@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/empty-state";
 import { DatePicker } from "@/components/date-picker";
 import type { FullClient } from "@/components/client-provider";
 import type { OutreachLog } from "@/lib/db/schema";
-import { getMethodIcon, isFollowUpOverdue, isFollowUpUpcoming } from "@/lib/outreach-helpers";
+import { getMethodIcon, isFollowUpOverdue, isFollowUpUpcoming, outcomeLabel } from "@/lib/outreach-helpers";
 import { markFollowUpComplete, reopenFollowUp, rescheduleFollowUp } from "@/lib/actions";
 import { OutreachLogger } from "@/components/outreach-logger";
 import { useOptimisticToggle } from "@/hooks/use-optimistic";
@@ -67,19 +67,10 @@ function OutreachLogRow({
       "not_interested": "destructive",
     };
 
-    const labels: Record<string, string> = {
-      "responded": "Responded",
-      "wants_to_come_in": "Wants to visit",
-      "purchased": "Purchased",
-      "no_answer": "No answer",
-      "voicemail": "Voicemail",
-      "voicemail_full": "Voicemail full",
-      "not_interested": "Not interested",
-    };
 
     return (
       <Badge variant={variants[outcome] || "outline"}>
-        {labels[outcome] || outcome.replace(/_/g, " ")}
+        {outcomeLabel(outcome)}
       </Badge>
     );
   };

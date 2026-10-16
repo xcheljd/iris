@@ -1,5 +1,6 @@
 import { Phone, MessageCircle, Mail, User } from "lucide-react";
 import { startOfDay } from "date-fns";
+import type { OutreachOutcome } from "@/lib/db/schema";
 
 export function getMethodIcon(method: string, size = "h-4 w-4") {
   const props = { className: size };
@@ -9,16 +10,6 @@ export function getMethodIcon(method: string, size = "h-4 w-4") {
     case "email": return <Mail {...props} />;
     case "in-person": return <User {...props} />;
     default: return <MessageCircle {...props} />;
-  }
-}
-
-export function getMethodBadgeVariant(method: string) {
-  switch (method) {
-    case "call": return "bg-green-500/10 text-green-500 border-green-500/20";
-    case "text": return "bg-blue-500/10 text-blue-500 border-blue-500/20";
-    case "email": return "bg-purple-500/10 text-purple-400 border-purple-500/20";
-    case "in-person": return "bg-orange-500/10 text-orange-500 border-orange-500/20";
-    default: return "bg-muted text-muted-foreground border-muted";
   }
 }
 
@@ -36,15 +27,30 @@ export function isFollowUpUpcoming(followUpDate: Date | string | null) {
   return daysDiff >= 0 && daysDiff <= 7;
 }
 
+// One name per outcome, used everywhere an outcome is shown (logger, history,
+// follow-ups, analytics, dashboard) so the same outcome never reads two ways.
+export const OUTCOME_LABELS: Record<OutreachOutcome, string> = {
+  no_answer: "No answer",
+  voicemail: "Left voicemail",
+  voicemail_full: "Voicemail full",
+  responded: "Responded",
+  not_interested: "Not interested",
+  wants_to_come_in: "Wants to come in",
+  purchased: "Purchased",
+};
+
+export function outcomeLabel(outcome: string) {
+  return OUTCOME_LABELS[outcome as OutreachOutcome] ?? outcome.replace(/_/g, " ");
+}
+
 export function getOutcomeColor(outcome: string) {
   switch (outcome) {
-    case "purchased": return "text-emerald-500";
-    case "wants_to_come_in": return "text-green-500";
-    case "responded": return "text-green-500";
-    case "not_interested": return "text-red-500";
-    case "no_answer": return "text-muted-foreground";
-    case "voicemail": return "text-yellow-500";
-    case "voicemail_full": return "text-red-500";
+    case "purchased":
+    case "wants_to_come_in":
+    case "responded": return "text-success";
+    case "not_interested":
+    case "voicemail_full": return "text-destructive";
+    case "voicemail": return "text-warning";
     default: return "text-muted-foreground";
   }
 }

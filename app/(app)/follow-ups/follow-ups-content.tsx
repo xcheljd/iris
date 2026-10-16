@@ -65,7 +65,7 @@ interface FollowUpsContentProps {
   upcoming: FollowUpRow[];
 }
 
-import { getMethodIcon, getMethodBadgeVariant, getOutcomeColor, isFollowUpOverdue } from "@/lib/outreach-helpers";
+import { getMethodIcon, getOutcomeColor, isFollowUpOverdue, outcomeLabel } from "@/lib/outreach-helpers";
 
 function getRelativeTime(date: Date) {
   const now = new Date();
@@ -147,7 +147,7 @@ function FollowUpCard({
               <HeatBadge level={row.client.heatLevel as "hot" | "warm" | "cold"} />
             </div>
             <div className="flex items-center gap-1">
-              <Badge variant="outline" className={getMethodBadgeVariant(row.log.method)}>
+              <Badge variant="outline">
                 {getMethodIcon(row.log.method)}
                 <span className="ml-1 capitalize text-xs">{row.log.method}</span>
               </Badge>
@@ -163,8 +163,8 @@ function FollowUpCard({
                     <PhoneLink phone={row.client.phone} name={fullName(row.client)} />
                   </span>
                 )}
-                <span className={`text-xs capitalize ${getOutcomeColor(row.log.outcome)}`}>
-                  {row.log.outcome.replace(/_/g, " ")}
+                <span className={`text-xs ${getOutcomeColor(row.log.outcome)}`}>
+                  {outcomeLabel(row.log.outcome)}
                 </span>
               </div>
 
@@ -285,15 +285,15 @@ function FollowUpDetailSheet({ row, open, onOpenChange }: { row: FollowUpRow | n
             <Separator />
             <div>
               <p className="text-sm font-medium text-muted-foreground">Method</p>
-              <Badge variant="outline" className={getMethodBadgeVariant(row.log.method)}>
+              <Badge variant="outline">
                 {getMethodIcon(row.log.method)}
                 <span className="ml-1 capitalize">{row.log.method}</span>
               </Badge>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Outcome</p>
-              <p className={`text-sm capitalize ${getOutcomeColor(row.log.outcome)}`}>
-                {row.log.outcome.replace(/_/g, " ")}
+              <p className={`text-sm ${getOutcomeColor(row.log.outcome)}`}>
+                {outcomeLabel(row.log.outcome)}
               </p>
             </div>
             <div>

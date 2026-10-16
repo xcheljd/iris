@@ -22,7 +22,7 @@ import {
   Pie,
 } from "recharts";
 import Link from "next/link";
-import { getMethodIcon, getOutcomeColor } from "@/lib/outreach-helpers";
+import { getMethodIcon, getOutcomeColor, outcomeLabel } from "@/lib/outreach-helpers";
 import { format } from "date-fns";
 import { fullName } from "@/lib/utils";
 import { EmptyState } from "@/components/empty-state";
@@ -137,14 +137,14 @@ export function AnalyticsOutreachTab({
               outcomeDistribution.map(({ outcome, count }) => (
                 <div key={outcome} className="flex flex-col gap-1">
                   <div className="flex items-center justify-between">
-                    <span className={`text-sm capitalize ${getOutcomeColor(outcome)}`}>
-                      {outcome.replace(/_/g, " ")}
+                    <span className={`text-sm ${getOutcomeColor(outcome)}`}>
+                      {outcomeLabel(outcome)}
                     </span>
                     <div className="flex items-center gap-2">
                       <Progress
                         value={totalOutreach > 0 ? (count / totalOutreach) * 100 : 0}
                         className="h-2 w-20"
-                        aria-label={`${outcome.replace(/_/g, " ")} outcome`}
+                        aria-label={`${outcomeLabel(outcome)} outcome`}
                       />
                       <Badge variant="secondary" className="w-8 justify-center">
                         {count}
@@ -225,8 +225,8 @@ export function AnalyticsOutreachTab({
                       ) : (
                         <span className="text-sm text-muted-foreground">Unknown client</span>
                       )}
-                      <p className={`text-xs capitalize ${getOutcomeColor(row.log.outcome)}`}>
-                        {row.log.outcome.replace(/_/g, " ")}
+                      <p className={`text-xs ${getOutcomeColor(row.log.outcome)}`}>
+                        {outcomeLabel(row.log.outcome)}
                       </p>
                     </div>
                   </div>

@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { HeatBadge } from "@/components/heat-badge";
 import { getStats, getKpiMetrics, getOverdueFollowUps, getUpcomingFollowUps, getRecentActivity, getTopHotClients, getClientOccasionsCurrentMonth } from "@/lib/queries";
 import { percent } from "@/lib/kpi";
+import { outcomeLabel } from "@/lib/outreach-helpers";
 import { requirePageSession } from "@/lib/auth";
 import { recalcAllHeatDaily } from "@/lib/heat-recalc";
 import Link from "next/link";
@@ -91,7 +92,7 @@ async function DashboardContent() {
                             <span className="font-medium">{row.client?.firstName} {row.client?.lastName ?? ""}</span>
                             <span className="text-muted-foreground ml-2 text-xs">due {formatDate(row.log.followUpDate)}</span>
                             {row.log.notes && <span className="block text-xs text-muted-foreground truncate">{row.log.notes}</span>}
-                            {!row.log.notes && <span className="block text-xs text-muted-foreground capitalize">{row.log.method} — {row.log.outcome.replace(/_/g, " ")}</span>}
+                            {!row.log.notes && <span className="block text-xs text-muted-foreground"><span className="capitalize">{row.log.method}</span> — {outcomeLabel(row.log.outcome)}</span>}
                           </Link>
                           <Badge variant="destructive" className="text-xs tracking-wide shrink-0">
                             <AlertCircle className="size-3 mr-1" />
@@ -122,7 +123,7 @@ async function DashboardContent() {
                           </div>
                           {(row.log.notes || row.log.method) && (
                             <span className="text-xs text-muted-foreground truncate mt-0.5">
-                              {row.log.notes || `${row.log.method} — ${row.log.outcome.replace(/_/g, " ")}`}
+                              {row.log.notes || `${row.log.method} — ${outcomeLabel(row.log.outcome)}`}
                             </span>
                           )}
                         </li>
