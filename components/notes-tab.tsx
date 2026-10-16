@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { EmptyState } from "@/components/empty-state";
+import { Spinner } from "@/components/ui/spinner";
 import type { FullClient } from "@/components/client-provider";
 
 interface ParsedNote {
@@ -28,7 +29,7 @@ interface NotesTabProps {
 export function NotesTab({ client }: NotesTabProps) {
   const router = useRouter();
   const [newNote, setNewNote] = useState("");
-  const [isAdding, setIsAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const handleAddNote = async () => {
@@ -36,6 +37,9 @@ export function NotesTab({ client }: NotesTabProps) {
       toast.error("Note cannot be empty");
       return;
     }
+    // Guard against a double tap posting the same note twice.
+    if (saving) return;
+    setSaving(true);
 
     try {
       const response = await fetch("/api/notes", {
@@ -51,7 +55,6 @@ export function NotesTab({ client }: NotesTabProps) {
 
       if (response.ok) {
         setNewNote("");
-        setIsAdding(false);
         toast.success("Note added");
         router.refresh();
       } else {
@@ -61,6 +64,8 @@ export function NotesTab({ client }: NotesTabProps) {
       toast.error("Failed to add note", {
         description: error instanceof Error ? error.message : "Unknown error",
       });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -103,39 +108,31 @@ export function NotesTab({ client }: NotesTabProps) {
     <div className="flex flex-col gap-4">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="size-5" />
-              Add New Note
-            </CardTitle>
-            {isAdding ? (
-              <Button variant="outline" onClick={() => setIsAdding(false)}>
-                Cancel
-              </Button>
-            ) : (
-              <Button onClick={() => setIsAdding(true)}>
-                <Plus className="size-4 mr-2" />
-                Add Note
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="size-5" />
+            <label htmlFor="new-note">Add New Note</label>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <Textarea
+            id="new-note"
+            placeholder="Enter your note here..."
+            value={newNote}
+            onChange={(e) => setNewNote(e.target.value)}
+            rows={3}
+          />
+          <div className="flex justify-end gap-2">
+            {newNote && (
+              <Button variant="outline" onClick={() => setNewNote("")} disabled={saving}>
+                Clear
               </Button>
             )}
+            <Button onClick={handleAddNote} disabled={saving}>
+              {saving ? <Spinner /> : <Plus className="size-4" />}
+              {saving ? "Saving…" : "Save Note"}
+            </Button>
           </div>
-        </CardHeader>
-        {isAdding && (
-          <CardContent className="flex flex-col gap-4">
-            <Textarea
-              placeholder="Enter your note here..."
-              value={newNote}
-              onChange={(e) => setNewNote(e.target.value)}
-              rows={4}
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsAdding(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleAddNote}>Save Note</Button>
-            </div>
-          </CardContent>
-        )}
+        </CardContent>
       </Card>
 
       <Card>
@@ -154,8 +151,8 @@ export function NotesTab({ client }: NotesTabProps) {
               <div className="flex flex-col gap-4">
                 {sortedNotes.map((note: ParsedNote) => (
                   <div key={note.id} className="border rounded-lg p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex flex-wrap items-center gap-2 min-w-0">
                         <Calendar className="size-4 text-muted-foreground" />
                         <span className="text-sm text-muted-foreground">
                           {format(new Date(note.createdAt), "MMM d, yyyy • h:mm a")}

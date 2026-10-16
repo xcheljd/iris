@@ -148,36 +148,35 @@ describe("NotesTab", () => {
     expect(screen.getByText("1 note total")).toBeInTheDocument();
   });
 
-  it("shows Add Note button initially, clicking shows textarea", async () => {
-    const user = userEvent.setup();
+  it("shows the note box straight away, no extra Add step", () => {
     render(<NotesTab client={clientWithNoNotes} />);
-    const addBtn = screen.getByRole("button", { name: /add note/i });
-    expect(addBtn).toBeInTheDocument();
-
-    await user.click(addBtn);
     expect(screen.getByPlaceholderText("Enter your note here...")).toBeInTheDocument();
+    expect(screen.getByLabelText("Add New Note")).toBeInTheDocument();
   });
 
-  it("shows Cancel button when adding a note", async () => {
+  it("Clear empties the note box", async () => {
     const user = userEvent.setup();
     render(<NotesTab client={clientWithNoNotes} />);
-
-    await user.click(screen.getByRole("button", { name: /add note/i }));
-    // There are two cancel buttons (one in header, one in footer)
-    const cancelButtons = screen.getAllByRole("button", { name: /cancel/i });
-    expect(cancelButtons.length).toBeGreaterThanOrEqual(1);
+    const textarea = screen.getByPlaceholderText("Enter your note here...");
+    await user.type(textarea, "draft");
+    await user.click(screen.getByRole("button", { name: /clear/i }));
+    expect(textarea).toHaveValue("");
   });
 
-  it("clicking Cancel hides the textarea", async () => {
+  it("disables Save while a note is saving, so a double tap posts once", async () => {
+    let resolve!: (r: Response) => void;
+    (global.fetch as ReturnType<typeof vi.fn>).mockImplementationOnce(
+      () => new Promise<Response>((r) => { resolve = r; }),
+    );
     const user = userEvent.setup();
     render(<NotesTab client={clientWithNoNotes} />);
-
-    await user.click(screen.getByRole("button", { name: /add note/i }));
-    expect(screen.getByPlaceholderText("Enter your note here...")).toBeInTheDocument();
-
-    // Click the first Cancel button
-    await user.click(screen.getAllByRole("button", { name: /cancel/i })[0]);
-    expect(screen.queryByPlaceholderText("Enter your note here...")).not.toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText("Enter your note here..."), "once");
+    await user.click(screen.getByRole("button", { name: /save note/i }));
+    const saving = screen.getByRole("button", { name: /saving/i });
+    expect(saving).toBeDisabled();
+    await user.click(saving);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    resolve(new Response("{}", { status: 200 }));
   });
 
   it("calls toast.error when saving empty note", async () => {
@@ -185,7 +184,6 @@ describe("NotesTab", () => {
     const user = userEvent.setup();
     render(<NotesTab client={clientWithNoNotes} />);
 
-    await user.click(screen.getByRole("button", { name: /add note/i }));
     await user.click(screen.getByRole("button", { name: /save note/i }));
 
     expect(toast.error).toHaveBeenCalledWith("Note cannot be empty");
@@ -195,7 +193,6 @@ describe("NotesTab", () => {
     const user = userEvent.setup();
     render(<NotesTab client={clientWithNoNotes} />);
 
-    await user.click(screen.getByRole("button", { name: /add note/i }));
     const textarea = screen.getByPlaceholderText("Enter your note here...");
     await user.type(textarea, "This is a new note");
     await user.click(screen.getByRole("button", { name: /save note/i }));
