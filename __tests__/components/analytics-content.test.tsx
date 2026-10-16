@@ -137,7 +137,7 @@ describe("AnalyticsContent outreach breakdowns", () => {
     });
     await userEvent.setup().click(screen.getByRole("tab", { name: "Outreach" }));
     expect(screen.getByText(/Breakdown of 120 outreach attempts/)).toBeInTheDocument();
-    expect(screen.getByText("wants to come in")).toBeInTheDocument();
+    expect(screen.getByText("Wants to come in")).toBeInTheDocument();
     expect(screen.getByText("90")).toBeInTheDocument();
   });
 
