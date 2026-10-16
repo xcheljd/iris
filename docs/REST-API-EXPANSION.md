@@ -55,7 +55,6 @@ This limits:
 | Approvals | `getPendingApprovalRequests`, `createApprovalRequest`, `reviewApprovalRequest` | Only `/count` exists |
 | Promos | `createPromo`, `deletePromo`, `importPromos`, `clearAllPromos` | Only match-reading |
 | Tags | `createTag`, `deleteTag`, `addTag`, `removeTag` | No endpoints at all |
-| Templates | `createTemplate`, `deleteTemplate` | No endpoints at all |
 | Smart Lists | `createSmartList`, `deleteSmartList`, `renameSmartList`, `duplicateSmartList` | No endpoints at all |
 | Prospects | `graduateProspect`, `rejectProspect`, `unsubscribeProspect`, `graduateProspectIntoExistingClient` | No endpoints at all |
 | Client Status | `banClient`, `unbanClient`, `unsubscribeClient`, `resubscribeClient`, `transferClient`, `restoreClient`, `purgeClient` | No status mutation endpoints |
@@ -160,16 +159,6 @@ Full CRUD for resource types that currently have partial or no API coverage.
 | DELETE | `/api/clients/[id]/tags/[tagId]` | `removeTag` | Remove tag from client |
 
 **Rationale:** Tag taxonomy management is needed for external categorization tools.
-
-#### 2E. Templates — `app/api/templates/route.ts`
-
-| Method | Path | Action Function | Description |
-|--------|------|-----------------|-------------|
-| GET | `/api/templates` | *(new query)* | List outreach templates |
-| POST | `/api/templates` | `createTemplate` | Create a template |
-| DELETE | `/api/templates/[id]` | `deleteTemplate` | Delete a template |
-
-**Rationale:** Template management for external content tools.
 
 #### 2F. Smart Lists — `app/api/smart-lists/route.ts`
 

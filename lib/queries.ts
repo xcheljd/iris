@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bannedCustomers, unsubscribeList, employees, clientTags, outreachTemplates, smartLists, rvxImportBatches, prospects } from "@/lib/db/schema";
+import { clients, outreachLogs, activityEvents, promoWatches, promoMatches, bannedCustomers, unsubscribeList, employees, clientTags, smartLists, rvxImportBatches, prospects } from "@/lib/db/schema";
 import { eq, desc, asc, and, or, isNull, isNotNull, lte, lt, gte, gt, inArray, notInArray, sql as rawSql } from "drizzle-orm";
 import { containsLike, containsLikeLower, containsPhone } from "@/lib/like";
 import { sameEmail } from "@/lib/email-identity";
@@ -743,10 +743,6 @@ export function getTagsSync() {
 
 export async function getTags() {
   return getTagsSync();
-}
-
-export async function getTemplates() {
-  return db.select().from(outreachTemplates).orderBy(outreachTemplates.name).all();
 }
 
 export async function getSmartLists(employeeId?: string) {

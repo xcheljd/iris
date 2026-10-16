@@ -122,7 +122,6 @@ export const outreachLogs = sqliteTable("outreach_logs", {
   notes: text("notes"),
   employeeId: text("employee_id").references(() => employees.id),
   followUpDate: integer("follow_up_date", { mode: "timestamp" }),
-  templateId: text("template_id"),
   completed: integer("completed", { mode: "boolean" }).notNull().default(false),
 }, (table) => ({
   outreachLogsClientIdIdx: index("outreach_logs_client_id_idx").on(table.clientId),
@@ -147,17 +146,6 @@ export const clientTags = sqliteTable("client_tags", {
   id: text("id").primaryKey(),
   name: text("name").notNull().unique(),
   usageCount: integer("usage_count").notNull().default(0),
-});
-
-export const outreachTemplates = sqliteTable("outreach_templates", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  subject: text("subject"),
-  body: text("body").notNull(),
-  channel: text("channel", { enum: ["text", "email", "general"] }).notNull().default("general"),
-  isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
-  createdBy: text("created_by").references(() => employees.id),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
 export const promoWatches = sqliteTable("promo_watches", {
@@ -319,7 +307,6 @@ export type PromoWatch = typeof promoWatches.$inferSelect;
 export type BannedCustomer = typeof bannedCustomers.$inferSelect;
 export type ActivityEvent = typeof activityEvents.$inferSelect;
 export type ClientTag = typeof clientTags.$inferSelect;
-export type OutreachTemplate = typeof outreachTemplates.$inferSelect;
 export type SmartList = typeof smartLists.$inferSelect;
 export type ApprovalRequest = typeof approvalRequests.$inferSelect;
 export type RvxImportBatch = typeof rvxImportBatches.$inferSelect;

@@ -11,15 +11,13 @@ vi.mock("next/cache", () => ({
 import { getServerSession } from "next-auth";
 import type { Session } from "next-auth";
 import {
-  createTemplate,
-  deleteTemplate,
   createSmartList,
   renameSmartList,
   duplicateSmartList,
   deleteSmartList,
 } from "@/lib/actions";
 import { db } from "@/lib/db";
-import { outreachTemplates, smartLists } from "@/lib/db/schema";
+import { smartLists } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
 const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
@@ -35,20 +33,10 @@ const associateSession: Session = {
   expires: "2099-12-31T23:59:59.000Z",
 };
 
-describe("Template & Smart List Actions", () => {
-  const createdTemplateIds: string[] = [];
+describe("Smart List Actions", () => {
   const createdListIds: string[] = [];
 
   afterEach(() => {
-    for (const id of createdTemplateIds) {
-      try {
-        db.delete(outreachTemplates).where(eq(outreachTemplates.id, id)).run();
-      } catch {
-        // ignore
-      }
-    }
-    createdTemplateIds.length = 0;
-
     for (const id of createdListIds) {
       try {
         db.delete(smartLists).where(eq(smartLists.id, id)).run();
@@ -57,47 +45,6 @@ describe("Template & Smart List Actions", () => {
       }
     }
     createdListIds.length = 0;
-  });
-
-  describe("createTemplate", () => {
-    it("should create a template with correct fields", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession);
-      const { revalidatePath } = await import("next/cache");
-
-      await createTemplate("Test Template", "Hello {{name}}", "Welcome", "email");
-
-      const template = db.select().from(outreachTemplates)
-        .where(eq(outreachTemplates.name, "Test Template"))
-        .get();
-      expect(template).toBeDefined();
-      expect(template!.body).toBe("Hello {{name}}");
-      expect(template!.subject).toBe("Welcome");
-      expect(template!.channel).toBe("email");
-      expect(template!.createdBy).toBe(MANAGER_ID);
-      if (template) createdTemplateIds.push(template.id);
-
-      expect(revalidatePath).toHaveBeenCalledWith("/settings");
-    });
-  });
-
-  describe("deleteTemplate", () => {
-    it("should delete a template by id", async () => {
-      vi.mocked(getServerSession).mockResolvedValue(managerSession);
-
-      await createTemplate("DeleteMe Template", "Body text", null, "general");
-
-      const template = db.select().from(outreachTemplates)
-        .where(eq(outreachTemplates.name, "DeleteMe Template"))
-        .get();
-      expect(template).toBeDefined();
-
-      await deleteTemplate(template!.id);
-
-      const deleted = db.select().from(outreachTemplates)
-        .where(eq(outreachTemplates.id, template!.id))
-        .get();
-      expect(deleted).toBeUndefined();
-    });
   });
 
   describe("createSmartList", () => {

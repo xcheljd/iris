@@ -4,7 +4,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
@@ -23,7 +22,6 @@ type Props = {
   clientId: string;
   clientName: string;
   trigger?: React.ReactNode;
-  templates?: { id: string; name: string; body: string }[];
   defaultMethod?: Method;
   defaultOutcome?: string;
 };
@@ -32,7 +30,6 @@ export function OutreachLogger({
   clientId,
   clientName,
   trigger,
-  templates = [],
   defaultMethod = "call",
   defaultOutcome = "no_answer",
 }: Props) {
@@ -42,11 +39,10 @@ export function OutreachLogger({
   const [purchasedModel, setPurchasedModel] = useState("");
   const [notes, setNotes] = useState("");
   const [followUp, setFollowUp] = useState<Date | null>(null);
-  const [templateId, setTemplateId] = useState<string>("");
   const [pending, start] = useTransition();
 
   function reset() {
-    setMethod(defaultMethod); setOutcome(defaultOutcome); setPurchasedModel(""); setNotes(""); setFollowUp(null); setTemplateId("");
+    setMethod(defaultMethod); setOutcome(defaultOutcome); setPurchasedModel(""); setNotes(""); setFollowUp(null);
   }
 
   function submit() {
@@ -64,7 +60,6 @@ export function OutreachLogger({
         // toDateOnly, not toISOString(): the picker hands back a local-midnight
         // Date, whose UTC date part is a day early east of Greenwich.
         followUpDate: toDateOnly(followUp),
-        templateId: templateId || undefined,
       });
       if (result?.error) { toast.error(result.error); return; }
       toast.success("Outreach logged");
@@ -126,17 +121,6 @@ export function OutreachLogger({
             </Field>
           )}
 
-          {templates.length > 0 && (method === "text" || method === "email") && (
-            <Field>
-              <FieldLabel htmlFor="ol-template">Template (optional)</FieldLabel>
-              <Select value={templateId} onValueChange={(v) => { setTemplateId(v); const t = templates.find((x) => x.id === v); if (t) setNotes(t.body); }}>
-                <SelectTrigger id="ol-template"><SelectValue placeholder="Pick a template..." /></SelectTrigger>
-                <SelectContent>
-                  {templates.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </Field>
-          )}
 
           <Field>
             <FieldLabel htmlFor="ol-notes">Notes</FieldLabel>

@@ -1,32 +1,29 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Tag, FileText, Trash2, UserCircle, GraduationCap, DatabaseBackup } from "lucide-react";
+import { Users, Tag, Trash2, UserCircle, GraduationCap, DatabaseBackup } from "lucide-react";
 import { Topbar } from "@/components/topbar";
 import { ProfileTab } from "./profile-tab";
 import { EmployeesTab } from "./employees-tab";
 import { SettingsTagsTab } from "./tags-tab";
-import { TemplatesTab } from "./templates-tab";
 import { DeletedTab } from "./deleted-tab";
 import { BackupTab } from "./backup-tab";
 import { OnboardingSettingsTab } from "@/components/onboarding/onboarding-settings-tab";
 import type { SafeEmployeeRow } from "@/lib/queries";
 import type { ClientTag } from "@/lib/db/schema";
-import type { OutreachTemplate } from "@/lib/db/schema";
 import type { Client } from "@/lib/db/schema";
 import type { OnboardingState } from "@/lib/actions/onboarding";
 
 interface SettingsContentProps {
   employees: SafeEmployeeRow[];
   tags: ClientTag[];
-  templates: OutreachTemplate[];
   deletedClients: Client[];
   currentUserRole: string;
   currentUserId: string;
   onboardingState: OnboardingState | null;
 }
 
-export function SettingsContent({ employees, tags, templates, deletedClients, currentUserRole, currentUserId, onboardingState }: SettingsContentProps) {
+export function SettingsContent({ employees, tags, deletedClients, currentUserRole, currentUserId, onboardingState }: SettingsContentProps) {
   const isManager = currentUserRole === "manager";
   const currentUser = employees.find((e) => e.id === currentUserId);
 
@@ -37,7 +34,7 @@ export function SettingsContent({ employees, tags, templates, deletedClients, cu
         <div className="mb-6">
           <h1 className="sr-only">Settings</h1>
           <p className="text-muted-foreground mt-1">
-            Manage employees, tags, and outreach templates
+            Manage employees, tags, and backups
           </p>
         </div>
 
@@ -63,10 +60,6 @@ export function SettingsContent({ employees, tags, templates, deletedClients, cu
             <TabsTrigger value="tags" className="gap-1">
               <Tag className="size-4" />
               Tags
-            </TabsTrigger>
-            <TabsTrigger value="templates" className="gap-1">
-              <FileText className="size-4" />
-              Templates
             </TabsTrigger>
             <TabsTrigger value="deleted" className="gap-1">
               <Trash2 className="size-4" />
@@ -98,9 +91,6 @@ export function SettingsContent({ employees, tags, templates, deletedClients, cu
             <SettingsTagsTab tags={tags} isManager={isManager} />
           </TabsContent>
 
-          <TabsContent value="templates">
-            <TemplatesTab templates={templates} isManager={isManager} />
-          </TabsContent>
 
           <TabsContent value="deleted">
             <DeletedTab deletedClients={deletedClients} isManager={isManager} />

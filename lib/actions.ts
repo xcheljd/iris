@@ -3,7 +3,6 @@ export * from "./actions/smart-lists";
 export * from "./actions/tags";
 export * from "./actions/clients";
 export * from "./actions/promos";
-export * from "./actions/templates";
 export * from "./actions/employees";
 export * from "./actions/approvals";
 export * from "./actions/rvx-import";

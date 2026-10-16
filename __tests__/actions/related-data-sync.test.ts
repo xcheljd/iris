@@ -6,10 +6,10 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 import { getServerSession } from "next-auth";
 import type { Session } from "next-auth";
 import { db } from "@/lib/db";
-import { activityEvents, bannedCustomers, clients, clientTags, modelCatalog, outreachLogs, outreachTemplates, promoMatches, promoWatches, smartLists } from "@/lib/db/schema";
+import { activityEvents, bannedCustomers, clients, clientTags, modelCatalog, outreachLogs, promoMatches, promoWatches, smartLists } from "@/lib/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
-import { banClient, createPromo, createTag, createTemplate, deleteTag, deleteTemplate, unbanClient } from "@/lib/actions";
+import { banClient, createPromo, createTag, deleteTag, unbanClient } from "@/lib/actions";
 import { importCatalogRvx } from "@/lib/actions/catalog-import";
 import { bulkBanClients } from "@/lib/actions/bulk-clients";
 
@@ -28,7 +28,7 @@ function rvx(style: string, sub: string) {
 
 // Regressions (m11): writes that left related rows stale.
 describe("related data stays in sync on writes", () => {
-  const ids = { clients: [] as string[], promos: [] as string[], models: [] as string[], lists: [] as string[], tags: [] as string[], templates: [] as string[], logs: [] as string[] };
+  const ids = { clients: [] as string[], promos: [] as string[], models: [] as string[], lists: [] as string[], tags: [] as string[], logs: [] as string[] };
 
   beforeEach(() => vi.mocked(getServerSession).mockResolvedValue(mgr as never));
   afterEach(() => {
@@ -46,7 +46,6 @@ describe("related data stays in sync on writes", () => {
     if (ids.models.length) db.delete(modelCatalog).where(inArray(modelCatalog.model, ids.models)).run();
     if (ids.lists.length) db.delete(smartLists).where(inArray(smartLists.id, ids.lists)).run();
     if (ids.tags.length) db.delete(clientTags).where(inArray(clientTags.name, ids.tags)).run();
-    if (ids.templates.length) db.delete(outreachTemplates).where(inArray(outreachTemplates.name, ids.templates)).run();
     for (const list of Object.values(ids)) list.length = 0;
   });
 
@@ -102,21 +101,6 @@ describe("related data stays in sync on writes", () => {
     const res = await importCatalogRvx(rvx(model, `SUT-${collection}`));
     expect(res).toMatchObject({ updated: 1 });
     expect(matched(promo, client)).toBe(true);
-  });
-
-  it("deleting a template clears outreach logs' references to it", async () => {
-    const name = `SyncTpl${Date.now()}`;
-    ids.templates.push(name);
-    await createTemplate(name, "body", null, "text");
-    const tplId = db.select().from(outreachTemplates).where(eq(outreachTemplates.name, name)).get()!.id;
-    const client = addClient(`SYNCT-${Date.now()}`);
-    const logId = randomUUID();
-    ids.logs.push(logId);
-    db.insert(outreachLogs).values({ id: logId, clientId: client, employeeId: MANAGER_ID, method: "text", outcome: "responded", templateId: tplId }).run();
-
-    await deleteTemplate(tplId);
-    expect(db.select().from(outreachLogs).where(eq(outreachLogs.templateId, tplId)).all()).toEqual([]);
-    expect(db.select().from(outreachLogs).where(eq(outreachLogs.id, logId)).get()!.templateId).toBeNull();
   });
 
   it("banned clients don't get promo matches", async () => {

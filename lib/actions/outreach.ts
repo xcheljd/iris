@@ -74,7 +74,6 @@ export async function logOutreach(data: OutreachInput): Promise<{ error: string 
         notes: parsed.notes || null,
         employeeId: user.id,
         followUpDate: parsed.followUpDate ? parseISO(parsed.followUpDate) : null,
-        templateId: parsed.templateId || null,
         completed: false,
       }).run();
       tx.update(clients).set(patch).where(eq(clients.id, parsed.clientId)).run();

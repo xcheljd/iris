@@ -6,7 +6,6 @@ vi.mock("@/components/topbar", () => ({ Topbar: () => null }));
 vi.mock("@/app/(app)/settings/profile-tab", () => ({ ProfileTab: stub("profile") }));
 vi.mock("@/app/(app)/settings/employees-tab", () => ({ EmployeesTab: stub("employees") }));
 vi.mock("@/app/(app)/settings/tags-tab", () => ({ SettingsTagsTab: stub("tags") }));
-vi.mock("@/app/(app)/settings/templates-tab", () => ({ TemplatesTab: stub("templates") }));
 vi.mock("@/app/(app)/settings/deleted-tab", () => ({ DeletedTab: stub("deleted") }));
 vi.mock("@/app/(app)/settings/backup-tab", () => ({ BackupTab: stub("backup") }));
 vi.mock("@/components/onboarding/onboarding-settings-tab", () => ({ OnboardingSettingsTab: stub("onboarding") }));
@@ -14,7 +13,7 @@ vi.mock("@/components/onboarding/onboarding-settings-tab", () => ({ OnboardingSe
 import { SettingsContent } from "@/app/(app)/settings/settings-content";
 
 const renderAs = (role: string) =>
-  render(<SettingsContent employees={[]} tags={[]} templates={[]} deletedClients={[]} currentUserRole={role} currentUserId="u1" onboardingState={null} />);
+  render(<SettingsContent employees={[]} tags={[]} deletedClients={[]} currentUserRole={role} currentUserId="u1" onboardingState={null} />);
 
 describe("Settings Backup tab", () => {
   it("is shown to managers", () => {
@@ -26,5 +25,12 @@ describe("Settings Backup tab", () => {
     renderAs("associate");
     expect(screen.queryByRole("tab", { name: /Backup/ })).not.toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Tags/ })).toBeInTheDocument();
+  });
+});
+
+describe("Settings Templates tab", () => {
+  it("is gone (templates were retired)", () => {
+    renderAs("manager");
+    expect(screen.queryByRole("tab", { name: /Templates/ })).not.toBeInTheDocument();
   });
 });

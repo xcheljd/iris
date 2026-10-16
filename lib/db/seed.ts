@@ -25,7 +25,7 @@ const rand = mulberry32(Number(process.env.SEED) || 20260814);
 // Clean all tables (children before parents to satisfy FK constraints)
 const tables = [
   "activity_events", "promo_matches", "outreach_logs", "promo_watches",
-  "outreach_templates", "smart_lists", "client_tags",
+  "smart_lists", "client_tags",
   "approval_requests", "prospects", "clients",
   "banned_customers", "unsubscribe_list", "rvx_import_batches", "employees",
 ];
@@ -130,21 +130,6 @@ sqlite
   )
   .run("SENTINEL", now - 1 * day, "IX1006-01X");
 
-// Templates
-const templates = [
-  { name: "New Promo Blast", channel: "text", body: "Hey {{first_name}}! {{collection}} watches are on promo this week — want me to set one aside?" },
-  { name: "Watch Arrived", channel: "text", body: "Hi {{first_name}}, your {{model}} is here! Stop by whenever — {{employee_name}}" },
-  { name: "Birthday Outreach", channel: "text", body: "Happy Birthday, {{first_name}}! We've got a special offer just for you this month." },
-  { name: "Re-engagement", channel: "text", body: "Haven't seen you in a while, {{first_name}}! Anything you've been eyeing lately?" },
-  { name: "Thank You After Purchase", channel: "email", body: "Thank you for your purchase, {{first_name}}! Your {{model}} is a beautiful piece. — {{employee_name}}" },
-];
-const insTpl = sqlite.prepare(
-  "INSERT INTO outreach_templates (id,name,body,channel,is_default,created_by,created_at) VALUES (?,?,?,?,1,?,?)",
-);
-for (const t of templates) {
-  insTpl.run(randomUUID(), t.name, t.body, t.channel, empId("Marcus"), now - 60 * day);
-}
-
 // Clients
 const firstNames = ["Michael","Sarah","James","Jennifer","Robert","Patricia","John","Linda","David","Barbara","Richard","Susan","Joseph","Jessica","Thomas","Karen","Charles","Nancy","Christopher","Lisa","Daniel","Margaret"];
 const lastNames = ["Rivera","Chen","Martinez","Johnson","Williams","Brown","Jones","Garcia","Miller","Davis","Rodriguez","Wilson","Anderson","Taylor","Thomas","Moore","Jackson","White","Harris","Martin","Thompson","Lee"];
@@ -169,8 +154,8 @@ const insClient = sqlite.prepare(`
   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 `);
 const insOutreach = sqlite.prepare(`
-  INSERT INTO outreach_logs (id,client_id,method,date,outcome,purchased_model,notes,employee_id,follow_up_date,template_id,completed)
-  VALUES (?,?,?,?,?,?,?,?,?,?,0)
+  INSERT INTO outreach_logs (id,client_id,method,date,outcome,purchased_model,notes,employee_id,follow_up_date,completed)
+  VALUES (?,?,?,?,?,?,?,?,?,0)
 `);
 const insActivity = sqlite.prepare(`
   INSERT INTO activity_events (id,client_id,event_type,description,metadata,employee_id,created_at)
@@ -283,7 +268,7 @@ for (let i = 0; i < 22; i++) {
     insOutreach.run(
       oid, id, method, oDate, outcome, purchasedModel,
       `${method.charAt(0).toUpperCase()+method.slice(1)} — outcome: ${outcome.replace(/_/g," ")}.`,
-      owner.id, followUpDate, null,
+      owner.id, followUpDate,
     );
     insActivity.run(randomUUID(), id, "outreach_logged",
       `${method} — ${outcome.replace(/_/g," ")}`, JSON.stringify({ method, outcome }), owner.id, oDate);

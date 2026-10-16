@@ -63,9 +63,8 @@ After researching the top retail clienteling platforms (BSPK, Endear, Tulip, Pro
 
 ---
 
-### 9. Outreach Templates — ✅ SHIPPED
-**Implemented:** `lib/db/schema.ts` (`outreachTemplates` table), `app/(app)/settings/`, server actions `createTemplate`, `deleteTemplate`  
-**What's live:** Template CRUD in Settings. Templates available in outreach logger. Variable support for personalization. Copy-to-clipboard workflow.
+### 9. Outreach Templates — ❌ RETIRED (2026-10-16)
+Built, then removed: the Settings → Templates tab worked, but the template picker in Log Outreach was never wired to any caller, so templates were never usable. The table, the `outreach_logs.template_id` column, the actions and the tab were all deleted.
 
 ---
 

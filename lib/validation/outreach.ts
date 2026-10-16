@@ -24,7 +24,6 @@ export const outreachInputSchema = z
     purchasedModel: z.string().max(100).optional(),
     notes: z.string().max(2000).optional(),
     followUpDate: z.iso.date().nullable().optional(),
-    templateId: z.uuid().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.outcome === "purchased" && !data.purchasedModel?.trim()) {

@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getEmployees, getEmployee, getTags, getTemplates, getDeletedClients } from "@/lib/queries";
+import { getEmployees, getEmployee, getTags, getDeletedClients } from "@/lib/queries";
 import { getOnboardingState } from "@/lib/actions/onboarding";
 import { requirePageSession } from "@/lib/auth";
 import { SettingsContent } from "./settings-content";
@@ -26,8 +26,7 @@ async function SettingsFetcher() {
     : [await getEmployee(userId)].filter((e): e is NonNullable<typeof e> => e !== undefined);
 
   const tags = await getTags();
-  const templates = await getTemplates();
   const deletedClients = await getDeletedClients(isManager ? undefined : userId);
   const onboardingState = await getOnboardingState();
-  return <SettingsContent employees={employees} tags={tags} templates={templates} deletedClients={JSON.parse(JSON.stringify(deletedClients))} currentUserId={userId} currentUserRole={userRole} onboardingState={onboardingState} />;
+  return <SettingsContent employees={employees} tags={tags} deletedClients={JSON.parse(JSON.stringify(deletedClients))} currentUserId={userId} currentUserRole={userRole} onboardingState={onboardingState} />;
 }

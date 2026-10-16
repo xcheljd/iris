@@ -71,7 +71,6 @@ const openFollowUp = {
   notes: "Left a voicemail",
   employeeId: null,
   followUpDate: new Date("2020-01-05"), // far past → Overdue
-  templateId: null,
   completed: false,
 };
 

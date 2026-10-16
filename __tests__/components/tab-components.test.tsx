@@ -139,7 +139,6 @@ describe("OutreachHistoryTab", () => {
         notes: "Called back",
         employeeId: null,
         followUpDate: null,
-        templateId: null,
         completed: true,
       },
     ],

@@ -39,13 +39,13 @@ clients                                                      outreach_logs
   customerId, employeeId ─────────────> employees              method, date, outcome
   preferredContact ("call"|"text"|"email"),                    purchasedModel, notes
   productsOfInterest (JSON ProductOfInterest[]),               followUpDate, completed
-  tags (JSON string[]),                                        templateId
-  status, source, birthday, anniversary,                          │
-  onEmailList, heatScore, heatLevel,                              │
-  lastOutreachAt, lastPurchaseAt, lastViewedAt,                   v
-  deletedAt, deletedBy, previousStatus                       outreach_templates
-    │                                                            id, name, subject, body
-    │ 1:N                                                        channel, isDefault
+  tags (JSON string[]),
+  status, source, birthday, anniversary,
+  onEmailList, heatScore, heatLevel,
+  lastOutreachAt, lastPurchaseAt, lastViewedAt,
+  deletedAt, deletedBy, previousStatus
+    │
+    │ 1:N
     v
 activity_events
   id, clientId, employeeId, eventType
@@ -156,7 +156,6 @@ Lives under `lib/actions/` as 20 modules; `lib/actions.ts` is the public barrel.
 | `prospects.ts` | graduateProspect, rejectProspect, unsubscribeProspect |
 | `outreach.ts` | logOutreach, markFollowUpComplete, rescheduleFollowUp |
 | `tags.ts` | addTag, removeTag, createTag, deleteTag |
-| `templates.ts` | template CRUD |
 | `smart-lists.ts` | smart list CRUD + duplicate |
 | `employees.ts` | employee CRUD, role/active toggle, password reset, change own password |
 | `approvals.ts` | requestApproval, approveRequest, denyRequest |
@@ -205,7 +204,7 @@ Defined in `lib/heat-score.ts`. Score range 0–100. Levels: Hot (70+), Warm (40
 - **Connection:** `lib/db/index.ts` (single connection)
 - **PRAGMAs:** `journal_mode = WAL`, `foreign_keys = ON`
 - **Migrations:** Schema-first via `drizzle-kit push` + boot-time `ensure-schema` ALTERs
-- **Seeding:** `lib/db/seed.ts` — employees, sample clients, outreach logs, tags, templates, promos, prospects, RVX import batch. Deterministic since 2026-08-14: a seeded PRNG (override with `SEED=<n>`) replaces `Math.random()` and heat is computed by `calcHeatScore`, not reimplemented inline.
+- **Seeding:** `lib/db/seed.ts` — employees, sample clients, outreach logs, tags, promos, prospects, RVX import batch. Deterministic since 2026-08-14: a seeded PRNG (override with `SEED=<n>`) replaces `Math.random()` and heat is computed by `calcHeatScore`, not reimplemented inline.
 - **FTS:** `lib/db/fts-setup.ts` builds `clients_fts` virtual table + sync triggers
 
 ## UI Architecture
