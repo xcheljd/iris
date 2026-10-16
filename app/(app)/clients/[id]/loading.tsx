@@ -1,5 +1,11 @@
+import { Topbar } from "@/components/topbar";
 import { ClientDetailSkeleton } from "@/components/skeletons";
 
 export default function Loading() {
-  return <ClientDetailSkeleton />;
+  return (
+    <>
+      <Topbar title="Client" />
+      <ClientDetailSkeleton />
+    </>
+  );
 }

@@ -4,6 +4,7 @@ import { getProspectWithBatch } from "@/lib/queries";
 import { ProspectDetailContent } from "./prospect-detail-content";
 import { ProspectDetailSkeleton } from "@/components/skeletons";
 import { requirePageSession } from "@/lib/auth";
+import { Topbar } from "@/components/topbar";
 
 export default function ProspectDetailPage({
   params,
@@ -11,7 +12,7 @@ export default function ProspectDetailPage({
   params: Promise<{ id: string }>;
 }) {
   return (
-    <Suspense fallback={<ProspectDetailSkeleton />}>
+    <Suspense fallback={<><Topbar title="Prospect" /><ProspectDetailSkeleton /></>}>
       <ProspectDetailFetcher params={params} />
     </Suspense>
   );

@@ -1,5 +1,11 @@
+import { Topbar } from "@/components/topbar";
 import { FollowUpsSkeleton } from "@/components/skeletons";
 
 export default function Loading() {
-  return <FollowUpsSkeleton />;
+  return (
+    <>
+      <Topbar title="Follow-Ups" />
+      <FollowUpsSkeleton />
+    </>
+  );
 }

@@ -13,6 +13,7 @@ import { GraduateProspectDialog } from "@/components/graduate-prospect-dialog";
 import type { Prospect } from "@/lib/db/schema";
 import type { ProspectListRow } from "@/lib/queries";
 import { formatMoney } from "@/lib/utils";
+import { Topbar } from "@/components/topbar";
 
 interface ProspectDetailContentProps {
   prospect: Prospect;
@@ -93,6 +94,8 @@ export function ProspectDetailContent({
   const isActive = prospect.status === "active";
 
   return (
+    <>
+    <Topbar title={[prospect.firstName, prospect.lastName].filter(Boolean).join(" ")} />
     <div className="flex flex-col flex-1 p-4 md:p-6 gap-4">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" asChild>
@@ -205,6 +208,7 @@ export function ProspectDetailContent({
         onOpenChangeAction={setGraduateOpen}
       />
     </div>
+    </>
   );
 }
 

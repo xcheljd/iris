@@ -1,5 +1,11 @@
+import { Topbar } from "@/components/topbar";
 import { SettingsSkeleton } from "@/components/skeletons";
 
 export default function Loading() {
-  return <SettingsSkeleton />;
+  return (
+    <>
+      <Topbar title="Settings" />
+      <SettingsSkeleton />
+    </>
+  );
 }
