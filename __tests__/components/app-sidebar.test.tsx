@@ -187,6 +187,13 @@ describe("AppSidebar manager badges", () => {
       // Regression: px-1 made single digits a 17×16 oval; they drop padding to stay a 16px circle.
       expect(corner!.classList.contains(n.length === 1 ? "px-0" : "px-1"), href).toBe(true);
     }
+    // screen readers hear what each count means, once (the badges are aria-hidden)
+    expect(screen.getByRole("link", { name: "Follow-Ups, 4 due" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Approvals, 15 pending" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Model Catalog, 7 need review" })).toBeInTheDocument();
+    for (const b of document.querySelectorAll('[data-sidebar="menu-item"] [data-slot="badge"]')) {
+      expect(b).toHaveAttribute("aria-hidden", "true");
+    }
     // one badge style for every count
     const variants = new Set([...document.querySelectorAll('[data-sidebar="menu-item"] [data-slot="badge"]')].map((el) => el.getAttribute("data-variant")));
     expect([...variants]).toEqual(["default"]);

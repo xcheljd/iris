@@ -96,6 +96,9 @@ describe("MobileNav follow-ups badge", () => {
     // single digit drops px-1 so the badge stays a 16px circle, not a 17×16 oval
     expect(link("Follow").querySelector('[data-slot="badge"]')).toHaveClass("px-0");
     expect(fetch).toHaveBeenCalledWith("/api/follow-ups/count");
+    // full page name + meaning for screen readers; the digit badge itself is hidden
+    expect(screen.getByRole("link", { name: "Follow-Ups, 4 due" })).toBeInTheDocument();
+    expect(link("Follow").querySelector('[data-slot="badge"]')).toHaveAttribute("aria-hidden", "true");
     vi.unstubAllGlobals();
   });
 });

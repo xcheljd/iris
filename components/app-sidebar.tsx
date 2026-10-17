@@ -10,9 +10,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { signOut, useSession } from "next-auth/react";
-import { Badge } from "@/components/ui/badge";
 import { initials } from "@/lib/utils";
-import { useFollowUpCount, formatCount } from "@/hooks/use-follow-up-count";
+import { useFollowUpCount } from "@/hooks/use-follow-up-count";
+import { CountBadge, countAriaLabel, type CountKind } from "@/components/count-badge";
 import { useThemeToggle } from "@/hooks/use-theme-toggle";
 
 const baseNav = [
@@ -122,17 +122,18 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
                       : item.href === "/catalog" ? catalogFlagCount
                       : item.href === "/follow-ups" ? followUpCount
                       : 0;
-                    const countText = formatCount(count);
+                    const countKind: CountKind | null = item.href === "/approvals" ? "pending"
+                      : item.href === "/catalog" ? "review"
+                      : item.href === "/follow-ups" ? "due"
+                      : null;
                     return (
                       <SidebarMenuItem key={item.href}>
                         {/* tooltip shows only while collapsed, never on phones (built into SidebarMenuButton) */}
                         <SidebarMenuButton asChild isActive={active} tooltip={item.label} className={cn(active && ACTIVE_ITEM)}>
-                            <Link href={item.href} onClick={closeMobile}>
+                            <Link href={item.href} onClick={closeMobile} aria-label={countAriaLabel(item.label, count, countKind)}>
                               <item.icon className="size-4" />
                               <span>{item.label}</span>
-                              {count > 0 && (
-                                <Badge className="ml-auto h-5 min-w-5 px-1.5 text-xs tracking-wide tabular-nums group-data-[collapsible=icon]:hidden">{countText}</Badge>
-                              )}
+                              <CountBadge count={count} variant="inline" />
                             </Link>
                         </SidebarMenuButton>
                         {/* Local change: shadcn hides menu badges in icon mode; Iris keeps
@@ -141,9 +142,7 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
                             digit drops px-1, which (plus the border) would make it 17px wide.
                             text-box trims the line to cap height so flex centers the digits'
                             ink, not Inter's ascent/descent box (which rode ~1px high at 1.05/1.25 DPR). */}
-                        {count > 0 && (
-                          <Badge className={cn("pointer-events-none absolute -top-1 -right-1 hidden h-4 min-w-4 px-1 text-[11px] font-medium leading-[normal] [text-box:trim-both_cap_alphabetic] tabular-nums group-data-[collapsible=icon]:flex", countText.length === 1 && "px-0")}>{countText}</Badge>
-                        )}
+                        <CountBadge count={count} variant="corner" />
                       </SidebarMenuItem>
                     );
                   })}

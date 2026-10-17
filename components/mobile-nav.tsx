@@ -5,8 +5,8 @@ import { Home, Users, Phone, BarChart3, Menu, Search } from "lucide-react";
 import { useCommandPalette } from "@/components/command-palette";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/components/ui/sidebar";
-import { Badge } from "@/components/ui/badge";
-import { useFollowUpCount, formatCount } from "@/hooks/use-follow-up-count";
+import { useFollowUpCount } from "@/hooks/use-follow-up-count";
+import { CountBadge, countAriaLabel } from "@/components/count-badge";
 
 const items = [
   { href: "/", label: "Home", icon: Home },
@@ -30,6 +30,8 @@ export function MobileNav() {
             key={it.href}
             href={it.href}
             aria-current={active ? "page" : undefined}
+            // "Follow-Ups, 4 due": the full page name plus the count's meaning.
+            aria-label={it.href === "/follow-ups" ? countAriaLabel("Follow-Ups", followUpCount, "due") : undefined}
             className={cn(
               itemClass,
               active
@@ -39,9 +41,7 @@ export function MobileNav() {
           >
             <span className="relative">
               <it.icon className="size-5" />
-              {it.href === "/follow-ups" && followUpCount > 0 && (
-                <Badge className={cn("pointer-events-none absolute -top-1.5 -right-2.5 h-4 min-w-4 px-1 text-[11px] font-medium leading-[normal] [text-box:trim-both_cap_alphabetic] tabular-nums", followUpCount < 10 && "px-0")}>{formatCount(followUpCount)}</Badge>
-              )}
+              {it.href === "/follow-ups" && <CountBadge count={followUpCount} variant="tab" />}
             </span>
             <span>{it.label}</span>
           </Link>
