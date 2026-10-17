@@ -117,15 +117,17 @@ they do. If either grows a query it pages against, it moves to the shape above.
       guards caused the pagination bounce documented there. `products-of-interest-input.tsx`
       autofills brand from two independent triggers (model change, late catalog load);
       deriving it would overwrite a manager's manual brand.
-    - `react-hooks/exhaustive-deps` ×6, all deliberate dep lists over stable primitives rather
+    - `react-hooks/exhaustive-deps` ×4, all deliberate dep lists over stable primitives rather
       than per-render objects: `clients-content.tsx` (the `emailRecipientFilters` memo, keyed
-      on the individual filter fields so the dialog doesn't refetch on every render),
+      on the individual filter fields so the dialogs don't refetch on every render),
       `promos-content.tsx` (URL adoption keyed on `filters.q/msrpMax/discMin`),
-      `collections-csv-export-dialog.tsx` (`scope` destructured into primitives) and
-      `matched-clients-csv-export-dialog.tsx` (array props joined into string keys) (both
-      fetch effects), `merge-from-form-dialog.tsx` (the form snapshot is stable for an open
-      session; refetch only on id change) and `onboarding-provider.tsx` (load onboarding state
-      once per `sessionStatus` change).
+      `merge-from-form-dialog.tsx` (the form snapshot is stable for an open session; refetch
+      only on id change) and `onboarding-provider.tsx` (load onboarding state once per
+      `sessionStatus` change).
+  - **Dialogs that load data when they open** use `hooks/use-fetch-on-open.ts`
+    (`useFetchOnOpen(open, key, fetcher, onError)`): pass a string `key` naming the request
+    (e.g. `JSON.stringify(filters)`) instead of hand-picking effect deps. It ignores late
+    replies and clears data on failure, so no new `exhaustive-deps` suppression is needed.
   - The render-time state adjustments in `hooks/use-optimistic.ts` must stay conditional:
     `react-hooks/set-state-in-render` is an error, and an unconditional set loops.
 - **Styling:** Tailwind 4 is **CSS-first** — there is no `tailwind.config.ts`. Design tokens live
