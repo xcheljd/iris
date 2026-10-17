@@ -1,5 +1,6 @@
 "use client";
 
+import { downloadBlob } from "@/lib/download";
 import { format, startOfTomorrow } from "date-fns";
 import type { BackupStatus } from "@/lib/backup-status";
 
@@ -97,12 +98,7 @@ export async function downloadBackup(): Promise<void> {
     await writable.write(blob);
     await writable.close();
   } else {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, filename);
   }
 
   // Recorded only after the file was written (a cancelled save picker throws above).

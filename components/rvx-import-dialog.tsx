@@ -1,5 +1,6 @@
 "use client";
 
+import { downloadCsv } from "@/lib/download";
 import { useState, useTransition, useRef } from "react";
 import {
   Dialog,
@@ -75,13 +76,7 @@ export function RvxImportDialog({ open, onOpenChangeAction }: RvxImportDialogPro
 
   const handleExportDuplicates = () => {
     if (!analysis) return;
-    const blob = new Blob([analysis.duplicateCsv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "rvx-duplicates.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(analysis.duplicateCsv, "rvx-duplicates.csv");
   };
 
   const handleImport = () => {
