@@ -43,7 +43,7 @@ export function ColumnFilterPopover({
           type="button"
           variant="ghost"
           size="icon"
-          className="size-6 shrink-0"
+          className="tap-target size-6 shrink-0"
           aria-label={`Filter ${label}`}
         >
           <Filter

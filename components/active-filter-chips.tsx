@@ -51,7 +51,7 @@ export function ActiveFilterChips<K extends string>({
           key={chip.key}
           type="button"
           onClick={() => onRemove(chip.key)}
-          className="group inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 hover:bg-accent transition-colors"
+          className="tap-target group inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 hover:bg-accent transition-colors"
           aria-label={`Remove filter: ${chip.label}`}
         >
           <span>{chip.label}</span>
@@ -61,7 +61,7 @@ export function ActiveFilterChips<K extends string>({
       <Button
         variant="ghost"
         size="sm"
-        className="h-6 text-xs ml-auto"
+        className="tap-target h-6 text-xs ml-auto"
         onClick={onClearAll}
       >
         Clear all

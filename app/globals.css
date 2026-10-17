@@ -14,6 +14,26 @@
   }
 }
 
+/* Invisible 44×44 tap area on phones for small controls (X's call: same look,
+   bigger target). The ::after box is centred on the control and catches taps
+   for it; the control itself is unchanged. Desktop keeps the visible size.
+   A clipping ancestor (overflow-hidden) also clips the tap area, so check the
+   measured hit box (tmp/probe-taps.mjs) when adding it somewhere new. */
+@utility tap-target {
+  position: relative;
+  @media (width < 48rem) {
+    &::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
+    }
+  }
+}
+
 /* Upstream shadcn token shape: each --token in :root/.dark holds a complete
    colour (`hsl(...)`), and `@theme inline` maps it with a bare var(). So the
    tokens work everywhere a colour is expected: Tailwind utilities, inline

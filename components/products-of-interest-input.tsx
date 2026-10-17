@@ -226,14 +226,14 @@ export function ProductsOfInterestInput({
 
       <div className="flex flex-wrap gap-2">
         {value.map((p) => (
-          <Badge key={keyOf(p)} variant="secondary" className="cursor-default">
+          <Badge key={keyOf(p)} variant="secondary" className="cursor-default overflow-visible">
             {describe(p)}
             {allowRemove && (
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="size-5 ml-1"
+                className="tap-target size-5 ml-1"
                 onClick={() => remove(p)}
                 aria-label={`Remove ${describe(p)}`}
               >
