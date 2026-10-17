@@ -64,17 +64,23 @@ export function MergeFromFormDialog({
 
   useEffect(() => {
     if (!open || !existingClientId) return;
+    // The loaded client seeds editable state (choices, notes), so this stays a
+    // plain effect rather than useFetchOnOpen; it still drops a late reply from
+    // a closed dialog or a superseded client id.
+    let cancelled = false;
     fetch(`/api/clients/${existingClientId}`)
       .then((r) => {
         if (!r.ok) throw new Error(String(r.status));
         return r.json();
       })
       .then((data: MergeableClient) => {
+        if (cancelled) return;
         setExistingClient(data);
         setChoices(initChoices(data, formSnapshot));
         setFinalNotes(data.notes ?? formSnapshot.notes ?? "");
       })
-      .catch(() => toast.error("Failed to load client data. Please try again."));
+      .catch(() => { if (!cancelled) toast.error("Failed to load client data. Please try again."); });
+    return () => { cancelled = true; };
   // formSnapshot is stable for a given open session; only re-fetch on id change
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, existingClientId]);
