@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { Check } from "lucide-react";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { HeatBadge } from "@/components/heat-badge";
 import { TableCell } from "@/components/ui/table";
@@ -167,19 +166,6 @@ export function HeatBadgeCell({
   return (
     <TableCell className={className}>
       <HeatBadge level={level} score={score} showScore={showScore} compactOnMobile={compactOnMobile} />
-    </TableCell>
-  );
-}
-
-/**
- * A yes/no flag as a check or a muted em dash. Both glyphs carry an sr-only
- * word, because "✓ vs —" is invisible to a screen reader.
- */
-export function BooleanCell({ value, className }: { value: boolean; className?: string }) {
-  return (
-    <TableCell className={cn("text-center", className)}>
-      {value ? <Check className="inline-block size-4" aria-hidden /> : <Dash />}
-      <span className="sr-only">{value ? "Yes" : "No"}</span>
     </TableCell>
   );
 }

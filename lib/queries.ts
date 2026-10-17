@@ -12,7 +12,6 @@ import { smartListToClientFilters } from "@/lib/smart-list-filters";
 import { toFtsQuery } from "@/lib/fts";
 import type { DatePresetId } from "@/lib/date-presets";
 import { addDays, startOfDay } from "date-fns";
-import { getCatalogMap } from "@/lib/actions/model-catalog";
 import { MS_PER_DAY, SEC_PER_DAY, LIST_QUERY_LIMIT, PAGE_READ_LIMIT, FOLLOW_UP_LOOKAHEAD_DAYS, DEFAULT_PAGE_SIZE, PROMO_PAGE_SIZE } from "@/lib/constants";
 
 const clientListProjection = {
@@ -199,15 +198,6 @@ export async function getClientsWithEmployeePaginated(
 
 export async function getClient(id: string) {
   return db.select().from(clients).where(eq(clients.id, id)).get();
-}
-
-export async function getClientsWithEmployee(employeeId?: string) {
-  const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
-  const rows = db.select({
-    client: clientListProjection,
-    employeeName: rawSql`COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, '')`,
-  }).from(clients).leftJoin(employees, eq(clients.employeeId, employees.id)).where(and(notInArray(clients.status, ["banned", "deleted"]), employeeFilter)).orderBy(desc(clients.heatScore)).limit(LIST_QUERY_LIMIT).all();
-  return rows;
 }
 
 // Scoped by who owns the client now, not who logged the follow-up, so a
@@ -632,12 +622,6 @@ export async function getMatchedClients(
     .orderBy(clients.lastName, clients.firstName, promoWatches.modelNumber)
     .limit(limit)
     .all();
-}
-
-// Durable model → collection lookup from the model catalog (survives the
-// weekly promo reset). Used for input-time collection suggestion.
-export async function getModelCollectionMap(): Promise<Record<string, string>> {
-  return getCatalogMap();
 }
 
 export async function getBannedCustomers() {
@@ -1395,10 +1379,6 @@ export async function getProspectFunnelStats() {
 }
 
 export type ProspectFunnelStats = Awaited<ReturnType<typeof getProspectFunnelStats>>;
-
-export async function getProspect(id: string) {
-  return db.select().from(prospects).where(eq(prospects.id, id)).get();
-}
 
 export async function getProspectWithBatch(id: string) {
   return db

@@ -1,7 +1,7 @@
 "use server";
 import { db } from "@/lib/db";
 import { clients, modelCatalog, activityEvents, type ProductOfInterest, type Brand } from "@/lib/db/schema";
-import { and, asc, desc, eq, gte, inArray, isNotNull, lte, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, lte, sql, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireManager, isSessionEmployeeStale } from "./_shared";
@@ -339,16 +339,6 @@ export async function clearCatalog(): Promise<{ error: string } | { cleared: num
     console.error("clearCatalog failed:", err);
     return { error: "Failed to clear catalog" };
   }
-}
-
-export async function getCatalogFlagCount(): Promise<number> {
-  await requireManager();
-  const result = db
-    .select({ c: sql<number>`count(*)` })
-    .from(modelCatalog)
-    .where(or(eq(modelCatalog.needsReview, true), isNotNull(modelCatalog.flaggedCollection)))
-    .get();
-  return Number(result?.c ?? 0);
 }
 
 export async function listCatalog({

@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import {
-  BooleanCell,
   DateTimeCell,
   HeatBadgeCell,
   MoneyCell,
@@ -219,25 +218,3 @@ describe("HeatBadgeCell", () => {
   });
 });
 
-describe("BooleanCell", () => {
-  it("renders a check icon for true", () => {
-    const { cell } = renderCell(<BooleanCell value />);
-    expect(cell.querySelector("svg")).toBeTruthy();
-  });
-
-  it("renders a dash for false", () => {
-    const { cell } = renderCell(<BooleanCell value={false} />);
-    expect(cell.querySelector("svg")).toBeNull();
-    expect(cell.textContent).toContain(DASH);
-  });
-
-  it("gives both states a screen-reader word", () => {
-    renderCell(<BooleanCell value />);
-    expect(screen.getByText("Yes")).toHaveClass("sr-only");
-  });
-
-  it('reads "No" when false', () => {
-    renderCell(<BooleanCell value={false} />);
-    expect(screen.getByText("No")).toHaveClass("sr-only");
-  });
-});

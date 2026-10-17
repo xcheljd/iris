@@ -1,5 +1,15 @@
-import type { ParsedPromoRow } from "./promo-csv-parser";
 import { BRAND_VALUES, type Brand } from "./db/schema";
+
+/** One promo line, as parsed from a vendor promo PDF. */
+export interface ParsedPromoRow {
+  modelNumber: string;
+  collection: string;
+  msrp: number | null;
+  discountPercent: number | null;
+  discountPrice: number | null;
+  sizeOneQty: number;
+  sizeTwoQty: number;
+}
 
 // A single text item with its position on the page.
 // Mirrors what pdfjs-dist returns from getTextContent() — x/y are the page
