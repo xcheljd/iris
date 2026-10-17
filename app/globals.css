@@ -34,6 +34,26 @@
   }
 }
 
+/* Wrapping chip rows (active filter chips): X chose a 10px row gap over a
+   gappy 22px one (10/17), so the tap area grows taller only, to 32px =
+   chip height (22) + row gap (10). Stacked rows meet but never overlap, so
+   a tap can't remove the wrong filter. Keep this in step with the chips'
+   gap-y if either changes. */
+@utility tap-target-row {
+  position: relative;
+  @media (width < 48rem) {
+    &::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 50%;
+      width: 100%;
+      height: max(100%, 32px);
+      transform: translateY(-50%);
+    }
+  }
+}
+
 /* Taller-only variant for controls packed between other controls on the same
    row (the table-header funnel sits right after the column's sort button):
    growing sideways would steal taps from the neighbour. */

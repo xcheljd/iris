@@ -39,7 +39,7 @@ export function ActiveFilterChips<K extends string>({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center gap-x-1.5 gap-y-[22px] md:gap-y-1.5 rounded-md border bg-muted/30 px-3 py-2 text-xs",
+        "flex flex-wrap items-center gap-x-1.5 gap-y-2.5 md:gap-y-1.5 rounded-md border bg-muted/30 px-3 py-2 text-xs",
         className,
       )}
       role="region"
@@ -51,7 +51,7 @@ export function ActiveFilterChips<K extends string>({
           key={chip.key}
           type="button"
           onClick={() => onRemove(chip.key)}
-          className="tap-target group inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 hover:bg-accent transition-colors"
+          className="tap-target-row group inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 hover:bg-accent transition-colors"
           aria-label={`Remove filter: ${chip.label}`}
         >
           <span>{chip.label}</span>
@@ -61,7 +61,7 @@ export function ActiveFilterChips<K extends string>({
       <Button
         variant="ghost"
         size="sm"
-        className="tap-target h-6 text-xs ml-auto"
+        className="tap-target-row h-6 text-xs ml-auto"
         onClick={onClearAll}
       >
         Clear all
