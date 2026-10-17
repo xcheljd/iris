@@ -34,6 +34,24 @@
   }
 }
 
+/* Taller-only variant for controls packed between other controls on the same
+   row (the table-header funnel sits right after the column's sort button):
+   growing sideways would steal taps from the neighbour. */
+@utility tap-target-y {
+  position: relative;
+  @media (width < 48rem) {
+    &::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 50%;
+      width: 100%;
+      height: max(100%, 44px);
+      transform: translateY(-50%);
+    }
+  }
+}
+
 /* Upstream shadcn token shape: each --token in :root/.dark holds a complete
    colour (`hsl(...)`), and `@theme inline` maps it with a bare var(). So the
    tokens work everywhere a colour is expected: Tailwind utilities, inline

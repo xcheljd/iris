@@ -39,7 +39,7 @@ export function ActiveFilterChips<K extends string>({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center gap-1.5 rounded-md border bg-muted/30 px-3 py-2 text-xs",
+        "flex flex-wrap items-center gap-x-1.5 gap-y-[22px] md:gap-y-1.5 rounded-md border bg-muted/30 px-3 py-2 text-xs",
         className,
       )}
       role="region"
