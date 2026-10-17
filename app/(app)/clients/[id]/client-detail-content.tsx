@@ -21,7 +21,7 @@ export function ClientDetailContent({ client, currentUserRole }: { client: FullC
 
   return (
     <div className="flex flex-col h-svh">
-      <Topbar title={fullName(client)} />
+      <Topbar title={fullName(client)} phoneHeader={false} />
       <div className="px-4 pt-3">
         <Breadcrumb>
           <BreadcrumbList>

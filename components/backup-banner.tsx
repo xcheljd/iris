@@ -3,6 +3,7 @@
 import { useState, useSyncExternalStore } from "react";
 import { DatabaseBackup, X } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   backupReminderText,
@@ -20,7 +21,7 @@ import {
  * Shows any day once the last backup is 7+ days old; ✕ hides it until
  * tomorrow without pretending a backup happened.
  */
-export function BackupBanner() {
+export function BackupBanner({ className }: { className?: string } = {}) {
   const status = useSyncExternalStore(subscribeBackupStatus, getBackupStatusSnapshot, () => null);
   const [loading, setLoading] = useState(false);
   if (!status || !isBackupReminderDue(status)) return null;
@@ -40,10 +41,10 @@ export function BackupBanner() {
     <Alert
       variant="warning"
       role="status"
-      className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-none border-x-0 border-t-0 px-4 py-2 [&>svg]:translate-y-0"
+      className={cn("flex items-center gap-x-3 rounded-none border-x-0 border-t-0 px-4 py-2 [&>svg]:translate-y-0", className)}
     >
       <DatabaseBackup aria-hidden />
-      <p className="min-w-0 flex-1 basis-40 font-medium">{backupReminderText(status)}</p>
+      <p className="min-w-0 flex-1 font-medium">{backupReminderText(status)}</p>
       <div className="flex shrink-0 items-center gap-1">
         <Button size="sm" variant="outline" className="h-7 gap-1.5" onClick={handleBackup} disabled={loading}>
           <DatabaseBackup className="size-3.5" />

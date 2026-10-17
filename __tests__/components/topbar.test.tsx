@@ -40,3 +40,20 @@ describe("Topbar command palette hint", () => {
     expect(screen.getByText("Ctrl+K")).toHaveClass("hidden", "sm:inline-flex");
   });
 });
+
+// Phones (<md) have no top bar: the bottom tab bar's More opens the menu,
+// search floats top-right, the theme switch lives in More. Desktop unchanged.
+describe("Topbar on phones", () => {
+  it("keeps the page heading but hides menu, search and theme controls below md", () => {
+    render(<Topbar title="Clients" />);
+    expect(screen.getByRole("banner")).not.toHaveClass("max-md:hidden");
+    expect(screen.getByRole("banner")).toHaveClass("md:sticky");
+    expect(screen.getByRole("button", { name: "Toggle theme" })).toHaveClass("max-md:hidden");
+    expect(screen.getByText("Search").closest("button")).toHaveClass("max-md:hidden");
+  });
+
+  it("drops the heading row on detail pages (phoneHeader={false})", () => {
+    render(<Topbar title="Grace Liu" phoneHeader={false} />);
+    expect(screen.getByRole("banner")).toHaveClass("max-md:hidden");
+  });
+});

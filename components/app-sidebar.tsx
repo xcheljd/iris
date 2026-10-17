@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Users, Phone, ListFilter, Tag, BarChart3, Ban, MailX, Settings, LogOut, Watch, KeyRound, ShieldCheck, UserSearch, Library, ChevronsUpDown } from "lucide-react";
+import { Home, Users, Phone, ListFilter, Tag, BarChart3, Ban, MailX, Settings, LogOut, Watch, KeyRound, ShieldCheck, UserSearch, Library, ChevronsUpDown, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton, useSidebar } from "@/components/ui/sidebar";
 import { IrisIcon } from "@/components/iris-icon";
@@ -13,6 +13,7 @@ import { signOut, useSession } from "next-auth/react";
 import { Badge } from "@/components/ui/badge";
 import { initials } from "@/lib/utils";
 import { useFollowUpCount, formatCount } from "@/hooks/use-follow-up-count";
+import { useThemeToggle } from "@/hooks/use-theme-toggle";
 
 const baseNav = [
   { section: "Overview", items: [
@@ -82,6 +83,7 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
   const [pendingCount, setPendingCount] = useState(initialPendingCount);
   const [catalogFlagCount, setCatalogFlagCount] = useState(initialCatalogFlagCount);
   const followUpCount = useFollowUpCount();
+  const toggleTheme = useThemeToggle();
 
   // Fetch the badge counts on mount and refresh them on every client-side
   // navigation.
@@ -155,6 +157,17 @@ export function AppSidebar({ initialPendingCount = 0, initialCatalogFlagCount = 
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border">
         <SidebarMenu>
+          {/* Phones have no top bar, so the theme switch lives here (opened by More). */}
+          {isMobile && (
+            <SidebarMenuItem>
+              <SidebarMenuButton onClick={toggleTheme}>
+                <Moon className="size-4 dark:hidden" />
+                <Sun className="size-4 hidden dark:block" />
+                <span className="dark:hidden">Dark mode</span>
+                <span className="hidden dark:inline">Light mode</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

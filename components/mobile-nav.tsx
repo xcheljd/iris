@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Users, Phone, BarChart3, Menu } from "lucide-react";
+import { Home, Users, Phone, BarChart3, Menu, Search } from "lucide-react";
+import { useCommandPalette } from "@/components/command-palette";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
@@ -52,5 +53,23 @@ export function MobileNav() {
         <span>More</span>
       </button>
     </nav>
+  );
+}
+
+/**
+ * Phones have no top bar, so search floats in the top-right corner of every
+ * page, always one tap away. Desktop keeps the Search button in the top bar.
+ */
+export function MobileSearchButton() {
+  const { setOpen } = useCommandPalette();
+  return (
+    <button
+      type="button"
+      onClick={() => setOpen(true)}
+      aria-label="Search"
+      className="md:hidden fixed right-3 top-[calc(env(safe-area-inset-top)+0.5rem)] z-40 flex size-10 items-center justify-center rounded-full border bg-background/95 text-foreground shadow-sm backdrop-blur-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring"
+    >
+      <Search className="size-5" />
+    </button>
   );
 }

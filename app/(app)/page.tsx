@@ -55,14 +55,15 @@ async function DashboardContent() {
     <>
       <Topbar title="Dashboard" />
       <div className="flex flex-col flex-1 p-4 md:p-6 gap-6">
-        <DashboardStatCards stats={stats} />
-
         <Tabs defaultValue="overview" className="space-y-4">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
             <TabsTrigger value="metrics">Metrics</TabsTrigger>
           </TabsList>
+
+          {/* Under the tab strip, shown on every tab (X's call). */}
+          <DashboardStatCards stats={stats} />
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="flex flex-col gap-4">

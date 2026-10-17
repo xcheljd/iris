@@ -12,7 +12,7 @@ export default function ProspectDetailPage({
   params: Promise<{ id: string }>;
 }) {
   return (
-    <Suspense fallback={<><Topbar title="Prospect" /><ProspectDetailSkeleton /></>}>
+    <Suspense fallback={<><Topbar title="Prospect" phoneHeader={false} /><ProspectDetailSkeleton /></>}>
       <ProspectDetailFetcher params={params} />
     </Suspense>
   );

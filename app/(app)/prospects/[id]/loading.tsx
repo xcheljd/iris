@@ -4,7 +4,7 @@ import { ProspectDetailSkeleton } from "@/components/skeletons";
 export default function Loading() {
   return (
     <>
-      <Topbar title="Prospect" />
+      <Topbar title="Prospect" phoneHeader={false} />
       <ProspectDetailSkeleton />
     </>
   );

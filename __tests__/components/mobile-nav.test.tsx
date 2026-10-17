@@ -99,3 +99,15 @@ describe("MobileNav follow-ups badge", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("MobileSearchButton", () => {
+  it("opens the command palette", async () => {
+    const setOpen = vi.fn();
+    vi.doMock("@/components/command-palette", () => ({ useCommandPalette: () => ({ setOpen }) }));
+    vi.resetModules();
+    const { MobileSearchButton } = await import("@/components/mobile-nav");
+    render(<MobileSearchButton />);
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    expect(setOpen).toHaveBeenCalledWith(true);
+  });
+});

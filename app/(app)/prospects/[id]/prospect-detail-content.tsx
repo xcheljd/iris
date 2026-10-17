@@ -95,7 +95,7 @@ export function ProspectDetailContent({
 
   return (
     <>
-    <Topbar title={[prospect.firstName, prospect.lastName].filter(Boolean).join(" ")} />
+    <Topbar title={[prospect.firstName, prospect.lastName].filter(Boolean).join(" ")} phoneHeader={false} />
     <div className="flex flex-col flex-1 p-4 md:p-6 gap-4">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" asChild>
