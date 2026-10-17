@@ -3,6 +3,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { toast } from "sonner";
 import { CollectionsCsvExportDialog } from "@/components/collections-csv-export-dialog";
 import { MatchedClientsCsvExportDialog } from "@/components/matched-clients-csv-export-dialog";
+import { ClientsCsvExportDialog } from "@/components/clients-csv-export-dialog";
+import { exportClientsCsv } from "@/lib/actions/clients-csv-export";
 import { exportCollectionsCsv } from "@/lib/actions/collections-csv-export";
 import { exportMatchedClientsCsv } from "@/lib/actions/matched-clients-csv-export";
 
@@ -12,6 +14,7 @@ import { exportMatchedClientsCsv } from "@/lib/actions/matched-clients-csv-expor
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/lib/actions/collections-csv-export", () => ({ exportCollectionsCsv: vi.fn() }));
 vi.mock("@/lib/actions/matched-clients-csv-export", () => ({ exportMatchedClientsCsv: vi.fn() }));
+vi.mock("@/lib/actions/clients-csv-export", () => ({ exportClientsCsv: vi.fn() }));
 
 const OLD = { csv: "Name\nOld Scope Row", rowCount: 1, truncated: false };
 
@@ -46,5 +49,26 @@ describe("CSV export dialogs on a failed fetch", () => {
       rerender(<MatchedClientsCsvExportDialog open={false} {...matchedProps} />);
       rerender(<MatchedClientsCsvExportDialog open {...matchedProps} />);
     });
+  });
+
+  // The Clients dialog was the one copy that never cleared its rows on failure:
+  // a failed refetch for new filters left the previous filter's CSV downloadable.
+  it("clients dialog drops the previous filter's rows when a refetch fails", async () => {
+    vi.mocked(exportClientsCsv).mockResolvedValueOnce(OLD as never).mockRejectedValueOnce(new Error("boom"));
+    const { rerender } = render(<ClientsCsvExportDialog open onOpenChange={vi.fn()} filters={{ q: "old" }} />);
+    await expectStaleRowsCleared(() => {
+      rerender(<ClientsCsvExportDialog open onOpenChange={vi.fn()} filters={{ q: "new" }} />);
+    });
+    expect(screen.getByRole("button", { name: /download/i })).toBeDisabled();
+  });
+
+  it("refetches only when the request changes, not on every render", async () => {
+    vi.mocked(exportClientsCsv).mockResolvedValue(OLD as never);
+    const { rerender } = render(<ClientsCsvExportDialog open onOpenChange={vi.fn()} filters={{ q: "a" }} />);
+    await waitFor(() => expect(screen.getByRole("textbox")).toHaveValue(OLD.csv));
+    // A new object with the same contents (what a parent re-render produces).
+    rerender(<ClientsCsvExportDialog open onOpenChange={vi.fn()} filters={{ q: "a" }} />);
+    rerender(<ClientsCsvExportDialog open onOpenChange={vi.fn()} filters={{ q: "a" }} />);
+    expect(exportClientsCsv).toHaveBeenCalledTimes(1);
   });
 });

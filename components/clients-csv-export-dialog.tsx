@@ -1,23 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Download, Copy, FileText, AlertTriangle } from "lucide-react";
-import { Spinner } from "@/components/ui/spinner";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { toast } from "sonner";
-import { format } from "date-fns";
-import { exportClientsCsv, type ClientsCsvExportResult } from "@/lib/actions/clients-csv-export";
+import { CsvExportDialog } from "@/components/csv-export-dialog";
+import { exportClientsCsv } from "@/lib/actions/clients-csv-export";
 import { describeClientFilters } from "@/lib/smart-list-filters";
 import { LIST_QUERY_LIMIT } from "@/lib/constants";
 import type { ClientFilterParams } from "@/lib/client-filter-conds";
@@ -28,126 +13,31 @@ interface ClientsCsvExportDialogProps {
   filters: ClientFilterParams;
 }
 
-export function ClientsCsvExportDialog({
-  open,
-  onOpenChange,
-  filters,
-}: ClientsCsvExportDialogProps) {
-  const [data, setData] = useState<ClientsCsvExportResult | null>(null);
-  // The filters the last fetch settled for; loading until it matches.
-  const [loadedFor, setLoadedFor] = useState<ClientFilterParams | null>(null);
-  const loading = open && loadedFor !== filters;
-
-  // Fetch on open / filter change
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    exportClientsCsv(filters)
-      .then((result) => {
-        if (!cancelled) setData(result);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        console.error("[ClientsCsvExport] Failed to fetch:", err);
-        toast.error("Failed to build CSV export");
-      })
-      .finally(() => {
-        if (!cancelled) setLoadedFor(filters);
-      });
-    return () => { cancelled = true; };
-  }, [open, filters]);
-
-  const activeFilterChips = describeClientFilters(filters);
-  const csv = data?.csv ?? "";
-  const rowCount = data?.rowCount ?? 0;
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(csv);
-      toast.success(`Copied CSV (${rowCount} row${rowCount === 1 ? "" : "s"}) to clipboard`);
-    } catch (err) {
-      console.error("[ClientsCsvExport] Clipboard write failed:", err);
-      toast.error("Couldn't copy — your browser blocked clipboard access");
-    }
-  };
-
-  const handleDownload = () => {
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    const stamp = format(new Date(), "yyyy-MM-dd");
-    a.href = url;
-    a.download = `clients-${stamp}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success(`Downloaded clients-${stamp}.csv (${rowCount} rows)`);
-  };
-
-  const disabled = loading || rowCount === 0;
-
+export function ClientsCsvExportDialog({ open, onOpenChange, filters }: ClientsCsvExportDialogProps) {
+  const chips = describeClientFilters(filters);
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="size-5" />
-            Export Clients to CSV
-          </DialogTitle>
-          <DialogDescription>
-            Comma-separated export of clients matching your current filters. Download as a file or copy to clipboard.
-          </DialogDescription>
-        </DialogHeader>
-
-        {activeFilterChips.length > 0 && (
-          <div className="rounded-md border bg-muted/30 p-3 text-xs">
-            <div className="text-muted-foreground mb-1.5">Filtered by:</div>
-            <div className="flex flex-wrap gap-1.5">
-              {activeFilterChips.map((chip) => (
-                <Badge key={chip} variant="secondary" className="font-normal">{chip}</Badge>
-              ))}
-            </div>
+    <CsvExportDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Export Clients to CSV"
+      description="Comma-separated export of clients matching your current filters. Download as a file or copy to clipboard."
+      filenamePrefix="clients"
+      columns={17}
+      emptyText="No matching clients"
+      truncatedText={`The export was capped at ${LIST_QUERY_LIMIT.toLocaleString()} rows. Tighten your filters for a complete export.`}
+      requestKey={JSON.stringify(filters)}
+      fetchCsv={() => exportClientsCsv(filters)}
+    >
+      {chips.length > 0 && (
+        <div className="rounded-md border bg-muted/30 p-3 text-xs">
+          <div className="text-muted-foreground mb-1.5">Filtered by:</div>
+          <div className="flex flex-wrap gap-1.5">
+            {chips.map((chip) => (
+              <Badge key={chip} variant="secondary" className="font-normal">{chip}</Badge>
+            ))}
           </div>
-        )}
-
-        {data?.truncated && (
-          <Alert variant="warning">
-            <AlertTriangle className="size-4" />
-            <AlertDescription>
-              The export was capped at {LIST_QUERY_LIMIT.toLocaleString()} rows. Tighten your filters for a complete export.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>
-            {loading
-              ? "Building CSV…"
-              : `${rowCount.toLocaleString()} row${rowCount === 1 ? "" : "s"} · 17 columns`}
-          </span>
         </div>
-
-        <Textarea
-          value={loading ? "" : csv}
-          readOnly
-          rows={10}
-          className="font-mono text-[11px] leading-tight"
-          placeholder={loading ? "Building CSV…" : "No matching clients"}
-        />
-
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button variant="outline" onClick={handleCopy} disabled={disabled}>
-            {loading ? <Spinner className="mr-2" /> : <Copy className="size-4 mr-2" />}
-            Copy
-          </Button>
-          <Button onClick={handleDownload} disabled={disabled}>
-            {loading ? <Spinner className="mr-2" /> : <Download className="size-4 mr-2" />}
-            Download
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      )}
+    </CsvExportDialog>
   );
 }
