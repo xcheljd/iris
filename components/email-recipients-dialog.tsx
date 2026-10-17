@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useFetchOnOpen } from "@/hooks/use-fetch-on-open";
 import { Mail, Copy } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { describeClientFilters } from "@/lib/smart-list-filters";
@@ -29,32 +30,17 @@ interface EmailRecipientsDialogProps {
 }
 
 export function EmailRecipientsDialog({ open, onOpenChange, filters }: EmailRecipientsDialogProps) {
-  const [data, setData] = useState<EmailRecipientsResult | null>(null);
-  // The filters the last fetch settled for; loading until it matches.
-  const [loadedFor, setLoadedFor] = useState<ClientEmailFilters | null>(null);
-  const loading = open && loadedFor !== filters;
+  const { data, loading } = useFetchOnOpen<EmailRecipientsResult>(
+    open,
+    JSON.stringify(filters),
+    () => getEmailRecipients(filters),
+    (err) => {
+      console.error("[EmailRecipientsDialog] Failed to fetch:", err);
+      toast.error("Failed to load email recipients");
+    },
+  );
   const [includeClients, setIncludeClients] = useState(true);
   const [includeProspects, setIncludeProspects] = useState(true);
-
-  // Fetch on open; refetch when filters change while open
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    getEmailRecipients(filters)
-      .then((result) => {
-        if (cancelled) return;
-        setData(result);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        console.error("[EmailRecipientsDialog] Failed to fetch:", err);
-        toast.error("Failed to load email recipients");
-      })
-      .finally(() => {
-        if (!cancelled) setLoadedFor(filters);
-      });
-    return () => { cancelled = true; };
-  }, [open, filters]);
 
   // Compute the deduped union of selected buckets
   const { mergedEmails, mergedCount } = useMemo(() => {

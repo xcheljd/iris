@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition } from "react";
+import { useFetchOnOpen } from "@/hooks/use-fetch-on-open";
 import {
   Dialog,
   DialogTrigger,
@@ -42,17 +43,21 @@ export function TransferClientDialog({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const [employeeList, setEmployeeList] = useState<Employee[]>([]);
   const [newEmployeeId, setNewEmployeeId] = useState("");
   const [pending, start] = useTransition();
 
-  useEffect(() => {
-    if (!open) return;
-    fetch("/api/employees")
-      .then((r) => r.json())
-      .then((data: Employee[]) => setEmployeeList(data.filter((e) => e.active)))
-      .catch(() => toast.error("Failed to load employee list"));
-  }, [open]);
+  // A reply that lands after the dialog closed is ignored (useFetchOnOpen).
+  const { data: employees } = useFetchOnOpen<Employee[]>(
+    open,
+    "employees",
+    async () => {
+      const r = await fetch("/api/employees");
+      if (!r.ok) throw new Error(String(r.status));
+      return r.json();
+    },
+    () => toast.error("Failed to load employee list"),
+  );
+  const employeeList = (employees ?? []).filter((e) => e.active);
 
   const handleTransfer = () => {
     if (!newEmployeeId || newEmployeeId === currentEmployeeId) return;
