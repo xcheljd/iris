@@ -1,0 +1,466 @@
+import { vi, describe, it, expect, beforeAll, beforeEach, afterAll, afterEach } from "vitest";
+import { randomUUID } from "node:crypto";
+import { revalidatePath } from "next/cache";
+
+vi.mock("next-auth", () => ({
+  getServerSession: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({}));
+
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+}));
+
+// The review path applies the ban/unsubscribe/delete through the raw core so
+// the change can share reviewApprovalRequest's transaction; spy there.
+vi.mock("@/lib/actions/_client-status-core", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/actions/_client-status-core")>();
+  return {
+    ...actual,
+    applyBanUnchecked: vi.fn().mockImplementation(actual.applyBanUnchecked),
+    applyUnsubscribeUnchecked: vi.fn().mockImplementation(actual.applyUnsubscribeUnchecked),
+    applyDeleteUnchecked: vi.fn().mockImplementation(actual.applyDeleteUnchecked),
+  };
+});
+
+import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
+import { createApprovalRequest, reviewApprovalRequest } from "@/lib/actions";
+import { applyBanUnchecked } from "@/lib/actions/_client-status-core";
+import { db } from "@/lib/db";
+import {
+  approvalRequests,
+  activityEvents,
+  clients,
+  bannedCustomers,
+} from "@/lib/db/schema";
+import { eq, and } from "drizzle-orm";
+
+const MANAGER_ID = "2d7a352d-53a0-4544-b515-902e7dd59206";
+const ASSOCIATE_ID = "590628cf-d623-456d-bdad-d16ab0ec2b23";
+const FIRST_CLIENT_ID = "e18e3ba8-b3b1-4bc1-b0f2-f13a219dd30b";
+
+const managerSession: Session = {
+  user: { id: MANAGER_ID, name: "Marcus", role: "manager", firstName: "Marcus", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
+};
+
+const associateSession: Session = {
+  user: { id: ASSOCIATE_ID, name: "Jordan", role: "associate", firstName: "Jordan", lastName: null },
+  expires: "2099-12-31T23:59:59.000Z",
+};
+
+describe("createApprovalRequest", () => {
+  const createdRequestIds: string[] = [];
+
+  afterEach(() => {
+    for (const id of createdRequestIds) {
+      try {
+        db.delete(activityEvents)
+          .where(and(eq(activityEvents.clientId, FIRST_CLIENT_ID)))
+          .run();
+        db.delete(approvalRequests).where(eq(approvalRequests.id, id)).run();
+      } catch {}
+    }
+    createdRequestIds.length = 0;
+  });
+
+  it("creates a pending approval request", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    const { id } = await createApprovalRequest("ban", FIRST_CLIENT_ID, "Testing ban request") as { id: string };
+    createdRequestIds.push(id);
+
+    const row = db.select().from(approvalRequests).where(eq(approvalRequests.id, id)).get();
+    expect(row).toBeDefined();
+    expect(row!.type).toBe("ban");
+    expect(row!.clientId).toBe(FIRST_CLIENT_ID);
+    expect(row!.status).toBe("pending");
+    expect(row!.reason).toBe("Testing ban request");
+    expect(row!.requestorId).toBe(MANAGER_ID);
+  });
+
+  it("associates can create approval requests", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
+    const { id } = await createApprovalRequest("unsubscribe", FIRST_CLIENT_ID, "Client asked to unsub") as { id: string };
+    createdRequestIds.push(id);
+
+    const row = db.select().from(approvalRequests).where(eq(approvalRequests.id, id)).get();
+    expect(row).toBeDefined();
+    expect(row!.requestorId).toBe(ASSOCIATE_ID);
+  });
+
+  it("logs the correct activity event type for ban", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    const { id } = await createApprovalRequest("ban", FIRST_CLIENT_ID, "Reason A") as { id: string };
+    createdRequestIds.push(id);
+
+    const events = db
+      .select()
+      .from(activityEvents)
+      .where(eq(activityEvents.clientId, FIRST_CLIENT_ID))
+      .all();
+    const event = events.find((e) => e.eventType === "ban_requested");
+    expect(event).toBeDefined();
+  });
+
+  it("logs the correct activity event type for unsubscribe", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    const { id } = await createApprovalRequest("unsubscribe", FIRST_CLIENT_ID, "Reason B") as { id: string };
+    createdRequestIds.push(id);
+
+    const events = db
+      .select()
+      .from(activityEvents)
+      .where(eq(activityEvents.clientId, FIRST_CLIENT_ID))
+      .all();
+    const event = events.find((e) => e.eventType === "unsub_requested");
+    expect(event).toBeDefined();
+  });
+
+  it("logs the correct activity event type for delete", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    const { id } = await createApprovalRequest("delete", FIRST_CLIENT_ID, "Reason C") as { id: string };
+    createdRequestIds.push(id);
+
+    const events = db
+      .select()
+      .from(activityEvents)
+      .where(eq(activityEvents.clientId, FIRST_CLIENT_ID))
+      .all();
+    const event = events.find((e) => e.eventType === "delete_requested");
+    expect(event).toBeDefined();
+  });
+
+  it("returns an error when reason is empty", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    const result = await createApprovalRequest("ban", FIRST_CLIENT_ID, "   ");
+    expect("error" in result).toBe(true);
+    expect((result as { error: string }).error).toBe("Reason is required");
+  });
+
+  it("throws when not authenticated", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(null);
+    await expect(createApprovalRequest("ban", FIRST_CLIENT_ID, "reason")).rejects.toThrow();
+  });
+});
+
+// Regression (B15): no existence/ownership/type checks, no pending dedupe,
+// and the two inserts weren't one transaction.
+describe("createApprovalRequest hardening", () => {
+  const OTHER_CLIENT_ID = randomUUID();
+
+  beforeAll(() => {
+    // Owned by the manager, so the associate does not own it.
+    db.insert(clients).values({
+      id: OTHER_CLIENT_ID, firstName: "Kestrel", lastName: "Vellamy", employeeId: MANAGER_ID, productsOfInterest: [],
+    }).run();
+  });
+
+  afterEach(() => {
+    for (const clientId of [FIRST_CLIENT_ID, OTHER_CLIENT_ID]) {
+      db.delete(activityEvents).where(eq(activityEvents.clientId, clientId)).run();
+      db.delete(approvalRequests).where(eq(approvalRequests.clientId, clientId)).run();
+    }
+  });
+
+  afterAll(() => {
+    db.delete(clients).where(eq(clients.id, OTHER_CLIENT_ID)).run();
+  });
+
+  const requestsFor = (clientId: string) =>
+    db.select().from(approvalRequests).where(eq(approvalRequests.clientId, clientId)).all();
+
+  it("returns an error (not a throw) for an unknown client", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    const result = await createApprovalRequest("ban", randomUUID(), "Reason");
+    expect(result).toEqual({ error: "Client not found" });
+  });
+
+  it("rejects an associate requesting approval for a client they do not own", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
+    const result = await createApprovalRequest("ban", OTHER_CLIENT_ID, "Reason");
+    expect(result).toEqual({ error: "You can only request approval for your own clients" });
+    expect(requestsFor(OTHER_CLIENT_ID)).toHaveLength(0);
+  });
+
+  it("lets a manager request approval for any client", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    const result = await createApprovalRequest("ban", OTHER_CLIENT_ID, "Reason");
+    expect("id" in result).toBe(true);
+  });
+
+  it("rejects an invalid type", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    const result = await createApprovalRequest("purge" as "ban", FIRST_CLIENT_ID, "Reason");
+    expect(result).toEqual({ error: "Invalid request type" });
+    expect(requestsFor(FIRST_CLIENT_ID)).toHaveLength(0);
+  });
+
+  it("rejects a duplicate while pending, allows it once the first is reviewed", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
+    const first = await createApprovalRequest("unsubscribe", FIRST_CLIENT_ID, "First");
+    if ("error" in first) throw new Error(first.error);
+
+    const dup = await createApprovalRequest("unsubscribe", FIRST_CLIENT_ID, "Second");
+    expect(dup).toEqual({ error: "This client already has a pending unsubscribe request" });
+    expect(requestsFor(FIRST_CLIENT_ID)).toHaveLength(1);
+
+    // A different type for the same client is not a duplicate.
+    const other = await createApprovalRequest("delete", FIRST_CLIENT_ID, "Other type");
+    expect("id" in other).toBe(true);
+
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    await reviewApprovalRequest(first.id, false);
+
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
+    const again = await createApprovalRequest("unsubscribe", FIRST_CLIENT_ID, "Third");
+    expect("id" in again).toBe(true);
+  });
+
+  it("writes the request and its activity event together, and refreshes the layout", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
+    vi.mocked(revalidatePath).mockClear();
+    const result = await createApprovalRequest("ban", FIRST_CLIENT_ID, "  Trimmed reason  ");
+    if ("error" in result) throw new Error(result.error);
+
+    const row = db.select().from(approvalRequests).where(eq(approvalRequests.id, result.id)).get();
+    expect(row?.reason).toBe("Trimmed reason");
+    const events = db.select().from(activityEvents).where(eq(activityEvents.clientId, FIRST_CLIENT_ID)).all()
+      .filter((e) => e.eventType === "ban_requested" && (e.metadata as { requestId?: string })?.requestId === result.id);
+    expect(events).toHaveLength(1);
+    expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+  });
+});
+
+describe("reviewApprovalRequest", () => {
+  const createdRequestIds: string[] = [];
+  const createdClientIds: string[] = [];
+
+  beforeEach(() => {
+    vi.mocked(getServerSession).mockResolvedValue(managerSession);
+    // Ensure seed client is active before each test
+    db.update(clients)
+      .set({ status: "active", onEmailList: true, deletedAt: null, updatedAt: new Date() })
+      .where(eq(clients.id, FIRST_CLIENT_ID))
+      .run();
+  });
+
+  afterEach(() => {
+    for (const id of createdRequestIds) {
+      try {
+        db.delete(approvalRequests).where(eq(approvalRequests.id, id)).run();
+      } catch {}
+    }
+    createdRequestIds.length = 0;
+
+    for (const id of createdClientIds) {
+      try {
+        db.delete(activityEvents).where(eq(activityEvents.clientId, id)).run();
+        db.delete(clients).where(eq(clients.id, id)).run();
+      } catch {}
+    }
+    createdClientIds.length = 0;
+
+    // Clean up side effects on seed client
+    try {
+      db.delete(bannedCustomers).where(eq(bannedCustomers.customerId, FIRST_CLIENT_ID)).run();
+      db.delete(activityEvents)
+        .where(eq(activityEvents.clientId, FIRST_CLIENT_ID))
+        .run();
+      db.update(clients)
+        .set({ status: "active", onEmailList: true, deletedAt: null, updatedAt: new Date() })
+        .where(eq(clients.id, FIRST_CLIENT_ID))
+        .run();
+    } catch {}
+  });
+
+  async function createPendingRequest(type: "ban" | "unsubscribe" | "delete") {
+    const { id } = await createApprovalRequest(type, FIRST_CLIENT_ID, `Test ${type} reason`) as { id: string };
+    createdRequestIds.push(id);
+    return id;
+  }
+
+  it("approving a ban request sets request to approved", async () => {
+    const requestId = await createPendingRequest("ban");
+    await reviewApprovalRequest(requestId, true);
+
+    const row = db.select().from(approvalRequests).where(eq(approvalRequests.id, requestId)).get();
+    expect(row!.status).toBe("approved");
+    expect(row!.reviewedById).toBe(MANAGER_ID);
+  });
+
+  it("rejecting a ban request sets request to rejected without banning the client", async () => {
+    const requestId = await createPendingRequest("ban");
+    await reviewApprovalRequest(requestId, false);
+
+    const row = db.select().from(approvalRequests).where(eq(approvalRequests.id, requestId)).get();
+    expect(row!.status).toBe("rejected");
+
+    const client = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
+    expect(client!.status).toBe("active");
+  });
+
+  it("approving a ban request bans the client", async () => {
+    const requestId = await createPendingRequest("ban");
+    await reviewApprovalRequest(requestId, true);
+
+    const client = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
+    expect(client!.status).toBe("banned");
+  });
+
+  // The associate's category was saved on the request's metadata but the
+  // approval hardcoded "Other" into the ban record.
+  it("approving a ban request records the category the associate chose", async () => {
+    const { id } = await createApprovalRequest("ban", FIRST_CLIENT_ID, "Test ban reason", { category: "Gift Card Fraud" }) as { id: string };
+    createdRequestIds.push(id);
+
+    await expect(reviewApprovalRequest(id, true)).resolves.toBeUndefined();
+
+    const ban = db.select().from(bannedCustomers).where(eq(bannedCustomers.customerId, FIRST_CLIENT_ID)).get();
+    expect(ban!.banReasonCategory).toBe("Gift Card Fraud");
+  });
+
+  it("falls back to Other for a missing or unknown requested category", async () => {
+    const { id } = await createApprovalRequest("ban", FIRST_CLIENT_ID, "Test ban reason", { category: "Not A Category" }) as { id: string };
+    createdRequestIds.push(id);
+
+    await reviewApprovalRequest(id, true);
+
+    const ban = db.select().from(bannedCustomers).where(eq(bannedCustomers.customerId, FIRST_CLIENT_ID)).get();
+    expect(ban!.banReasonCategory).toBe("Other");
+  });
+
+  it("approving an unsubscribe request sets onEmailList to false", async () => {
+    const requestId = await createPendingRequest("unsubscribe");
+    await reviewApprovalRequest(requestId, true);
+
+    const client = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
+    expect(client!.onEmailList).toBe(false);
+  });
+
+  it("approving a delete request soft-deletes the client", async () => {
+    const requestId = await createPendingRequest("delete");
+    await reviewApprovalRequest(requestId, true);
+
+    const client = db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get();
+    expect(client!.status).toBe("deleted");
+    expect(client!.deletedAt).not.toBeNull();
+  });
+
+  it("returns an error when request does not exist", async () => {
+    const result = await reviewApprovalRequest("00000000-0000-0000-0000-000000000000", true);
+    expect(result?.error).toBe("Request not found");
+  });
+
+  it("returns an error when request is already reviewed", async () => {
+    const requestId = await createPendingRequest("ban");
+    await reviewApprovalRequest(requestId, false);
+
+    const result = await reviewApprovalRequest(requestId, true);
+    expect(result?.error).toBe("Request already reviewed");
+  });
+
+  it("throws when associate tries to review", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
+    const requestId = await createPendingRequest("ban");
+
+    vi.mocked(getServerSession).mockResolvedValue(associateSession);
+    await expect(reviewApprovalRequest(requestId, true)).rejects.toThrow();
+  });
+
+  it("returns error and leaves request pending when the downstream action fails", async () => {
+    vi.mocked(applyBanUnchecked).mockReturnValueOnce({ error: "Simulated ban failure" });
+
+    const requestId = await createPendingRequest("ban");
+    const result = await reviewApprovalRequest(requestId, true);
+
+    expect(result?.error).toBeDefined();
+    const row = db.select().from(approvalRequests).where(eq(approvalRequests.id, requestId)).get();
+    expect(row!.status).toBe("pending");
+    expect(row!.reviewedById).toBeNull();
+    // The audit event is part of the same transaction — it must not survive.
+    expect(
+      db.select().from(activityEvents).where(eq(activityEvents.clientId, FIRST_CLIENT_ID)).all()
+        .filter((e) => e.eventType === "ban_approved"),
+    ).toHaveLength(0);
+    expect(db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get()!.status).toBe("active");
+  });
+
+  it("rolls the whole review back when the downstream action throws", async () => {
+    vi.mocked(applyBanUnchecked).mockImplementationOnce(() => {
+      throw new Error("Simulated crash mid-action");
+    });
+
+    const requestId = await createPendingRequest("ban");
+    await expect(reviewApprovalRequest(requestId, true)).rejects.toThrow("Simulated crash mid-action");
+
+    const row = db.select().from(approvalRequests).where(eq(approvalRequests.id, requestId)).get();
+    expect(row!.status).toBe("pending");
+    expect(row!.reviewedAt).toBeNull();
+    expect(
+      db.select().from(activityEvents).where(eq(activityEvents.clientId, FIRST_CLIENT_ID)).all()
+        .filter((e) => e.eventType === "ban_approved"),
+    ).toHaveLength(0);
+    expect(
+      db.select().from(bannedCustomers).where(eq(bannedCustomers.customerId, FIRST_CLIENT_ID)).all(),
+    ).toHaveLength(0);
+    expect(db.select().from(clients).where(eq(clients.id, FIRST_CLIENT_ID)).get()!.status).toBe("active");
+  });
+
+  it("does not re-run the downstream action on a second review of the same request", async () => {
+    const requestId = await createPendingRequest("ban");
+
+    const callsBefore = vi.mocked(applyBanUnchecked).mock.calls.length;
+    await reviewApprovalRequest(requestId, true);
+    expect(vi.mocked(applyBanUnchecked).mock.calls.length).toBe(callsBefore + 1);
+
+    const bannedRowsAfterFirst = db
+      .select().from(bannedCustomers).where(eq(bannedCustomers.customerId, FIRST_CLIENT_ID)).all().length;
+    const approvedEventsAfterFirst = db
+      .select().from(activityEvents).where(eq(activityEvents.clientId, FIRST_CLIENT_ID)).all()
+      .filter((e) => e.eventType === "ban_approved").length;
+
+    const second = await reviewApprovalRequest(requestId, true);
+
+    expect(second?.error).toBe("Request already reviewed");
+    // Downstream action and its side effects ran exactly once.
+    expect(vi.mocked(applyBanUnchecked).mock.calls.length).toBe(callsBefore + 1);
+    expect(
+      db.select().from(bannedCustomers).where(eq(bannedCustomers.customerId, FIRST_CLIENT_ID)).all(),
+    ).toHaveLength(bannedRowsAfterFirst);
+    expect(
+      db.select().from(activityEvents).where(eq(activityEvents.clientId, FIRST_CLIENT_ID)).all()
+        .filter((e) => e.eventType === "ban_approved"),
+    ).toHaveLength(approvedEventsAfterFirst);
+    expect(
+      db.select().from(approvalRequests).where(eq(approvalRequests.id, requestId)).get()!.status,
+    ).toBe("approved");
+  });
+
+  it("logs a review activity event on approval", async () => {
+    const requestId = await createPendingRequest("ban");
+    await reviewApprovalRequest(requestId, true);
+
+    const events = db
+      .select()
+      .from(activityEvents)
+      .where(eq(activityEvents.clientId, FIRST_CLIENT_ID))
+      .all();
+    const reviewEvent = events.find((e) => e.eventType === "ban_approved");
+    expect(reviewEvent).toBeDefined();
+  });
+
+  it("logs a review activity event on rejection", async () => {
+    const requestId = await createPendingRequest("unsubscribe");
+    await reviewApprovalRequest(requestId, false);
+
+    const events = db
+      .select()
+      .from(activityEvents)
+      .where(eq(activityEvents.clientId, FIRST_CLIENT_ID))
+      .all();
+    const reviewEvent = events.find((e) => e.eventType === "unsub_rejected");
+    expect(reviewEvent).toBeDefined();
+  });
+});

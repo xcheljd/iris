@@ -1,0 +1,119 @@
+import { Suspense } from "react";
+import { notFound } from "next/navigation";
+import { db } from "@/lib/db";
+import { clients, outreachLogs, activityEvents, promoMatches, promoItems, employees } from "@/lib/db/schema";
+import { eq, desc, and, isNotNull, sql } from "drizzle-orm";
+import { ClientDetailContent } from "./client-detail-content";
+import { ClientDetailSkeleton } from "@/components/skeletons";
+import { requirePageSession } from "@/lib/auth";
+import { getTagsSync } from "@/lib/queries";
+import { promoNotEnded } from "@/lib/promo-active";
+import { TOUR_DEMO_CLIENT_ID, tourDemoClient } from "@/lib/tour-demo-client";
+
+async function getFullClient(clientId: string) {
+  const row = db
+    .select({
+      client: clients,
+      employeeName: sql`COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, '')`,
+    })
+    .from(clients)
+    .leftJoin(employees, eq(clients.employeeId, employees.id))
+    .where(eq(clients.id, clientId))
+    .get();
+
+  if (!row) return null;
+
+  const client = row.client;
+  const employeeName = row.employeeName;
+
+  const outreach = db
+    .select()
+    .from(outreachLogs)
+    .where(eq(outreachLogs.clientId, clientId))
+    .orderBy(desc(outreachLogs.date))
+    .all();
+
+  const timeline = db
+    .select({
+      event: activityEvents,
+      eventEmployeeName: sql`COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, '')`,
+    })
+    .from(activityEvents)
+    .leftJoin(employees, eq(activityEvents.employeeId, employees.id))
+    .where(eq(activityEvents.clientId, clientId))
+    .orderBy(desc(activityEvents.createdAt))
+    .all()
+    .map((row) => ({ ...row.event, employeeName: row.eventEmployeeName }));
+
+  const matches = db
+    .select({
+      match: promoMatches,
+      promo: promoItems,
+    })
+    .from(promoMatches)
+    .innerJoin(promoItems, eq(promoMatches.promoId, promoItems.id))
+    .where(and(eq(promoMatches.clientId, clientId), promoNotEnded()))
+    .all();
+
+  const allTags = getTagsSync();
+
+  const followUps = db
+    .select()
+    .from(outreachLogs)
+    .where(
+      and(
+        eq(outreachLogs.clientId, clientId),
+        isNotNull(outreachLogs.followUpDate),
+        eq(outreachLogs.completed, false)
+      )
+    )
+    .orderBy(desc(outreachLogs.followUpDate))
+    .all();
+
+  return {
+    ...client,
+    employeeName,
+    outreach,
+    timeline,
+    matches,
+    allTags,
+    followUps,
+  };
+}
+
+export default function ClientDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  return (
+    <Suspense fallback={<ClientDetailSkeleton />}>
+      <ClientDetailFetcher params={params} />
+    </Suspense>
+  );
+}
+
+async function ClientDetailFetcher({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const session = await requirePageSession();
+  if (id === TOUR_DEMO_CLIENT_ID) {
+    return <ClientDetailContent client={tourDemoClient(session.user)} currentUserRole={session.user.role} />;
+  }
+  const client = await getFullClient(id);
+  if (!client) {
+    notFound();
+  }
+  const isManager = session.user.role === "manager";
+  if (!isManager && client.employeeId !== session.user.id) {
+    notFound();
+  }
+  // Bump global recency so future searches nudge this client toward the top.
+  // Fire-and-forget — never blocks the page render and silently swallows any
+  // write error (e.g. read-only filesystem in tests).
+  try {
+    db.update(clients).set({ lastViewedAt: new Date() }).where(eq(clients.id, id)).run();
+  } catch {
+    // ignore — search ranking is a nice-to-have, never a page blocker
+  }
+  return <ClientDetailContent client={JSON.parse(JSON.stringify(client))} currentUserRole={session.user.role} />;
+}

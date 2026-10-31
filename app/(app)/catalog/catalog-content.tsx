@@ -1,0 +1,800 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import type { OnChangeFn, SortingState } from "@tanstack/react-table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TableCell } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { parseAmount } from "@/lib/import-grid";
+import type { CatalogPatch } from "@/lib/actions/catalog";
+import { PaginationFooter } from "@/components/pagination-footer";
+import { EmptyState } from "@/components/empty-state";
+import { Topbar } from "@/components/topbar";
+import { Library, Check, X, Pencil, Upload, ClipboardCheck, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { updateCatalogRows, resolveFlag, confirmCatalogRow, confirmCatalogRows, deleteCatalogRow, deleteCatalogRows, clearCatalog } from "@/lib/actions";
+import { Checkbox } from "@/components/ui/checkbox";
+import { brandLabel } from "@/lib/brand";
+import { ImportCatalogDialog } from "@/components/catalog/import-catalog-dialog";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { DataTable, type DataTableColumn } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/column-header";
+import { ColumnFilterPopover } from "@/components/column-filter-popover";
+import { TextFilterMenu, MultiSelectMenu, RangeFilterMenu } from "@/components/column-filters";
+import { useBrands } from "@/components/brands-provider";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
+import { MoneyCell, MonoCell, StatusBadgeCell, TextCell } from "@/components/data-table/cells";
+import { ActiveFilterChips, type ActiveFilterChip } from "@/components/active-filter-chips";
+
+const NO_BRAND = "__none";
+
+type CatalogFilterChipKey = "mod" | "col" | "brands" | "msrp";
+
+/** sessionStorage key for the last query string navigate() wrote. */
+export const LAST_SEARCH_KEY = "catalog:last-search";
+
+interface CatalogRow {
+  model: string;
+  collection: string;
+  source: "promo" | "manual" | "curated";
+  brand: string | null;
+  msrp: number | null;
+  needsReview: boolean;
+  flaggedCollection: string | null;
+  flaggedSource: string | null;
+}
+
+interface CatalogContentProps {
+  rows: CatalogRow[];
+  total: number;
+  needsReview: CatalogRow[];
+  flagged: CatalogRow[];
+  mod: string;
+  col: string;
+  brands: string[];
+  msrpMin?: number;
+  msrpMax?: number;
+  msrpCeiling: number;
+  sort: "model" | "collection" | "brand" | "msrp";
+  dir: "asc" | "desc";
+  page: number;
+  /** True when the page was requested with no search params at all. */
+  restoreLastSearch?: boolean;
+}
+
+type SortKey = "model" | "collection" | "brand" | "msrp";
+
+export function CatalogContent({ rows, total, needsReview, flagged, mod, col, brands, msrpMin, msrpMax, msrpCeiling, sort, dir, page, restoreLastSearch = false }: CatalogContentProps) {
+  const brandList = useBrands();
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  // Inline row edit: one row at a time, every editable field at once. The
+  // table engine re-mounts cells on every render (their renderers are rebuilt
+  // each time), so the text boxes are uncontrolled and type into a ref —
+  // re-rendering per keystroke would drop focus. Only the brand picker is state.
+  const [editing, setEditing] = useState<string | null>(null);
+  const draft = useRef({ collection: "", msrp: "" });
+  const [draftBrand, setDraftBrand] = useState("");
+  // "Edit selected" bar: rows ticked on this page, then one field set for all.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkField, setBulkField] = useState<"brand" | "collection" | "msrp">("brand");
+  const [bulkValue, setBulkValue] = useState("");
+  const [importOpen, setImportOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [clearOpen, setClearOpen] = useState(false);
+  const [clearTyped, setClearTyped] = useState("");
+  const [selectedReview, setSelectedReview] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+
+  const CLEAR_PHRASE = "CLEAR CATALOG";
+
+  const totalPages = Math.ceil(total / DEFAULT_PAGE_SIZE);
+
+  function navigate(
+    overrides: Partial<{
+      mod: string;
+      col: string;
+      brands: string[];
+      msrpMin?: number;
+      msrpMax?: number;
+      sort: SortKey;
+      dir: "asc" | "desc";
+      page: number;
+    }> = {},
+  ) {
+    const next = { mod, col, brands, msrpMin, msrpMax, sort, dir, page, ...overrides };
+    const sp = new URLSearchParams();
+    if (next.mod) sp.set("mod", next.mod);
+    if (next.col) sp.set("col", next.col);
+    if (next.brands.length) sp.set("brands", next.brands.join(","));
+    if (next.msrpMin != null && next.msrpMin > 0) sp.set("msrpMin", String(next.msrpMin));
+    if (next.msrpMax != null && next.msrpMax < msrpCeiling) sp.set("msrpMax", String(next.msrpMax));
+    if (next.sort !== "model") sp.set("sort", next.sort);
+    if (next.dir !== "asc") sp.set("dir", next.dir);
+    if (next.page > 1) sp.set("page", String(next.page));
+    const qs = sp.toString();
+    // Remembered for a bare /catalog visit later in the session; an empty
+    // query (every filter cleared) forgets it.
+    if (qs) sessionStorage.setItem(LAST_SEARCH_KEY, qs);
+    else sessionStorage.removeItem(LAST_SEARCH_KEY);
+    router.replace(`/catalog${qs ? `?${qs}` : ""}`);
+  }
+
+  // A bare /catalog visit adopts the filters the user last had this session.
+  // The review and conflict panels are their own queries, so only the list moves.
+  useEffect(() => {
+    if (!restoreLastSearch) return;
+    const saved = sessionStorage.getItem(LAST_SEARCH_KEY);
+    if (saved) router.replace(`/catalog?${saved}`, { scroll: false });
+  }, [restoreLastSearch, router]);
+
+  // The engine compares state slices shallowly, so this has to keep its
+  // identity between renders that did not change the sort.
+  const sorting = useMemo<SortingState>(() => [{ id: sort, desc: dir === "desc" }], [sort, dir]);
+
+  // The table only ever holds one sort, and removal is disabled, so the
+  // updater always resolves to a single column: same column flips direction,
+  // a new one starts ascending — and either way we go back to page 1.
+  const handleSortingChange: OnChangeFn<SortingState> = (updater) => {
+    const [next] = typeof updater === "function" ? updater(sorting) : updater;
+    if (!next) return;
+    navigate({ sort: next.id as SortKey, dir: next.desc ? "desc" : "asc", page: 1 });
+  };
+
+  const sourceBadge = (s: CatalogRow["source"]) =>
+    s === "curated" ? "default" : s === "promo" ? "secondary" : "outline";
+
+  const filterChips: ActiveFilterChip<CatalogFilterChipKey>[] = [];
+  if (mod) filterChips.push({ key: "mod", label: `Model: ${mod}` });
+  if (col) filterChips.push({ key: "col", label: `Collection: ${col}` });
+  if (brands.length > 0) {
+    filterChips.push({ key: "brands", label: `Brand: ${brands.map((b) => brandLabel(b)).join(", ")}` });
+  }
+  if (msrpMin != null || msrpMax != null) {
+    const lo = msrpMin != null ? `$${msrpMin.toLocaleString()}` : "$0";
+    const hi = msrpMax != null ? `$${msrpMax.toLocaleString()}` : `$${msrpCeiling.toLocaleString()}+`;
+    filterChips.push({ key: "msrp", label: `MSRP: ${lo} – ${hi}` });
+  }
+
+  function clearFilterChip(key: CatalogFilterChipKey) {
+    switch (key) {
+      case "mod": navigate({ mod: "", page: 1 }); break;
+      case "col": navigate({ col: "", page: 1 }); break;
+      case "brands": navigate({ brands: [], page: 1 }); break;
+      case "msrp": navigate({ msrpMin: undefined, msrpMax: undefined, page: 1 }); break;
+    }
+  }
+
+  const clearAllFilters = () =>
+    navigate({ mod: "", col: "", brands: [], msrpMin: undefined, msrpMax: undefined, page: 1 });
+
+  const startEdit = (r: Pick<CatalogRow, "model" | "collection" | "brand" | "msrp">) => {
+    draft.current = { collection: r.collection, msrp: r.msrp != null ? String(r.msrp) : "" };
+    setDraftBrand(r.brand ?? "");
+    setEditing(r.model);
+  };
+
+  // Focus the collection box when a row enters edit mode (not on every
+  // keystroke, which autoFocus would do as the table re-renders the row).
+  useEffect(() => {
+    if (!editing) return;
+    document.querySelector<HTMLInputElement>(`input[aria-label="Collection for ${CSS.escape(editing)}"]`)?.focus();
+  }, [editing]);
+
+  const runUpdate = (models: string[], patch: CatalogPatch, after: () => void) => {
+    start(async () => {
+      const res = await updateCatalogRows(models, patch);
+      if ("error" in res) { toast.error(res.error); return; }
+      const re = res.affected > 0 ? ` — ${res.affected} client${res.affected !== 1 ? "s" : ""} re-matched` : "";
+      toast.success(`Updated ${res.updated} model${res.updated !== 1 ? "s" : ""}${re}`);
+      after();
+      router.refresh();
+    });
+  };
+
+  const saveEdit = (r: CatalogRow) => {
+    const patch: CatalogPatch = {};
+    const coll = draft.current.collection.trim();
+    if (!coll) { toast.error("Collection can't be blank"); return; }
+    if (coll !== r.collection) patch.collection = coll;
+    const brand = draftBrand || null;
+    if (brand !== r.brand) patch.brand = brand;
+    const msrpText = draft.current.msrp.trim();
+    const msrp = msrpText ? parseAmount(msrpText) : null;
+    if (msrpText && msrp == null) { toast.error("MSRP must be a positive amount"); return; }
+    if (msrp !== r.msrp) patch.msrp = msrp;
+    if (Object.keys(patch).length === 0) { setEditing(null); return; }
+    runUpdate([r.model], patch, () => setEditing(null));
+  };
+
+  const applyBulk = () => {
+    const models = Array.from(selected);
+    if (models.length === 0) return;
+    let patch: CatalogPatch;
+    if (bulkField === "brand") patch = { brand: bulkValue === NO_BRAND ? null : bulkValue };
+    else if (bulkField === "collection") {
+      if (!bulkValue.trim()) { toast.error("Enter a collection"); return; }
+      patch = { collection: bulkValue.trim() };
+    } else {
+      const v = bulkValue.trim() ? parseAmount(bulkValue) : null;
+      if (bulkValue.trim() && v == null) { toast.error("MSRP must be a positive amount"); return; }
+      patch = { msrp: v };
+    }
+    runUpdate(models, patch, () => { setSelected(new Set()); setBulkValue(""); });
+  };
+
+  const toggleSelected = (model: string, on: boolean) =>
+    setSelected((prev) => { const n = new Set(prev); if (on) n.add(model); else n.delete(model); return n; });
+  const pageAllSelected = rows.length > 0 && rows.every((r) => selected.has(r.model));
+
+  const handleConfirm = (model: string) => {
+    start(async () => {
+      const res = await confirmCatalogRow(model);
+      if ("error" in res) { toast.error(res.error); return; }
+      toast.success("Entry confirmed as curated");
+      router.refresh();
+    });
+  };
+
+  const handleFlag = (model: string, accept: boolean) => {
+    start(async () => {
+      const res = await resolveFlag(model, accept);
+      if ("error" in res) { toast.error(res.error); return; }
+      toast.success(accept ? "Conflicting value applied" : "Kept current value");
+      router.refresh();
+    });
+  };
+
+  const handleDelete = () => {
+    const model = deleteTarget;
+    if (!model) return;
+    start(async () => {
+      const res = await deleteCatalogRow(model);
+      if ("error" in res) { toast.error(res.error); return; }
+      const suffix = res.affected > 0 ? ` — ${res.affected} client${res.affected !== 1 ? "s" : ""} re-matched` : "";
+      toast.success(`Deleted ${model}${suffix}`);
+      setDeleteTarget(null);
+      router.refresh();
+    });
+  };
+
+  const toggleReviewSelection = (model: string, checked: boolean) => {
+    setSelectedReview((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(model); else next.delete(model);
+      return next;
+    });
+  };
+
+  const toggleAllReview = (checked: boolean) => {
+    setSelectedReview(checked ? new Set(needsReview.map((r) => r.model)) : new Set());
+  };
+
+  const handleBulkConfirm = () => {
+    const models = Array.from(selectedReview);
+    if (models.length === 0) return;
+    start(async () => {
+      const res = await confirmCatalogRows(models);
+      if ("error" in res) { toast.error(res.error); return; }
+      toast.success(`Confirmed ${res.confirmed} entr${res.confirmed === 1 ? "y" : "ies"} as curated`);
+      setSelectedReview(new Set());
+      router.refresh();
+    });
+  };
+
+  const handleBulkDelete = () => {
+    const models = Array.from(selectedReview);
+    if (models.length === 0) return;
+    start(async () => {
+      const res = await deleteCatalogRows(models);
+      if ("error" in res) { toast.error(res.error); return; }
+      const suffix = res.affected > 0 ? ` — ${res.affected} client${res.affected !== 1 ? "s" : ""} re-matched` : "";
+      toast.success(`Deleted ${res.deleted} entr${res.deleted === 1 ? "y" : "ies"}${suffix}`);
+      setSelectedReview(new Set());
+      setBulkDeleteOpen(false);
+      router.refresh();
+    });
+  };
+
+  const handleClear = () => {
+    start(async () => {
+      const res = await clearCatalog();
+      if ("error" in res) { toast.error(res.error); return; }
+      const provisioned = res.provisioned > 0
+        ? ` — ${res.provisioned.toLocaleString()} provisional row${res.provisioned !== 1 ? "s" : ""} reseeded from client POIs`
+        : "";
+      toast.success(`Catalog cleared (${res.cleared.toLocaleString()} row${res.cleared !== 1 ? "s" : ""})${provisioned}`);
+      setClearOpen(false);
+      setClearTyped("");
+      router.refresh();
+    });
+  };
+
+  // Rebuilt every render — cheap, because the engine keys its row model on
+  // `data` alone, and the inline-edit cells have to see the current draft.
+  const columns: DataTableColumn<CatalogRow>[] = [
+    {
+      id: "select",
+      header: () => (
+        <Checkbox
+          checked={pageAllSelected}
+          onCheckedChange={(v) => setSelected((prev) => {
+            const n = new Set(prev);
+            for (const r of rows) { if (v === true) n.add(r.model); else n.delete(r.model); }
+            return n;
+          })}
+          aria-label="Select all models on this page"
+        />
+      ),
+      cell: ({ row }) => (
+        <TableCell className="w-8">
+          <Checkbox
+            checked={selected.has(row.original.model)}
+            onCheckedChange={(v) => toggleSelected(row.original.model, v === true)}
+            aria-label={`Select ${row.original.model}`}
+          />
+        </TableCell>
+      ),
+    },
+    {
+      id: "model",
+      accessorFn: (r) => r.model,
+      header: (ctx) => (
+        <DataTableColumnHeader
+          ctx={ctx}
+          label="Model"
+          filter={
+            <ColumnFilterPopover label="Model" active={!!mod} onClear={() => navigate({ mod: "", page: 1 })}>
+              <TextFilterMenu
+                value={mod}
+                onChange={(v) => navigate({ mod: v, page: 1 })}
+                placeholder="Filter model…"
+              />
+            </ColumnFilterPopover>
+          }
+        />
+      ),
+      cell: ({ row }) => <MonoCell value={row.original.model} />,
+    },
+    {
+      id: "collection",
+      accessorFn: (r) => r.collection,
+      header: (ctx) => (
+        <DataTableColumnHeader
+          ctx={ctx}
+          label="Collection"
+          filter={
+            <ColumnFilterPopover label="Collection" active={!!col} onClear={() => navigate({ col: "", page: 1 })}>
+              <TextFilterMenu
+                value={col}
+                onChange={(v) => navigate({ col: v, page: 1 })}
+                placeholder="Filter collection…"
+              />
+            </ColumnFilterPopover>
+          }
+        />
+      ),
+      cell: ({ row }) => (
+        <TableCell>
+          {editing === row.original.model ? (
+            <Input
+              aria-label={`Collection for ${row.original.model}`}
+              defaultValue={draft.current.collection}
+              onChange={(e) => { draft.current.collection = e.target.value; }}
+              onKeyDown={(e) => { if (e.key === "Enter") saveEdit(row.original); if (e.key === "Escape") setEditing(null); }}
+              className="h-8 max-w-[200px]"
+            />
+          ) : (
+            row.original.collection
+          )}
+        </TableCell>
+      ),
+    },
+    {
+      id: "brand",
+      accessorFn: (r) => r.brand,
+      header: (ctx) => (
+        <DataTableColumnHeader
+          ctx={ctx}
+          label="Brand"
+          filter={
+            <ColumnFilterPopover
+              label="Brand"
+              active={brands.length > 0}
+              onClear={() => navigate({ brands: [], page: 1 })}
+            >
+              <MultiSelectMenu
+                options={brandList.map((b) => ({ value: b, label: brandLabel(b) }))}
+                selected={brands}
+                onChange={(next) => navigate({ brands: next, page: 1 })}
+                placeholder="Search brands…"
+              />
+            </ColumnFilterPopover>
+          }
+        />
+      ),
+      cell: ({ row }) => editing === row.original.model ? (
+        <TableCell>
+          <Select value={draftBrand || NO_BRAND} onValueChange={(v) => setDraftBrand(v === NO_BRAND ? "" : v)}>
+            <SelectTrigger className="h-8 w-40 text-xs" aria-label={`Brand for ${row.original.model}`}><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_BRAND}>No brand</SelectItem>
+              {/* Keep a brand that's no longer listed selectable, so saving other fields doesn't drop it. */}
+              {[...brandList, ...(row.original.brand && !brandList.includes(row.original.brand) ? [row.original.brand] : [])]
+                .map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </TableCell>
+      ) : (
+        <TextCell value={row.original.brand ? brandLabel(row.original.brand) : null} />
+      ),
+    },
+    {
+      id: "msrp",
+      accessorFn: (r) => r.msrp,
+      meta: { headClassName: "text-right" },
+      header: (ctx) => (
+        <DataTableColumnHeader
+          ctx={ctx}
+          align="right"
+          label="MSRP"
+          filter={
+            <ColumnFilterPopover
+              label="MSRP"
+              active={msrpMin != null || msrpMax != null}
+              onClear={() => navigate({ msrpMin: undefined, msrpMax: undefined, page: 1 })}
+            >
+              <RangeFilterMenu
+                min={msrpMin ?? 0}
+                max={msrpMax ?? msrpCeiling}
+                ceiling={msrpCeiling}
+                onChange={({ min, max }) =>
+                  navigate({
+                    msrpMin: min > 0 ? min : undefined,
+                    msrpMax: max < msrpCeiling ? max : undefined,
+                    page: 1,
+                  })
+                }
+              />
+            </ColumnFilterPopover>
+          }
+        />
+      ),
+      cell: ({ row }) => editing === row.original.model ? (
+        <TableCell className="text-right">
+          <Input
+            aria-label={`MSRP for ${row.original.model}`}
+            inputMode="decimal"
+            defaultValue={draft.current.msrp}
+            placeholder="—"
+            onChange={(e) => { draft.current.msrp = e.target.value; }}
+            onKeyDown={(e) => { if (e.key === "Enter") saveEdit(row.original); if (e.key === "Escape") setEditing(null); }}
+            className="h-8 w-28 ml-auto text-right"
+          />
+        </TableCell>
+      ) : (
+        <MoneyCell value={row.original.msrp} />
+      ),
+    },
+    {
+      id: "source",
+      header: "Source",
+      cell: ({ row }) => <StatusBadgeCell label={row.original.source} variant={sourceBadge(row.original.source)} />,
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      meta: { headClassName: "text-right" },
+      cell: ({ row }) => (
+        <TableCell className="text-right">
+          {editing === row.original.model ? (
+            <div className="flex justify-end gap-2">
+              <Button size="sm" disabled={pending} onClick={() => saveEdit(row.original)}>Save</Button>
+              <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
+            </div>
+          ) : (
+            <div className="flex justify-end gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label={`Edit ${row.original.model}`}
+                onClick={() => startEdit(row.original)}
+              >
+                <Pencil className="size-4 mr-1" />Edit
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-destructive hover:text-destructive"
+                aria-label={`Delete ${row.original.model}`}
+                onClick={() => setDeleteTarget(row.original.model)}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </div>
+          )}
+        </TableCell>
+      ),
+    },
+  ];
+
+  return (
+    <>
+      <Topbar title="Model Catalog" />
+      <div className="flex flex-col flex-1 p-4 md:p-6 gap-6">
+        {needsReview.length > 0 && (
+          <Card className="border-primary/40">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ClipboardCheck className="size-4" />
+                  Needs cataloging ({needsReview.length})
+                </CardTitle>
+                {selectedReview.size > 0 && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">{selectedReview.size} selected</span>
+                    <Button size="sm" variant="outline" disabled={pending} onClick={handleBulkConfirm}>
+                      <Check className="size-4 mr-1" />Confirm {selectedReview.size}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-destructive hover:text-destructive"
+                      disabled={pending}
+                      onClick={() => setBulkDeleteOpen(true)}
+                    >
+                      <Trash2 className="size-4 mr-1" />Delete {selectedReview.size}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setSelectedReview(new Set())}>
+                      Clear
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 px-2 pb-2 text-xs text-muted-foreground border-b">
+                <Checkbox
+                  checked={needsReview.length > 0 && selectedReview.size === needsReview.length}
+                  onCheckedChange={(checked) => toggleAllReview(checked === true)}
+                  aria-label="Select all needs-review rows"
+                />
+                <span>Select all</span>
+              </div>
+              {needsReview.map((r) => (
+                <div key={r.model} className="flex flex-col gap-2 text-sm border rounded-md p-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Checkbox
+                      checked={selectedReview.has(r.model)}
+                      onCheckedChange={(checked) => toggleReviewSelection(r.model, checked === true)}
+                      aria-label={`Select ${r.model}`}
+                    />
+                    <div className="truncate">
+                      <span className="font-mono">{r.model}</span> — entered as{" "}
+                      <strong>{r.collection}</strong>
+                      {r.brand && <> · <strong>{r.brand}</strong></>}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <Button size="sm" variant="outline" disabled={pending} onClick={() => handleConfirm(r.model)}>
+                      <Check className="size-4 mr-1" />Confirm
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={pending}
+                      onClick={() => startEdit(r)}
+                    >
+                      <Pencil className="size-4 mr-1" />Correct
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {flagged.length > 0 && (
+          <Card className="border-warning/40">
+            <CardHeader>
+              <CardTitle className="text-base">
+                Pending catalog conflicts ({flagged.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-2">
+              {flagged.map((r) => (
+                <div key={r.model} className="flex flex-col gap-2 text-sm border rounded-md p-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                  <div>
+                    <span className="font-mono">{r.model}</span> — current{" "}
+                    <strong>{r.collection}</strong> ({r.source}); a promo import said{" "}
+                    <strong>{r.flaggedCollection}</strong>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <Button size="sm" variant="outline" disabled={pending} onClick={() => handleFlag(r.model, true)}>
+                      <Check className="size-4 mr-1" />Use promo
+                    </Button>
+                    <Button size="sm" variant="ghost" disabled={pending} onClick={() => handleFlag(r.model, false)}>
+                      <X className="size-4 mr-1" />Keep current
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        <Card>
+          <CardHeader>
+            {/* Wraps on phones: the two buttons drop under the title instead of widening the page. */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2">
+                <Library className="size-5" />
+                Model Catalog
+              </CardTitle>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => { setClearTyped(""); setClearOpen(true); }}
+                  disabled={total === 0}
+                >
+                  <Trash2 className="size-4 mr-1" />Clear Catalog
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+                  <Upload className="size-4 mr-1" />Import Catalog
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {selected.size > 0 && (
+              <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 p-2 mb-4 text-sm" data-testid="catalog-bulk-bar">
+                <span className="font-medium">{selected.size} selected</span>
+                <span className="text-muted-foreground">Set</span>
+                <Select value={bulkField} onValueChange={(v) => { setBulkField(v as typeof bulkField); setBulkValue(""); }}>
+                  <SelectTrigger className="h-8 w-32 text-xs" aria-label="Field to set"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="brand">Brand</SelectItem>
+                    <SelectItem value="collection">Collection</SelectItem>
+                    <SelectItem value="msrp">MSRP</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-muted-foreground">to</span>
+                {bulkField === "brand" ? (
+                  <Select value={bulkValue || undefined} onValueChange={setBulkValue}>
+                    <SelectTrigger className="h-8 w-44 text-xs" aria-label="New brand"><SelectValue placeholder="Pick a brand" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_BRAND}>No brand</SelectItem>
+                      {brandList.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    aria-label={bulkField === "msrp" ? "New MSRP" : "New collection"}
+                    inputMode={bulkField === "msrp" ? "decimal" : undefined}
+                    placeholder={bulkField === "msrp" ? "e.g. 1295 (blank clears)" : "e.g. DRIFTWOOD"}
+                    value={bulkValue}
+                    onChange={(e) => setBulkValue(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && applyBulk()}
+                    className="h-8 w-48"
+                  />
+                )}
+                <Button size="sm" disabled={pending || (bulkField === "brand" && !bulkValue)} onClick={applyBulk}>
+                  Apply to {selected.size}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear selection</Button>
+              </div>
+            )}
+            <ActiveFilterChips
+              chips={filterChips}
+              onRemove={clearFilterChip}
+              onClearAll={clearAllFilters}
+              className="mb-4"
+            />
+            {rows.length === 0 && total === 0 && !mod && !col && !brands.length && msrpMin == null && msrpMax == null ? (
+              <EmptyState icon={Library} title="No catalog entries" compact />
+            ) : rows.length === 0 ? (
+              <EmptyState icon={Library} title="No matches for current filters" compact />
+            ) : (
+              <DataTable
+                chrome={false}
+                columns={columns}
+                data={rows}
+                getRowId={(r) => r.model}
+                manualSorting
+                manualFiltering
+                manualPagination
+                rowCount={total}
+                state={{ sorting }}
+                onSortingChange={handleSortingChange}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <PaginationFooter
+          currentPage={page}
+          totalPages={totalPages}
+          onPageChangeAction={(p) => navigate({ page: p })}
+          totalItems={total}
+          pageSize={DEFAULT_PAGE_SIZE}
+          itemLabel="models"
+        />
+      </div>
+      <ImportCatalogDialog open={importOpen} onOpenChangeAction={setImportOpen} />
+
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChangeAction={(open) => !open && setBulkDeleteOpen(false)}
+        title={`Delete ${selectedReview.size} catalog entr${selectedReview.size === 1 ? "y" : "ies"}?`}
+        description={
+          <>
+            Removing these from the catalog. Clients with these models in products
+            of interest keep their entries, but collection and brand will no longer
+            resolve from the catalog. Promo matches for affected clients will be
+            rebuilt.
+          </>
+        }
+        confirmLabel={`Delete ${selectedReview.size}`}
+        variant="destructive"
+        onConfirmAction={handleBulkDelete}
+        disabled={pending || selectedReview.size === 0}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChangeAction={(open) => !open && setDeleteTarget(null)}
+        title="Delete catalog entry"
+        description={
+          <>
+            Remove <strong>{deleteTarget}</strong> from the catalog? Clients with this
+            model in products of interest keep the entry, but its collection and brand
+            will no longer resolve from the catalog. Promo matches for affected clients
+            will be rebuilt.
+          </>
+        }
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirmAction={handleDelete}
+        disabled={pending}
+      />
+
+      <ConfirmDialog
+        open={clearOpen}
+        onOpenChangeAction={(open) => { if (!open) { setClearOpen(false); setClearTyped(""); } }}
+        title="Clear the entire catalog?"
+        description={
+          <span className="flex flex-col gap-3">
+            <span className="block">
+              This deletes all <strong>{total.toLocaleString()}</strong> catalog
+              {" "}entries, then re-seeds the catalog with provisional
+              {" "}<em>needs-review</em> rows from every client&apos;s products of
+              interest so no model the sales team has entered gets lost. The next
+              {" "}catalog import overrides these; anything the import doesn&apos;t cover
+              stays in the <strong>Needs cataloging</strong> queue. Promo matches
+              are <strong>not</strong> recomputed — the next import repairs them.
+            </span>
+            <span className="block">
+              Type <code className="rounded bg-muted px-1 py-0.5 text-xs">{CLEAR_PHRASE}</code> to confirm:
+            </span>
+            <Input
+              autoFocus
+              value={clearTyped}
+              onChange={(e) => setClearTyped(e.target.value)}
+              placeholder={CLEAR_PHRASE}
+              className="h-9"
+            />
+          </span>
+        }
+        confirmLabel="Clear Catalog"
+        variant="destructive"
+        onConfirmAction={handleClear}
+        disabled={pending || clearTyped !== CLEAR_PHRASE}
+      />
+    </>
+  );
+}

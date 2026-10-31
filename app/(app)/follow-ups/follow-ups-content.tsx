@@ -1,0 +1,532 @@
+"use client";
+
+import { useState } from "react";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { HeatBadge } from "@/components/heat-badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { DatePicker } from "@/components/date-picker";
+import { FollowUpQuickPicks } from "@/components/follow-up-quick-picks";
+import { PaginationFooter } from "@/components/pagination-footer";
+import { 
+  Clock, 
+  AlertTriangle, 
+  CheckCircle2, 
+  Calendar,
+  ChevronRight,
+  CalendarClock,
+  Timer,
+  Eye,
+} from "lucide-react";
+import Link from "next/link";
+import { markFollowUpComplete, reopenFollowUp, rescheduleFollowUp } from "@/lib/actions";
+import { toast } from "sonner";
+import { format, differenceInCalendarDays } from "date-fns";
+import { Topbar } from "@/components/topbar";
+import { EmailLink, PhoneLink } from "@/components/contact-picker";
+import { fullName, toDateOnly } from "@/lib/utils";
+import { useRemovedKeys } from "@/hooks/use-optimistic";
+
+const PAGE_SIZE = DEFAULT_PAGE_SIZE;
+
+interface FollowUpRow {
+  log: {
+    id: string;
+    method: string;
+    date: Date;
+    outcome: string;
+    notes: string | null;
+    followUpDate: Date | null;
+    completed: boolean;
+  };
+  client: {
+    id: string;
+    firstName: string;
+    lastName: string | null;
+    phone: string | null;
+    email: string | null;
+    heatScore: number;
+    heatLevel: string;
+  } | null;
+  employee: {
+    firstName: string;
+    lastName: string | null;
+  } | null;
+}
+
+interface FollowUpsContentProps {
+  overdue: FollowUpRow[];
+  upcoming: FollowUpRow[];
+}
+
+import { getMethodIcon, getOutcomeColor, isFollowUpOverdue, outcomeLabel } from "@/lib/outreach-helpers";
+
+function getRelativeTime(date: Date) {
+  const now = new Date();
+  const diff = differenceInCalendarDays(now, date);
+  if (diff > 0) return `${diff} day${diff !== 1 ? "s" : ""} overdue`;
+  if (diff === 0) return "Due today";
+  return `In ${Math.abs(diff)} day${Math.abs(diff) !== 1 ? "s" : ""}`;
+}
+
+function FollowUpCard({
+  row,
+  isOverdue,
+  onDetail,
+  onComplete,
+}: {
+  row: FollowUpRow;
+  isOverdue: boolean;
+  onDetail: () => void;
+  onComplete: (row: FollowUpRow) => Promise<void>;
+}) {
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [newDate, setNewDate] = useState<Date | undefined>(undefined);
+
+  const handleReschedule = async () => {
+    if (!newDate) return;
+    try {
+      // The action reports a rejection as { error } rather than throwing.
+      const res = await rescheduleFollowUp(row.log.id, format(newDate, "yyyy-MM-dd"));
+      if (res?.error) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success("Follow-up rescheduled");
+      setRescheduleOpen(false);
+    } catch {
+      toast.error("Failed to reschedule");
+    }
+  };
+
+  const handleSnooze = async () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    // toDateOnly, not toISOString(): `tomorrow` carries the current *time*, so
+    // west of Greenwich any snooze after ~17:00 local rolls the UTC date
+    // forward and schedules two days out. handleReschedule above is already
+    // local-correct via date-fns `format`.
+    const dateStr = toDateOnly(tomorrow)!;
+    try {
+      const res = await rescheduleFollowUp(row.log.id, dateStr);
+      if (res?.error) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success("Follow-up snoozed until tomorrow");
+    } catch {
+      toast.error("Failed to snooze");
+    }
+  };
+
+  if (!row.client) return null;
+
+  return (
+    <>
+      <Card className={isOverdue ? "border-destructive/40" : ""}>
+        <CardHeader className="pb-2 pt-4 px-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/clients/${row.client.id}`}
+                className="font-medium hover:underline"
+              >
+                {row.client.firstName} {row.client.lastName || ""}
+              </Link>
+              {isOverdue && (
+                <Badge variant="destructive" className="text-xs tracking-wide px-1.5 py-0">
+                  OVERDUE
+                </Badge>
+              )}
+              <HeatBadge level={row.client.heatLevel as "hot" | "warm" | "cold"} />
+            </div>
+            <div className="flex items-center gap-1">
+              <Badge variant="outline">
+                {getMethodIcon(row.log.method)}
+                <span className="ml-1 capitalize text-xs">{row.log.method}</span>
+              </Badge>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="px-4 pb-4 pt-0">
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
+            <div className="flex flex-col flex-1 min-w-0 gap-2">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                {row.client.phone && (
+                  <span className="flex items-center gap-1">
+                    <PhoneLink phone={row.client.phone} name={fullName(row.client)} />
+                  </span>
+                )}
+                <span className={`text-xs ${getOutcomeColor(row.log.outcome)}`}>
+                  {outcomeLabel(row.log.outcome)}
+                </span>
+              </div>
+
+              {row.log.notes && (
+                <p className="text-sm text-muted-foreground line-clamp-2">
+                  {row.log.notes}
+                </p>
+              )}
+
+              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                {row.log.followUpDate && (
+                  <span className="flex items-center gap-1">
+                    <Calendar className="size-3" />
+                    {format(new Date(row.log.followUpDate), "MMM d, yyyy")}
+                    <span className={isOverdue ? "text-destructive font-medium" : "text-muted-foreground"}>
+                      ({getRelativeTime(new Date(row.log.followUpDate))})
+                    </span>
+                  </span>
+                )}
+                {row.employee && (
+                  <span>via {row.employee ? fullName(row.employee) : ""}</span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-row sm:flex-col gap-1.5 shrink-0 flex-wrap">
+              <Button size="sm" variant="ghost" onClick={onDetail} className="h-7 text-xs gap-1">
+                <Eye className="size-3" />
+                Detail
+              </Button>
+              <div className="flex gap-1">
+                <Button size="sm" variant="outline" onClick={handleSnooze} className="h-7 text-xs gap-1">
+                  <Timer className="size-3" />
+                  Snooze
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => {
+                  const d = new Date();
+                  d.setDate(d.getDate() + 3);
+                  setNewDate(d);
+                  setRescheduleOpen(true);
+                }} className="h-7 text-xs gap-1">
+                  <CalendarClock className="size-3" />
+                  Reschedule
+                </Button>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button size="sm" variant="default" className="h-7 text-xs gap-1">
+                    <CheckCircle2 className="size-3" />
+                    Done
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Mark follow-up as done?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will mark the follow-up with {row.client.firstName} {row.client.lastName || ""} as completed.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => onComplete(row)}>Confirm</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={rescheduleOpen} onOpenChange={setRescheduleOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Reschedule Follow-Up</DialogTitle>
+            <DialogDescription>
+              Pick a new date for the follow-up with {row.client.firstName} {row.client.lastName || ""}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 py-2">
+            <DatePicker date={newDate} onSelectAction={setNewDate} className="w-full" noPastDays />
+            <FollowUpQuickPicks onPick={setNewDate} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRescheduleOpen(false)}>Cancel</Button>
+            <Button onClick={handleReschedule} disabled={!newDate}>Reschedule</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function FollowUpDetailSheet({ row, open, onOpenChange }: { row: FollowUpRow | null; open: boolean; onOpenChange: (open: boolean) => void }) {
+  if (!row || !row.client) return null;
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="sm:max-w-md overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>{row.client.firstName} {row.client.lastName || ""}</SheetTitle>
+          <SheetDescription>Follow-up details</SheetDescription>
+        </SheetHeader>
+        <div className="flex flex-col mt-6 gap-4">
+          <div className="flex flex-col gap-3">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Contact</p>
+              {row.client.phone && (
+                <p className="text-sm">
+                  <PhoneLink phone={row.client.phone} name={fullName(row.client)} />
+                </p>
+              )}
+              {row.client.email && (
+                <p className="text-sm">
+                  <EmailLink email={row.client.email} name={fullName(row.client)} />
+                </p>
+              )}
+            </div>
+            <Separator />
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Method</p>
+              <Badge variant="outline">
+                {getMethodIcon(row.log.method)}
+                <span className="ml-1 capitalize">{row.log.method}</span>
+              </Badge>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Outcome</p>
+              <p className={`text-sm ${getOutcomeColor(row.log.outcome)}`}>
+                {outcomeLabel(row.log.outcome)}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Heat</p>
+              <div className="flex items-center gap-2">
+                <HeatBadge level={row.client.heatLevel as "hot" | "warm" | "cold"} score={row.client.heatScore} showScore />
+              </div>
+            </div>
+            <Separator />
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Notes</p>
+              <p className="text-sm">{row.log.notes || "No notes"}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Follow-up Date</p>
+              <p className="text-sm">
+                {row.log.followUpDate
+                  ? format(new Date(row.log.followUpDate), "MMMM d, yyyy")
+                  : "Not set"}
+              </p>
+            </div>
+            {row.employee && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Assigned To</p>
+                <p className="text-sm">{row.employee ? fullName(row.employee) : ""}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Logged</p>
+              <p className="text-sm">{format(new Date(row.log.date), "MMMM d, yyyy 'at' h:mm a")}</p>
+            </div>
+          </div>
+          <Separator />
+          <div className="flex gap-2">
+            <Button asChild className="flex-1">
+              <Link href={`/clients/${row.client.id}`}>
+                View Client <ChevronRight className="size-4 ml-1" />
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+export function FollowUpsContent({ overdue, upcoming }: FollowUpsContentProps) {
+  const [selectedRow, setSelectedRow] = useState<FollowUpRow | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [overduePage, setOverduePage] = useState(1);
+  const [upcomingPage, setUpcomingPage] = useState(1);
+  const [allPage, setAllPage] = useState(1);
+
+  // Optimistic removal: completed cards vanish instantly; failed actions roll back.
+  const baseAll = [...overdue, ...upcoming];
+  const uniqueBase = baseAll.filter(
+    (row, i, arr) => arr.findIndex((r) => r.log.id === row.log.id) === i
+  );
+  const { isRemoved, remove, unmark } = useRemovedKeys(uniqueBase, (row) => row.log.id);
+
+  const handleComplete = async (row: FollowUpRow) => {
+    const res = await remove(row.log.id, () => markFollowUpComplete(row.log.id));
+    if (res?.error) {
+      toast.error(res.error);
+    } else {
+      toast.success("Follow-up marked complete", {
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            const r = await reopenFollowUp(row.log.id);
+            if (r?.error) toast.error(r.error);
+            else unmark(row.log.id);
+          },
+        },
+      });
+    }
+  };
+
+  const overdueRows = overdue.filter((row) => !isRemoved(row.log.id));
+  const upcomingRows = upcoming.filter((row) => !isRemoved(row.log.id));
+
+  const all = [...overdueRows, ...upcomingRows];
+  const uniqueAll = all.filter((row, i, arr) => arr.findIndex((r) => r.log.id === row.log.id) === i);
+
+  const overdueTotalPages = Math.ceil(overdueRows.length / PAGE_SIZE);
+  const pagedOverdue = overdueRows.slice((overduePage - 1) * PAGE_SIZE, overduePage * PAGE_SIZE);
+  const upcomingTotalPages = Math.ceil(upcomingRows.length / PAGE_SIZE);
+  const pagedUpcoming = upcomingRows.slice((upcomingPage - 1) * PAGE_SIZE, upcomingPage * PAGE_SIZE);
+  const allTotalPages = Math.ceil(uniqueAll.length / PAGE_SIZE);
+  const pagedAll = uniqueAll.slice((allPage - 1) * PAGE_SIZE, allPage * PAGE_SIZE);
+
+  const openDetail = (row: FollowUpRow) => {
+    setSelectedRow(row);
+    setDetailOpen(true);
+  };
+
+  return (
+    <>
+      <Topbar title="Follow-Ups" />
+      <div className="flex-1 p-4 md:p-6" data-tour="follow-ups">
+      <div className="mb-6">
+        <h1 className="sr-only">Follow-Ups</h1>
+        <p className="text-muted-foreground">
+          Track pending outreach and follow-up tasks
+        </p>
+      </div>
+
+      <Tabs defaultValue="overdue" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="overdue" className="gap-1">
+            <AlertTriangle className="size-4 text-destructive" />
+            Overdue
+            {overdueRows.length > 0 && (
+              <Badge variant="destructive" className="ml-1 text-xs tracking-wide tabular-nums px-1.5 py-0">
+                {overdueRows.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="upcoming" className="gap-1">
+            <Clock className="size-4" />
+            {/* Short label on phones; screen readers always get the full name. */}
+            <span aria-hidden className="md:hidden">Upcoming</span>
+            <span className="max-md:sr-only">Upcoming (7 days)</span>
+            {upcomingRows.length > 0 && (
+              <Badge variant="secondary" className="ml-1 text-xs tracking-wide tabular-nums px-1.5 py-0">
+                {upcomingRows.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="all" className="gap-1">
+            All
+            <Badge variant="outline" className="ml-1 text-xs tracking-wide tabular-nums px-1.5 py-0">
+              {uniqueAll.length}
+            </Badge>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overdue">
+          {overdueRows.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <CheckCircle2 className="size-12 mx-auto text-success mb-3" />
+                <h3 className="text-lg font-medium">All caught up!</h3>
+                <p className="text-muted-foreground mt-1">No overdue follow-ups right now.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+            <div className="flex flex-col gap-3">
+              {pagedOverdue.map((row) => (
+                <FollowUpCard key={row.log.id} row={row} isOverdue onDetail={() => openDetail(row)} onComplete={handleComplete} />
+              ))}
+            </div>
+            <PaginationFooter
+              currentPage={overduePage}
+              totalPages={overdueTotalPages}
+              onPageChangeAction={setOverduePage}
+              totalItems={overdueRows.length}
+              pageSize={PAGE_SIZE}
+              itemLabel="follow-ups"
+            />
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="upcoming">
+          {upcomingRows.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Clock className="size-12 mx-auto text-muted-foreground mb-3" />
+                <h3 className="text-lg font-medium">No upcoming follow-ups</h3>
+                <p className="text-muted-foreground mt-1">
+                  Follow-ups scheduled in the next 7 days will appear here.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+            <div className="flex flex-col gap-3">
+              {pagedUpcoming.map((row) => (
+                <FollowUpCard key={row.log.id} row={row} isOverdue={false} onDetail={() => openDetail(row)} onComplete={handleComplete} />
+              ))}
+            </div>
+            <PaginationFooter
+              currentPage={upcomingPage}
+              totalPages={upcomingTotalPages}
+              onPageChangeAction={setUpcomingPage}
+              totalItems={upcomingRows.length}
+              pageSize={PAGE_SIZE}
+              itemLabel="follow-ups"
+            />
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="all">
+          {uniqueAll.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <CheckCircle2 className="size-12 mx-auto text-success mb-3" />
+                <h3 className="text-lg font-medium">No follow-ups</h3>
+                <p className="text-muted-foreground mt-1">All follow-ups have been completed.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+            <div className="flex flex-col gap-3">
+              {pagedAll.map((row) => {
+                const isOverdue = isFollowUpOverdue(row.log.followUpDate);
+                return (
+                  <FollowUpCard key={row.log.id} row={row} isOverdue={isOverdue} onDetail={() => openDetail(row)} onComplete={handleComplete} />
+                );
+              })}
+            </div>
+            <PaginationFooter
+              currentPage={allPage}
+              totalPages={allTotalPages}
+              onPageChangeAction={setAllPage}
+              totalItems={uniqueAll.length}
+              pageSize={PAGE_SIZE}
+              itemLabel="follow-ups"
+            />
+            </>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      <FollowUpDetailSheet
+        row={selectedRow}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+      />
+      </div>
+    </>
+  );
+}

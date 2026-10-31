@@ -1,0 +1,302 @@
+"use client";
+
+import { fullName } from "@/lib/utils";
+import { useState, useTransition } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Phone, Calendar, Clock, CheckCircle, ChevronDown, RotateCcw } from "lucide-react";
+import { format } from "date-fns";
+import { toast } from "sonner";
+import { EmptyState } from "@/components/empty-state";
+import { DatePicker } from "@/components/date-picker";
+import type { FullClient } from "@/components/client-provider";
+import type { OutreachLog } from "@/lib/db/schema";
+import { getMethodIcon, isFollowUpOverdue, isFollowUpUpcoming, outcomeLabel } from "@/lib/outreach-helpers";
+import { markFollowUpComplete, reopenFollowUp, rescheduleFollowUp } from "@/lib/actions";
+import { OutreachLogger } from "@/components/outreach-logger";
+import { useOptimisticToggle } from "@/hooks/use-optimistic";
+
+const PAGE_SIZE = 10;
+
+interface OutreachHistoryTabProps {
+  client: FullClient;
+}
+
+function OutreachLogRow({
+  log,
+  client,
+  onReschedule,
+  reschedulePending,
+}: {
+  log: OutreachLog;
+  client: FullClient;
+  onReschedule: (logId: string, date: Date) => void;
+  reschedulePending: boolean;
+}) {
+  // Optimistic completion: badge flips instantly; failed actions roll back.
+  const { value: completed, toggle: toggleComplete } = useOptimisticToggle(
+    log.completed,
+    () => markFollowUpComplete(log.id)
+  );
+
+  const handleComplete = async () => {
+    const res = await toggleComplete();
+    if (res?.error) {
+      toast.error("Failed to mark complete");
+    } else {
+      toast.success("Follow-up marked complete", {
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            const r = await reopenFollowUp(log.id);
+            if (r?.error) toast.error(r.error);
+          },
+        },
+      });
+    }
+  };
+
+  const getOutcomeBadge = (outcome: string) => {
+    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+      "responded": "default",
+      "wants_to_come_in": "default",
+      "purchased": "default",
+      "no_answer": "secondary",
+      "voicemail": "secondary",
+      "voicemail_full": "secondary",
+      "not_interested": "destructive",
+    };
+
+
+    return (
+      <Badge variant={variants[outcome] || "outline"}>
+        {outcomeLabel(outcome)}
+      </Badge>
+    );
+  };
+
+  return (
+    <div className="border rounded-lg p-4">
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-2">
+          {getMethodIcon(log.method)}
+          <span className="font-medium capitalize">{log.method}</span>
+          <span>•</span>
+          <span className="text-sm text-muted-foreground">
+            {format(new Date(log.date), "MMM d, yyyy")}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          {getOutcomeBadge(log.outcome)}
+          <OutreachLogger
+            key={`relog-${log.id}`}
+            clientId={client.id}
+            clientName={fullName(client)}
+            defaultMethod={log.method as "call" | "text" | "email" | "in-person"}
+            trigger={
+              <Button variant="ghost" size="sm" title="Log another outreach with this method">
+                <RotateCcw className="size-3.5 mr-1" />
+                Re-log
+              </Button>
+            }
+          />
+        </div>
+      </div>
+
+      {log.purchasedModel && (
+        <div className="border border-success/50 bg-success/10 rounded p-2 mb-3">
+          <div className="text-sm font-medium text-success">Purchase</div>
+          <div className="text-sm text-success/90">{log.purchasedModel}</div>
+        </div>
+      )}
+
+      {log.notes && (
+        <div className="mb-3">
+          <div className="text-sm text-muted-foreground mb-1">Notes</div>
+          <div className="text-sm bg-muted/50 rounded p-2">
+            {log.notes}
+          </div>
+        </div>
+      )}
+
+      {log.followUpDate && (
+        <div className="flex items-center justify-between mt-3 pt-3 border-t gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            {completed ? (
+              <CheckCircle className="size-4 text-success" />
+            ) : (
+              <Calendar className="size-4" />
+            )}
+            <span className={`text-sm ${completed ? "text-muted-foreground line-through" : ""}`}>
+              Follow up: {format(new Date(log.followUpDate), "MMM d, yyyy")}
+            </span>
+            {completed ? (
+              <Badge variant="outline" className="text-xs border-success/40 text-success">
+                Completed
+              </Badge>
+            ) : (
+              <>
+                {isFollowUpOverdue(log.followUpDate) && (
+                  <Badge variant="destructive" className="text-xs">
+                    Overdue
+                  </Badge>
+                )}
+                {isFollowUpUpcoming(log.followUpDate) && (
+                  <Badge variant="secondary" className="text-xs">
+                    Upcoming
+                  </Badge>
+                )}
+              </>
+            )}
+          </div>
+          {!completed && (
+            <div className="flex items-center gap-2">
+              <DatePicker
+                date={new Date(log.followUpDate)}
+                onSelectAction={(d) => d && onReschedule(log.id, d)}
+                disabled={reschedulePending}
+                noPastDays
+              />
+              <Button size="sm" onClick={handleComplete}>
+                <CheckCircle className="size-4 mr-1" />
+                Complete
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function OutreachHistoryTab({ client }: OutreachHistoryTabProps) {
+  const [isPending, startTransition] = useTransition();
+
+  const handleReschedule = (logId: string, date: Date) => {
+    startTransition(async () => {
+      try {
+        // The action reports a rejection as { error } rather than throwing.
+        const res = await rescheduleFollowUp(logId, format(date, "yyyy-MM-dd"));
+        if (res?.error) {
+          toast.error(res.error);
+          return;
+        }
+        toast.success(`Follow-up rescheduled to ${format(date, "MMM d, yyyy")}`);
+      } catch {
+        toast.error("Failed to reschedule follow-up");
+      }
+    });
+  };
+
+  const outreachLogs: OutreachLog[] = client.outreach || [];
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const visibleLogs = outreachLogs.slice(0, visibleCount);
+  const hasMore = visibleCount < outreachLogs.length;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2">
+              <div className="text-2xl font-bold">{outreachLogs.length}</div>
+              <div className="text-sm text-muted-foreground">Total Outreach</div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2">
+              <div className="text-2xl font-bold text-success">
+                {outreachLogs.filter((log: OutreachLog) => log.outcome === "responded" || log.outcome === "purchased").length}
+              </div>
+              <div className="text-sm text-muted-foreground">Positive</div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2">
+              <div className="text-2xl font-bold text-info">
+                {outreachLogs.filter((log: OutreachLog) => log.outcome === "wants_to_come_in").length}
+              </div>
+              <div className="text-sm text-muted-foreground">Visits Scheduled</div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2">
+              <div className="text-2xl font-bold text-destructive">
+                {outreachLogs.filter((log: OutreachLog) => log.outcome === "not_interested").length}
+              </div>
+              <div className="text-sm text-muted-foreground">Not Interested</div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="size-5" />
+              Outreach History
+            </CardTitle>
+            <OutreachLogger
+              clientId={client.id}
+              clientName={fullName(client)}
+              trigger={
+                <Button size="sm">
+                  <Phone className="size-3.5 mr-1.5" />
+                  Log Outreach
+                </Button>
+              }
+            />
+          </div>
+        </CardHeader>
+        <CardContent>
+          {outreachLogs.length > 0 ? (
+            <div className="flex flex-col gap-4">
+              <div className="divide-y">
+                {visibleLogs.map((log: OutreachLog) => (
+                  <OutreachLogRow
+                    key={log.id}
+                    log={log}
+                    client={client}
+                    onReschedule={handleReschedule}
+                    reschedulePending={isPending}
+                  />
+                ))}
+              </div>
+              {hasMore && (
+                <div className="flex justify-center pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                  >
+                    <ChevronDown className="size-4 mr-1" />
+                    Load more ({outreachLogs.length - visibleCount} remaining)
+                  </Button>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground text-center">
+                {outreachLogs.length} outreach record{outreachLogs.length !== 1 ? "s" : ""}
+              </p>
+            </div>
+          ) : (
+            <EmptyState
+              icon={Phone}
+              title="No outreach history recorded"
+            />
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

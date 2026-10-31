@@ -1,0 +1,519 @@
+"use server";
+import { db } from "@/lib/db";
+import { clients, outreachLogs, activityEvents, promoMatches, bannedCustomers, unsubscribeList, approvalRequests, employees, prospects, type ProductOfInterest } from "@/lib/db/schema";
+import { eq, and, inArray, sql } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import { randomUUID } from "crypto";
+import { assertAssignableEmployee, requireAuth, requireManager } from "./_shared";
+import { recalcHeat } from "@/lib/heat-recalc";
+import { fullName } from "@/lib/utils";
+import { recordProductsOfInterest } from "./model-catalog";
+import { applyClientPatchUnchecked } from "./_client-patch-core";
+import { runStatusChange, applyBanUnchecked, applyUnsubscribeUnchecked, applyDeleteUnchecked } from "./_client-status-core";
+import { clientPatchSchema, banClientSchema, banWalkInSchema, unsubscribeEmailSchema } from "@/lib/validation/client";
+import { sameEmail } from "@/lib/email-identity";
+import { rematchClientPromos } from "@/lib/promo-match";
+import { canonicalizeTags, syncTagUsage } from "@/lib/tag-registry";
+
+// Structural de-dupe for products of interest (objects, so Set won't dedupe).
+function dedupeProducts(list: ProductOfInterest[]): ProductOfInterest[] {
+  const seen = new Set<string>();
+  const out: ProductOfInterest[] = [];
+  for (const p of list) {
+    const key = `${(p.model ?? "").toUpperCase()}|${(p.collection ?? "").toUpperCase()}`;
+    if (!seen.has(key)) { seen.add(key); out.push(p); }
+  }
+  return out;
+}
+
+/**
+ * Edit a client profile. Managers may edit anyone; associates only their own
+ * clients. `data` is untrusted — clientPatchSchema is the field allowlist, so
+ * protected columns (status, employeeId, heatScore…) are stripped here rather
+ * than relying on each caller to parse first.
+ */
+export async function saveClientEdits(clientId: string, data: unknown): Promise<{ error: string } | undefined> {
+  const user = await requireAuth();
+  const c = db.select({ employeeId: clients.employeeId }).from(clients).where(eq(clients.id, clientId)).get();
+  if (!c) return { error: "Client not found" };
+  if (user.role !== "manager" && c.employeeId !== user.id) return { error: "Not authorized" };
+
+  const parsed = clientPatchSchema.safeParse(data);
+  if (!parsed.success) return { error: "Invalid request" };
+
+  applyClientPatchUnchecked(clientId, parsed.data as Record<string, unknown>, user.id);
+  await recalcHeat(clientId);
+}
+
+export async function banClient(clientId: string, rawCategory: "Reselling" | "Gift Card Fraud" | "Other", rawReason: string): Promise<{ error: string } | undefined> {
+  const user = await requireManager();
+  const parsed = banClientSchema.safeParse({ category: rawCategory, reason: rawReason });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid request" };
+  const { category, reason } = parsed.data;
+  const result = runStatusChange((tx) => applyBanUnchecked(tx, clientId, category, reason, user.id));
+  if (result?.error) return result;
+  await recalcHeat(clientId);
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/banned");
+}
+
+/**
+ * Ban someone who has no client record — the /banned dialog's walk-in path.
+ * Writes a `banned_customers` row with a null `customer_id`; there is no
+ * client to flip to `status: "banned"` and no `activity_events` row to write
+ * (its `client_id` is a non-null FK).
+ */
+export async function banWalkIn(data: unknown): Promise<{ error: string } | undefined> {
+  await requireManager();
+  const parsed = banWalkInSchema.safeParse(data);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid request" };
+  const { firstName, lastName, email, phone, category, reason } = parsed.data;
+
+  db.insert(bannedCustomers).values({
+    id: randomUUID(),
+    customerId: null,
+    firstName,
+    lastName,
+    email,
+    phone,
+    banReasonCategory: category,
+    specificBanReason: reason,
+  }).run();
+
+  revalidatePath("/banned");
+}
+
+export async function unsubscribeClient(clientId: string): Promise<{ error: string } | undefined> {
+  const user = await requireManager();
+  const result = runStatusChange((tx) => applyUnsubscribeUnchecked(tx, clientId, user.id));
+  if (result?.error) return result;
+  await recalcHeat(clientId);
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/unsubscribed");
+}
+
+/**
+ * Lift a client's ban. Reports `{ error }` rather than a bare `undefined` when
+ * there was no ban to lift: callers treat a non-`{ error }` result as success,
+ * and `useRemovedKeys` *holds* an optimistic removal on success. A silent
+ * "nothing to do" therefore made the row vanish from /banned and stay vanished
+ * — the reconcile effect only clears the override once the key leaves the
+ * server props, and the untouched ban row never does.
+ */
+export async function unbanClient(clientId: string): Promise<{ error: string } | undefined> {
+  const user = await requireManager();
+  const c = db.select({ status: clients.status }).from(clients).where(eq(clients.id, clientId)).get();
+  if (!c) return { error: "Client not found" };
+  if (c.status !== "banned") return { error: "Client is not banned" };
+  db.transaction((tx) => {
+    tx.update(clients).set({ status: "active", updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+    tx.delete(bannedCustomers).where(eq(bannedCustomers.customerId, clientId)).run();
+    tx.insert(activityEvents).values({
+      id: randomUUID(), clientId, eventType: "status_changed", description: "Unbanned", metadata: { newStatus: "active" }, employeeId: user.id,
+    }).run();
+    // Banning deleted their promo matches; rebuild them now that they're active.
+    rematchClientPromos(tx, [clientId]);
+  });
+  await recalcHeat(clientId);
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/banned");
+}
+
+/**
+ * Add an address to the compliance suppression list by hand.
+ *
+ * This was the one write path in the app with no zod schema at all — its only
+ * gate was a hand-rolled regex in the UI that accepts "a@b.c." and "a@b..c" —
+ * and it neither lowercased nor case-folded its lookups, while the UI's own
+ * dedupe check *was* case-insensitive. Quick-Adding "Alex@Example.com" for a
+ * client stored as "alex@example.com" therefore passed the UI check, passed
+ * the UNIQUE constraint (SQLite TEXT collates BINARY), never marked the client
+ * unsubscribed, and left a row reading "No client match" forever.
+ */
+export async function addUnsubscribeEmail(rawEmail: string): Promise<
+  | { error: string }
+  // The new list row, shaped like a `getUnsubscribeList` row, so the page can
+  // show it without a reload (its list lives in useState, which ignores the
+  // refreshed prop).
+  | { error?: undefined; row: { unsub: typeof unsubscribeList.$inferSelect; clientId: string | null; firstName: string | null; lastName: string | null; customerId: string | null } }
+> {
+  const user = await requireManager();
+  const parsed = unsubscribeEmailSchema.safeParse(rawEmail);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid email" };
+  const email = parsed.data;
+
+  const existing = db.select().from(unsubscribeList).where(sameEmail(unsubscribeList.email, email)).get();
+  if (existing) return { error: "Email already exists" };
+  // Several clients can share an address. Same precedence as
+  // getUnsubscribeList's join: never a banned or soft-deleted client, prefer
+  // the one already unsubscribed, then lowest id. If the only matches are
+  // banned or deleted, refuse — the status write would stomp the ban or
+  // resurrect the deleted row as "unsubscribed".
+  const candidates = db.select({ id: clients.id, firstName: clients.firstName, lastName: clients.lastName, customerId: clients.customerId, status: clients.status, deletedAt: clients.deletedAt })
+    .from(clients).where(sameEmail(clients.email, email))
+    .orderBy(sql`${clients.status} = 'unsubscribed' DESC`, clients.id).all();
+  const isBlocked = (c: (typeof candidates)[number]) => c.status === "banned" || c.status === "deleted" || c.deletedAt !== null;
+  const matchingClient = candidates.find((c) => !isBlocked(c));
+  if (!matchingClient && candidates.length > 0) {
+    return { error: candidates.some((c) => c.status === "banned") ? "Email belongs to a banned client" : "Email belongs to a deleted client" };
+  }
+  const unsub = db.transaction((tx) => {
+    const inserted = tx.insert(unsubscribeList).values({ id: randomUUID(), email }).returning().get();
+    if (matchingClient) {
+      tx.update(clients).set({ status: "unsubscribed", onEmailList: false, updatedAt: new Date() }).where(eq(clients.id, matchingClient.id)).run();
+      tx.insert(activityEvents).values({
+        id: randomUUID(), clientId: matchingClient.id, eventType: "status_changed", description: "Manually added to unsubscribe list", metadata: { newStatus: "unsubscribed" }, employeeId: user.id,
+      }).run();
+    }
+    return inserted;
+  });
+  if (matchingClient) await recalcHeat(matchingClient.id);
+  if (matchingClient) revalidatePath(`/clients/${matchingClient.id}`);
+  revalidatePath("/unsubscribed");
+  return {
+    row: {
+      unsub,
+      clientId: matchingClient?.id ?? null,
+      firstName: matchingClient?.firstName ?? null,
+      lastName: matchingClient?.lastName ?? null,
+      customerId: matchingClient?.customerId ?? null,
+    },
+  };
+}
+
+/**
+ * Delete one suppression-list row by its own id.
+ *
+ * `resubscribeClient` is the only other `delete(unsubscribeList)` and it is
+ * reached through a client id, so a row with no matching client — a seeded
+ * opt-out, or a Quick Add for a non-client — had no removal path at all. This
+ * is that path: it takes the row's identity, so it does not depend on the
+ * email matching a client's, and it touches no client status because there is
+ * no client to touch.
+ */
+export async function removeUnsubscribeEntry(unsubId: string): Promise<{ error: string } | undefined> {
+  await requireManager();
+  const row = db.select({ id: unsubscribeList.id }).from(unsubscribeList).where(eq(unsubscribeList.id, unsubId)).get();
+  if (!row) return { error: "Unsubscribe entry not found" };
+  db.delete(unsubscribeList).where(eq(unsubscribeList.id, unsubId)).run();
+  revalidatePath("/unsubscribed");
+}
+
+export async function resubscribeClient(clientId: string): Promise<{ error: string } | undefined> {
+  const user = await requireManager();
+  const c = db.select({ email: clients.email }).from(clients).where(eq(clients.id, clientId)).get();
+  if (!c) return { error: "Client not found" };
+  const resubscribed = db.transaction((tx) => {
+    // Restore status to active without forcing onEmailList: true — the
+    // client may have been unsubscribed from emails independently of
+    // being on the suppression list. Removing from the suppression list
+    // means they CAN be re-added, not that they ARE on it.
+    // Only an unsubscribed client flips: activating a banned client would
+    // lift the ban, and a soft-deleted one would keep a contradictory deletedAt.
+    const { changes } = tx.update(clients).set({ status: "active", updatedAt: new Date() })
+      .where(and(eq(clients.id, clientId), eq(clients.status, "unsubscribed"))).run();
+    if (changes === 0) return false;
+    // Case-insensitive: the suppression row may have been written in a
+    // different case than the client's own email, and a case-sensitive delete
+    // would leave it behind as an unremovable orphan.
+    if (c.email) {
+      tx.delete(unsubscribeList).where(sameEmail(unsubscribeList.email, c.email)).run();
+    }
+    tx.insert(activityEvents).values({
+      id: randomUUID(), clientId, eventType: "status_changed", description: "Resubscribed", metadata: { newStatus: "active" }, employeeId: user.id,
+    }).run();
+    // Unsubscribing dropped their promo matches; rebuild them.
+    rematchClientPromos(tx, [clientId]);
+    return true;
+  });
+  if (!resubscribed) return { error: "Client is not unsubscribed" };
+  await recalcHeat(clientId);
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/unsubscribed");
+}
+
+export async function toggleEmailList(clientId: string): Promise<{ error: string } | undefined> {
+  const user = await requireAuth();
+  const c = db.select({ employeeId: clients.employeeId, status: clients.status, onEmailList: clients.onEmailList })
+    .from(clients).where(eq(clients.id, clientId)).get();
+  if (!c) return { error: "Client not found" };
+  if (user.role !== "manager" && c.employeeId !== user.id) return { error: "Not authorized to change this client's email list" };
+  if (c.status === "unsubscribed") return { error: "Cannot toggle email list for unsubscribed client" };
+  const newValue = !c.onEmailList;
+  db.transaction((tx) => {
+    tx.update(clients).set({ onEmailList: newValue, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+    tx.insert(activityEvents).values({
+      id: randomUUID(), clientId, eventType: "edited", description: newValue ? "Added to email list" : "Removed from email list", metadata: { onEmailList: newValue }, employeeId: user.id,
+    }).run();
+  });
+  await recalcHeat(clientId);
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/clients");
+}
+
+export async function transferClient(clientId: string, newEmployeeId: string): Promise<{ error: string } | undefined> {
+  const user = await requireManager();
+
+  const clientRow = db.select({ employeeId: clients.employeeId }).from(clients).where(eq(clients.id, clientId)).get();
+  if (!clientRow) return { error: "Client not found" };
+
+  const target = assertAssignableEmployee(newEmployeeId);
+  if (target.error !== undefined) return { error: target.error };
+  const newEmployee = target.employee;
+
+  const previousEmployee = clientRow.employeeId
+    ? db.select({ firstName: employees.firstName, lastName: employees.lastName }).from(employees).where(eq(employees.id, clientRow.employeeId)).get()
+    : null;
+
+  const newEmployeeName = fullName(newEmployee);
+  const previousEmployeeName = previousEmployee ? fullName(previousEmployee) : undefined;
+
+  db.transaction((tx) => {
+    tx.update(clients).set({ employeeId: newEmployeeId, updatedAt: new Date() }).where(eq(clients.id, clientId)).run();
+    tx.insert(activityEvents).values({
+      id: randomUUID(),
+      clientId,
+      eventType: "transferred",
+      description: `Transferred to ${newEmployeeName}`,
+      employeeId: user.id,
+      metadata: { newEmployeeName, ...(previousEmployeeName ? { previousEmployeeName } : {}) },
+    }).run();
+  });
+
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/clients");
+}
+
+export async function deleteClient(clientId: string): Promise<{ error: string } | undefined> {
+  const user = await requireManager();
+
+  const result = runStatusChange((tx) => applyDeleteUnchecked(tx, clientId, user.id, user.name));
+  if (result?.error) return result;
+
+  revalidatePath("/clients");
+  revalidatePath("/settings");
+}
+
+export async function restoreClient(clientId: string): Promise<{ error: string } | undefined> {
+  const user = await requireManager();
+
+  const client = db.select({ status: clients.status, previousStatus: clients.previousStatus })
+    .from(clients).where(eq(clients.id, clientId)).get();
+  if (!client) return { error: "Client not found" };
+  if (client.status !== "deleted") return { error: "Client is not deleted" };
+
+  db.transaction((tx) => {
+    tx.update(clients).set({
+      status: client.previousStatus ?? "active",
+      previousStatus: null,
+      deletedAt: null,
+      deletedBy: null,
+      updatedAt: new Date(),
+    }).where(eq(clients.id, clientId)).run();
+
+    tx.insert(activityEvents).values({
+      id: randomUUID(),
+      clientId,
+      eventType: "status_changed",
+      description: `Client restored to ${client.previousStatus ?? "active"} by ${user.name}`,
+      employeeId: user.id,
+    }).run();
+    rematchClientPromos(tx, [clientId]);
+  });
+  await recalcHeat(clientId);
+
+  revalidatePath("/clients");
+  revalidatePath("/settings");
+}
+
+export async function purgeClient(clientId: string): Promise<{ error: string } | undefined> {
+  await requireManager();
+
+  const client = db.select({ id: clients.id }).from(clients).where(eq(clients.id, clientId)).get();
+  if (!client) return { error: "Client not found" };
+
+  db.transaction((tx) => {
+    tx.delete(activityEvents).where(eq(activityEvents.clientId, clientId)).run();
+    tx.delete(outreachLogs).where(eq(outreachLogs.clientId, clientId)).run();
+    tx.delete(promoMatches).where(eq(promoMatches.clientId, clientId)).run();
+    tx.delete(approvalRequests).where(eq(approvalRequests.clientId, clientId)).run();
+    // prospects.graduated_to_client_id has no ON DELETE action, so a live link fails the delete.
+    tx.update(prospects).set({ graduatedToClientId: null }).where(eq(prospects.graduatedToClientId, clientId)).run();
+    // banned_customers.customer_id has no FK, so nothing stops it dangling;
+    // the ban row describes a client that no longer exists.
+    tx.delete(bannedCustomers).where(eq(bannedCustomers.customerId, clientId)).run();
+    tx.delete(clients).where(eq(clients.id, clientId)).run();
+  });
+
+  revalidatePath("/clients");
+  revalidatePath("/settings");
+}
+
+/** The client columns the merge dialog lets a manager choose a side for.
+ *  Anything outside this set is not a field `pick` can resolve, so the key
+ *  union — rather than `string` — is what the signature should say. */
+type MergeableField =
+  | "firstName"
+  | "lastName"
+  | "phone"
+  | "email"
+  | "birthday"
+  | "anniversary"
+  | "customerId"
+  | "source"
+  | "preferredContact";
+
+export async function mergeClients(
+  clientAId: string,
+  clientBId: string,
+  fieldChoices: Partial<Record<MergeableField, "a" | "b">>,
+  finalNotes: string | null,
+): Promise<{ winnerId: string } | { error: string }> {
+  const user = await requireManager();
+  // Merging a client into itself would delete it as the "loser".
+  if (clientAId === clientBId) return { error: "Cannot merge a client with itself" };
+
+  const clientA = db.select().from(clients).where(eq(clients.id, clientAId)).get();
+  const clientB = db.select().from(clients).where(eq(clients.id, clientBId)).get();
+  if (!clientA || !clientB) return { error: "Client not found" };
+
+  // Older dateAdded survives
+  const aIsOlder = new Date(clientA.dateAdded).getTime() <= new Date(clientB.dateAdded).getTime();
+  const winner = aIsOlder ? clientA : clientB;
+  const loser = aIsOlder ? clientB : clientA;
+
+  const pick = (key: MergeableField): unknown =>
+    fieldChoices[key] === "b"
+      ? (clientB as Record<string, unknown>)[key]
+      : (clientA as Record<string, unknown>)[key];
+
+  const latestOf = (a: Date | null | undefined, b: Date | null | undefined) => {
+    if (!a && !b) return null;
+    if (!a) return b;
+    if (!b) return a;
+    return a.getTime() >= b.getTime() ? a : b;
+  };
+
+  const mergedProducts = dedupeProducts([
+    ...(clientA.productsOfInterest || []),
+    ...(clientB.productsOfInterest || []),
+  ]);
+
+  db.transaction((tx) => {
+    tx.update(clients).set({
+      firstName: pick("firstName") as string || winner.firstName,
+      lastName: pick("lastName") as string | null,
+      phone: pick("phone") as string | null,
+      email: pick("email") as string | null,
+      birthday: pick("birthday") as string | null,
+      anniversary: pick("anniversary") as string | null,
+      customerId: pick("customerId") as string | null,
+      source: pick("source") as typeof clients.$inferSelect.source,
+      preferredContact: (pick("preferredContact") as typeof clients.$inferSelect.preferredContact)
+        ?? clientA.preferredContact ?? clientB.preferredContact ?? null,
+      onEmailList: (clientA.onEmailList || clientB.onEmailList),
+      // A ban on either record survives the merge.
+      ...(clientA.status === "banned" || clientB.status === "banned" ? { status: "banned" as const } : {}),
+      notes: finalNotes ?? null,
+      productsOfInterest: mergedProducts,
+      tags: Array.from(new Set([...(clientA.tags || []), ...(clientB.tags || [])])),
+      lastOutreachAt: latestOf(clientA.lastOutreachAt, clientB.lastOutreachAt),
+      lastPurchaseAt: latestOf(clientA.lastPurchaseAt, clientB.lastPurchaseAt),
+      updatedAt: new Date(),
+    }).where(eq(clients.id, winner.id)).run();
+
+    // Migrate FK references from loser to winner
+    tx.update(outreachLogs).set({ clientId: winner.id }).where(eq(outreachLogs.clientId, loser.id)).run();
+    tx.update(activityEvents).set({ clientId: winner.id }).where(eq(activityEvents.clientId, loser.id)).run();
+    tx.update(approvalRequests).set({ clientId: winner.id }).where(eq(approvalRequests.clientId, loser.id)).run();
+    tx.update(prospects).set({ graduatedToClientId: winner.id }).where(eq(prospects.graduatedToClientId, loser.id)).run();
+    tx.update(bannedCustomers).set({ customerId: winner.id }).where(eq(bannedCustomers.customerId, loser.id)).run();
+
+    // promoMatches: delete loser's entries that conflict with winner's, then migrate the rest
+    const winnerPromoIds = tx.select({ promoId: promoMatches.promoId })
+      .from(promoMatches).where(eq(promoMatches.clientId, winner.id)).all()
+      .map((r) => r.promoId);
+    if (winnerPromoIds.length > 0) {
+      tx.delete(promoMatches)
+        .where(and(eq(promoMatches.clientId, loser.id), inArray(promoMatches.promoId, winnerPromoIds)))
+        .run();
+    }
+    tx.update(promoMatches).set({ clientId: winner.id }).where(eq(promoMatches.clientId, loser.id)).run();
+
+    const loserName = fullName(loser);
+    tx.insert(activityEvents).values({
+      id: randomUUID(),
+      clientId: winner.id,
+      eventType: "merged",
+      description: `Merged from ${loserName}`,
+      employeeId: user.id,
+      metadata: { sourceClientId: loser.id, sourceClientName: loserName },
+    }).run();
+
+    tx.delete(clients).where(eq(clients.id, loser.id)).run();
+    recordProductsOfInterest(tx, mergedProducts);
+    // The winner now holds both clients' interests.
+    rematchClientPromos(tx, [winner.id]);
+  });
+
+  await recalcHeat(winner.id);
+  revalidatePath(`/clients/${winner.id}`);
+  revalidatePath("/clients");
+
+  return { winnerId: winner.id };
+}
+
+/**
+ * Resolve a new-client-form duplicate into the existing record. `patch` is
+ * untrusted — it comes straight from the merge dialog — so it runs through
+ * clientPatchSchema, the same field allowlist saveClientEdits uses.
+ */
+export async function patchClientFromFormMerge(
+  existingId: string,
+  patch: unknown,
+): Promise<{ error: string } | undefined> {
+  const user = await requireManager();
+  const existing = db.select().from(clients).where(eq(clients.id, existingId)).get();
+  if (!existing) return { error: "Client not found" };
+
+  const parsed = clientPatchSchema.safeParse(patch);
+  if (!parsed.success) return { error: "Invalid request" };
+  const data = parsed.data;
+  const nextTags = data.tags ? canonicalizeTags(data.tags) : existing.tags;
+
+  db.transaction((tx) => {
+    syncTagUsage(existing.tags ?? [], nextTags ?? [], tx);
+    tx.update(clients).set({
+      // Both names are required on create; a merge must not blank one out.
+      firstName: data.firstName ?? existing.firstName,
+      lastName: data.lastName ?? existing.lastName,
+      phone: data.phone ?? null,
+      email: data.email ?? null,
+      birthday: data.birthday ?? null,
+      anniversary: data.anniversary ?? null,
+      customerId: data.customerId ?? null,
+      source: data.source ?? existing.source,
+      preferredContact: data.preferredContact ?? existing.preferredContact,
+      onEmailList: data.onEmailList ?? existing.onEmailList,
+      notes: data.notes ?? null,
+      productsOfInterest: data.productsOfInterest ?? existing.productsOfInterest,
+      tags: nextTags,
+      updatedAt: new Date(),
+    }).where(eq(clients.id, existingId)).run();
+
+    recordProductsOfInterest(tx, data.productsOfInterest ?? existing.productsOfInterest);
+    rematchClientPromos(tx, [existingId]);
+
+    tx.insert(activityEvents).values({
+      id: randomUUID(),
+      clientId: existingId,
+      eventType: "merged",
+      description: "Merged from new client form entry",
+      employeeId: user.id,
+      metadata: { sourceClientName: "new form entry" },
+    }).run();
+  });
+
+  await recalcHeat(existingId);
+  revalidatePath(`/clients/${existingId}`);
+}

@@ -1,0 +1,1441 @@
+import { db } from "@/lib/db";
+import { clients, outreachLogs, activityEvents, promoItems, promoMatches, bannedCustomers, unsubscribeList, employees, clientTags, smartLists, importBatches, prospects } from "@/lib/db/schema";
+import { eq, desc, asc, and, or, isNull, isNotNull, lte, lt, gte, inArray, notInArray, sql as rawSql } from "drizzle-orm";
+import { containsLike, containsLikeLower, containsPhone } from "@/lib/like";
+import { sameEmail } from "@/lib/email-identity";
+import { notSuppressed } from "@/lib/suppression";
+import { promoToday, promoNotEnded, promoDiscountSql } from "@/lib/promo-active";
+import { NO_MATCH_STATUSES } from "@/lib/promo-match";
+import type { SQL } from "drizzle-orm";
+import { OUTREACH_METHOD_VALUES, type OutreachMethod } from "@/lib/db/schema";
+import { getBrandNames } from "@/lib/brands";
+import { applyClientFilter } from "@/lib/utils";
+import { buildClientFilterConds } from "@/lib/client-filter-conds";
+import { smartListToClientFilters } from "@/lib/smart-list-filters";
+import { toFtsQuery } from "@/lib/fts";
+import type { DatePresetId } from "@/lib/date-presets";
+import { addDays, startOfDay } from "date-fns";
+import { MS_PER_DAY, SEC_PER_DAY, LIST_QUERY_LIMIT, PAGE_READ_LIMIT, FOLLOW_UP_LOOKAHEAD_DAYS, DEFAULT_PAGE_SIZE, PROMO_PAGE_SIZE } from "@/lib/constants";
+
+const clientListProjection = {
+  id: clients.id,
+  customerId: clients.customerId,
+  firstName: clients.firstName,
+  lastName: clients.lastName,
+  phone: clients.phone,
+  email: clients.email,
+  employeeId: clients.employeeId,
+  dateAdded: clients.dateAdded,
+  productsOfInterest: clients.productsOfInterest,
+  onEmailList: clients.onEmailList,
+  status: clients.status,
+  source: clients.source,
+  birthday: clients.birthday,
+  anniversary: clients.anniversary,
+  tags: clients.tags,
+  heatScore: clients.heatScore,
+  heatLevel: clients.heatLevel,
+  lastOutreachAt: clients.lastOutreachAt,
+  lastPurchaseAt: clients.lastPurchaseAt,
+  createdAt: clients.createdAt,
+  updatedAt: clients.updatedAt,
+};
+
+export async function getAllClients(employeeId?: string) {
+  const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
+  return db.select(clientListProjection).from(clients).where(and(notInArray(clients.status, ["banned", "deleted"]), employeeFilter)).orderBy(desc(clients.heatScore)).limit(LIST_QUERY_LIMIT).all();
+}
+
+export type ClientListRow = Awaited<ReturnType<typeof getAllClients>>[number];
+
+export async function getTopHotClients(employeeId?: string, limit = 6) {
+  const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
+  return db
+    .select(clientListProjection)
+    .from(clients)
+    .where(and(eq(clients.heatLevel, "hot"), eq(clients.status, "active"), employeeFilter))
+    .orderBy(desc(clients.heatScore))
+    .limit(limit)
+    .all();
+}
+
+export type OccasionKind = "birthday" | "anniversary";
+
+export type ClientOccasionRow = ClientListRow & {
+  occasion: OccasionKind;
+  /** The stored YYYY-MM-DD date behind this occasion. */
+  occasionDate: string;
+};
+
+/**
+ * Clients whose birthday OR anniversary falls in the current month, one row
+ * per occasion (a client with both appears twice), sorted by day-of-month.
+ * Scope: everything except banned/deleted — a birthday is the best
+ * re-engagement touchpoint for a lapsed client, so unsubscribed clients stay
+ * on the radar. Matches the smart-list builtins' base filter exactly.
+ * Associate-scoped by employeeId exactly like every other dashboard query.
+ */
+export async function getClientOccasionsCurrentMonth(employeeId?: string): Promise<ClientOccasionRow[]> {
+  const month = String(new Date().getMonth() + 1).padStart(2, "0");
+  const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
+
+  const forColumn = (column: typeof clients.birthday | typeof clients.anniversary, occasion: OccasionKind): ClientOccasionRow[] =>
+    db
+      .select(clientListProjection)
+      .from(clients)
+      .where(and(notInArray(clients.status, ["banned", "deleted"]), isNotNull(column), rawSql`substr(${column}, 6, 2) = ${month}`, employeeFilter))
+      .all()
+      .map((c) => ({ ...c, occasion, occasionDate: (occasion === "birthday" ? c.birthday : c.anniversary) as string }));
+
+  const dayOf = (r: ClientOccasionRow) => parseInt(r.occasionDate.slice(8, 10), 10) || 0;
+  return [...forColumn(clients.birthday, "birthday"), ...forColumn(clients.anniversary, "anniversary")]
+    .sort((a, b) => dayOf(a) - dayOf(b));
+}
+
+export async function getClientOwnerNames(employeeId?: string): Promise<string[]> {
+  const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
+  const rows = db
+    .selectDistinct({
+      name: rawSql<string>`NULLIF(TRIM(COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, '')), '')`,
+    })
+    .from(clients)
+    .leftJoin(employees, eq(clients.employeeId, employees.id))
+    .where(and(notInArray(clients.status, ["banned", "deleted"]), isNotNull(clients.employeeId), employeeFilter))
+    .all();
+  return rows.map((r) => r.name).filter((n): n is string => Boolean(n)).sort();
+}
+
+export type ClientSortKey = "name" | "heat" | "lastContact" | "owner";
+
+export async function getClientsWithEmployeePaginated(
+  employeeId: string | undefined,
+  opts: {
+    q?: string;
+    /** Column-scoped: matches first/last name only. */
+    nameQ?: string;
+    /** Column-scoped: matches email or phone only. */
+    contactQ?: string;
+    heat?: string;
+    owner?: string;
+    filter?: string;
+    tags?: string[];
+    tagMode?: "any" | "all";
+    /** Last-outreach lower bound, unix seconds. */
+    lastContactFrom?: number;
+    /** Last-outreach upper bound, unix seconds, inclusive — the date filter sends the end of the picked day. */
+    lastContactTo?: number;
+    /** Created-at lower bound, unix seconds. */
+    createdFrom?: number;
+    /** Created-at upper bound, unix seconds. */
+    createdTo?: number;
+    /** Rolling shortcut ids; win over the explicit bounds (see ClientFilterParams). */
+    lastContactRange?: DatePresetId;
+    createdRange?: DatePresetId;
+    sort?: ClientSortKey;
+    sortDir?: "asc" | "desc";
+    page?: number;
+    pageSize?: number;
+  },
+) {
+  const { q, nameQ, contactQ, heat, owner, filter, tags, tagMode = "any", lastContactFrom, lastContactTo, createdFrom, createdTo, lastContactRange, createdRange, sort = "heat", sortDir = "desc", page = 1, pageSize = DEFAULT_PAGE_SIZE } = opts;
+  // The ?filter= quick filter goes through the shared builder too, so the
+  // email-recipients, CSV-export and smart-list queries match this listing.
+  const { conds: filterConds } = buildClientFilterConds({
+    q, nameQ, contactQ, heat, owner, tags, tagMode,
+    lastContactFrom, lastContactTo, createdFrom, createdTo, lastContactRange, createdRange,
+    filter: filter === "all" ? undefined : filter,
+  });
+  const conds: (SQL<unknown> | undefined)[] = [
+    notInArray(clients.status, ["banned", "deleted"]),
+    employeeId ? eq(clients.employeeId, employeeId) : undefined,
+    ...filterConds,
+  ];
+
+  const whereClause = and(...conds);
+  const dirFn = sortDir === "asc" ? asc : desc;
+
+  // clients.id breaks ties (heat scores tie a lot), so a value shared across a
+  // page boundary can't repeat or vanish between pages.
+  let orderClauses: SQL<unknown>[];
+  switch (sort) {
+    case "name":
+      orderClauses = [dirFn(clients.firstName) as SQL<unknown>, dirFn(rawSql`COALESCE(${clients.lastName}, '')`) as SQL<unknown>, asc(clients.id)];
+      break;
+    case "lastContact":
+      orderClauses = [dirFn(rawSql`COALESCE(${clients.lastOutreachAt}, 0)`) as SQL<unknown>, asc(clients.id)];
+      break;
+    case "owner":
+      orderClauses = [dirFn(rawSql`TRIM(COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, ''))`) as SQL<unknown>, asc(clients.id)];
+      break;
+    case "heat":
+    default:
+      orderClauses = [dirFn(clients.heatScore) as SQL<unknown>, asc(clients.id)];
+  }
+
+  const baseSelect = db
+    .select({
+      client: clientListProjection,
+      employeeName: rawSql<string | null>`NULLIF(TRIM(COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, '')), '')`,
+    })
+    .from(clients)
+    .leftJoin(employees, eq(clients.employeeId, employees.id))
+    .where(whereClause);
+
+  const [countRow] = db
+    .select({ total: rawSql<number>`count(*)` })
+    .from(clients)
+    .leftJoin(employees, eq(clients.employeeId, employees.id))
+    .where(whereClause)
+    .all();
+
+  const total = countRow?.total ?? 0;
+  // A list that shrank under a stale `?page=` shows its last real page rather
+  // than an empty table; the caller renders the page number that came back.
+  const lastPage = Math.max(1, Math.ceil(total / pageSize));
+  const effectivePage = Math.min(Math.max(1, page), lastPage);
+
+  const rows = baseSelect.orderBy(...orderClauses).limit(pageSize).offset((effectivePage - 1) * pageSize).all();
+
+  return { rows, total, page: effectivePage };
+}
+
+export async function getClient(id: string) {
+  return db.select().from(clients).where(eq(clients.id, id)).get();
+}
+
+// Scoped by who owns the client now, not who logged the follow-up, so a
+// transferred client's follow-ups move with it. `employee` is still the logger.
+// Follow-up dates are stored at local midnight, so the bounds are day boundaries:
+// a follow-up for today is upcoming all day, never overdue. `before` is exclusive.
+function followUpWhere(from: Date | null, before: Date, employeeId?: string) {
+  return and(
+    isNotNull(outreachLogs.followUpDate),
+    eq(outreachLogs.completed, false),
+    notInArray(clients.status, ["banned", "deleted"]),
+    from ? gte(outreachLogs.followUpDate, from) : undefined,
+    lt(outreachLogs.followUpDate, before),
+    employeeId ? eq(clients.employeeId, employeeId) : undefined,
+  );
+}
+
+function queryFollowUps(from: Date | null, before: Date, employeeId?: string) {
+  return db.select({
+    log: outreachLogs,
+    client: clients,
+    employee: employees,
+  }).from(outreachLogs)
+    .innerJoin(clients, eq(outreachLogs.clientId, clients.id))
+    .leftJoin(employees, eq(outreachLogs.employeeId, employees.id))
+    .where(followUpWhere(from, before, employeeId))
+    .orderBy(outreachLogs.followUpDate)
+    .all();
+}
+
+// Sidebar badge: follow-ups needing action now, i.e. overdue plus due today
+// (the Follow-Ups page's overdue list plus today's slice of its upcoming list).
+export async function countFollowUpsDue(employeeId?: string): Promise<number> {
+  const tomorrow = addDays(startOfDay(new Date()), 1);
+  const row = db.select({ c: rawSql<number>`count(*)` })
+    .from(outreachLogs)
+    .innerJoin(clients, eq(outreachLogs.clientId, clients.id))
+    .where(followUpWhere(null, tomorrow, employeeId))
+    .get();
+  return row?.c ?? 0;
+}
+
+export async function getUpcomingFollowUps(employeeId?: string) {
+  const today = startOfDay(new Date());
+  return queryFollowUps(today, addDays(today, FOLLOW_UP_LOOKAHEAD_DAYS + 1), employeeId);
+}
+
+/**
+ * Overview KPIs over an outreach window (unix seconds, inclusive; omitted =
+ * the last 7 days, as getStats; `{}` = all time).
+ * - Conversion counts clients, not attempts: clients with a purchase logged
+ *   in the window / clients contacted in the window.
+ * - Follow-up completion: follow-ups whose date falls in the window and is
+ *   already past (before today) that are marked done / all of them.
+ * - `overdueNow` is right now, whatever the window (same rule as the
+ *   Follow-Ups page's Overdue tab).
+ * When the window has both bounds, the same-length window just before it is
+ * returned as `prev` for trend badges; otherwise `prev` is null.
+ * Scope matches getStats: clients the employee owns now.
+ */
+export async function getKpiMetrics(employeeId?: string, outreachWindow?: { from?: number; to?: number }) {
+  // Same default as getStats: the last 7 days (the dashboard's window).
+  const window = outreachWindow ?? { from: Math.floor((Date.now() - FOLLOW_UP_LOOKAHEAD_DAYS * MS_PER_DAY) / 1000) };
+  const owner = employeeId ? eq(clients.employeeId, employeeId) : undefined;
+  const live = notInArray(clients.status, ["banned", "deleted"]);
+  const todayStart = startOfDay(new Date());
+  const one = (w: { from?: number; to?: number }) => {
+    const c = db.select({
+      contacted: rawSql<number>`count(distinct ${outreachLogs.clientId})`,
+      bought: rawSql<number>`count(distinct case when ${outreachLogs.outcome} = 'purchased' then ${outreachLogs.clientId} end)`,
+      outreach: rawSql<number>`count(*)`,
+    }).from(outreachLogs)
+      .innerJoin(clients, eq(outreachLogs.clientId, clients.id))
+      .where(and(
+        w.from !== undefined ? gte(outreachLogs.date, new Date(w.from * 1000)) : undefined,
+        w.to !== undefined ? lte(outreachLogs.date, new Date(w.to * 1000)) : undefined,
+        owner,
+      )).get();
+    const f = db.select({
+      due: rawSql<number>`count(*)`,
+      done: rawSql<number>`sum(case when ${outreachLogs.completed} = 1 then 1 else 0 end)`,
+    }).from(outreachLogs)
+      .innerJoin(clients, eq(outreachLogs.clientId, clients.id))
+      .where(and(
+        isNotNull(outreachLogs.followUpDate),
+        live,
+        lt(outreachLogs.followUpDate, todayStart),
+        w.from !== undefined ? gte(outreachLogs.followUpDate, new Date(w.from * 1000)) : undefined,
+        w.to !== undefined ? lte(outreachLogs.followUpDate, new Date(w.to * 1000)) : undefined,
+        owner,
+      )).get();
+    return {
+      contacted: Number(c?.contacted ?? 0), bought: Number(c?.bought ?? 0), outreach: Number(c?.outreach ?? 0),
+      followUpsDue: Number(f?.due ?? 0), followUpsDone: Number(f?.done ?? 0),
+    };
+  };
+  const cur = one(window);
+  const prev = window.from !== undefined && window.to !== undefined
+    ? one({ from: window.from - (window.to - window.from) - 1, to: window.from - 1 })
+    : null;
+  const overdue = db.select({ c: rawSql<number>`count(*)` }).from(outreachLogs)
+    .innerJoin(clients, eq(outreachLogs.clientId, clients.id))
+    .where(followUpWhere(null, todayStart, employeeId)).get();
+  return { ...cur, prev, overdueNow: Number(overdue?.c ?? 0) };
+}
+
+export type KpiMetrics = Awaited<ReturnType<typeof getKpiMetrics>>;
+
+export async function getOverdueFollowUps(employeeId?: string) {
+  return queryFollowUps(null, startOfDay(new Date()), employeeId);
+}
+
+// Unscoped (manager store view): raw ban/unsubscribe list sizes and every
+// outreach logged. Scoped to an employee: everything is their book — clients
+// they own now, bans/unsubscribes matching those clients (walk-in bans and
+// duplicate ban rows don't count), and outreach to those clients whoever
+// logged it — the same owner scoping follow-ups use.
+/**
+ * Client counts plus outreach/purchase counts over an outreach window. The
+ * dashboard uses the default (last 7 days); Analytics passes its picked range,
+ * or `{}` for all time. Bounds are unix seconds, inclusive, on outreach date.
+ */
+export async function getStats(employeeId?: string, outreachWindow?: { from?: number; to?: number }) {
+  const clientFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
+  const ownedLive = (id: string) => and(eq(clients.employeeId, id), notInArray(clients.status, ["deleted"]));
+
+  const clientStats = db.select({
+    total: rawSql<number>`sum(case when ${clients.status} != 'deleted' then 1 else 0 end)`,
+    active: rawSql<number>`sum(case when ${clients.status} = 'active' then 1 else 0 end)`,
+    bannedClients: rawSql<number>`sum(case when ${clients.status} = 'banned' then 1 else 0 end)`,
+    unsubscribedClients: rawSql<number>`sum(case when ${clients.status} = 'unsubscribed' then 1 else 0 end)`,
+    hot: rawSql<number>`sum(case when ${clients.heatLevel} = 'hot' and ${clients.status} = 'active' then 1 else 0 end)`,
+    warm: rawSql<number>`sum(case when ${clients.heatLevel} = 'warm' and ${clients.status} = 'active' then 1 else 0 end)`,
+    cold: rawSql<number>`sum(case when ${clients.heatLevel} = 'cold' and ${clients.status} = 'active' then 1 else 0 end)`,
+  }).from(clients).where(clientFilter).get();
+
+  const banned = employeeId
+    ? db.select({ c: rawSql<number>`count(distinct ${clients.id})` }).from(bannedCustomers)
+      .innerJoin(clients, eq(bannedCustomers.customerId, clients.id))
+      .where(ownedLive(employeeId)).get()
+    : db.select({ c: rawSql<number>`count(*)` }).from(bannedCustomers).get();
+  const unsubscribed = employeeId
+    ? db.select({ c: rawSql<number>`count(distinct ${unsubscribeList.id})` }).from(unsubscribeList)
+      .innerJoin(clients, sameEmail(unsubscribeList.email, clients.email))
+      .where(ownedLive(employeeId)).get()
+    : db.select({ c: rawSql<number>`count(*)` }).from(unsubscribeList).get();
+
+  const win = outreachWindow ?? { from: Math.floor((Date.now() - FOLLOW_UP_LOOKAHEAD_DAYS * MS_PER_DAY) / 1000) };
+  const outreachStats = db.select({
+    outreachWeek: rawSql<number>`count(*)`,
+    purchasesWeek: rawSql<number>`sum(case when ${outreachLogs.outcome} = 'purchased' then 1 else 0 end)`,
+  }).from(outreachLogs)
+    .innerJoin(clients, eq(outreachLogs.clientId, clients.id))
+    .where(and(
+      win.from !== undefined ? gte(outreachLogs.date, new Date(win.from * 1000)) : undefined,
+      win.to !== undefined ? lte(outreachLogs.date, new Date(win.to * 1000)) : undefined,
+      clientFilter,
+    )).get();
+
+  return {
+    total: clientStats?.total ?? 0,
+    active: clientStats?.active ?? 0,
+    // Clients by status. `banned` / `unsubscribed` below count the lists,
+    // which also hold walk-in bans and bare emails.
+    bannedClients: clientStats?.bannedClients ?? 0,
+    unsubscribedClients: clientStats?.unsubscribedClients ?? 0,
+    hot: clientStats?.hot ?? 0,
+    warm: clientStats?.warm ?? 0,
+    cold: clientStats?.cold ?? 0,
+    banned: banned?.c ?? 0,
+    unsubscribed: unsubscribed?.c ?? 0,
+    outreachWeek: outreachStats?.outreachWeek ?? 0,
+    purchasesWeek: outreachStats?.purchasesWeek ?? 0,
+  };
+}
+
+/**
+ * Sortable promo columns, keyed by the `sort` value the URL carries. The map
+ * *is* the whitelist: an unknown key never reaches SQL because it can't index
+ * this object, so no URL value is ever interpolated into an ORDER BY.
+ */
+const promoSortColumns = {
+  modelNumber: promoItems.modelNumber,
+  collection: promoItems.collection,
+  brand: promoItems.brand,
+  msrp: promoItems.msrp,
+  discountPercent: promoItems.discountPercent,
+  discountPrice: promoItems.discountPrice,
+} as const;
+
+export type PromoSortKey = keyof typeof promoSortColumns;
+
+/** The sort keys a caller may accept off a URL. */
+export const PROMO_SORT_KEYS = Object.keys(promoSortColumns) as PromoSortKey[];
+
+export interface PromoListOptions {
+  /** Free text across model number, collection and brand. */
+  q?: string;
+  /** Brand names (exact); names not in the brand list are dropped. */
+  brands?: string[];
+  collections?: string[];
+  /** Upper bound on MSRP. Unpriced rows are excluded, as they always were. */
+  msrpMax?: number;
+  /** Lower bound on discount percent; a missing discount counts as 0. */
+  discMin?: number;
+  /**
+   * Omit for the list's native import order: rowid ascending, so newly
+   * imported or added rows sit at the bottom — stable across the same-second
+   * timestamps a single import batch produces.
+   */
+  sort?: PromoSortKey;
+  sortDir?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}
+
+/**
+ * The promo list, filtered/sorted/paged in SQL. Replaces the unbounded
+ * `getPromos()` the promos page used to render the whole store through.
+ *
+ * Promos are company-wide, so there is no owner scoping and no auth check
+ * here — this is a read query and its caller carries the gate
+ * (`middleware.ts` for the session, the page for the role). That is
+ * deliberately *not* `listCatalog`'s shape: catalog is a `"use server"` action
+ * calling `requireManager()` because its whole route is manager-only, while the
+ * promos page renders for associates too and only gates its write UI.
+ *
+ * Returns the unfiltered summary and collection list alongside the page, the
+ * way `listCatalog` returns its needs-review/flagged/ceiling extras: the header
+ * stats, the promo-period banner and the filter menu all describe the *whole*
+ * list and must not move when a filter narrows the table.
+ */
+export async function listPromos(opts: PromoListOptions = {}) {
+  const {
+    q = "", brands = [], collections = [], msrpMax, discMin,
+    sort, sortDir = "asc", page = 1, pageSize = PROMO_PAGE_SIZE,
+  } = opts;
+
+  const conds: (SQL<unknown> | undefined)[] = [];
+  const term = q.trim();
+  // SQLite's LIKE is ASCII-case-insensitive, which is what the old
+  // `.toLowerCase().includes()` filter did.
+  if (term) {
+    conds.push(or(
+      containsLike(promoItems.modelNumber, term),
+      containsLike(promoItems.collection, term),
+      containsLike(promoItems.brand, term),
+    ));
+  }
+  const known = new Set(getBrandNames());
+  const validBrands = brands.filter((b) => known.has(b));
+  if (validBrands.length) conds.push(inArray(promoItems.brand, validBrands));
+  if (collections.length) conds.push(inArray(promoItems.collection, collections));
+  // `msrp <= max` drops NULL rows, matching the old `(msrp ?? Infinity) <= max`;
+  // COALESCE keeps the discount bound's old `(discountPercent ?? 0) >= min`.
+  if (msrpMax != null) conds.push(lte(promoItems.msrp, msrpMax));
+  if (discMin != null) conds.push(rawSql`COALESCE(${promoItems.discountPercent}, 0) >= ${discMin}`);
+  const whereClause = conds.length ? and(...conds) : undefined;
+
+  const totalRow = db.select({ n: rawSql<number>`count(*)` }).from(promoItems).where(whereClause).get();
+  const total = Number(totalRow?.n ?? 0);
+
+  // Reproduces the clamp the client-side surface applied to its stored page
+  // index: a list that shrank under a stale `?page=` shows the last real page
+  // rather than an empty table. The caller renders the returned page number.
+  const lastPage = Math.max(1, Math.ceil(total / pageSize));
+  const effectivePage = Math.min(Math.max(1, page), lastPage);
+
+  const dirFn = sortDir === "desc" ? desc : asc;
+  // rowid breaks ties, so a value shared across a page boundary can't repeat or
+  // vanish between pages — and it reproduces the stable client-side sort, which
+  // fell back to import order for equal keys. NULLs keep SQLite's placement
+  // (first ascending, last descending), which is where the old comparators put
+  // them once a null brand stopped reading as the string "-Infinity".
+  const orderClauses: SQL<unknown>[] = sort
+    ? [dirFn(promoSortColumns[sort]) as SQL<unknown>, rawSql`rowid`]
+    : [rawSql`rowid`];
+
+  const rows = db
+    .select()
+    .from(promoItems)
+    .where(whereClause)
+    .orderBy(...orderClauses)
+    .limit(pageSize)
+    .offset((effectivePage - 1) * pageSize)
+    .all();
+
+  // Unfiltered aggregates: the stat cards and the promo-period banner.
+  // NULLIF drops the empty-string dates the old `.filter(Boolean)` skipped.
+  const summaryRow = db
+    .select({
+      count: rawSql<number>`count(*)`,
+      retailValue: rawSql<number>`COALESCE(SUM(COALESCE(${promoItems.msrp}, 0)), 0)`,
+      savings: rawSql<number>`COALESCE(SUM(COALESCE(${promoItems.msrp}, 0) - COALESCE(${promoItems.discountPrice}, 0)), 0)`,
+      promoStart: rawSql<string | null>`MIN(NULLIF(${promoItems.promoStart}, ''))`,
+      promoEnd: rawSql<string | null>`MAX(NULLIF(${promoItems.promoEnd}, ''))`,
+    })
+    .from(promoItems)
+    .get();
+
+  const collectionRows = db
+    .selectDistinct({ collection: promoItems.collection })
+    .from(promoItems)
+    .orderBy(asc(promoItems.collection))
+    .all();
+
+  return {
+    rows,
+    total,
+    page: effectivePage,
+    summary: {
+      count: Number(summaryRow?.count ?? 0),
+      retailValue: Number(summaryRow?.retailValue ?? 0),
+      savings: Number(summaryRow?.savings ?? 0),
+      promoStart: summaryRow?.promoStart ?? null,
+      promoEnd: summaryRow?.promoEnd ?? null,
+      /** The promo a hand-added item joins (null = none running, so Add asks for dates). */
+      current: currentPromoPeriod(),
+    },
+    collections: collectionRows.map((r) => r.collection),
+  };
+}
+
+/**
+ * Matches that can be worked: the client can be contacted (not banned,
+ * unsubscribed or deleted — by status, or by a banned/unsubscribed email), the
+ * promo hasn't ended, and — when one item is in two running promos — only the
+ * promo with the bigger discount (ties: the lower promo id) counts, so each
+ * client is listed once per item. Needs promo_matches joined to clients and
+ * promo_items. The Matched Clients tab, its CSV and the per-promo counts
+ * all use this, so they always agree.
+ */
+export function workableMatch(today: string = promoToday()): SQL {
+  const mine = promoDiscountSql("promo_items");
+  const other = promoDiscountSql("pw2");
+  return and(
+    isNull(clients.deletedAt),
+    notInArray(clients.status, [...NO_MATCH_STATUSES]),
+    notSuppressed(clients.email),
+    promoNotEnded(today),
+    rawSql`NOT EXISTS (
+      SELECT 1 FROM promo_matches pm2 JOIN promo_items pw2 ON pw2.id = pm2.promo_id
+      WHERE pm2.client_id = ${promoMatches.clientId}
+        AND pm2.promo_id <> ${promoMatches.promoId}
+        AND pw2.model_number = ${promoItems.modelNumber}
+        AND (pw2.promo_end IS NULL OR pw2.promo_end = '' OR pw2.promo_end >= ${today})
+        AND (${other} > ${mine} OR (${other} = ${mine} AND pw2.id < ${promoItems.id}))
+    )`,
+  ) as SQL;
+}
+
+/**
+ * The promo a hand-added item joins: the dates of the most recently added
+ * promo that hasn't ended, preferring one with dates (both null when every
+ * running promo is undated). Null when no promo is running at all.
+ */
+export function currentPromoPeriod(): { promoStart: string | null; promoEnd: string | null } | null {
+  const row = db.select({ promoStart: promoItems.promoStart, promoEnd: promoItems.promoEnd })
+    .from(promoItems)
+    .where(promoNotEnded())
+    .orderBy(
+      desc(rawSql`(COALESCE(${promoItems.promoStart}, '') <> '' OR COALESCE(${promoItems.promoEnd}, '') <> '')`),
+      desc(promoItems.dateAdded),
+      desc(rawSql`rowid`),
+    )
+    .limit(1)
+    .get();
+  return row ? { promoStart: row.promoStart || null, promoEnd: row.promoEnd || null } : null;
+}
+
+// Distinct matched-client count per promo, excluding deleted/soft-deleted
+// and orphaned clients (mirrors what View Matches shows). One row per
+// (client, promo) is guaranteed by the promo_matches unique constraint,
+// so count(*) == distinct clients.
+//
+// Always one grouped query — never one per promo. Pass the promo ids actually
+// being rendered to group only their matches: the promos table reads at most a
+// page's worth of these badges, so counting every promo in the store (and
+// shipping the whole map to the client) is work nobody looks at. Omit the
+// argument for the full map.
+export async function getPromoMatchCounts(promoIds?: string[]): Promise<Record<string, number>> {
+  if (promoIds?.length === 0) return {};
+  const rows = db
+    .select({ promoId: promoMatches.promoId, n: rawSql<number>`count(*)` })
+    .from(promoMatches)
+    .innerJoin(clients, eq(promoMatches.clientId, clients.id))
+    .innerJoin(promoItems, eq(promoMatches.promoId, promoItems.id))
+    .where(and(
+      workableMatch(),
+      promoIds ? inArray(promoMatches.promoId, promoIds) : undefined,
+    ))
+    .groupBy(promoMatches.promoId)
+    .all();
+  const map: Record<string, number> = {};
+  for (const r of rows) map[r.promoId] = Number(r.n);
+  return map;
+}
+
+export interface MatchedClientRow {
+  clientId: string;
+  clientFirstName: string;
+  clientLastName: string | null;
+  clientEmployeeId: string | null;
+  ownerName: string | null;
+  preferredContact: string | null;
+  phone: string | null;
+  email: string | null;
+  promoModel: string;
+  promoCollection: string;
+  promoBrand: string | null;
+  msrp: number | null;
+  discountPrice: number | null;
+  discountPercent: number | null;
+  matchType: string;
+  promoStart: string | null;
+  promoEnd: string | null;
+}
+
+/** Matched Clients tab facets; an empty/absent array leaves that facet unconstrained. */
+export interface MatchedClientFacets {
+  owners?: string[];
+  matchTypes?: string[];
+  brands?: string[];
+}
+
+// One row per client per item for the Matched Clients tab (see workableMatch).
+// Excludes soft-deleted/orphaned clients (same predicate as
+// getPromoMatchCounts). Employee-scoped like the CSV exports:
+// pass the associate's id to limit to their own clients. Facets are
+// applied in SQL so they filter before the LIMIT, not after it.
+export async function getMatchedClients(
+  employeeId?: string,
+  limit: number = PAGE_READ_LIMIT,
+  facets: MatchedClientFacets = {},
+): Promise<MatchedClientRow[]> {
+  const ownerName = rawSql<string | null>`NULLIF(TRIM(COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, '')), '')`;
+  return db
+    .select({
+      clientId: clients.id,
+      clientFirstName: clients.firstName,
+      clientLastName: clients.lastName,
+      clientEmployeeId: clients.employeeId,
+      ownerName: ownerName.as("owner_name"),
+      preferredContact: clients.preferredContact,
+      phone: clients.phone,
+      email: clients.email,
+      promoModel: promoItems.modelNumber,
+      promoCollection: promoItems.collection,
+      promoBrand: promoItems.brand,
+      msrp: promoItems.msrp,
+      discountPrice: promoItems.discountPrice,
+      discountPercent: promoItems.discountPercent,
+      matchType: promoMatches.matchType,
+      promoStart: promoItems.promoStart,
+      promoEnd: promoItems.promoEnd,
+    })
+    .from(promoMatches)
+    .innerJoin(clients, eq(promoMatches.clientId, clients.id))
+    .innerJoin(promoItems, eq(promoMatches.promoId, promoItems.id))
+    .leftJoin(employees, eq(clients.employeeId, employees.id))
+    .where(and(
+      // Contactable clients, running promos, one row per client per item.
+      workableMatch(),
+      employeeId ? eq(clients.employeeId, employeeId) : undefined,
+      facets.owners?.length ? inArray(ownerName, facets.owners) : undefined,
+      // Facet values arrive as free strings; one off the enum simply matches nothing.
+      facets.matchTypes?.length
+        ? inArray(promoMatches.matchType, facets.matchTypes as (typeof promoMatches.$inferSelect.matchType)[])
+        : undefined,
+      facets.brands?.length
+        ? inArray(promoItems.brand, facets.brands as NonNullable<typeof promoItems.$inferSelect.brand>[])
+        : undefined,
+    ))
+    .orderBy(clients.lastName, clients.firstName, promoItems.modelNumber)
+    .limit(limit)
+    .all();
+}
+
+export async function getBannedCustomers() {
+  const rows = db.select({
+    banned: bannedCustomers,
+    clientId: clients.id,
+  }).from(bannedCustomers)
+    .leftJoin(clients, eq(bannedCustomers.customerId, clients.id))
+    .orderBy(desc(bannedCustomers.banDate)).limit(LIST_QUERY_LIMIT).all();
+  return rows;
+}
+
+export async function getUnsubscribeList() {
+  const rows = db.select({
+    unsub: unsubscribeList,
+    clientId: clients.id,
+    firstName: clients.firstName,
+    lastName: clients.lastName,
+    customerId: clients.customerId,
+  }).from(unsubscribeList)
+    // Case-insensitive: `clients.email` holds mixed case by construction (the
+    // client write path never lowercases), so a raw column-to-column join left
+    // suppression rows reading "No client match" against a client that is
+    // plainly there.
+    // One client per suppression row, never a soft-deleted one: two clients
+    // sharing an email used to duplicate the row (and its row id). Prefer the
+    // unsubscribed client — the one Resubscribe can act on — then lowest id.
+    .leftJoin(clients, eq(clients.id, rawSql`(
+      SELECT c2.id FROM clients c2
+      WHERE ${sameEmail(rawSql`c2.email`, unsubscribeList.email)}
+        AND c2.deleted_at IS NULL AND c2.status <> 'deleted'
+      ORDER BY c2.status = 'unsubscribed' DESC, c2.id
+      LIMIT 1
+    )`))
+    .orderBy(desc(unsubscribeList.unsubscribedAt)).limit(LIST_QUERY_LIMIT).all();
+  return rows;
+}
+
+export async function getEmployees() {
+  // Order by manual sortOrder (set via the Employees settings tab), then
+  // firstName for ties. Each row carries an `activeClientCount` so the UI
+  // can preview impact when deactivating without a second round trip.
+  // Soft-deleted employees (deletedAt IS NOT NULL) are hidden from listings
+  // but kept in the table for audit-trail FK integrity.
+  return db.select({
+    id: employees.id,
+    firstName: employees.firstName,
+    lastName: employees.lastName,
+    username: employees.username,
+    role: employees.role,
+    active: employees.active,
+    sortOrder: employees.sortOrder,
+    createdAt: employees.createdAt,
+    activeClientCount: rawSql<number>`(
+      SELECT count(*) FROM clients
+      WHERE clients.employee_id = employees.id
+        AND clients.status NOT IN ('deleted', 'banned')
+    )`.as("active_client_count"),
+  })
+    .from(employees)
+    .where(isNull(employees.deletedAt))
+    .orderBy(employees.sortOrder, employees.firstName)
+    .all();
+}
+
+export async function getEmployee(id: string) {
+  return db.select({
+    id: employees.id,
+    firstName: employees.firstName,
+    lastName: employees.lastName,
+    username: employees.username,
+    role: employees.role,
+    active: employees.active,
+    sortOrder: employees.sortOrder,
+    createdAt: employees.createdAt,
+    activeClientCount: rawSql<number>`(
+      SELECT count(*) FROM clients
+      WHERE clients.employee_id = employees.id
+        AND clients.status NOT IN ('deleted', 'banned')
+    )`.as("active_client_count"),
+  })
+    .from(employees)
+    .where(and(eq(employees.id, id), isNull(employees.deletedAt)))
+    .get();
+}
+
+export type SafeEmployeeRow = Awaited<ReturnType<typeof getEmployees>>[number];
+
+/**
+ * Every registered tag with how many clients carry it, counted live from the
+ * clients (deleted ones excluded), most used first. The stored usage_count
+ * drifts (the seed and older form saves wrote tags without updating it), so
+ * nothing displays it.
+ */
+export function getTagsSync() {
+  const live = rawSql<number>`(SELECT count(*) FROM ${clients} c, json_each(c.tags) j WHERE j.value = ${clientTags.name} AND c.status != 'deleted')`;
+  return db
+    .select({ id: clientTags.id, name: clientTags.name, usageCount: live.mapWith(Number) })
+    .from(clientTags)
+    .orderBy(desc(live), clientTags.name)
+    .all();
+}
+
+export async function getTags() {
+  return getTagsSync();
+}
+
+export async function getSmartLists(employeeId?: string) {
+  const filter = employeeId ? or(eq(smartLists.ownerId, employeeId), eq(smartLists.isShared, true)) : undefined;
+  return db.select().from(smartLists).where(filter).orderBy(smartLists.name).all();
+}
+
+const BUILTIN_FILTER_TYPES = ["hot", "stale", "recent_purchases", "no_outreach_60", "birthdays_month", "anniversaries_month", "email_subscribers"] as const;
+export type BuiltInFilter = typeof BUILTIN_FILTER_TYPES[number];
+export const BUILTIN_FILTER_IDS = BUILTIN_FILTER_TYPES;
+
+function buildBuiltInConds(filter: BuiltInFilter, nowSec: number, employeeId?: string): (SQL<unknown> | undefined)[] {
+  const base: (SQL<unknown> | undefined)[] = [
+    notInArray(clients.status, ["banned", "deleted"]),
+    employeeId ? eq(clients.employeeId, employeeId) : undefined,
+  ];
+  switch (filter) {
+    case "hot":
+      return [...base, eq(clients.heatLevel, "hot"), eq(clients.status, "active")];
+    case "stale":
+      return [...base, eq(clients.status, "active"), or(
+        and(isNull(clients.lastOutreachAt), isNull(clients.lastPurchaseAt)),
+        rawSql`MAX(COALESCE(${clients.lastOutreachAt}, 0), COALESCE(${clients.lastPurchaseAt}, 0)) < ${nowSec - 90 * SEC_PER_DAY}`,
+      )];
+    case "recent_purchases":
+      return [...base, rawSql`${clients.lastPurchaseAt} > ${nowSec - 30 * SEC_PER_DAY}`];
+    case "no_outreach_60":
+      return [...base, eq(clients.status, "active"), or(isNull(clients.lastOutreachAt), rawSql`${clients.lastOutreachAt} < ${nowSec - 60 * SEC_PER_DAY}`)];
+    case "birthdays_month": {
+      const m = String(new Date().getMonth() + 1).padStart(2, "0");
+      return [...base, isNotNull(clients.birthday), rawSql`substr(${clients.birthday}, 6, 2) = ${m}`];
+    }
+    case "anniversaries_month": {
+      const m = String(new Date().getMonth() + 1).padStart(2, "0");
+      return [...base, isNotNull(clients.anniversary), rawSql`substr(${clients.anniversary}, 6, 2) = ${m}`];
+    }
+    case "email_subscribers":
+      return [...base, eq(clients.onEmailList, true), rawSql`${clients.status} != 'unsubscribed'`];
+  }
+}
+
+function buildCustomConds(filters: Record<string, unknown>, nowSec: number, employeeId?: string): (SQL<unknown> | undefined)[] {
+  // Translate the smart-list filter blob into the shared ClientFilterParams
+  // shape (handles legacy heatLevel/tag keys + new heat/tags/tagMode/dates).
+  const clientFilters = smartListToClientFilters(filters);
+  const { conds: filterConds } = buildClientFilterConds(clientFilters);
+
+  const conds: (SQL<unknown> | undefined)[] = [
+    notInArray(clients.status, ["banned", "deleted"]),
+    employeeId ? eq(clients.employeeId, employeeId) : undefined,
+    ...filterConds,
+  ];
+
+  // Smart-list-only filters (no Clients-page UI equivalent yet)
+  if (filters.source) conds.push(rawSql`${clients.source} = ${String(filters.source)}`);
+  if (filters.onEmailList) conds.push(eq(clients.onEmailList, true));
+  if (filters.stale) {
+    conds.push(
+      eq(clients.status, "active"),
+      or(
+        and(isNull(clients.lastOutreachAt), isNull(clients.lastPurchaseAt)),
+        rawSql`MAX(COALESCE(${clients.lastOutreachAt}, 0), COALESCE(${clients.lastPurchaseAt}, 0)) < ${nowSec - 90 * SEC_PER_DAY}`,
+      ),
+    );
+  }
+  if (filters.birthdayMonth) {
+    const m = String(filters.birthdayMonth).padStart(2, "0");
+    conds.push(isNotNull(clients.birthday), rawSql`substr(${clients.birthday}, 6, 2) = ${m}`);
+  }
+
+  return conds;
+}
+
+export interface SmartListClientsResult {
+  rows: ClientListRow[];
+  /** True when the underlying query had more matches than LIST_QUERY_LIMIT and was truncated. */
+  truncated: boolean;
+}
+
+/**
+ * Detects truncation via the LIMIT+1 trick: query one row beyond the cap;
+ * if we got that extra row, the real result set was larger. Returns the
+ * capped rows so the caller can render them unchanged.
+ */
+function capRowsWithTruncationFlag(rows: ClientListRow[]): SmartListClientsResult {
+  if (rows.length > LIST_QUERY_LIMIT) {
+    return { rows: rows.slice(0, LIST_QUERY_LIMIT), truncated: true };
+  }
+  return { rows, truncated: false };
+}
+
+export async function getBuiltInListClients(filter: string, employeeId?: string): Promise<SmartListClientsResult> {
+  if (!BUILTIN_FILTER_IDS.includes(filter as BuiltInFilter)) return { rows: [], truncated: false };
+  const nowSec = Math.floor(Date.now() / 1000);
+  const conds = buildBuiltInConds(filter as BuiltInFilter, nowSec, employeeId);
+  const rows = db.select(clientListProjection).from(clients).where(and(...conds)).orderBy(desc(clients.heatScore)).limit(LIST_QUERY_LIMIT + 1).all();
+  return capRowsWithTruncationFlag(rows);
+}
+
+export async function getCustomListClients(filters: Record<string, unknown>, employeeId?: string): Promise<SmartListClientsResult> {
+  const nowSec = Math.floor(Date.now() / 1000);
+  const conds = buildCustomConds(filters, nowSec, employeeId);
+  // Owner-name filter references employees.firstName/lastName — join when needed
+  const clientFilters = smartListToClientFilters(filters);
+  const needsEmployeeJoin = !!(clientFilters.owner && clientFilters.owner !== "any" && clientFilters.owner !== "__none__");
+  const base = db.select(clientListProjection).from(clients);
+  const q = needsEmployeeJoin
+    ? base.leftJoin(employees, eq(clients.employeeId, employees.id))
+    : base;
+  const rows = q.where(and(...conds)).orderBy(desc(clients.heatScore)).limit(LIST_QUERY_LIMIT + 1).all();
+  return capRowsWithTruncationFlag(rows);
+}
+
+/**
+ * COUNT(*) over `clients` for an already-built condition list. `joinEmployees`
+ * mirrors getCustomListClients: the Owner filter references employees columns.
+ */
+function countClientsWhere(conds: (SQL<unknown> | undefined)[], joinEmployees = false): number {
+  const base = db.select({ n: rawSql<number>`count(*)` }).from(clients);
+  const q = joinEmployees ? base.leftJoin(employees, eq(clients.employeeId, employees.id)) : base;
+  return Number(q.where(and(...conds)).get()?.n ?? 0);
+}
+
+export async function getAllSmartListCounts(
+  lists: Awaited<ReturnType<typeof getSmartLists>>,
+  employeeId?: string,
+): Promise<{ builtIn: Record<string, number>; custom: Record<string, number> }> {
+  const nowSec = Math.floor(Date.now() / 1000);
+
+  // Both maps reuse the exact condition builders that produce the list
+  // *contents*, so a count can never drift from the rows behind it.
+  const builtIn: Record<string, number> = {};
+  for (const filter of BUILTIN_FILTER_IDS) {
+    builtIn[filter] = countClientsWhere(buildBuiltInConds(filter, nowSec, employeeId));
+  }
+
+  const custom: Record<string, number> = {};
+  for (const list of lists) {
+    const filters = list.filters as Record<string, unknown>;
+    const clientFilters = smartListToClientFilters(filters);
+    const needsEmployeeJoin = !!(clientFilters.owner && clientFilters.owner !== "any" && clientFilters.owner !== "__none__");
+    custom[list.id] = countClientsWhere(buildCustomConds(filters, nowSec, employeeId), needsEmployeeJoin);
+  }
+  return { builtIn, custom };
+}
+
+/** Owner scope and date range shared by the analytics outreach reads. */
+export interface OutreachRangeOptions {
+  /** One employee's logged outreach; omit for the store-wide (manager) view. */
+  employeeId?: string;
+  /**
+   * Inclusive bounds on `outreach_logs.date`, unix seconds. The caller sends
+   * `to` as the end of the picked day, as the clients list's date filters do.
+   */
+  from?: number;
+  to?: number;
+}
+
+function outreachRangeWhere({ employeeId, from, to }: OutreachRangeOptions) {
+  return and(
+    employeeId ? eq(outreachLogs.employeeId, employeeId) : undefined,
+    from !== undefined ? gte(outreachLogs.date, new Date(from * 1000)) : undefined,
+    to !== undefined ? lte(outreachLogs.date, new Date(to * 1000)) : undefined,
+  );
+}
+
+const OUTREACH_METHOD_LABELS: Record<OutreachMethod, string> = {
+  call: "Call",
+  text: "Text",
+  email: "Email",
+  "in-person": "In-Person",
+};
+
+/**
+ * Outreach attempts per method, counted in SQL over every matching log. Every
+ * method is listed (zero when absent) so the charts keep a stable set of bars.
+ */
+export async function outreachMethodBreakdown(opts: OutreachRangeOptions = {}) {
+  const rows = db
+    .select({ method: outreachLogs.method, n: rawSql<number>`count(*)` })
+    .from(outreachLogs)
+    .where(outreachRangeWhere(opts))
+    .groupBy(outreachLogs.method)
+    .all();
+  const counts = new Map(rows.map((r) => [r.method, Number(r.n)]));
+  return OUTREACH_METHOD_VALUES.map((method) => ({
+    method,
+    label: OUTREACH_METHOD_LABELS[method],
+    count: counts.get(method) ?? 0,
+  }));
+}
+
+/** Outreach attempts per outcome over every matching log, most frequent first. */
+export async function outreachOutcomeBreakdown(opts: OutreachRangeOptions = {}) {
+  const n = rawSql<number>`count(*)`;
+  const rows = db
+    .select({ outcome: outreachLogs.outcome, n })
+    .from(outreachLogs)
+    .where(outreachRangeWhere(opts))
+    .groupBy(outreachLogs.outcome)
+    .orderBy(desc(n), asc(outreachLogs.outcome))
+    .all();
+  return rows.map((r) => ({ outcome: r.outcome, count: Number(r.n) }));
+}
+
+/**
+ * Sortable outreach-log columns, keyed by the `sort` value the URL carries.
+ * The map is the whitelist, as `prospectSortColumns` is.
+ */
+const outreachLogSortColumns = {
+  date: outreachLogs.date,
+  method: outreachLogs.method,
+  outcome: outreachLogs.outcome,
+} as const;
+
+export type OutreachLogSortKey = keyof typeof outreachLogSortColumns;
+
+/** The sort keys a caller may accept off a URL. */
+export const OUTREACH_LOG_SORT_KEYS = Object.keys(outreachLogSortColumns) as OutreachLogSortKey[];
+
+export interface OutreachLogListOptions extends OutreachRangeOptions {
+  /** Omit for the log's native order: newest first. */
+  sort?: OutreachLogSortKey;
+  sortDir?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}
+
+/**
+ * One page of the analytics outreach log, filtered/sorted/paged in SQL with
+ * the same scope and range as the breakdowns. Replaces the 50-row
+ * `getRecentOutreach` slice the tab used to filter and page in the browser.
+ */
+export async function listOutreachLogs(opts: OutreachLogListOptions = {}) {
+  const { sort, sortDir = "desc", page = 1, pageSize = DEFAULT_PAGE_SIZE } = opts;
+  const whereClause = outreachRangeWhere(opts);
+
+  const totalRow = db.select({ n: rawSql<number>`count(*)` }).from(outreachLogs).where(whereClause).get();
+  const total = Number(totalRow?.n ?? 0);
+
+  // A stale `?page=` past the end serves the last real page, as listProspects does.
+  const lastPage = Math.max(1, Math.ceil(total / pageSize));
+  const effectivePage = Math.min(Math.max(1, page), lastPage);
+
+  // id breaks ties (dates repeat to the second) so a row can't repeat or
+  // vanish across a page boundary; `rowid` would be ambiguous in the join.
+  const dirFn = sortDir === "asc" ? asc : desc;
+  const orderClauses = sort
+    ? [dirFn(outreachLogSortColumns[sort]), desc(outreachLogs.date), asc(outreachLogs.id)]
+    : [desc(outreachLogs.date), asc(outreachLogs.id)];
+
+  const rows = db
+    .select({
+      log: {
+        id: outreachLogs.id,
+        method: outreachLogs.method,
+        date: outreachLogs.date,
+        outcome: outreachLogs.outcome,
+        notes: outreachLogs.notes,
+      },
+      client: { id: clients.id, firstName: clients.firstName, lastName: clients.lastName },
+      employee: { firstName: employees.firstName, lastName: employees.lastName },
+    })
+    .from(outreachLogs)
+    .leftJoin(clients, eq(outreachLogs.clientId, clients.id))
+    .leftJoin(employees, eq(outreachLogs.employeeId, employees.id))
+    .where(whereClause)
+    .orderBy(...orderClauses)
+    .limit(pageSize)
+    .offset((effectivePage - 1) * pageSize)
+    .all();
+
+  return { rows, total, page: effectivePage };
+}
+
+export type OutreachLogRow = Awaited<ReturnType<typeof listOutreachLogs>>["rows"][number];
+
+export type OutreachMethodBreakdown =Awaited<ReturnType<typeof outreachMethodBreakdown>>;
+export type OutreachOutcomeBreakdown = Awaited<ReturnType<typeof outreachOutcomeBreakdown>>;
+
+export interface SearchProspectHit {
+  id: string;
+  firstName: string;
+  lastName: string | null;
+  phone: string | null;
+}
+
+export interface SearchSmartListHit {
+  id: string;
+  name: string;
+  isShared: boolean;
+}
+
+/**
+ * Quick name search across active prospects for the Cmd+K palette.
+ * Substring match on first/last/email/phone (prospects rarely have notes
+ * or products of interest, so no FTS5 surface — see lib/db/fts-setup.ts).
+ */
+export async function searchProspects(query: string): Promise<SearchProspectHit[]> {
+  const term = query.toLowerCase();
+  if (!term.trim()) return [];
+  return db.select({
+    id: prospects.id,
+    firstName: prospects.firstName,
+    lastName: prospects.lastName,
+    phone: prospects.phone,
+  })
+    .from(prospects)
+    .where(and(
+      eq(prospects.status, "active"),
+      or(
+        containsLikeLower(prospects.firstName, term),
+        containsLikeLower(prospects.lastName, term),
+        containsLikeLower(prospects.email, term),
+        containsPhone(prospects.phone, term),
+      ),
+    ))
+    .limit(5)
+    .all();
+}
+
+/**
+ * Name-substring search for smart lists visible to this employee (owned or
+ * shared). Used by the Cmd+K palette to teleport directly into a saved
+ * filter view.
+ */
+export async function searchSmartLists(query: string, employeeId?: string): Promise<SearchSmartListHit[]> {
+  const term = query.toLowerCase();
+  if (!term.trim()) return [];
+  const visibility = employeeId ? or(eq(smartLists.ownerId, employeeId), eq(smartLists.isShared, true)) : undefined;
+  return db.select({
+    id: smartLists.id,
+    name: smartLists.name,
+    isShared: smartLists.isShared,
+  })
+    .from(smartLists)
+    .where(and(visibility, containsLikeLower(smartLists.name, term)))
+    .orderBy(smartLists.name)
+    .limit(5)
+    .all();
+}
+
+/**
+ * Top N clients by global recency. Powers the "Recently viewed" group in
+ * Cmd+K when the input is empty. Respects per-employee scoping so an
+ * associate only sees their own clients.
+ */
+export async function getRecentlyViewedClients(employeeId?: string, limit = 5): Promise<SearchClientHit[]> {
+  const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
+  return db.select({
+    id: clients.id,
+    firstName: clients.firstName,
+    lastName: clients.lastName,
+    phone: clients.phone,
+    email: clients.email,
+    snippet: rawSql<string | null>`NULL`.as("snippet"),
+  })
+    .from(clients)
+    .where(and(
+      notInArray(clients.status, ["banned", "deleted"]),
+      isNotNull(clients.lastViewedAt),
+      employeeFilter,
+    ))
+    .orderBy(desc(clients.lastViewedAt))
+    .limit(limit)
+    .all();
+}
+
+export interface SearchClientHit {
+  id: string;
+  firstName: string;
+  lastName: string | null;
+  phone: string | null;
+  email: string | null;
+  /** FTS5 snippet text with [[hl]]…[[/hl]] markers around matched tokens. null on phonetic fallback (no MATCH ran). */
+  snippet: string | null;
+}
+
+export interface SearchClientsResult {
+  /** Direct FTS5 matches, or soundex matches when FTS returned nothing. */
+  clients: SearchClientHit[];
+  /** True when results came from the soundex fallback — the UI can show a "Did you mean?" hint. */
+  isPhoneticFallback: boolean;
+}
+
+/** Shoreline markers wrapping highlighted match tokens in FTS5 snippets. The renderer parses these. */
+const HL_OPEN = "[[hl]]";
+const HL_CLOSE = "[[/hl]]";
+
+export async function searchClients(query: string, employeeId?: string): Promise<SearchClientsResult> {
+  // FTS5-backed search: spans name, email, phone, notes, products, and
+  // promo collection/model. Results are ranked by BM25 (lower = better
+  // match), with global recency (clients.lastViewedAt) as a secondary
+  // tiebreaker so recently-touched clients surface first when match
+  // quality is equal. snippet() picks the best-matching column per row
+  // and wraps the matched tokens in sentinel markers the UI parses.
+  const fts = toFtsQuery(query);
+  if (!fts) return { clients: [], isPhoneticFallback: false };
+  const employeeFilter = employeeId ? eq(clients.employeeId, employeeId) : undefined;
+
+  const direct = db.select({
+    id: clients.id,
+    firstName: clients.firstName,
+    lastName: clients.lastName,
+    phone: clients.phone,
+    email: clients.email,
+    snippet: rawSql<string>`(SELECT snippet(clients_fts, -1, ${HL_OPEN}, ${HL_CLOSE}, '…', 10) FROM clients_fts WHERE client_id = clients.id AND clients_fts MATCH ${fts})`.as("snippet"),
+  })
+    .from(clients)
+    .where(and(
+      notInArray(clients.status, ["banned", "deleted"]),
+      rawSql`clients.id IN (SELECT client_id FROM clients_fts WHERE clients_fts MATCH ${fts})`,
+      employeeFilter,
+    ))
+    .orderBy(
+      rawSql`(SELECT rank FROM clients_fts WHERE client_id = clients.id AND clients_fts MATCH ${fts})`,
+      desc(rawSql`COALESCE(${clients.lastViewedAt}, 0)`),
+    )
+    .limit(10)
+    .all();
+
+  if (direct.length > 0) return { clients: direct, isPhoneticFallback: false };
+
+  // Phonetic fallback — only fires when the query looks like a single
+  // alphabetic name token (skips emails, phones, model numbers). Uses
+  // SQLite's built-in soundex() against firstName and lastName.
+  const tokens = query.trim().split(/\s+/).filter(Boolean);
+  if (tokens.length !== 1) return { clients: [], isPhoneticFallback: false };
+  const token = tokens[0];
+  if (token.length < 2 || !/^[a-zA-Z]+$/.test(token)) {
+    return { clients: [], isPhoneticFallback: false };
+  }
+
+  const phonetic = db.select({
+    id: clients.id,
+    firstName: clients.firstName,
+    lastName: clients.lastName,
+    phone: clients.phone,
+    email: clients.email,
+    snippet: rawSql<string | null>`NULL`.as("snippet"),
+  })
+    .from(clients)
+    .where(and(
+      notInArray(clients.status, ["banned", "deleted"]),
+      or(
+        rawSql`soundex(${clients.firstName}) = soundex(${token})`,
+        rawSql`soundex(COALESCE(${clients.lastName}, '')) = soundex(${token})`,
+      ),
+      employeeFilter,
+    ))
+    .orderBy(desc(rawSql`COALESCE(${clients.lastViewedAt}, 0)`))
+    .limit(5)
+    .all();
+
+  return { clients: phonetic, isPhoneticFallback: true };
+}
+
+// Managers omit employeeId for the whole trash. Any passed id scopes, even an
+// empty one: a session without an id must see nothing, not everything.
+export async function getDeletedClients(employeeId?: string) {
+  const employeeFilter = employeeId !== undefined ? eq(clients.employeeId, employeeId) : undefined;
+  return db.select().from(clients).where(and(eq(clients.status, "deleted"), employeeFilter)).orderBy(desc(clients.deletedAt)).limit(LIST_QUERY_LIMIT).all();
+}
+
+export async function getRecentActivity(limit = 30, employeeId?: string) {
+  const employeeFilter = employeeId ? eq(activityEvents.employeeId, employeeId) : undefined;
+  const rows = db.select({
+    event: activityEvents,
+    employeeName: rawSql<string>`COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, '')`,
+    clientName: rawSql<string>`COALESCE(${clients.firstName}, '') || ' ' || COALESCE(${clients.lastName}, '')`,
+    clientId: clients.id,
+  }).from(activityEvents)
+    .leftJoin(employees, eq(activityEvents.employeeId, employees.id))
+    .leftJoin(clients, eq(activityEvents.clientId, clients.id))
+    .where(employeeFilter)
+    .orderBy(desc(activityEvents.createdAt))
+    .limit(limit)
+    .all();
+  return rows;
+}
+
+export { applyClientFilter };
+
+// ─── Prospects ────────────────────────────────────────────────────────────────
+
+export const PROSPECT_STATUSES = ["active", "graduated", "unsubscribed", "rejected"] as const;
+export type ProspectStatus = (typeof PROSPECT_STATUSES)[number];
+
+const prospectListProjection = {
+  id: prospects.id,
+  importCustomerId: prospects.importCustomerId,
+  firstName: prospects.firstName,
+  lastName: prospects.lastName,
+  phone: prospects.phone,
+  email: prospects.email,
+  status: prospects.status,
+  productsOfInterest: prospects.productsOfInterest,
+  notes: prospects.notes,
+  birthday: prospects.birthday,
+  anniversary: prospects.anniversary,
+  importBatchId: prospects.importBatchId,
+  createdAt: prospects.createdAt,
+};
+
+/**
+ * Sortable prospect columns, keyed by the `sort` value the URL carries. The
+ * map *is* the whitelist, exactly as `promoSortColumns` is: an unknown key
+ * cannot index it, so no URL value is ever interpolated into an ORDER BY.
+ * `name` orders on first then last name, which is how the list reads.
+ */
+const prospectSortColumns = {
+  name: prospects.firstName,
+  phone: prospects.phone,
+  email: prospects.email,
+  added: prospects.createdAt,
+} as const;
+
+export type ProspectSortKey = keyof typeof prospectSortColumns;
+
+/** The sort keys a caller may accept off a URL. */
+export const PROSPECT_SORT_KEYS = Object.keys(prospectSortColumns) as ProspectSortKey[];
+
+export interface ProspectListOptions {
+  /** Which tab's list to read. */
+  status?: ProspectStatus;
+  /** Free text across first name, last name, phone and email. */
+  q?: string;
+  /** Omit for the list's native order: newest first. */
+  sort?: ProspectSortKey;
+  sortDir?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}
+
+/**
+ * One tab of the prospect list, filtered/sorted/paged in SQL. Replaces the
+ * unbounded `getProspects()`, which the prospects page called four times per
+ * render — once per status — and then filtered and rendered in full.
+ *
+ * Prospects are store-wide (no owner column), so there is no scoping here and
+ * no auth check: this is a read query and `middleware.ts` carries the session
+ * gate, the same arrangement as `listPromos`.
+ *
+ * `counts` is the whole table grouped by status, so the tab badges keep
+ * describing their lists while a search narrows the table underneath.
+ */
+export async function listProspects(opts: ProspectListOptions = {}) {
+  const { status = "active", q = "", sort, sortDir = "asc", page = 1, pageSize = DEFAULT_PAGE_SIZE } = opts;
+
+  const conds: (SQL<unknown> | undefined)[] = [eq(prospects.status, status)];
+  const term = q.trim();
+  // SQLite's LIKE is ASCII-case-insensitive, which is what the old
+  // `.toLowerCase().includes()` filter did. A NULL column never matches,
+  // which is what the old optional-chained `?.includes()` did.
+  if (term) {
+    conds.push(or(
+      containsLike(prospects.firstName, term),
+      containsLike(prospects.lastName, term),
+      containsPhone(prospects.phone, term),
+      containsLike(prospects.email, term),
+    ));
+  }
+  const whereClause = and(...conds);
+
+  const totalRow = db.select({ n: rawSql<number>`count(*)` }).from(prospects).where(whereClause).get();
+  const total = Number(totalRow?.n ?? 0);
+
+  // A list that shrank under a stale `?page=` shows its last real page rather
+  // than an empty table; the caller renders the page number that came back.
+  const lastPage = Math.max(1, Math.ceil(total / pageSize));
+  const effectivePage = Math.min(Math.max(1, page), lastPage);
+
+  const dirFn = sortDir === "desc" ? desc : asc;
+  // rowid breaks ties so a value shared across a page boundary can't repeat or
+  // vanish between pages. With no sort the list keeps its native order —
+  // newest first, which is what every tab showed before.
+  const orderClauses: SQL<unknown>[] = sort
+    ? sort === "name"
+      ? [dirFn(prospects.firstName) as SQL<unknown>, dirFn(prospects.lastName) as SQL<unknown>, rawSql`rowid`]
+      : [dirFn(prospectSortColumns[sort]) as SQL<unknown>, rawSql`rowid`]
+    : [desc(prospects.createdAt) as SQL<unknown>, rawSql`rowid`];
+
+  const rows = db
+    .select(prospectListProjection)
+    .from(prospects)
+    .where(whereClause)
+    .orderBy(...orderClauses)
+    .limit(pageSize)
+    .offset((effectivePage - 1) * pageSize)
+    .all();
+
+  const countRows = db
+    .select({ status: prospects.status, n: rawSql<number>`count(*)` })
+    .from(prospects)
+    .groupBy(prospects.status)
+    .all();
+  const counts: Record<ProspectStatus, number> = { active: 0, graduated: 0, unsubscribed: 0, rejected: 0 };
+  for (const row of countRows) counts[row.status] = Number(row.n);
+
+  return { rows, total, page: effectivePage, counts };
+}
+
+export type ProspectListRow = Awaited<ReturnType<typeof listProspects>>["rows"][number];
+
+export async function getProspectFunnelStats() {
+  const statusRows = db
+    .select({
+      status: prospects.status,
+      count: rawSql<number>`count(*)`,
+    })
+    .from(prospects)
+    .groupBy(prospects.status)
+    .all();
+
+  const batches = db
+    .select({
+      id: importBatches.id,
+      totalRows: importBatches.totalRows,
+      importedCount: importBatches.importedCount,
+      createdAt: importBatches.createdAt,
+      importerName: rawSql<string | null>`NULLIF(TRIM(COALESCE(${employees.firstName}, '') || ' ' || COALESCE(${employees.lastName}, '')), '')`,
+    })
+    .from(importBatches)
+    .leftJoin(employees, eq(importBatches.importedBy, employees.id))
+    .orderBy(desc(importBatches.createdAt))
+    .limit(5)
+    .all();
+
+  const byStatus: Record<string, { count: number }> = {};
+  for (const r of statusRows) {
+    byStatus[r.status] = { count: Number(r.count) };
+  }
+
+  return {
+    active: byStatus.active?.count ?? 0,
+    graduated: byStatus.graduated?.count ?? 0,
+    rejected: byStatus.rejected?.count ?? 0,
+    unsubscribed: byStatus.unsubscribed?.count ?? 0,
+    batches,
+  };
+}
+
+export type ProspectFunnelStats = Awaited<ReturnType<typeof getProspectFunnelStats>>;
+
+export async function getProspectWithBatch(id: string) {
+  return db
+    .select({
+      prospect: prospects,
+      importedAt: importBatches.createdAt,
+      importedBy: importBatches.importedBy,
+    })
+    .from(prospects)
+    .leftJoin(importBatches, eq(prospects.importBatchId, importBatches.id))
+    .where(eq(prospects.id, id))
+    .get();
+}
+

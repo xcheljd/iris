@@ -1,0 +1,416 @@
+import { Suspense } from "react";
+import { Topbar } from "@/components/topbar";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { HeatBadge } from "@/components/heat-badge";
+import { getStats, getKpiMetrics, getOverdueFollowUps, getUpcomingFollowUps, getRecentActivity, getTopHotClients, getClientOccasionsCurrentMonth } from "@/lib/queries";
+import { percent } from "@/lib/kpi";
+import { outcomeLabel } from "@/lib/outreach-helpers";
+import { requirePageSession } from "@/lib/auth";
+import { recalcAllHeatDaily } from "@/lib/heat-recalc";
+import Link from "next/link";
+import { Flame, Users, AlertCircle, Calendar, ArrowRight, TrendingUp, Target, Clock, CheckCircle2 } from "lucide-react";
+import { formatDate, formatDaysAgo, formatOccasionDate } from "@/lib/utils";
+import { DateTimeCell, TextCell } from "@/components/data-table/cells";
+import { DashboardSkeleton } from "@/components/skeletons";
+import { DashboardStatCards } from "@/components/dashboard-stat-cards";
+import { StoreNamePrompt } from "@/components/store-name-form";
+import { getStoreName } from "@/lib/store-name";
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<><Topbar title="Dashboard" /><DashboardSkeleton /></>}>
+      <DashboardContent />
+    </Suspense>
+  );
+}
+
+async function DashboardContent() {
+  const session = await requirePageSession();
+  const isManager = session.user.role === "manager";
+  const employeeId = isManager ? undefined : session.user.id;
+  // Time-based heat bonuses/penalties decay with no write to the client;
+  // re-apply them before reading hot counts. Gated to once a day.
+  recalcAllHeatDaily();
+  const [stats, kpis, overdue, upcoming, activity, hot, occasionRows] = await Promise.all([
+    getStats(employeeId),
+    // No window = the same last 7 days getStats uses, so the metrics tab matches the stat cards.
+    getKpiMetrics(employeeId),
+    getOverdueFollowUps(employeeId),
+    getUpcomingFollowUps(employeeId),
+    getRecentActivity(20, employeeId),
+    getTopHotClients(employeeId, 6),
+    getClientOccasionsCurrentMonth(employeeId),
+  ]);
+  const occasions = occasionRows.slice(0, 5);
+
+  // Clients who bought / clients contacted, as on Analytics (not purchases / attempts).
+  const conversionRate = percent(kpis.bought, kpis.contacted);
+  const activePercent = stats.total > 0 ? Math.round((stats.active / stats.total) * 100) : 0;
+
+  return (
+    <>
+      <Topbar title="Dashboard" />
+      <div className="flex flex-col flex-1 p-4 md:p-6 gap-6">
+        {/* First run: a manager names the store (sidebar + tab title). */}
+        {isManager && !getStoreName() && <StoreNamePrompt />}
+        <Tabs defaultValue="overview" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="activity">Activity</TabsTrigger>
+            <TabsTrigger value="metrics">Metrics</TabsTrigger>
+          </TabsList>
+
+          {/* Under the tab strip, shown on every tab (X's call). */}
+          <DashboardStatCards stats={stats} />
+
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="flex flex-col gap-4">
+            {/* grid-cols-1 (minmax(0,1fr)) on phones: an implicit auto column grows to a card's longest line and widened the page. */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="md:col-span-2">
+                <CardHeader className="flex-row items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <AlertCircle className="size-4 text-destructive" /> Overdue follow-ups
+                    </CardTitle>
+                    <CardDescription>{overdue.length} need attention</CardDescription>
+                  </div>
+                  <Button asChild variant="ghost" size="sm"><Link href="/follow-ups">All <ArrowRight className="ml-1 size-3.5" /></Link></Button>
+                </CardHeader>
+                <CardContent>
+                  {overdue.length === 0 ? (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <CheckCircle2 className="size-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Nothing overdue</p>
+                    </div>
+                  ) : (
+                    <ul className="divide-y">
+                      {overdue.slice(0, 6).map((row) => (
+                        <li key={row.log.id} className="flex items-center justify-between py-2">
+                          <Link href={`/clients/${row.client?.id}`} className="hover:underline text-sm min-w-0 flex-1 mr-2">
+                            <span className="font-medium">{row.client?.firstName} {row.client?.lastName ?? ""}</span>
+                            <span className="text-muted-foreground ml-2 text-xs">due {formatDate(row.log.followUpDate)}</span>
+                            {row.log.notes && <span className="block text-xs text-muted-foreground truncate">{row.log.notes}</span>}
+                            {!row.log.notes && <span className="block text-xs text-muted-foreground"><span className="capitalize">{row.log.method}</span> — {outcomeLabel(row.log.outcome)}</span>}
+                          </Link>
+                          <Badge variant="destructive" className="text-xs tracking-wide shrink-0">
+                            <AlertCircle className="size-3 mr-1" />
+                            {formatDaysAgo(row.log.followUpDate)}
+                          </Badge>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2"><Calendar className="size-4 text-muted-foreground" /> Upcoming (7d)</CardTitle>
+                  <CardDescription>{upcoming.length} scheduled</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {upcoming.length === 0 ? <p className="text-sm text-muted-foreground">None.</p> : (
+                    <ul className="flex flex-col gap-2">
+                      {upcoming.slice(0, 6).map((row) => (
+                        <li key={row.log.id} className="text-sm flex flex-col">
+                          <div className="flex justify-between">
+                            <Link href={`/clients/${row.client?.id}`} className="hover:underline truncate">
+                              {row.client?.firstName} {row.client?.lastName ?? ""}
+                            </Link>
+                            <span className="text-xs text-muted-foreground shrink-0 ml-2">{formatDate(row.log.followUpDate)}</span>
+                          </div>
+                          {(row.log.notes || row.log.method) && (
+                            <span className="text-xs text-muted-foreground truncate mt-0.5">
+                              {row.log.notes || `${row.log.method} — ${outcomeLabel(row.log.outcome)}`}
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="md:col-span-2">
+                <CardHeader className="flex-row items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-base flex items-center gap-2"><Flame className="size-4 text-heat-hot" /> Hot leads</CardTitle>
+                    <CardDescription>Top {hot.length} ready to convert</CardDescription>
+                  </div>
+                  <Button asChild variant="ghost" size="sm"><Link href="/smart-lists">Smart lists <ArrowRight className="ml-1 size-3.5" /></Link></Button>
+                </CardHeader>
+                <CardContent>
+                  {hot.length === 0 ? <p className="text-sm text-muted-foreground">No hot leads yet.</p> : (
+                    <ul className="divide-y">
+                      {hot.map((c) => (
+                        <li key={c.id} className="flex items-center justify-between py-2">
+                          <Link href={`/clients/${c.id}`} className="text-sm hover:underline font-medium">
+                            {c.firstName} {c.lastName ?? ""}
+                          </Link>
+                          <div className="flex items-center gap-2">
+                            {c.lastOutreachAt && <span className="text-xs text-muted-foreground">Last contact {formatDaysAgo(c.lastOutreachAt)}</span>}
+                            <HeatBadge level={c.heatLevel} score={c.heatScore} showScore />
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Birthdays &amp; anniversaries this month</CardTitle>
+                  <CardDescription>Sorted by day of the month</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {occasions.length === 0 ? <p className="text-sm text-muted-foreground">None.</p> : (
+                    <ul className="flex flex-col gap-2">
+                      {occasions.map((c) => (
+                        <li key={`${c.id}-${c.occasion}`} className="text-sm flex justify-between items-center gap-2">
+                          <Link href={`/clients/${c.id}`} className="hover:underline truncate min-w-0">{c.firstName} {c.lastName ?? ""}</Link>
+                          <span className="flex items-center gap-2 shrink-0 whitespace-nowrap">
+                            <Badge variant="outline" className="text-xs tracking-wide">
+                              {c.occasion === "birthday" ? "Birthday" : "Anniversary"}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">{formatOccasionDate(c.occasionDate)}</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {occasionRows.length > occasions.length && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      +{occasionRows.length - occasions.length} more this month
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Activity Tab */}
+          <TabsContent value="activity" className="flex flex-col gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Clock className="size-4" /> Recent Activity
+                </CardTitle>
+                <CardDescription>Latest events across the floor</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {activity.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">No recent activity</p>
+                ) : (
+                <div className="overflow-x-auto -mx-6 px-6">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Event</TableHead>
+                        <TableHead>Client</TableHead>
+                        <TableHead className="hidden sm:table-cell">Employee</TableHead>
+                        <TableHead className="hidden md:table-cell">Details</TableHead>
+                        <TableHead className="text-right">When</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {activity.map((a) => {
+                        const ev = a.event;
+                        const type = ev.eventType;
+                        return (
+                          <TableRow key={ev.id}>
+                            <TableCell>
+                              <EventBadge type={type} />
+                            </TableCell>
+                            <TableCell>
+                              {a.clientId ? (
+                                <Link href={`/clients/${a.clientId}`} className="font-medium hover:underline text-sm">
+                                  {a.clientName || "Unknown"}
+                                </Link>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">&mdash;</span>
+                              )}
+                            </TableCell>
+                            <TextCell
+                              value={a.employeeName}
+                              className="hidden sm:table-cell text-sm text-muted-foreground"
+                            />
+                            <TableCell className="hidden md:table-cell text-sm text-muted-foreground max-w-[200px] truncate">
+                              {ev.description}
+                            </TableCell>
+                            <DateTimeCell value={ev.createdAt} showRelative className="text-right" />
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Metrics Tab */}
+          <TabsContent value="metrics" className="flex flex-col gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Conversion Rate</p>
+                      <p className="text-2xl font-bold">{conversionRate}%</p>
+                    </div>
+                    <Target className="size-8 text-warning" />
+                  </div>
+                  <Progress value={conversionRate} className="h-2 mt-3" aria-label="Conversion rate" />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Active Clients</p>
+                      <p className="text-2xl font-bold">{activePercent}%</p>
+                    </div>
+                    <Users className="size-8 text-info" />
+                  </div>
+                  <Progress value={activePercent} className="h-2 mt-3" aria-label="Active clients percentage" />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Overdue</p>
+                      <p className="text-2xl font-bold text-destructive">{overdue.length}</p>
+                    </div>
+                    <AlertCircle className="size-8 text-destructive" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Banned</p>
+                      <p className="text-2xl font-bold">{stats.banned}</p>
+                    </div>
+                    <AlertCircle className="size-8 text-muted-foreground" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Separator />
+
+            {/* Heat Distribution */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <TrendingUp className="size-4" /> Client Heat Distribution
+                </CardTitle>
+                <CardDescription>{stats.active} active clients</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                {stats.active > 0 ? (
+                  <>
+                    <div className="flex rounded-lg overflow-hidden h-10" role="img" aria-label={`Heat distribution: ${stats.hot} hot, ${stats.warm} warm, ${stats.cold} cold`}>
+                      <div role="presentation" className="bg-heat-hot/30 flex items-center justify-center text-foreground text-xs font-medium overflow-hidden" style={{ width: `${(stats.hot / stats.active) * 100}%` }} aria-hidden="true">
+                        {stats.hot > 0 ? `${stats.hot} Hot` : ""}
+                      </div>
+                      <div role="presentation" className="bg-heat-warm/30 flex items-center justify-center text-foreground text-xs font-medium overflow-hidden" style={{ width: `${(stats.warm / stats.active) * 100}%` }} aria-hidden="true">
+                        {stats.warm > 0 ? `${stats.warm} Warm` : ""}
+                      </div>
+                      <div role="presentation" className="bg-heat-cold/30 flex items-center justify-center text-foreground text-xs font-medium overflow-hidden" style={{ width: `${(stats.cold / stats.active) * 100}%` }} aria-hidden="true">
+                        {stats.cold > 0 ? `${stats.cold} Cold` : ""}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 text-center text-sm">
+                      <div>
+                        <p className="font-medium text-heat-hot">{stats.hot}</p>
+                        <p className="text-muted-foreground">Hot</p>
+                      </div>
+                      <div>
+                        <p className="font-medium text-heat-warm">{stats.warm}</p>
+                        <p className="text-muted-foreground">Warm</p>
+                      </div>
+                      <div>
+                        <p className="font-medium text-heat-cold">{stats.cold}</p>
+                        <p className="text-muted-foreground">Cold</p>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">No active clients</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Unsubscribed</p>
+                      <p className="text-2xl font-bold">{stats.unsubscribed}</p>
+                    </div>
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href="/unsubscribed">View <ArrowRight className="ml-1 size-3.5" /></Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Outreach (7d)</p>
+                      <p className="text-2xl font-bold">{stats.outreachWeek}</p>
+                    </div>
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href="/analytics">Analytics <ArrowRight className="ml-1 size-3.5" /></Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </>
+  );
+}
+
+function EventBadge({ type }: { type: string }) {
+  const config: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+    created: { label: "Created", variant: "default" },
+    edited: { label: "Edited", variant: "outline" },
+    outreach_logged: { label: "Outreach", variant: "secondary" },
+    purchase: { label: "Purchase", variant: "default" },
+    tag_added: { label: "Tag +", variant: "outline" },
+    tag_removed: { label: "Tag \u2212", variant: "outline" },
+    transferred: { label: "Transferred", variant: "outline" },
+    note_added: { label: "Note", variant: "outline" },
+    status_changed: { label: "Status", variant: "secondary" },
+    ban_requested: { label: "Ban Req", variant: "outline" },
+    ban_approved: { label: "Ban \u2713", variant: "destructive" },
+    ban_rejected: { label: "Ban \u2717", variant: "outline" },
+    unsub_requested: { label: "Unsub Req", variant: "outline" },
+    unsub_approved: { label: "Unsub \u2713", variant: "secondary" },
+    unsub_rejected: { label: "Unsub \u2717", variant: "outline" },
+    delete_requested: { label: "Del Req", variant: "outline" },
+    delete_approved: { label: "Deleted", variant: "destructive" },
+    delete_rejected: { label: "Del \u2717", variant: "outline" },
+  };
+  const c = config[type] || { label: type, variant: "outline" as const };
+  return <Badge variant={c.variant} className="text-xs whitespace-nowrap">{c.label}</Badge>;
+}

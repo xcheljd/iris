@@ -1,0 +1,133 @@
+import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { buttonVariants } from "@/components/ui/button";
+
+// Contrast math straight from the tokens in app/globals.css — jsdom has no
+// layout or paint, so this is how colour regressions get pinned. Alpha tints
+// are composited in sRGB, as browsers do.
+
+const css = readFileSync(path.join(process.cwd(), "app/globals.css"), "utf8");
+
+function block(selector: string): Record<string, string> {
+  const start = css.indexOf(`${selector} {`);
+  const body = css.slice(start, css.indexOf("}", start));
+  return Object.fromEntries([...body.matchAll(/--([\w-]+):\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]));
+}
+const MODES = { light: block(":root"), dark: block(".dark") };
+type Mode = keyof typeof MODES;
+
+type RGB = [number, number, number];
+function hsl(token: string): RGB {
+  // Tokens hold full colours in upstream shape: `hsl(37 42.4% 98.5%)`.
+  const m = token.match(/^hsl\(([^)]+)\)$/);
+  if (!m) throw new Error(`token is not hsl(...): ${token}`);
+  const [h, s, l] = m[1].replace(/%/g, "").split(/\s+/).map(Number);
+  const a = (s / 100) * Math.min(l / 100, 1 - l / 100);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    return l / 100 - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+  };
+  return [f(0), f(8), f(4)];
+}
+const lum = (c: RGB) => {
+  const lin = (v: number) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
+};
+const ratio = (a: RGB, b: RGB) => {
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+const over = (fg: RGB, bg: RGB, alpha: number): RGB => fg.map((v, i) => v * alpha + bg[i] * (1 - alpha)) as RGB;
+const token = (mode: Mode, name: string) => {
+  const v = MODES[mode][name];
+  if (!v) throw new Error(`--${name} missing in ${mode}`);
+  return hsl(v);
+};
+
+const hex = (name: string): RGB => {
+  const m = css.match(new RegExp(`--color-${name}:\\s*#([0-9a-f]{6});`, "i"));
+  if (!m) throw new Error(`--color-${name} missing`);
+  return [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16) / 255) as RGB;
+};
+
+// Regression: the gold badge used the bare gold as light-mode text (2.0:1 on its
+// /20 tint); the deep step (from Wave 1, at 4.2:1 there) was darkened to pass.
+it("iris-gold-deep reads as light-mode text on the card and a gold/20 tint", () => {
+  const card = token("light", "card");
+  const deep = hex("iris-gold-deep");
+  expect(ratio(deep, card)).toBeGreaterThanOrEqual(4.5);
+  expect(ratio(deep, over(hex("iris-gold"), card, 0.2))).toBeGreaterThanOrEqual(4.5);
+  expect(ratio(hex("iris-gold"), over(hex("iris-gold"), token("dark", "card"), 0.2))).toBeGreaterThanOrEqual(4.5);
+});
+
+// Regression: the gold button (login, Add client, Log outreach) was white on
+// the gold, 2.2:1. Read the fill and text straight off the variant.
+it("gold button text reads on its fill and on its /90 hover", () => {
+  const classes = buttonVariants({ variant: "gold" }).split(/\s+/);
+  const fill = hex(classes.find((c) => c.startsWith("bg-"))!.slice(3));
+  const text = hex(classes.find((c) => c.startsWith("text-iris-"))!.slice(5));
+  expect(ratio(text, fill)).toBeGreaterThanOrEqual(4.5);
+  for (const mode of ["light", "dark"] as const) {
+    expect(ratio(text, over(fill, token(mode, "background"), 0.9))).toBeGreaterThanOrEqual(4.5);
+  }
+});
+
+describe.each(["light", "dark"] as const)("theme tokens (%s)", (mode) => {
+  const card = token(mode, "card");
+
+  it.each(["heat-hot", "heat-warm", "heat-cold"])("--%s reads as text on the card and on its /15 badge tint", (name) => {
+    const c = token(mode, name);
+    expect(ratio(c, card)).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(c, over(c, card, 0.15))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  // Batch 2: status and category tokens replace raw palette classes
+  // (text-green-500 was 2.2:1 and text-yellow-500 1.9:1 on the light page).
+  it.each(["success", "warning", "info", "tone-pink", "tone-violet"])(
+    "--%s reads as text on the page, card, muted and its /15 tint",
+    (name) => {
+      const c = token(mode, name);
+      for (const surface of ["background", "card", "muted"]) {
+        expect(ratio(c, token(mode, surface))).toBeGreaterThanOrEqual(4.5);
+      }
+      expect(ratio(c, over(c, card, 0.15))).toBeGreaterThanOrEqual(4.5);
+      expect(ratio(token(mode, "foreground"), over(c, card, 0.1))).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+
+  it.each(["heat-hot", "heat-warm", "heat-cold"])("text-foreground reads on a /30 --%s bar segment", (name) => {
+    expect(ratio(token(mode, "foreground"), over(token(mode, name), card, 0.3))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  // Regression: dark destructive buttons/badges were near-white on a bright red
+  // (2.75:1). The red also serves as text-destructive error text on the card.
+  it("destructive fill and destructive text both read", () => {
+    const destructive = token(mode, "destructive");
+    expect(ratio(token(mode, "destructive-foreground"), destructive)).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(destructive, card)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  // Regression: light --chart-4 was 2.87:1, under the 3:1 floor for graphics.
+  it.each(["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"])("--%s meets 3:1 against the card", (name) => {
+    expect(ratio(token(mode, name), card)).toBeGreaterThanOrEqual(3);
+  });
+});
+
+// Upstream token shape (registry alignment): every colour token is a full
+// colour and @theme maps it with a bare var(). A bare HSL triplet behind
+// var() is invalid CSS and silently dropped, so pin the shape.
+describe("theme token shape", () => {
+  it.each(["light", "dark"] as const)("%s colour tokens are complete hsl() values", (mode) => {
+    for (const [name, value] of Object.entries(MODES[mode])) {
+      if (name === "radius") continue;
+      expect(value, `--${name}`).toMatch(/^hsl\([\d.]+ [\d.]+% [\d.]+%( \/ [\d.]+)?\)$/);
+    }
+  });
+
+  it("@theme maps colours with a bare var(), never hsl(var())", () => {
+    expect(css).not.toContain("hsl(var(");
+    expect(css).toContain("--color-primary: var(--primary);");
+    expect(css).toContain("--color-sidebar: var(--sidebar);");
+  });
+});

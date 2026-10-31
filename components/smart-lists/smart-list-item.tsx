@@ -1,0 +1,127 @@
+"use client";
+
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Globe, Lock, MoreHorizontal, Pencil, Copy, Trash2, ExternalLink } from "lucide-react";
+
+interface SmartListItemProps {
+  id: string;
+  name: string;
+  icon: React.ReactNode;
+  count: number;
+  isBuiltIn: boolean;
+  isShared: boolean;
+  isSelected: boolean;
+  onSelect(): void;
+  onDelete(): void;
+  onDuplicate(): void;
+  onRename(name: string): void;
+  /** Optional: when present, adds "Open in Clients" action to the menu (custom lists only). */
+  onOpenInClients?(): void;
+}
+
+export function SmartListItem({
+  id: _id,
+  name,
+  icon,
+  count,
+  isBuiltIn,
+  isShared,
+  isSelected,
+  onSelect,
+  onDelete,
+  onDuplicate,
+  onRename,
+  onOpenInClients,
+}: SmartListItemProps) {
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [newName, setNewName] = useState(name);
+
+  const handleRename = () => {
+    if (newName.trim() && newName !== name) onRename(newName.trim());
+    setRenameOpen(false);
+  };
+
+  return (
+    <>
+      <div
+        className={`group w-full flex items-center justify-between p-2.5 rounded-lg text-left transition-colors ${
+          isSelected ? "bg-accent text-accent-foreground" : "hover:bg-muted/50"
+        }`}
+      >
+        <button
+          aria-pressed={isSelected}
+          className="flex items-center gap-2 min-w-0 flex-1 rounded-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
+          onClick={onSelect}
+        >
+          {/* The full name wraps instead of hiding behind a hover tooltip (phones have no hover). */}
+          {isBuiltIn ? icon : isShared
+            ? <Globe className="size-4 text-muted-foreground shrink-0" />
+            : <Lock className="size-4 text-muted-foreground shrink-0" />
+          }
+          <span className="text-sm text-left break-words min-w-0">{name}</span>
+        </button>
+        <div className="flex items-center gap-1">
+          <Badge variant="secondary" className="text-xs shrink-0 tabular-nums">{count}</Badge>
+          {!isBuiltIn && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="size-8 p-0 text-muted-foreground"
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="List actions"
+                >
+                  <MoreHorizontal className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {onOpenInClients && (
+                  <>
+                    <DropdownMenuItem onClick={onOpenInClients}>
+                      <ExternalLink className="size-4 mr-2" />
+                      Open in Clients
+                      <span className="ml-auto pl-3 text-xs text-muted-foreground">{count}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                <DropdownMenuItem onClick={() => { setNewName(name); setRenameOpen(true); }}>
+                  <Pencil className="size-4 mr-2" />Rename
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onDuplicate}>
+                  <Copy className="size-4 mr-2" />Duplicate
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="destructive" onClick={onDelete}>
+                  <Trash2 className="size-4 mr-2" />Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      </div>
+
+      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Rename List</DialogTitle>
+            <DialogDescription>Enter a new name for this list.</DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Input value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleRename()} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameOpen(false)}>Cancel</Button>
+            <Button onClick={handleRename} disabled={!newName.trim()}>Rename</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}

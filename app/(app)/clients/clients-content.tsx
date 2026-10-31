@@ -1,0 +1,730 @@
+"use client";
+
+import { useState, useEffect, useRef, useMemo, useTransition } from "react";
+import type { OnChangeFn, PaginationState, RowSelectionState, SortingState } from "@tanstack/react-table";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { HeatBadgeCell, RelativeDateCell, TextCell } from "@/components/data-table/cells";
+import { DataTable, type DataTableColumn } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/column-header";
+import { SearchInput } from "@/components/search-input";
+import { TableCell } from "@/components/ui/table";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Topbar } from "@/components/topbar";
+import { EmailText } from "@/components/email-text";
+import { formatPhone, fullName } from "@/lib/utils";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Plus, MoreHorizontal, Eye, Edit, Ban, MailX, Trash2, Mail, BookmarkPlus, FileText, Users } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
+import { BanCustomerDialog, UnsubscribeCustomerDialog } from "@/components/client-status-actions";
+import { EmailRecipientsDialog } from "@/components/email-recipients-dialog";
+import { ClientsCsvExportDialog } from "@/components/clients-csv-export-dialog";
+import { ColumnFilterPopover } from "@/components/column-filter-popover";
+import {
+  TextFilterMenu,
+  SingleSelectMenu,
+  TagsFilterMenu,
+  DateFilterButton,
+} from "@/components/column-filters";
+import { SaveCurrentFilterDialog } from "@/components/smart-lists/save-current-filter-dialog";
+import {
+  describeClientFilters,
+  getActiveFilterChips,
+  hasActiveClientFilters,
+  type ClientFilterChipKey,
+} from "@/lib/smart-list-filters";
+import { ActiveFilterChips } from "@/components/active-filter-chips";
+import { BulkActionsToolbar } from "@/components/clients-bulk-actions";
+import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import type { DatePresetId } from "@/lib/date-presets";
+import { deleteClient, restoreClient } from "@/lib/actions";
+import { toast } from "sonner";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
+import type { BuiltInFilter } from "@/lib/queries";
+
+const PAGE_SIZE = DEFAULT_PAGE_SIZE;
+
+// Only used to clear data left by the retired recent-searches feature.
+const LEGACY_SEARCH_HISTORY_KEY = "iris:recent-searches:clients";
+
+/** sessionStorage key for the last query string navigate() wrote. */
+export const LAST_SEARCH_KEY = "clients:last-search";
+
+type SortKey = "name" | "heat" | "lastContact" | "owner";
+type SortDir = "asc" | "desc";
+
+interface ClientFilters {
+  q: string;
+  nameQ: string;
+  contactQ: string;
+  heat: string;
+  owner: string;
+  tags: string[];
+  tagMode: "any" | "all";
+  /** Unix seconds. */
+  lastContactFrom?: number;
+  lastContactTo?: number;
+  createdFrom?: number;
+  createdTo?: number;
+  /** Rolling shortcut ids from `?lastContactRange=` / `?createdRange=`; win over the bounds. */
+  lastContactRange?: DatePresetId;
+  createdRange?: DatePresetId;
+  /** Built-in quick filter from `?filter=` (e.g. the dashboard's Hot Leads card). */
+  filter?: BuiltInFilter;
+  sort: SortKey;
+  sortDir: SortDir;
+  page: number;
+}
+
+interface ClientRow {
+  client: {
+    id: string;
+    firstName: string;
+    lastName: string | null;
+    email: string | null;
+    phone: string | null;
+    heatLevel: "hot" | "warm" | "cold";
+    heatScore: number;
+    status: string;
+    lastOutreachAt: string | null;
+    tags: string[];
+  };
+  employeeName: string | null;
+}
+
+export function ClientListContent({
+  rows,
+  total,
+  ownerNames,
+  allTags,
+  employeeOptions,
+  currentFilters,
+  currentUserRole,
+  restoreLastSearch = false,
+}: {
+  rows: ClientRow[];
+  total: number;
+  ownerNames: string[];
+  allTags: { name: string; usageCount: number }[];
+  employeeOptions: { id: string; name: string }[];
+  currentFilters: ClientFilters;
+  currentUserRole?: string;
+  /** True when the page was requested with no search params at all. */
+  restoreLastSearch?: boolean;
+}) {
+  const router = useRouter();
+  const [qLocal, setQLocal] = useState(currentFilters.q);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [deleteTarget, setDeleteTarget] = useState<ClientRow | null>(null);
+  const [emailRecipientsOpen, setEmailRecipientsOpen] = useState(false);
+  const [csvExportOpen, setCsvExportOpen] = useState(false);
+  const [saveFilterOpen, setSaveFilterOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  // The query the URL currently reflects, and the id of the debounce timer
+  // waiting to commit a newer one. Both are the pagination fix: see navigate()
+  // and the debounce effect below.
+  const committedQ = useRef(currentFilters.q);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // One-time cleanup of the retired recent-searches history.
+  useEffect(() => {
+    try {
+      window.localStorage.removeItem(LEGACY_SEARCH_HISTORY_KEY);
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+
+  // Stable filter object for the EmailRecipientsDialog — prevents refetch
+  // on every parent re-render. Joining tags keeps the dep primitive. Carries
+  // the ?filter= quick filter so the dialogs scope to exactly what's listed.
+  const tagsKey = currentFilters.tags.join(",");
+  const emailRecipientFilters = useMemo(
+    () => ({
+      q: currentFilters.q,
+      nameQ: currentFilters.nameQ,
+      contactQ: currentFilters.contactQ,
+      heat: currentFilters.heat,
+      owner: currentFilters.owner,
+      tags: currentFilters.tags,
+      tagMode: currentFilters.tagMode,
+      lastContactFrom: currentFilters.lastContactFrom,
+      lastContactTo: currentFilters.lastContactTo,
+      createdFrom: currentFilters.createdFrom,
+      createdTo: currentFilters.createdTo,
+      lastContactRange: currentFilters.lastContactRange,
+      createdRange: currentFilters.createdRange,
+      filter: currentFilters.filter,
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      currentFilters.q, currentFilters.nameQ, currentFilters.contactQ,
+      currentFilters.heat, currentFilters.owner, tagsKey, currentFilters.tagMode,
+      currentFilters.lastContactFrom, currentFilters.lastContactTo,
+      currentFilters.createdFrom, currentFilters.createdTo, currentFilters.filter,
+      currentFilters.lastContactRange, currentFilters.createdRange,
+    ],
+  );
+
+  function clearFilterChip(key: ClientFilterChipKey) {
+    switch (key) {
+      case "quickFilter": navigate({ filter: undefined, page: 1 }); break;
+      case "q": setQLocal(""); navigate({ q: "", page: 1 }); break;
+      case "nameQ": navigate({ nameQ: "", page: 1 }); break;
+      case "contactQ": navigate({ contactQ: "", page: 1 }); break;
+      case "heat": navigate({ heat: "any", page: 1 }); break;
+      case "owner": navigate({ owner: "any", page: 1 }); break;
+      case "tags": navigate({ tags: [], tagMode: "any", page: 1 }); break;
+      case "lastContact":
+        navigate({ lastContactFrom: undefined, lastContactTo: undefined, lastContactRange: undefined, page: 1 });
+        break;
+      case "created":
+        navigate({ createdFrom: undefined, createdTo: undefined, createdRange: undefined, page: 1 });
+        break;
+    }
+  }
+
+  function clearAllFilters() {
+    setQLocal("");
+    navigate({
+      q: "",
+      nameQ: "",
+      contactQ: "",
+      heat: "any",
+      owner: "any",
+      tags: [],
+      tagMode: "any",
+      lastContactFrom: undefined,
+      lastContactTo: undefined,
+      createdFrom: undefined,
+      createdTo: undefined,
+      lastContactRange: undefined,
+      createdRange: undefined,
+      filter: undefined,
+      page: 1,
+    });
+  }
+
+  function navigate(overrides: Partial<ClientFilters>, history: "push" | "replace" = "replace") {
+    // A pending search debounce would fire ~300ms from now with page: 1 and
+    // clobber this navigation, so fold the typed query in here and cancel it.
+    if (searchTimer.current !== null) {
+      clearTimeout(searchTimer.current);
+      searchTimer.current = null;
+    }
+    // qLocal is the live truth for the search box; overrides still win.
+    const next = { ...currentFilters, q: qLocal, ...overrides };
+    committedQ.current = next.q;
+    const sp = new URLSearchParams();
+    if (next.q) sp.set("q", next.q);
+    if (next.nameQ) sp.set("nameQ", next.nameQ);
+    if (next.contactQ) sp.set("contactQ", next.contactQ);
+    if (next.heat !== "any") sp.set("heat", next.heat);
+    if (next.owner !== "any") sp.set("owner", next.owner);
+    if (next.tags.length > 0) sp.set("tags", next.tags.join(","));
+    if (next.tagMode !== "any") sp.set("tagMode", next.tagMode);
+    if (next.lastContactFrom) sp.set("lastContactFrom", String(next.lastContactFrom));
+    if (next.lastContactTo) sp.set("lastContactTo", String(next.lastContactTo));
+    if (next.createdFrom) sp.set("createdFrom", String(next.createdFrom));
+    if (next.createdTo) sp.set("createdTo", String(next.createdTo));
+    if (next.lastContactRange) sp.set("lastContactRange", next.lastContactRange);
+    if (next.createdRange) sp.set("createdRange", next.createdRange);
+    if (next.filter) sp.set("filter", next.filter);
+    if (next.sort !== "heat") sp.set("sort", next.sort);
+    if (next.sortDir !== "desc") sp.set("sortDir", next.sortDir);
+    if (next.page > 1) sp.set("page", String(next.page));
+    const qs = sp.toString();
+    const url = `/clients${qs ? `?${qs}` : ""}`;
+    // Remembered for a bare /clients visit later in the session; an empty
+    // query (every filter cleared) forgets it.
+    if (qs) sessionStorage.setItem(LAST_SEARCH_KEY, qs);
+    else sessionStorage.removeItem(LAST_SEARCH_KEY);
+    // scroll: false keeps the viewport where it is (the pagination footer stays
+    // under the cursor); the transition keeps the current rows interactive
+    // while the server renders the next page instead of flashing a skeleton.
+    startTransition(() => {
+      if (history === "push") router.push(url, { scroll: false });
+      else router.replace(url, { scroll: false });
+    });
+  }
+
+  // Keep ref current so the debounce effect never closes over a stale navigate.
+  const navigateRef = useRef(navigate);
+  useEffect(() => {
+    navigateRef.current = navigate;
+  });
+
+  // A bare /clients visit adopts the filters the user last had this session.
+  useEffect(() => {
+    if (!restoreLastSearch) return;
+    const saved = sessionStorage.getItem(LAST_SEARCH_KEY);
+    if (saved) router.replace(`/clients?${saved}`, { scroll: false });
+  }, [restoreLastSearch, router]);
+
+  // Adopt a query that arrived from outside this component — a back/forward
+  // navigation, or a deep link — so the input and the URL stay in step.
+  useEffect(() => {
+    committedQ.current = currentFilters.q;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- adopts a URL q from back/forward or a deep link; the render-phase version must write committedQ.current during render (react-hooks/refs), and ref-based guards caused the pagination bounce documented below
+    setQLocal(currentFilters.q);
+  }, [currentFilters.q]);
+
+  // Debounce the search query so every keystroke doesn't fire a navigation.
+  // Guarding on "has the query actually diverged from the URL" rather than on
+  // a first-render ref is what makes this mount-safe: the effect re-runs on
+  // every mount (StrictMode, and the Suspense boundary remounting this tree
+  // after each navigation), and the old ref let those re-runs commit a
+  // navigation with page: 1 that bounced the user off the page they picked.
+  useEffect(() => {
+    if (qLocal === committedQ.current) return;
+    searchTimer.current = setTimeout(() => {
+      searchTimer.current = null;
+      navigateRef.current({ q: qLocal, page: 1 });
+    }, 300);
+    return () => {
+      if (searchTimer.current !== null) clearTimeout(searchTimer.current);
+      searchTimer.current = null;
+    };
+  }, [qLocal]);
+
+  // Both slices are compared shallowly by the table, so they have to keep
+  // their identity between renders that did not change them.
+  const sorting = useMemo<SortingState>(
+    () => [{ id: currentFilters.sort, desc: currentFilters.sortDir === "desc" }],
+    [currentFilters.sort, currentFilters.sortDir],
+  );
+  const pagination = useMemo<PaginationState>(
+    () => ({ pageIndex: currentFilters.page - 1, pageSize: PAGE_SIZE }),
+    [currentFilters.page],
+  );
+
+  // Sort removal and descending-first are off in the engine, so the updater
+  // always resolves to one column: same column flips, a new one starts asc.
+  const handleSortingChange: OnChangeFn<SortingState> = (updater) => {
+    const [next] = typeof updater === "function" ? updater(sorting) : updater;
+    if (!next) return;
+    navigate({ sort: next.id as SortKey, sortDir: next.desc ? "desc" : "asc", page: 1 });
+  };
+
+  // "push" so browser back returns to the page the user came from.
+  const handlePaginationChange: OnChangeFn<PaginationState> = (updater) => {
+    const next = typeof updater === "function" ? updater(pagination) : updater;
+    navigate({ page: next.pageIndex + 1 }, "push");
+  };
+
+  // Selection is keyed by client id (`getRowId` below), so the map keys are
+  // the ids the bulk actions need — minus any the user has toggled back off.
+  const selectedIds = useMemo(
+    () => Object.keys(rowSelection).filter((id) => rowSelection[id]),
+    [rowSelection],
+  );
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const id = deleteTarget.client.id;
+    const result = await deleteClient(id);
+    if (result?.error) {
+      toast.error(result.error);
+    } else {
+      toast.success("Client deleted", {
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            const r = await restoreClient(id);
+            if (r?.error) toast.error(r.error);
+            else router.refresh();
+          },
+        },
+      });
+      setDeleteTarget(null);
+      router.refresh();
+    }
+  };
+
+  // Rebuilt every render — cheap, because the engine keys its row model on
+  // `data` alone. The checkbox column is the engine's (`selection` below).
+  const columns: DataTableColumn<ClientRow>[] = [
+    {
+      id: "name",
+      accessorFn: (r) => `${r.client.firstName} ${r.client.lastName ?? ""}`,
+      header: (ctx) => (
+        <DataTableColumnHeader
+          ctx={ctx}
+          label="Name"
+          filter={
+            <ColumnFilterPopover
+              label="Name"
+              active={!!currentFilters.nameQ}
+              onClear={() => navigate({ nameQ: "", page: 1 })}
+            >
+              <TextFilterMenu
+                value={currentFilters.nameQ}
+                onChange={(v) => navigate({ nameQ: v, page: 1 })}
+                placeholder="Filter name…"
+              />
+            </ColumnFilterPopover>
+          }
+        />
+      ),
+      cell: ({ row: { original: r } }) => (
+        <TableCell>
+          <Link href={`/clients/${r.client.id}`} className="font-medium hover:underline">
+            {r.client.firstName} {r.client.lastName ?? ""}
+          </Link>
+          {r.client.status !== "active" && <Badge variant="outline" className="ml-2 text-xs tracking-wide capitalize">{r.client.status}</Badge>}
+        </TableCell>
+      ),
+    },
+    {
+      id: "contact",
+      header: (ctx) => (
+        <DataTableColumnHeader
+          ctx={ctx}
+          label="Contact"
+          filter={
+            <ColumnFilterPopover
+              label="Contact"
+              active={!!currentFilters.contactQ}
+              onClear={() => navigate({ contactQ: "", page: 1 })}
+            >
+              <TextFilterMenu
+                value={currentFilters.contactQ}
+                onChange={(v) => navigate({ contactQ: v, page: 1 })}
+                placeholder="Filter email or phone…"
+              />
+            </ColumnFilterPopover>
+          }
+        />
+      ),
+      cell: ({ row: { original: r } }) => (
+        <TableCell className="max-w-[200px]">
+          {r.client.phone && <div className="text-xs whitespace-nowrap">{formatPhone(r.client.phone)}</div>}
+          {/* Email is hidden below md so the table fits a phone; it's one tap away on the client page. */}
+          {r.client.email && <div className="hidden md:block text-xs text-muted-foreground"><EmailText email={r.client.email} /></div>}
+        </TableCell>
+      ),
+    },
+    {
+      id: "heat",
+      accessorFn: (r) => r.client.heatScore,
+      header: (ctx) => (
+        <DataTableColumnHeader
+          ctx={ctx}
+          label="Heat"
+          filter={
+            <ColumnFilterPopover
+              label="Heat"
+              active={currentFilters.heat !== "any"}
+              onClear={() => navigate({ heat: "any", page: 1 })}
+            >
+              <SingleSelectMenu
+                value={currentFilters.heat}
+                onChange={(v) => navigate({ heat: v, page: 1 })}
+                options={[
+                  { value: "any", label: "Any heat" },
+                  { value: "hot", label: "Hot" },
+                  { value: "warm", label: "Warm" },
+                  { value: "cold", label: "Cold" },
+                ]}
+              />
+            </ColumnFilterPopover>
+          }
+        />
+      ),
+      cell: ({ row: { original: r } }) => (
+        <HeatBadgeCell level={r.client.heatLevel} score={r.client.heatScore} showScore compactOnMobile />
+      ),
+    },
+    {
+      id: "tags",
+      meta: { headClassName: "hidden md:table-cell" },
+      header: (ctx) => (
+        <DataTableColumnHeader
+          ctx={ctx}
+          label="Tags"
+          filter={
+            <ColumnFilterPopover
+              label="Tags"
+              active={currentFilters.tags.length > 0}
+              onClear={() => navigate({ tags: [], tagMode: "any", page: 1 })}
+            >
+              <TagsFilterMenu
+                allTags={allTags}
+                selected={currentFilters.tags}
+                mode={currentFilters.tagMode}
+                onChange={({ selected, mode }) => navigate({ tags: selected, tagMode: mode, page: 1 })}
+              />
+            </ColumnFilterPopover>
+          }
+        />
+      ),
+      cell: ({ row: { original: r } }) => (
+        <TableCell className="hidden md:table-cell">
+          <div className="flex gap-1 flex-wrap max-w-[180px]">
+            {(r.client.tags || []).slice(0, 3).map((t) => <Badge key={t} variant="secondary" className="text-xs tracking-wide">{t}</Badge>)}
+          </div>
+        </TableCell>
+      ),
+    },
+    {
+      id: "owner",
+      accessorFn: (r) => r.employeeName,
+      meta: { headClassName: "hidden md:table-cell" },
+      header: (ctx) => (
+        <DataTableColumnHeader
+          ctx={ctx}
+          label="Owner"
+          filter={
+            <ColumnFilterPopover
+              label="Owner"
+              active={currentFilters.owner !== "any"}
+              onClear={() => navigate({ owner: "any", page: 1 })}
+            >
+              <SingleSelectMenu
+                searchable
+                value={currentFilters.owner}
+                onChange={(v) => navigate({ owner: v, page: 1 })}
+                options={[
+                  { value: "any", label: "Any owner" },
+                  { value: "__none__", label: "Unassigned" },
+                  ...ownerNames.map((name) => ({ value: name, label: name })),
+                ]}
+              />
+            </ColumnFilterPopover>
+          }
+        />
+      ),
+      cell: ({ row: { original: r } }) => (
+        <TextCell value={r.employeeName} className="hidden md:table-cell text-xs text-muted-foreground" />
+      ),
+    },
+    {
+      id: "lastContact",
+      accessorFn: (r) => r.client.lastOutreachAt,
+      meta: { headClassName: "hidden md:table-cell" },
+      header: (ctx) => <DataTableColumnHeader ctx={ctx} label="Last contact" />,
+      cell: ({ row: { original: r } }) => (
+        <RelativeDateCell value={r.client.lastOutreachAt} className="hidden md:table-cell" />
+      ),
+    },
+    {
+      id: "actions",
+      meta: { headClassName: "w-10" },
+      header: () => <span className="sr-only">Actions</span>,
+      cell: ({ row: { original: r } }) => (
+        <TableCell>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-7" aria-label="Actions">
+                <MoreHorizontal className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href={`/clients/${r.client.id}`}><Eye className="size-4 mr-2" /> View</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/clients/${r.client.id}/edit`}><Edit className="size-4 mr-2" /> Edit</Link>
+              </DropdownMenuItem>
+              {r.client.status === "active" && (
+                <>
+                  <DropdownMenuSeparator />
+                  <BanCustomerDialog clientId={r.client.id} clientName={fullName(r.client)}>
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      <Ban className="size-4 mr-2" /> Ban Customer
+                    </DropdownMenuItem>
+                  </BanCustomerDialog>
+                  <UnsubscribeCustomerDialog clientId={r.client.id} clientName={fullName(r.client)}>
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      <MailX className="size-4 mr-2" /> Unsubscribe
+                    </DropdownMenuItem>
+                  </UnsubscribeCustomerDialog>
+                </>
+              )}
+              {currentUserRole === "manager" && r.client.status !== "deleted" && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem variant="destructive" onClick={() => setDeleteTarget(r)}>
+                    <Trash2 className="size-4 mr-2" />
+                    Delete Client
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </TableCell>
+      ),
+    },
+  ];
+
+  return (
+    <>
+      <Topbar title="Clients">
+        {/* md+: full buttons. Below md the three secondary actions fold into a
+            ⋯ menu so the topbar fits a phone instead of widening the page. */}
+        <div className="hidden md:flex items-center gap-2">
+          <Button
+            onClick={() => setSaveFilterOpen(true)}
+            variant="outline"
+            size="sm"
+            disabled={!hasActiveClientFilters(emailRecipientFilters)}
+            title={hasActiveClientFilters(emailRecipientFilters) ? "Save current filter as Smart List" : "Apply a filter first"}
+          >
+            <BookmarkPlus className="size-4 mr-2" />
+            Save Filter
+          </Button>
+          <Button onClick={() => setCsvExportOpen(true)} variant="outline" size="sm">
+            <FileText className="size-4 mr-2" />
+            Export CSV
+          </Button>
+          <Button onClick={() => setEmailRecipientsOpen(true)} variant="outline" size="sm">
+            <Mail className="size-4 mr-2" />
+            Email Recipients
+          </Button>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="md:hidden" aria-label="More client actions">
+              <MoreHorizontal className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onSelect={() => setSaveFilterOpen(true)}
+              disabled={!hasActiveClientFilters(emailRecipientFilters)}
+            >
+              <BookmarkPlus className="size-4 mr-2" />
+              Save Filter
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setCsvExportOpen(true)}>
+              <FileText className="size-4 mr-2" />
+              Export CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setEmailRecipientsOpen(true)}>
+              <Mail className="size-4 mr-2" />
+              Email Recipients
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Button asChild variant="gold" size="sm" data-hint="add-client">
+          <Link href="/clients/new" aria-label="Add Client"><Plus className="size-4 sm:mr-1" /><span className="hidden sm:inline">Add Client</span></Link>
+        </Button>
+      </Topbar>
+      <div className="flex flex-col flex-1 p-3 md:p-6 gap-4 max-w-full overflow-hidden" data-tour="client-list">
+        {/* Search + date filters row */}
+        <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+          <SearchInput
+            value={qLocal}
+            onChangeAction={(v) => setQLocal(v)}
+            placeholder="Search name, email, phone…"
+            aria-label="Search clients"
+            className="flex-1 max-w-md"
+          />
+          {/* One button per date field so a phone shows one calendar at a time. */}
+          <div className="flex gap-2">
+            <DateFilterButton
+              field="lastContact"
+              label="Last contact"
+              from={currentFilters.lastContactFrom}
+              to={currentFilters.lastContactTo}
+              range={currentFilters.lastContactRange}
+              onChange={(next) => navigate({ ...next, page: 1 })}
+              className="flex-1 sm:flex-none"
+            />
+            <DateFilterButton
+              field="created"
+              label="Created"
+              from={currentFilters.createdFrom}
+              to={currentFilters.createdTo}
+              range={currentFilters.createdRange}
+              onChange={(next) => navigate({ ...next, page: 1 })}
+              className="flex-1 sm:flex-none"
+            />
+          </div>
+        </div>
+
+        {/* Active filters strip — only renders when filters are active */}
+        <ActiveFilterChips
+          chips={getActiveFilterChips(emailRecipientFilters)}
+          onRemove={clearFilterChip}
+          onClearAll={clearAllFilters}
+        />
+
+        {/* Bulk actions */}
+        <BulkActionsToolbar
+          selectedIds={selectedIds}
+          onClearAction={() => setRowSelection({})}
+          allTags={allTags}
+          owners={employeeOptions}
+          isManager={currentUserRole === "manager"}
+        />
+
+        {/* Table */}
+        <DataTable
+          busy={isPending}
+          columns={columns}
+          data={rows}
+          getRowId={(r) => r.client.id}
+          manualSorting
+          manualFiltering
+          manualPagination
+          rowCount={total}
+          state={{ sorting, pagination, rowSelection }}
+          onSortingChange={handleSortingChange}
+          onPaginationChange={handlePaginationChange}
+          onRowSelectionChange={setRowSelection}
+          selection={{ label: "clients" }}
+          empty={
+            <EmptyState
+              icon={Users}
+              description="No clients match."
+              compact
+              {...(hasActiveClientFilters(emailRecipientFilters)
+                ? { action: { label: "Clear filters", onClick: clearAllFilters } }
+                : {})}
+            />
+          }
+          rowClassName={(row) => (row.getIsSelected() ? "bg-accent/5" : "hover:bg-muted/30")}
+          pagination={{ itemLabel: "clients" }}
+        />
+      </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChangeAction={(open) => !open && setDeleteTarget(null)}
+        title="Delete Client"
+        description={<>Are you sure you want to delete <strong>{deleteTarget?.client.firstName} {deleteTarget?.client.lastName}</strong>? This hides the client from all views. It can be restored by a manager from Settings.</>}
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirmAction={handleDelete}
+      />
+
+      <EmailRecipientsDialog
+        open={emailRecipientsOpen}
+        onOpenChange={setEmailRecipientsOpen}
+        filters={emailRecipientFilters}
+      />
+
+      <ClientsCsvExportDialog
+        open={csvExportOpen}
+        onOpenChange={setCsvExportOpen}
+        filters={emailRecipientFilters}
+      />
+
+      <SaveCurrentFilterDialog
+        open={saveFilterOpen}
+        onOpenChange={setSaveFilterOpen}
+        filters={emailRecipientFilters}
+        activeFilterChips={describeClientFilters(emailRecipientFilters)}
+      />
+    </>
+  );
+}

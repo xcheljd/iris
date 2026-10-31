@@ -1,0 +1,193 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DateRangePicker, type DateRangeValue } from "@/components/date-range-picker";
+import { describeRange, type DatePresetId } from "@/lib/date-presets";
+import { Topbar } from "@/components/topbar";
+import { AnalyticsOverviewTab } from "./analytics-overview-tab";
+import { AnalyticsOutreachTab } from "./analytics-outreach-tab";
+import { AnalyticsHeatTab } from "./analytics-heat-tab";
+import { AnalyticsProspectsTab } from "./analytics-prospects-tab";
+import { endOfDay } from "date-fns";
+import type { KpiMetrics, ProspectFunnelStats, OutreachMethodBreakdown, OutreachOutcomeBreakdown, OutreachLogRow, OutreachLogSortKey } from "@/lib/queries";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
+
+interface Stats {
+  total: number;
+  active: number;
+  bannedClients: number;
+  unsubscribedClients: number;
+  hot: number;
+  warm: number;
+  cold: number;
+  banned: number;
+  unsubscribed: number;
+  outreachWeek: number;
+  purchasesWeek: number;
+}
+
+interface EmployeeRow {
+  id: string;
+  firstName: string;
+  lastName: string | null;
+}
+
+interface AnalyticsContentProps {
+  stats: Stats;
+  /** One page of the outreach log, already filtered, sorted and sliced by the server. */
+  outreachLog: OutreachLogRow[];
+  outreachTotal: number;
+  outreachPage: number;
+  /** Whitelisted by the page; carried through so navigation keeps them. */
+  outreachSort?: OutreachLogSortKey;
+  outreachSortDir?: "asc" | "desc";
+  employees?: EmployeeRow[];
+  selectedEmployeeId?: string;
+  prospectFunnel: ProspectFunnelStats;
+  /** Counted in SQL over every log in the selected range (`outreachMethodBreakdown`). */
+  methodDistribution: OutreachMethodBreakdown;
+  kpis: KpiMetrics;
+  outcomeDistribution: OutreachOutcomeBreakdown;
+  /** Rolling shortcut from `?range=` (wins over from/to). */
+  rangePreset?: DatePresetId;
+  /** Explicit range from `?from=` / `?to=`, unix seconds. No range = all time. */
+  dateFrom?: number;
+  dateTo?: number;
+}
+
+const PAGE_SIZE = DEFAULT_PAGE_SIZE;
+
+export function AnalyticsContent({ stats, kpis, outreachLog, outreachTotal, outreachPage, outreachSort, outreachSortDir, employees, selectedEmployeeId, prospectFunnel, methodDistribution, outcomeDistribution, rangePreset, dateFrom: fromTs, dateTo: toTs }: AnalyticsContentProps) {
+  const router = useRouter();
+  const dateFrom = fromTs ? new Date(fromTs * 1000) : undefined;
+  const dateTo = toTs ? new Date(toTs * 1000) : undefined;
+  const [tab, setTab] = useState("overview");
+
+  // The single URL writer: employee (managers only), the date range and the
+  // outreach log page/sort. Omitting `page` resets to page 1.
+  function navigate(
+    next: { employee?: string; range?: DatePresetId; from?: Date; to?: Date; page?: number; sort?: OutreachLogSortKey; sortDir?: "asc" | "desc" },
+    history: "push" | "replace" = "replace",
+  ) {
+    const sp = new URLSearchParams();
+    if (next.employee) sp.set("employee", next.employee);
+    if (next.range) sp.set("range", next.range);
+    if (next.from) sp.set("from", String(Math.floor(next.from.getTime() / 1000)));
+    if (next.to) sp.set("to", String(Math.floor(next.to.getTime() / 1000)));
+    if (next.sort) sp.set("sort", next.sort);
+    if (next.sortDir) sp.set("sortDir", next.sortDir);
+    if (next.page && next.page > 1) sp.set("page", String(next.page));
+    const qs = sp.toString();
+    const url = qs ? `/analytics?${qs}` : "/analytics";
+    if (history === "push") router.push(url, { scroll: false });
+    else router.replace(url, { scroll: false });
+  }
+  const current = {
+    employee: employees ? selectedEmployeeId : undefined,
+    range: rangePreset,
+    from: dateFrom,
+    to: dateTo,
+    sort: outreachSort,
+    sortDir: outreachSortDir,
+  };
+
+
+  const totalOutreach = methodDistribution.reduce((sum, m) => sum + m.count, 0);
+
+  const rangeValue: DateRangeValue = rangePreset ? { preset: rangePreset } : { from: dateFrom, to: dateTo };
+  const rangeLabel = describeRange(rangeValue);
+  // A shortcut is written by id (rolling); picked days as unix seconds, the
+  // "to" day as its last second since the server bound is inclusive.
+  const setRange = (v: DateRangeValue) =>
+    navigate({ ...current, range: v.preset, from: v.preset ? undefined : v.from, to: v.preset ? undefined : v.to && endOfDay(v.to) });
+
+  const handleEmployeeChange = (value: string) => {
+    navigate({ ...current, employee: value === "all" ? undefined : value }, "push");
+  };
+
+  return (
+    <>
+      <Topbar title="Analytics" />
+      <div className="flex-1 p-4 md:p-6" data-tour="analytics">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+          <div>
+            <h1 className="sr-only">Analytics</h1>
+            <p className="text-muted-foreground mt-1">
+              Performance metrics and outreach insights
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {employees && (
+              <Select value={selectedEmployeeId ?? "all"} onValueChange={handleEmployeeChange}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="All Employees" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Employees</SelectItem>
+                  {employees.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.firstName}{e.lastName ? ` ${e.lastName}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {/* The range drives the Overview and the Outreach tab; Heat and
+                Prospects are point-in-time, so the picker would do nothing there. */}
+            {(tab === "overview" || tab === "outreach") && (
+              <DateRangePicker value={rangeValue} onChange={setRange} emptyLabel="All time" />
+            )}
+          </div>
+        </div>
+
+        <Tabs value={tab} onValueChange={setTab} className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="outreach">Outreach</TabsTrigger>
+            <TabsTrigger value="heat">
+              {/* Short label on phones; screen readers always get the full name. */}
+              <span aria-hidden className="md:hidden">Heat</span>
+              <span className="max-md:sr-only">Heat Distribution</span>
+            </TabsTrigger>
+            <TabsTrigger value="prospects">Prospects</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview">
+            <AnalyticsOverviewTab
+              stats={stats}
+              methodDistribution={methodDistribution}
+              rangeLabel={rangeLabel}
+              kpis={kpis}
+            />
+          </TabsContent>
+
+          <TabsContent value="outreach">
+            <AnalyticsOutreachTab
+              pagedOutreach={outreachLog}
+              totalOutreach={totalOutreach}
+              page={outreachPage}
+              setPage={(p) => navigate({ ...current, page: p }, "push")}
+              totalPages={Math.ceil(outreachTotal / PAGE_SIZE)}
+              totalFiltered={outreachTotal}
+              pageSize={PAGE_SIZE}
+              methodDistribution={methodDistribution}
+              outcomeDistribution={outcomeDistribution}
+              hasDateFilter={!!(rangePreset || dateFrom || dateTo)}
+            />
+          </TabsContent>
+
+          <TabsContent value="heat">
+            <AnalyticsHeatTab stats={stats} />
+          </TabsContent>
+
+          <TabsContent value="prospects">
+            <AnalyticsProspectsTab funnel={prospectFunnel} />
+          </TabsContent>
+        </Tabs>
+      </div>
+    </>
+  );
+}

@@ -1,0 +1,69 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Next.js
+.next/
+dist/
+
+# Environment
+.env
+.env.local
+.env*.local
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+
+# Build
+.turbo/
+tsconfig.tsbuildinfo
+
+
+# Drizzle ORM
+drizzle/
+
+# Testing & QA
+qa-results/
+screenshots/
+
+# AI / Dev tools
+.factory/
+.playwright-mcp/
+.claude/
+
+# Remotion demo (local scratch)
+remotion-demo/*
+!remotion-demo/src/
+!remotion-demo/out/
+!remotion-demo/VOICEOVER.md
+!remotion-demo/CREDITS.md
+!remotion-demo/package.json
+
+# Planning notes (local only)
+plans/
+
+# Local scratch
+tmp/
+
+# Misc
+*.log
+*.png
+# …except the app icons, built by `pnpm icons`
+!app/icon.png
+!app/apple-icon.png
+!public/icon-*.png
+!docs/social-preview.png
+
+# Real data files (never committed)
+*.xls
+*.xlsx
+
+
+# remotion render output
+remotion-demo/out/*.jpg
+
+# vitest test database + run lock
+.vitest/

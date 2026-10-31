@@ -1,0 +1,204 @@
+"use server";
+import { db } from "@/lib/db";
+import { clients, activityEvents, unsubscribeList, prospects } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import { randomUUID } from "crypto";
+import { fullName } from "@/lib/utils";
+import { findDuplicateClient } from "@/lib/duplicate-client";
+import {
+  graduateEnrichmentSchema,
+  graduateProspectSchema,
+  type GraduateProspectInput,
+} from "@/lib/validation/prospect";
+import { requireAuth } from "./_shared";
+import { recordProductsOfInterest } from "./model-catalog";
+import { rematchClientPromos } from "@/lib/promo-match";
+import { recalcHeat } from "@/lib/heat-recalc";
+import { isEmailSuppressed } from "@/lib/suppression";
+import { normalizeEmail, sameEmail } from "@/lib/email-identity";
+
+export async function graduateProspect(input: GraduateProspectInput): Promise<
+  | { type: "created"; clientId: string }
+  | { type: "duplicate"; existingClientId: string; existingClientName: string }
+  | { type: "error"; error: string }
+> {
+  const user = await requireAuth();
+  const result = graduateProspectSchema.safeParse(input);
+  if (!result.success) return { type: "error", error: result.error.issues[0]?.message ?? "Invalid request" };
+  const parsed = result.data;
+
+  const prospect = db.select().from(prospects).where(eq(prospects.id, parsed.prospectId)).get();
+  if (!prospect) return { type: "error", error: "Prospect not found" };
+  if (prospect.status !== "active") return { type: "error", error: "Prospect is not active" };
+
+  // Duplicate check against live clients — contact details only, same rule
+  // and same implementation as the new-client form and POST /api/clients.
+  const match = findDuplicateClient({ email: parsed.email, phone: parsed.phone });
+
+  if (match) {
+    return {
+      type: "duplicate",
+      existingClientId: match.id,
+      existingClientName: fullName(match),
+    };
+  }
+
+  const newClientId = randomUUID();
+
+  db.transaction((tx) => {
+    tx.insert(clients).values({
+      id: newClientId,
+      firstName: parsed.firstName,
+      lastName: parsed.lastName,
+      preferredContact: parsed.preferredContact,
+      phone: parsed.phone ?? null,
+      email: parsed.email ?? null,
+      birthday: parsed.birthday ?? null,
+      anniversary: parsed.anniversary ?? null,
+      notes: parsed.notes ?? null,
+      productsOfInterest: parsed.productsOfInterest,
+      source: "Customer Report",
+      customerId: prospect.importCustomerId,
+      employeeId: user.role === "associate" ? user.id : undefined,
+    }).run();
+
+    recordProductsOfInterest(tx, parsed.productsOfInterest);
+    rematchClientPromos(tx, [newClientId]);
+
+    tx.update(prospects)
+      .set({ status: "graduated", graduatedToClientId: newClientId, updatedAt: new Date() })
+      .where(eq(prospects.id, parsed.prospectId))
+      .run();
+
+    tx.insert(activityEvents).values({
+      id: randomUUID(),
+      clientId: newClientId,
+      eventType: "created",
+      description: "Client created from prospect graduation",
+      employeeId: user.id,
+      metadata: { source: "prospect_graduation", prospectId: parsed.prospectId },
+    }).run();
+  });
+
+  await recalcHeat(newClientId);
+  revalidatePath("/prospects");
+  revalidatePath("/clients");
+  return { type: "created", clientId: newClientId };
+}
+
+export async function graduateProspectIntoExistingClient(
+  prospectId: string,
+  existingClientId: string,
+  rawEnrichment: Partial<GraduateProspectInput>,
+): Promise<{ error: string } | undefined> {
+  const user = await requireAuth();
+  const enrichmentResult = graduateEnrichmentSchema.safeParse(rawEnrichment);
+  if (!enrichmentResult.success) return { error: enrichmentResult.error.issues[0]?.message ?? "Invalid request" };
+  const enrichment = enrichmentResult.data;
+
+  const prospect = db.select().from(prospects).where(eq(prospects.id, prospectId)).get();
+  if (!prospect) return { error: "Prospect not found" };
+  if (prospect.status !== "active") return { error: "Cannot graduate a prospect that is not active" };
+
+  const existing = db.select().from(clients).where(eq(clients.id, existingClientId)).get();
+  if (!existing) return { error: "Client not found" };
+  if (user.role !== "manager" && existing.employeeId !== user.id) return { error: "Not authorized to modify this client" };
+  if (existing.status === "deleted" || existing.status === "banned") {
+    return { error: `Cannot graduate into a ${existing.status} client` };
+  }
+
+  // Only backfill fields that are currently null/empty on the existing client
+  const patch: Partial<typeof clients.$inferInsert> = { updatedAt: new Date() };
+  if (!existing.phone && enrichment.phone) patch.phone = enrichment.phone;
+  if (!existing.email && enrichment.email) {
+    patch.email = enrichment.email;
+    // The client may already be on the list; a suppressed address must not join it.
+    if (isEmailSuppressed(enrichment.email)) patch.onEmailList = false;
+  }
+  if (!existing.birthday && enrichment.birthday) patch.birthday = enrichment.birthday;
+  if (!existing.anniversary && enrichment.anniversary) patch.anniversary = enrichment.anniversary;
+  if (!existing.notes && enrichment.notes) patch.notes = enrichment.notes;
+  if (!existing.preferredContact && enrichment.preferredContact) patch.preferredContact = enrichment.preferredContact;
+  if (!existing.customerId && prospect.importCustomerId) patch.customerId = prospect.importCustomerId;
+  if (
+    (!existing.productsOfInterest || existing.productsOfInterest.length === 0) &&
+    enrichment.productsOfInterest?.length
+  ) {
+    patch.productsOfInterest = enrichment.productsOfInterest;
+  }
+
+  db.transaction((tx) => {
+    tx.update(clients).set(patch).where(eq(clients.id, existingClientId)).run();
+    if (patch.productsOfInterest) {
+      recordProductsOfInterest(tx, patch.productsOfInterest);
+      rematchClientPromos(tx, [existingClientId]);
+    }
+
+    tx.update(prospects)
+      .set({ status: "graduated", graduatedToClientId: existingClientId, updatedAt: new Date() })
+      .where(eq(prospects.id, prospectId))
+      .run();
+
+    tx.insert(activityEvents).values({
+      id: randomUUID(),
+      clientId: existingClientId,
+      eventType: "edited",
+      description: "Prospect graduated into this client record",
+      employeeId: user.id,
+      metadata: { source: "prospect_graduation", prospectId },
+    }).run();
+  });
+
+  await recalcHeat(existingClientId);
+  revalidatePath("/prospects");
+  revalidatePath(`/clients/${existingClientId}`);
+}
+
+export async function rejectProspect(prospectId: string): Promise<{ error: string } | undefined> {
+  await requireAuth();
+
+  const prospect = db.select().from(prospects).where(eq(prospects.id, prospectId)).get();
+  if (!prospect) return { error: "Prospect not found" };
+  if (prospect.status !== "active") return { error: "Cannot reject a prospect that is not active" };
+
+  db.update(prospects)
+    .set({ status: "rejected", updatedAt: new Date() })
+    .where(eq(prospects.id, prospectId))
+    .run();
+  revalidatePath("/prospects");
+}
+
+export async function unsubscribeProspect(prospectId: string): Promise<{ error: string } | undefined> {
+  await requireAuth();
+
+  const prospect = db.select().from(prospects).where(eq(prospects.id, prospectId)).get();
+  if (!prospect) return { error: "Prospect not found" };
+  if (prospect.status !== "active") return { error: "Cannot unsubscribe a prospect that is not active" };
+
+  db.transaction((tx) => {
+    tx.update(prospects)
+      .set({ status: "unsubscribed", updatedAt: new Date() })
+      .where(eq(prospects.id, prospectId))
+      .run();
+
+    // Normalized both ways, as in applyUnsubscribeUnchecked — the UNIQUE index
+    // on unsubscribe_list.email is BINARY.
+    const email = normalizeEmail(prospect.email);
+    if (email) {
+      const alreadyUnsub = tx
+        .select({ id: unsubscribeList.id })
+        .from(unsubscribeList)
+        .where(sameEmail(unsubscribeList.email, email))
+        .get();
+      if (!alreadyUnsub) {
+        tx.insert(unsubscribeList).values({
+          id: randomUUID(),
+          email,
+        }).run();
+      }
+    }
+  });
+
+  revalidatePath("/prospects");
+}

@@ -1,0 +1,142 @@
+import { describe, it, expect, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { ClientForm } from "@/components/client-form";
+import type { ClientFormData } from "@/components/client-form";
+import type { ProductOfInterest } from "@/lib/db/schema";
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn() },
+}));
+
+vi.mock("date-fns", () => ({
+  format: vi.fn(() => "Jan 1, 2026"),
+}));
+
+vi.mock("@/components/date-picker", () => ({
+  DatePicker: ({ placeholder }: { placeholder: string }) => (
+    <button>{placeholder}</button>
+  ),
+}));
+
+const baseFormData: ClientFormData = {
+  firstName: "John", lastName: "Doe", phone: "(555) 123-4567", email: "john@test.com",
+  customerId: "", source: "Walk-in", preferredContact: "call", birthday: null, anniversary: null,
+  onEmailList: false, notes: "", tags: ["VIP"],
+};
+
+function createProps(overrides: Record<string, unknown> = {}) {
+  return {
+    formData: baseFormData,
+    productsOfInterest: [{ model: "MV-4123-BLK", collection: null, brand: null, intent: "interested" }] as ProductOfInterest[],
+    onFieldChangeAction: vi.fn(),
+    onProductsChangeAction: vi.fn(),
+    showDuplicateWarning: false,
+    duplicateClient: null,
+    onDismissDuplicateAction: vi.fn(),
+    onEditExistingAction: vi.fn(),
+    isLoading: false,
+    submitLabel: "Create Client",
+    onSubmitAction: vi.fn(),
+    onCancelAction: vi.fn(),
+    ...overrides,
+  };
+}
+
+describe("ClientForm", () => {
+  it("renders Basic Information card", () => {
+    render(<ClientForm {...createProps()} />);
+    expect(screen.getByText("Basic Information")).toBeInTheDocument();
+  });
+
+  it("renders Contact Information card", () => {
+    render(<ClientForm {...createProps()} />);
+    expect(screen.getByText("Contact Information")).toBeInTheDocument();
+  });
+
+  it("renders existing products of interest", () => {
+    render(<ClientForm {...createProps()} />);
+    // Badge renders as "<model> · <Intent>" in the structured editor.
+    expect(screen.getByText(/MV-4123-BLK/)).toBeInTheDocument();
+  });
+
+  it("renders existing tags", () => {
+    render(<ClientForm {...createProps()} />);
+    expect(screen.getByText("VIP")).toBeInTheDocument();
+  });
+
+  it("renders Notes card", () => {
+    render(<ClientForm {...createProps()} />);
+    expect(screen.getByText("Notes (optional)")).toBeInTheDocument();
+  });
+
+  it("renders submit button with submitLabel text", () => {
+    render(<ClientForm {...createProps()} submitLabel="Create Client" />);
+    expect(screen.getByText("Create Client")).toBeInTheDocument();
+  });
+
+  it("shows Saving when isLoading is true", () => {
+    render(<ClientForm {...createProps({ isLoading: true })} />);
+    expect(screen.getByText("Saving...")).toBeInTheDocument();
+  });
+
+  it("calls onFieldChangeAction when first name input changes", async () => {
+    const onFieldChangeAction = vi.fn();
+    const user = userEvent.setup();
+    render(<ClientForm {...createProps({ onFieldChangeAction })} />);
+    const input = screen.getByPlaceholderText("Enter first name");
+    await user.clear(input);
+    await user.type(input, "Jane");
+    expect(onFieldChangeAction).toHaveBeenCalled();
+  });
+
+  it("adds a tag through the picker", async () => {
+    const onFieldChangeAction = vi.fn();
+    const user = userEvent.setup();
+    render(<ClientForm {...createProps({ onFieldChangeAction })} />);
+    await user.click(screen.getByRole("button", { name: /Add a tag/ }));
+    await user.type(screen.getByPlaceholderText("Search or create a tag…"), "new-tag");
+    await user.click(await screen.findByRole("option", { name: /Create/ }));
+    expect(onFieldChangeAction).toHaveBeenCalledWith("tags", [...baseFormData.tags, "new-tag"]);
+  });
+
+  it("shows duplicate warning when enabled", () => {
+    render(
+      <ClientForm
+        {...createProps({
+          showDuplicateWarning: true,
+          duplicateClient: { duplicate: true, ownedByYou: true, id: "dup1", name: "Jane Smith" },
+        })}
+      />
+    );
+    expect(screen.getByText("Potential Duplicate Found")).toBeInTheDocument();
+    expect(screen.getByText(/Jane Smith/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit Existing" })).toBeInTheDocument();
+  });
+
+  it("hides Edit Existing and Merge when the match is not identifiable", () => {
+    render(
+      <ClientForm
+        {...createProps({
+          showDuplicateWarning: true,
+          duplicateClient: { duplicate: true, ownedByYou: false },
+          onMergeWithDuplicateAction: vi.fn(),
+        })}
+      />
+    );
+    expect(screen.getByText("Potential Duplicate Found")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit Existing" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Merge Records" })).not.toBeInTheDocument();
+  });
+
+  it("has no Status field: status changes only through ban / unsubscribe", () => {
+    render(<ClientForm {...createProps()} />);
+    expect(screen.queryByLabelText("Status")).not.toBeInTheDocument();
+    expect(screen.queryByText("Status & Preferences")).not.toBeInTheDocument();
+  });
+
+  it("shows Preferences and Source heading in new mode", () => {
+    render(<ClientForm {...createProps()} />);
+    expect(screen.getByText("Preferences & Source")).toBeInTheDocument();
+  });
+});

@@ -1,0 +1,276 @@
+# Iris
+
+A self-hosted clienteling/CRM web app for retail stores — replaces a spreadsheet workbook with a fast, mobile-friendly Next.js app. **Portfolio demo with synthetic data only.**
+
+## Quick commands
+
+| Action | Command |
+|--------|---------|
+| Install deps | `pnpm install` |
+| Dev server | `pnpm dev` → http://localhost:3000 |
+| Build | `pnpm build` |
+| Start (prod) | `pnpm start` |
+| Lint | `pnpm lint` |
+| Run all tests | `pnpm test` |
+| One test (watch) | `pnpm test:watch` |
+| Push schema → DB | `pnpm db:push` |
+| Seed DB | `pnpm db:seed` |
+| Purge legacy `__tour_demo__` client (one-off, idempotent) | `pnpm exec tsx scripts/purge-tour-demo.ts` |
+
+> `pnpm` is the only supported package manager — `pnpm-lock.yaml` is the sole lockfile. Do not run `npm install`; it creates a divergent `package-lock.json`.
+
+## Tech stack
+
+- **Language:** TypeScript 5 (`strict: true`, `target: ES2022`)
+- **Framework:** Next.js 16 (App Router, React Server Components, Turbopack), React 19
+- **UI:** shadcn/ui (New York style) + Tailwind CSS 4, Radix primitives, lucide icons, sonner toasts
+- **DB:** SQLite via `better-sqlite3`; ORM: Drizzle ORM (`drizzle-kit`)
+- **Auth:** NextAuth.js (Credentials provider, JWT sessions) — needs `NEXTAUTH_SECRET` + `NEXTAUTH_URL`
+- **Forms/validation:** hand-rolled forms validated with zod 4
+- **Charts:** Recharts
+- **Tests:** Vitest 4 + Testing Library + jsdom
+- **Runtime:** Node 20+, path alias `@/*` → project root
+
+## Architecture
+
+- **`app/`** — Next.js App Router. `app/(app)/` is the authenticated layout (sidebar + command palette) with one route per domain (clients, promos, catalog, prospects, analytics, approvals, settings…). `app/api/` = REST routes. `app/login/` = auth.
+- **`lib/`** — shared logic. `lib/actions.ts` is the **server-actions barrel** (re-exports `lib/actions/*`); `lib/db/` = schema, connection, seed, FTS; domain parsers in `lib/` (`promo-import-parser.ts`, `prospect-import-parser.ts`, `catalog-import-parser.ts` on the shared `import-grid.ts` engine — paste/CSV/.xlsx, columns matched by title or A–F order); read queries in `lib/queries.ts`; zod schemas in `lib/validation/`.
+- **`components/`** — React components; `components/ui/` = shadcn primitives; domain groups (`catalog/`, `promo/`, `merge/`, `onboarding/`). `components/data-table/cells.tsx` is the shared cell vocabulary every `<Table>` surface renders through — reach for a renderer there (or add one) instead of hand-writing a `<TableCell>` for money, dates, badges or dash-fallback text.
+- **`__tests__/`** — mirrors source: `unit/` (pure logic), `components/` (incl. `onboarding/`), `api/` (route handlers).
+- **`data/iris.db`** — SQLite file (gitignored); Drizzle migrations in `drizzle/` (gitignored, generated).
+- **`docs/`** — ARCHITECTURE.md, FEATURE-PROPOSALS.md, REST-API-EXPANSION.md.
+
+**Data flow:** client form → zod → server action (`lib/actions/*`) → Drizzle → SQLite. Spreadsheet imports (paste/CSV/.xlsx) go through `components/import/import-source.tsx` → `lib/` parsers, then bulk-insert.
+
+**Every list surface renders through the DataTable engine**
+(`components/data-table/data-table.tsx`), and a list backed by a query is
+server-driven. Clients, catalog, promos and prospects all run with
+`manualSorting` / `manualFiltering` / `manualPagination` + `rowCount` on, over a
+paginated query (`getClientsWithEmployeePaginated`, `listCatalog`, `listPromos`,
+`listProspects`) that filters, sorts and slices in SQL. Search/sort/filter/page
+live in `searchParams`, the page component parses them, and one `navigate()` in
+the content component is the single URL writer — never a `useState` copy of the
+list, and never TanStack's client-side row models. Sort keys are whitelisted
+server-side (index a `Record` of columns; never interpolate a URL value into
+SQL). A new list surface follows the same shape.
+
+Every engine-backed list surface also **remembers its last query**: `navigate()`
+saves the query string it writes under `<surface>:last-search` in
+`sessionStorage` (`clients:`, `promos:`, `prospects:`, `catalog:`), and removes
+it when the string is empty (every filter back to default). The page passes
+`restoreLastSearch={Object.keys(sp).length === 0}`, so only a bare URL visit
+restores, and it does that client-side with one `router.replace` to the saved
+query. The surface's own URL-adoption effect then pulls the query into any draft
+state; the restore never writes draft state itself. Explicit params always win,
+so deep links (palette, stat cards, `?filter=`) are never overridden, and passing
+`restoreLastSearch={false}` opts a caller out. A new list surface with the
+standard shape adopts this; the client-side-mode exceptions below do not.
+
+The analytics **Outreach** tab follows the same contract without the table
+engine: its log is a plain list over `listOutreachLogs` (page/sort in
+`searchParams`, sort keys whitelisted, page clamped), and its method/outcome
+breakdowns are `GROUP BY` counts (`outreachMethodBreakdown`,
+`outreachOutcomeBreakdown`) over the same employee scope and `?from`/`?to`
+range (unix seconds; the "to" picker sends end of day, bound inclusive). Never
+count a distribution in the browser from a limited slice of rows.
+
+The two exceptions are **unsubscribed** and **approvals**, which run the engine
+in client-side mode (`manual*` off, state in `useState`): both read a whole
+bounded set into the browser and then *mutate their own copy* — a resubscribe or
+a review drops the row without a refetch — so there is no server page to sort or
+slice against. Both still pre-filter `data` themselves and reset to page 1 when
+they do. If either grows a query it pages against, it moves to the shape above.
+
+## Conventions
+
+- **Commits:** Conventional Commits — `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`, `test:`, `perf:`. Optional scope in parens: `feat(ux)`, `feat(a11y)`, `fix(onboarding)`, `chore(demo)`, `refactor(ui)`.
+- **Branching:** trunk-based, single `main` branch. Remote is `origin` → https://github.com/xcheljd/iris (private). No PR template — direct commits.
+- **Naming:** components PascalCase, lib/util modules kebab-case. Tests mirror source path under `__tests__/`.
+- **Lint:** ESLint 9 **flat config** (`eslint.config.mjs`) composing
+  `eslint-config-next/core-web-vitals` + `eslint-config-next/typescript`, run as
+  `eslint . --max-warnings 0` over the **whole** repo — 344 files, including `__tests__/`, `hooks/`, `scripts/` and every
+  root config. (`next lint` only covered `app/`, `components/`, `lib/`, `pages/` and `src/`,
+  and is removed in Next.js 16.) Exclusions are the `ignores` block, not `.eslintignore`
+  (unsupported since ESLint 9). Unused vars **must** be prefixed `_` (enforced).
+  - No `root: true` any more, and none needed: flat config loads exactly one config file,
+    found from the working directory upward, so a checkout under `.claude/worktrees/` no
+    longer picks up the parent repo's config and dies on a duplicate `@next/next` plugin.
+  - **ESLint 10 is not usable yet.** `eslint-config-next@16` depends on
+    `eslint-plugin-react@^7.37`, whose newest release (7.37.5) still calls the
+    `context.getFilename()` API that ESLint 10 removed — every lint run crashes with
+    `contextOrFilename.getFilename is not a function`. Revisit when eslint-plugin-react ships
+    an ESLint 10 build.
+  - **`pnpm lint` must report 0 errors and 0 warnings.** `--max-warnings 0` fails the run on
+    any warning, which enforces every rule that is only `warn` upstream (`exhaustive-deps`,
+    `@next/next/no-location-assign-relative-destination`, jsx-a11y, …) without a per-rule
+    policy. The React Compiler rules `react-hooks/set-state-in-effect`,
+    `preserve-manual-memoization`, `static-components`, `immutability`, `refs` and `purity`
+    are set to `error` explicitly, and `linterOptions.reportUnusedDisableDirectives` is
+    `"error"`, so a directive that suppresses nothing fails the run. Fix a finding rather than
+    suppress it. A suppression must be `eslint-disable-next-line <rule> -- <reason>` on the
+    exact line.
+  - **Live suppressions** (keep this list current):
+    - `react-hooks/set-state-in-effect` ×4. `clients-content.tsx`, `prospects-content.tsx` and
+      `promos-content.tsx` adopt a URL query from back/forward or a deep link: the render-phase
+      alternative writes the committed ref during render (`react-hooks/refs`), and ref-based
+      guards caused the pagination bounce documented there. `products-of-interest-input.tsx`
+      autofills brand from two independent triggers (model change, late catalog load);
+      deriving it would overwrite a manager's manual brand.
+    - `react-hooks/exhaustive-deps` ×4, all deliberate dep lists over stable primitives rather
+      than per-render objects: `clients-content.tsx` (the `emailRecipientFilters` memo, keyed
+      on the individual filter fields so the dialogs don't refetch on every render),
+      `promos-content.tsx` (URL adoption keyed on `filters.q/msrpMax/discMin`),
+      `merge-from-form-dialog.tsx` (the form snapshot is stable for an open session; refetch
+      only on id change) and `onboarding-provider.tsx` (load onboarding state once per
+      `sessionStatus` change).
+  - **Dialogs that load data when they open** use `hooks/use-fetch-on-open.ts`
+    (`useFetchOnOpen(open, key, fetcher, onError)`): pass a string `key` naming the request
+    (e.g. `JSON.stringify(filters)`) instead of hand-picking effect deps. It ignores late
+    replies and clears data on failure, so no new `exhaustive-deps` suppression is needed.
+  - The render-time state adjustments in `hooks/use-optimistic.ts` must stay conditional:
+    `react-hooks/set-state-in-render` is an error, and an unconditional set loops.
+- **Styling:** Tailwind 4 is **CSS-first** — there is no `tailwind.config.ts`. Design tokens live
+  in `app/globals.css` in upstream shadcn's shape: each `--token` in `:root`/`.dark` holds a
+  **complete colour** (`--primary: hsl(26.2 15.7% 10.2%)`) and the `@theme inline` block maps
+  it with a bare `var()` (`--color-primary: var(--primary)`). Inline styles and chart configs
+  use `var(--token)` directly; for alpha use `color-mix(in srgb, var(--token) 60%, transparent)`
+  or a Tailwind `/60` modifier. **Never store bare HSL triplets (`26 16% 10%`)**: registry
+  components use `var(--x)` directly, and on a triplet that is invalid CSS, silently dropped
+  (pinned by "theme token shape" in `__tests__/unit/theme-contrast.test.ts`). Animations come
+  from `tw-animate-css` (`@import "tw-animate-css"`, upstream's replacement for
+  `tailwindcss-animate`), dark mode from `@custom-variant`, and `container` is an
+  `@utility`. Source files are auto-detected; `postcss.config.mjs` runs only
+  `@tailwindcss/postcss` (v4 prefixes via Lightning CSS, so autoprefixer is gone).
+- **shadcn components (registry):** `components/ui/` follows current upstream conventions —
+  `cn` comes from shadcn's `cn` package (re-exported by `@/lib/utils`, so either import works)
+  and Radix comes from the single `radix-ui` package (`import { Dialog as DialogPrimitive }
+  from "radix-ui"`), never the per-package `@radix-ui/react-*` imports. New components
+  install untouched:
+  1. `npx shadcn@latest add <name> --dry-run` — confirm it only *creates* files and adds no
+     dependency beyond `cn`/`radix-ui`/`lucide-react`. Any `overwrite` line means it would
+     replace an adapted file: stop.
+  2. `npx shadcn@latest add <name> --diff` to read the code, then `add <name>` without flags.
+  3. Check `package.json` / `pnpm-workspace.yaml` are unchanged (a registry item can bump
+     `radix-ui` past pnpm's `minimumReleaseAge`; never accept an exclusion list for that), then
+     run the four gates.
+  - **Never `--overwrite`.** Adapted files carry local changes: `button.tsx` (the `gold`
+    variant), the solid 3px focus ring (`focus-visible:ring-[3px] ring-ring`; upstream uses
+    the fainter `ring-ring/50`, ~2:1 contrast, below WCAG's 3:1), `dialog.tsx` (mobile inset +
+    `max-h` dvh). To refresh one,
+    use `add <name> --diff` and merge by hand, keeping those changes.
+  - All primitives use upstream's structure (function components + `data-slot`). `table.tsx`
+    and `sidebar.tsx` were installed verbatim from the registry, then given back only the
+    local changes measurement proved necessary (each has a "Local change" comment):
+    table keeps `px-1.5` phone padding and drops `whitespace-nowrap` (pure upstream put the
+    Clients table at 510px in a 364px phone box; ours fits); sidebar keeps the useId-hashed
+    skeleton width (upstream's `Math.random()` fails `react-hooks/purity`). Refresh a component when upstream has a real improvement
+    (a11y, bug fix, behaviour), not for cosmetic churn; visible changes get before/after
+    screenshots before they ship. `data-slot` makes upstream's `in-data-[slot=…]` /
+    `has-data-[slot=…]` selectors live (e.g. the calendar is transparent inside a popover).
+- **Validation (zod 4):** use the top-level format schemas — `z.email()`, `z.uuid()`,
+  `z.iso.date()` — not `z.string().email()/.uuid()/.date()`. Custom messages go in the `error`
+  option (`z.enum(V, { error: () => "…" })`); `errorMap` is gone. Issue codes are plain strings
+  (`ctx.addIssue({ code: "custom" })`), and there is no `z.ZodIssueCode`. Read failures off
+  `error.issues`, never `error.errors`.
+  - The REST routes return `parsed.error.flatten().fieldErrors` as their `details` payload.
+    That is a response contract; `.flatten()` is deprecated in zod 4, so
+    `__tests__/unit/validation-error-shape.test.ts` pins the shape — keep it passing or migrate
+    the routes to `z.flattenError()` and update it deliberately.
+- **Page auth:** a page loader that scopes data by employee starts with
+  `const session = await requirePageSession()` (`lib/auth.ts`) and derives scope as
+  `isManager ? undefined : session.user.id` — never `session?.user?.id ?? undefined`, which
+  turns a dead session (deactivated employee: middleware passes the signed JWT, `getSession()`
+  returns null) into the unscoped manager view. `__tests__/app/page-auth-gate.test.tsx` runs
+  every scoped loader with no session; add a new scoped page to its list.
+- **Email suppression:** any query that produces people to email or promo-contact applies
+  `notSuppressed(emailCol)` from `lib/suppression.ts` (unsubscribe list + banned emails,
+  case-insensitive), and any write that can set `onEmailList` checks `isEmailSuppressed()`.
+- **Usernames:** stored as typed (no folding on write), but login (`lib/auth.ts`) and recover
+  (`app/api/recover/route.ts`) match them case-insensitively with
+  `lower(username) = lower(?)` (SQLite `lower()` folds ASCII only). That is only unambiguous
+  because uniqueness is case-insensitive too (`usernameTaken` in `lib/actions/employees.ts`), so no two
+  employees differ only by case. A lost create race hits the column's UNIQUE constraint and
+  maps to "Username already taken".
+- **Assigning clients:** any write that hands clients to an employee (transfer, bulk reassign,
+  deactivate→reassign) checks the target with `assertAssignableEmployee()` (`lib/actions/_shared.ts`).
+  The target must exist, be active, and not be soft-deleted.
+- **Duplicate matches:** never echo a matched client row. Return `toDuplicateResult()` from
+  `lib/duplicate-client.ts` — `{ duplicate, ownedByYou, id?, name? }`, with `id`/`name` only for
+  the owner or a manager.
+- **Heat scoring:** computed in exactly one place — `lib/heat-score.ts` (`calcHeatScore`).
+  Seeds, migrations and tests call it; nothing reimplements the rules inline. Any write that
+  changes a scored field (create, edit, status, email list, graduation) calls `recalcHeat(id)`
+  (`lib/heat-recalc.ts` — deliberately *not* in `lib/actions/`, since every export of a
+  `"use server"` module is a callable endpoint and it has no auth check); the time-based parts
+  are re-applied by `recalcAllHeatDaily()` (same file), run
+  from the dashboard loader and gated by the `last_heat_recalc` row in the `meta` table
+  (`lib/db/meta.ts`; created at boot by `ensureMetaTable`, so no `db:push` needed). The seed is
+  deterministic (mulberry32 PRNG, override with `SEED=<n>`) — do not reintroduce
+  `Math.random()` jitter.
+
+## Testing
+
+- **Runner:** Vitest (jsdom, `globals: true`), setup at `__tests__/setup.ts`.
+- **Layout:** `__tests__/unit/`, `__tests__/components/`, `__tests__/api/`. Files: `*.test.ts(x)`.
+- **`fileParallelism: false`** — tests share one SQLite DB; do not enable parallelism.
+- **Coverage target:** 70-80% floor. Many unit + component tests; few integration.
+- **Ownership-sensitive tests must create their own client.** `__tests__/setup.ts` inserts the
+  shared fixture client (`e18e3ba8-…`) owned by the **associate** (`590628cf-…`), so it cannot
+  stand in for "a client this associate does not own". Insert a client with the owner the test
+  needs and clean it up. Ambient ownership is not a contract — asserting against it makes the
+  test pass or fail on file ordering.
+- **Hardcoded employee IDs must come from `__tests__/setup.ts`**, never invented. `seed.ts`
+  generates random employee UUIDs, and `clients.employee_id` is a FK with `foreign_keys = ON`,
+  so an unknown id makes writes throw — which bulk helpers swallow into `ok: 0`.
+
+## Do
+
+- Run `pnpm test` (and lint) before declaring a change done.
+- Add a regression test for every bug fix.
+- The sample store is a fictional sunglasses shop (Sol & Shade Eyewear). Iris itself sells nothing in particular: screens say "item", and nothing in code or copy assumes one kind of product.
+- Keep **all** data synthetic — the sample brands (`SAMPLE_BRANDS`: Maravista, Aldermoor, Vellamy, Coastwell, Keelstone) are fictional; never use real names. A store's real brand list lives only in its own database (`brands` table, Settings → Brands) — never hard-code brands in code.
+- Add new server actions under `lib/actions/<domain>.ts` and re-export through `lib/actions.ts`.
+- Validate inputs with zod schemas in `lib/validation/`.
+
+## Don't
+
+- Don't commit `.env.local` or any `*.db` / `*.db-*` file.
+- Don't use real customer PII or real brand/catalog data — this is a synthetic demo.
+- Don't hand-edit `drizzle/` migrations — regenerate from `lib/db/schema.ts` via `pnpm db:push`.
+
+## Gotchas
+
+- **Fresh clone has no DB.** Run `pnpm db:push && pnpm db:seed` first. Default login: `Marcus` / `irisdemo` (shown on login page). This applies to a fresh **git worktree** too — `lib/db/index.ts` resolves `data/iris.db` from `process.cwd()` and `data/` is gitignored, so every DB-touching suite dies with `no such table: clients` until you seed.
+- **Tests use a dedicated database** at `.vitest/iris.db` — created and seeded by `__tests__/global-setup.ts` (`drizzle-kit push` + `seed.ts`) each run. `data/iris.db` (the demo DB, served by `pnpm dev`) is never touched by a test run. `fileParallelism: false` still applies — tests share that one *test* DB.
+- **App icons are generated.** The logo's shapes live in `lib/brand-mark.ts`; `pnpm icons`
+  (`scripts/build-icons.ts`, via `sharp`) rewrites every icon file from them — `app/icon.svg`,
+  `app/favicon.ico`, `app/icon.png`, `app/apple-icon.png`, `public/icon-*`, and
+  `docs/social-preview.png`. Don't hand-edit those files; change the shapes and rerun.
+  New icon paths must also be let through the auth gate in `middleware.ts`.
+- **Turbopack decodes image assets that webpack only copied.** `next build` uses Turbopack by
+  default in Next 16, and it hard-fails on a malformed icon (`app/favicon.ico` had a truncated
+  AND mask and had to be repaired). If a build dies with `unable to decode image data`, the
+  asset is genuinely corrupt — fix the asset, don't reach for `--webpack`.
+- **`middleware.ts` is deprecated in favour of `proxy.ts`** (Next 16 prints a warning on every
+  build). Only its `config.matcher` is tested (`__tests__/unit/middleware-matcher.test.ts`, via
+  Next's `unstable_doesMiddlewareMatch`); the handler itself is not (the page loaders' own gate
+  is covered by `__tests__/app/page-auth-gate.test.tsx`), so the rename is deliberately not done
+  yet; do it with `npx @next/codemod@canary middleware-to-proxy .` and add a handler test first.
+- **Headless screenshots lie about sub-pixel text placement.** Playwright's bundled/headless
+  Chromium rounds font ascent/descent and runs at integer DPR; real Brave/Chrome on the KDE
+  desktop runs at DPR 1.05 and placed corner-badge digits ~1px high where headless said
+  centered. Verify vertical alignment in a headed real browser (`executablePath: "/opt/brave-bin/brave"`,
+  `viewport: null`, no `setViewportSize` — that emulates DPR 1 and adds a zoom). Prototype with
+  inline styles: injected arbitrary Tailwind classes not already in the compiled CSS are no-ops.
+- **WAL grows.** `data/iris.db-wal` can balloon during heavy test/dev runs; checkpoint or delete WAL/SHM while the server is stopped.
+- **NextAuth requires env vars** in `.env.local` (`NEXTAUTH_SECRET`, `NEXTAUTH_URL`) or auth fails at runtime.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

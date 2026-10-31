@@ -1,0 +1,143 @@
+import { withAuth } from "@/lib/api-helpers";
+import { db } from "@/lib/db";
+import { clients, activityEvents } from "@/lib/db/schema";
+import { and, eq, desc, notInArray } from "drizzle-orm";
+import { randomUUID } from "crypto";
+import { revalidatePath } from "next/cache";
+import { clientCreateSchema, clientPatchSchema } from "@/lib/validation/client";
+import { saveClientEdits } from "@/lib/actions/clients";
+import { recalcHeat } from "@/lib/heat-recalc";
+import { findDuplicateClient, toDuplicateResult } from "@/lib/duplicate-client";
+import { recordProductsOfInterest } from "@/lib/actions/model-catalog";
+import { rematchClientPromos } from "@/lib/promo-match";
+import { isEmailSuppressed } from "@/lib/suppression";
+import { canonicalizeTags, syncTagUsage } from "@/lib/tag-registry";
+
+// GET /api/clients — list all clients
+export const GET = withAuth(async (session, request: Request) => {
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
+
+  if (id) {
+    const client = db.select().from(clients).where(eq(clients.id, id)).get();
+    // 404 rather than 403 for a foreign client — a 403 would confirm the id exists.
+    if (!client || (session.user.role !== "manager" && client.employeeId !== session.user.id)) {
+      return Response.json({ error: "Client not found" }, { status: 404 });
+    }
+    return Response.json(client);
+  }
+
+  const pageSize = Math.min(parseInt(searchParams.get("limit") ?? "500", 10) || 500, 500);
+  const pageOffset = Math.max(parseInt(searchParams.get("offset") ?? "0", 10) || 0, 0);
+  // Same ownership scope as the clients page: managers see the whole ledger,
+  // associates only their own book. Without this an associate could enumerate
+  // every client here despite `?id=` and `/[id]` being scoped.
+  const ownerFilter = session.user.role === "manager" ? undefined : eq(clients.employeeId, session.user.id);
+  const all = db.select().from(clients).where(and(notInArray(clients.status, ["banned", "deleted"]), ownerFilter)).orderBy(desc(clients.heatScore)).limit(pageSize).offset(pageOffset).all();
+  return Response.json(all);
+});
+
+// POST /api/clients — create a new client
+export const POST = withAuth(async (session, request: Request) => {
+  try {
+    const body = await request.json();
+    const parsed = clientCreateSchema.safeParse(body);
+    if (!parsed.success) {
+      return Response.json(
+        { error: "Invalid request", details: parsed.error.flatten().fieldErrors },
+        { status: 400 },
+      );
+    }
+    const data = parsed.data;
+    const id = randomUUID();
+
+    // Contact details only: two people genuinely can share a name, so the
+    // hard gate does not block on one — that stays a pre-submit warning.
+    const existing = findDuplicateClient({ email: data.email, phone: data.phone });
+
+    // An explicit override lets a shared household phone/email through, but
+    // never past a banned match — that would be a way round the ban.
+    if (existing && !(data.allowDuplicate && existing.status !== "banned")) {
+      // Owner-safe shape, never the matched row: the old response returned the
+      // entire client — soft-deleted ones included, not owner-scoped — so an
+      // associate could be handed another associate's record by guessing an
+      // email or phone.
+      return Response.json({ error: "Duplicate found", ...toDuplicateResult(existing, session.user) }, { status: 409 });
+    }
+
+    const newTags = canonicalizeTags(data.tags);
+    db.insert(clients).values({
+      id,
+      firstName: data.firstName,
+      lastName: data.lastName ?? null,
+      phone: data.phone ?? null,
+      email: data.email ?? null,
+      customerId: data.customerId ?? null,
+      productsOfInterest: data.productsOfInterest,
+      notes: data.notes ?? null,
+      preferredContact: data.preferredContact,
+      // A banned or unsubscribed address never goes back on the list.
+      onEmailList: data.onEmailList && !isEmailSuppressed(data.email),
+      source: data.source,
+      birthday: data.birthday ?? null,
+      anniversary: data.anniversary ?? null,
+      tags: newTags,
+      employeeId: session.user.id,
+    }).run();
+    // Register the new client's tags so they show up as suggestions.
+    syncTagUsage([], newTags);
+
+    // Feed the durable catalog from the new client's interests — an
+    // uncatalogued model becomes a provisional needs-review row.
+    recordProductsOfInterest(db, data.productsOfInterest);
+    // Match the new client against the promos running now.
+    db.transaction((tx) => rematchClientPromos(tx, [id]));
+
+    db.insert(activityEvents).values({
+      id: randomUUID(),
+      clientId: id,
+      eventType: "created",
+      description: `Client added`,
+      employeeId: session.user.id,
+    }).run();
+
+    await recalcHeat(id);
+    revalidatePath("/clients");
+    return Response.json({ id });
+  } catch (_error) {
+    return Response.json({ error: "Failed to create client" }, { status: 500 });
+  }
+});
+
+// PUT /api/clients — update a client
+export const PUT = withAuth(async (session, request: Request) => {
+  try {
+    const body = await request.json();
+    const { id, ...rest } = body;
+
+    if (!id || typeof id !== "string") {
+      return Response.json({ error: "Client ID is required" }, { status: 400 });
+    }
+
+    const client = db.select().from(clients).where(eq(clients.id, id)).get();
+    // 404 rather than 403 for a foreign client — same anti-existence-leak
+    // posture as GET; a 403 would confirm the id is a real client.
+    if (!client || (session.user.role !== "manager" && client.employeeId !== session.user.id)) {
+      return Response.json({ error: "Client not found" }, { status: 404 });
+    }
+
+    const parsed = clientPatchSchema.safeParse(rest);
+    if (!parsed.success) {
+      return Response.json(
+        { error: "Invalid request", details: parsed.error.flatten().fieldErrors },
+        { status: 400 },
+      );
+    }
+
+    const result = await saveClientEdits(id, parsed.data);
+    if (result?.error) return Response.json({ error: result.error }, { status: 403 });
+    return Response.json({ success: true });
+  } catch (_error) {
+    return Response.json({ error: "Failed to update client" }, { status: 500 });
+  }
+});
